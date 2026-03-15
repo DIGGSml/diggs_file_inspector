@@ -1,0 +1,430 @@
+<attributeGroup name="SRSReferenceGroup">
+    <annotation>
+        <documentation>The attribute group SRSReferenceGroup is an optional reference to the CRS used
+        by this geometry, with optional additional information to simplify the processing of the
+        coordinates when a more complete definition of the CRS is not needed. In general the
+        attribute srsName points to a CRS instance of gml:AbstractCoordinateReferenceSystem. For
+        well-known references it is not required that the CRS description exists at the location the
+        URI points to. If no srsName attribute is given, the CRS shall be specified as part of the
+        larger context this geometry element is part of.</documentation>
+    </annotation>
+    <attribute name="srsName" type="anyURI"/>
+    <attribute name="srsDimension" type="positiveInteger"/>
+    <attributeGroup ref="gml:SRSInformationGroup"/>
+</attributeGroup>
+
+<attributeGroup name="SRSInformationGroup">
+    <annotation>
+        <documentation>The attributes uomLabels and axisLabels, defined in the SRSInformationGroup
+        attribute group, are optional additional and redundant information for a CRS to simplify the
+        processing of the coordinate values when a more complete definition of the CRS is not
+        needed. This information shall be the same as included in the complete definition of the
+        CRS, referenced by the srsName attribute. When the srsName attribute is included, either
+        both or neither of the axisLabels and uomLabels attributes shall be included. When the
+        srsName attribute is omitted, both of these attributes shall be omitted. The attribute
+        axisLabels is an ordered list of labels for all the axes of this CRS. The gml:axisAbbrev
+        value should be used for these axis labels, after spaces and forbidden characters are
+        removed. When the srsName attribute is included, this attribute is optional. When the
+        srsName attribute is omitted, this attribute shall also be omitted. The attribute uomLabels
+        is an ordered list of unit of measure (uom) labels for all the axes of this CRS. The value
+        of the string in the gml:catalogSymbol should be used for this uom labels, after spaces and
+        forbidden characters are removed. When the axisLabels attribute is included, this attribute
+        shall also be included. When the axisLabels attribute is omitted, this attribute shall also
+        be omitted.</documentation>
+    </annotation>
+    <attribute name="axisLabels" type="gml:NCNameList"/>
+    <attribute name="uomLabels" type="gml:NCNameList"/>
+</attributeGroup>
+
+
+<complexType name="AbstractGeometryType" abstract="true">
+    <annotation>
+        <documentation>Base type for all DIGGS geometry objects. DIGGS geometry is based on GML
+                (Geography Markup Language) geometry but restricted to a simplified subset
+                appropriate for geotechnical and geoenvironmental applications. This abstract type
+                is the root of the DIGGS geometry hierarchy and ensures compatibility with GML while
+                providing geotechnical-specific geometric representations for sampling features,
+                locations, and spatial relationships.</documentation>
+    </annotation>
+    <complexContent>
+        <restriction base="gml:AbstractGeometryType">
+            <sequence>
+                <element ref="gml:description" minOccurs="0"/>
+            </sequence>
+            <attribute ref="gml:id" use="required"/>
+        </restriction>
+    </complexContent>
+</complexType>
+
+<complexType abstract="true" name="AbstractGeometricAggregateType">
+    <annotation>
+        <documentation>Base type for geometry aggregates - collections of geometric primitives
+                that together represent a single geometric concept. Aggregates allow representation
+                of complex geometries (e.g., multi-part features, discontinuous sampling areas)
+                while maintaining individual geometric elements. Common examples include MultiPoint
+                (for multiple discrete sampling locations), MultiCurve (for non-contiguous linear
+                features), and MultiSurface (for multiple surface areas representing a single
+                feature).</documentation>
+    </annotation>
+    <complexContent>
+        <extension base="diggs:AbstractGeometryType"> </extension>
+    </complexContent>
+</complexType>
+
+<complexType name="MultiPointLocationType">
+    <annotation>
+        <documentation>Geometry type for collections of point locations. Extends
+                AbstractGeometricAggregateType with a posList and optional uncertainty. Used for
+                representing multiple related point locations efficiently.</documentation>
+    </annotation>
+    <complexContent>
+        <extension base="diggs:AbstractGeometricAggregateType">
+            <sequence>
+                <element ref="gml:posList"/>
+                <element minOccurs="0" name="uncertainty"
+                    type="diggs:LocationUncertaintyPropertyType">
+                    <annotation>
+                        <documentation>The uncertainty property.</documentation>
+                    </annotation>
+                </element>
+            </sequence>
+        </extension>
+    </complexContent>
+</complexType>
+
+<complexType abstract="true" name="AbstractGeometricPrimitiveType">
+    <annotation>
+        <documentation>diggs:AbstractGeometricPrimitiveType is the abstract root type of the
+                geometric primitives. A geometric primitive is a geometric object that is not
+                decomposed further into other primitives in the system. All primitives are oriented
+                in the direction implied by the sequence of their coordinate tuples.</documentation>
+    </annotation>
+    <complexContent>
+        <extension base="diggs:AbstractGeometryType"/>
+    </complexContent>
+</complexType>
+
+<complexType name="PointLocationType">
+    <annotation>
+        <documentation>Complex type: PointType</documentation>
+    </annotation>
+    <complexContent>
+        <extension base="diggs:AbstractGeometricPrimitiveType">
+            <sequence>
+                <choice>
+                    <element ref="gml:pos"/>
+                </choice>
+                <element minOccurs="0" name="uncertainty"
+                    type="diggs:LocationUncertaintyPropertyType">
+                    <annotation>
+                        <documentation>Provides accuracy information for the
+                                referencePoint.</documentation>
+                    </annotation>
+                </element>
+            </sequence>
+        </extension>
+    </complexContent>
+</complexType>
+
+<complexType name="LinearExtentType">
+    <annotation>
+        <documentation> Type definition for LinearExtent, implementing ISO 19148:2021 §6.3
+                Linear Element concept. Extends AbstractCurveType to provide a linear geometric
+                primitive with: - Ordered coordinate list (gml:posList) - Optional datum reference
+                for vertical/depth coordinates - Optional anchor points for geometric calibration -
+                Optional uncertainty information </documentation>
+    </annotation>
+    <complexContent>
+        <extension base="diggs:AbstractCurveType">
+            <sequence>
+                <choice>
+                    <element ref="gml:posList"/>
+                </choice>
+                <element minOccurs="0" name="datumReference" type="diggs:ReferentTypeEnumType">
+                    <annotation>
+                        <documentation> The type of local or permanent reference datum for
+                                vertical gravity-based (i.e., elevation and vertical depth) and
+                                measured depth coordinates within the context of a borehole or well.
+                                Includes terminology from eml:WellboreDatumReference. The datum is
+                                associated with the origin (first point) of the linear extent.
+                                Common values: groundSurface, kellyBushing, rotaryBushing,
+                                meanSeaLevel, seafloor, etc. </documentation>
+                    </annotation>
+                </element>
+                <element maxOccurs="unbounded" minOccurs="0" name="anchorPoint"
+                    type="diggs:ReferentPropertyType">
+                    <annotation>
+                        <documentation> Calibration points that relate measure values to
+                                geometric positions for this specific LinearElement. Used only when:
+                                1. Core stretch/compression - Physical core length differs from
+                                measured depth (anchor at top and bottom enables scaling) 2. Survey
+                                corrections - Downhole surveys or GPS waypoints provide control
+                                points for geometry adjustment 3. Interpolative positioning - When
+                                measures cannot be directly computed from centerline geometry For
+                                standard DIGGS usage where measures are computed by interpolating
+                                along the LinearExtent geometry, anchor points are NOT needed - the
+                                geometry itself provides the spatial framework. However, for linear
+                                element definitions where the length of the linear element does not
+                                correspond to that determined from the coordinates (such as with
+                                expanded or compressed core samples), these calibration points
+                                provide a means for calculating true positions from those referenced
+                                by the LRS. </documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" name="startValue" type="diggs:LengthMeasureType">
+                    <annotation>
+                        <documentation>Where the linear element represented by this object is
+                                linearly referenced, startValue represents the measure value at the
+                                start of the linear element. Defaults to 0 in the uom of the linear
+                                referencing method if omitted.</documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" name="uncertainty"
+                    type="diggs:LocationUncertaintyPropertyType">
+                    <annotation>
+                        <documentation> Uncertainty information for the geometric positions
+                                along this LinearExtent. Applicable when the spatial coordinates
+                                have known measurement uncertainty. </documentation>
+                    </annotation>
+                </element>
+            </sequence>
+        </extension>
+    </complexContent>
+</complexType>
+
+<complexType name="MultiCurveType">
+    <annotation>
+        <documentation>Extended type based on AbstractGeometricAggregateType. Adds elements for
+                multi curve type definition.</documentation>
+    </annotation>
+    <complexContent>
+        <extension base="diggs:AbstractCurveType">
+            <sequence>
+                <element maxOccurs="1" minOccurs="0" ref="diggs:curveMembers"/>
+            </sequence>
+        </extension>
+    </complexContent>
+</complexType>
+
+<complexType abstract="true" name="AbstractVolumeType">
+    <annotation>
+        <documentation>diggs:AbstractSolidType is an abstraction of a solid to support the
+                different levels of complexity. The solid may always be viewed as a geometric
+                primitive, i.e. is continuous.</documentation>
+    </annotation>
+    <complexContent>
+        <extension base="diggs:AbstractGeometricPrimitiveType">
+            <sequence>
+                <element minOccurs="0" name="exterior" type="diggs:ShellPropertyType">
+                    <annotation>
+                        <documentation>The exterior boundary surface of the volume. Defines the
+                                outer shell that encloses the three-dimensional feature. For solid
+                                volumes, this is the only boundary surface needed.</documentation>
+                    </annotation>
+                </element>
+                <element maxOccurs="unbounded" minOccurs="0" name="interior"
+                    type="diggs:ShellPropertyType">
+                    <annotation>
+                        <documentation>Interior boundary surfaces (voids or holes) within the
+                                volume. Defines hollow spaces or cavities inside the
+                                three-dimensional feature. Multiple interior boundaries can be
+                                specified for complex geometries with multiple voids. Optional - not
+                                needed for solid volumes without internal voids.</documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" name="uncertainty" type="diggs:UncertaintyPropertyType"/>
+            </sequence>
+        </extension>
+    </complexContent>
+</complexType>
+
+<complexType name="SolidType">
+    <annotation>
+        <documentation>Concrete type extending AbstractVolumeType. Provides implementation for
+                solid type.</documentation>
+    </annotation>
+    <complexContent>
+        <extension base="diggs:AbstractVolumeType"> </extension>
+    </complexContent>
+</complexType>
+
+<complexType name="GridType">
+    <annotation>
+        <documentation>Extended type based on AbstractGeometryType. Adds elements for grid type
+                definition.</documentation>
+    </annotation>
+    <complexContent>
+        <extension base="diggs:AbstractGeometryType">
+            <sequence>
+                <element name="limits" type="gml:GridLimitsType">
+                    <annotation>
+                        <documentation>The limits property.</documentation>
+                    </annotation>
+                </element>
+                <choice>
+                    <element name="axisLabels" type="gml:NCNameList">
+                        <annotation>
+                            <documentation>The axis labels property.</documentation>
+                        </annotation>
+                    </element>
+                    <element maxOccurs="unbounded" name="axisName" type="string">
+                        <annotation>
+                            <documentation>Name of the axis.</documentation>
+                        </annotation>
+                    </element>
+                </choice>
+            </sequence>
+            <attribute name="dimension" type="positiveInteger" use="required">
+                <annotation>
+                    <documentation>The dimension attribute.</documentation>
+                </annotation>
+            </attribute>
+        </extension>
+    </complexContent>
+</complexType>
+
+<complexType name="RectifiedGridType">
+    <annotation>
+        <documentation>Extended type based on GridType. Adds elements for rectified grid type
+                definition.</documentation>
+    </annotation>
+    <complexContent>
+        <extension base="diggs:GridType">
+            <sequence>
+                <element name="origin" type="diggs:PointLocationPropertyType">
+                    <annotation>
+                        <documentation>The origin property.</documentation>
+                    </annotation>
+                </element>
+                <element maxOccurs="unbounded" name="offsetVector" type="gml:VectorType">
+                    <annotation>
+                        <documentation>The offset vector property.</documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" name="uncertainty"
+                    type="diggs:LocationUncertaintyPropertyType">
+                    <annotation>
+                        <documentation>The uncertainty property.</documentation>
+                    </annotation>
+                </element>
+            </sequence>
+        </extension>
+    </complexContent>
+</complexType>
+
+<complexType name="PlanarObservationRepresentationType">
+    <annotation>
+        <documentation>Extended type based on AbstractGeometryType. Adds elements for planar
+                observation representation type definition.</documentation>
+    </annotation>
+    <complexContent>
+        <extension base="diggs:AbstractGeometryType">
+            <sequence>
+                <element name="layerTopIntersection" type="diggs:LinearExtentPropertyType">
+                    <annotation>
+                        <documentation>The line that represents the intersection of the top
+                                surface of a volume of earth material or othrewise) with a planar
+                                sampling feature.</documentation>
+                    </annotation>
+                </element>
+                <element name="layerBaseIntersection" type="diggs:LinearExtentPropertyType">
+                    <annotation>
+                        <documentation>The location of the basal surface of a layer (a volume of
+                                earth material) that intersects a planar sampling feature. Depending
+                                on how a planar sampling feature is encoded, there could be multiple
+                                line strings that define this basal surface.</documentation>
+                    </annotation>
+                </element>
+                <element maxOccurs="unbounded" name="representativeSurface"
+                    type="diggs:SurfacePropertyType">
+                    <annotation>
+                        <documentation>One or more polygons that represent the layer volume in
+                                the plane of the planar sampling feature. This would typically be a
+                                ring polygon with curve members that consist of the layer top
+                                intersection, layer bottom intersection, and two edges that would
+                                normally be at the lateral extent of the planar
+                                feature.</documentation>
+                    </annotation>
+                </element>
+            </sequence>
+        </extension>
+    </complexContent>
+</complexType>
+
+<complexType name="PlanarSurfaceBaseType">
+    <complexContent>
+        <restriction base="gml:AbstractSurfaceType"> </restriction>
+    </complexContent>
+</complexType>
+
+<complexType name="PlanarSurfaceType">
+    <annotation>
+        <documentation>Extended type based on AbstractSurfaceType. Adds elements for polygon
+                type definition.</documentation>
+    </annotation>
+    <complexContent>
+        <extension base="diggs:PlanarSurfaceBaseType">
+            <sequence>
+                <element minOccurs="0" ref="gml:exterior"/>
+                <element maxOccurs="unbounded" minOccurs="0" ref="gml:interior"/>
+                <element minOccurs="0" name="uncertainty"
+                    type="diggs:LocationUncertaintyPropertyType">
+                    <annotation>
+                        <documentation>The uncertainty property.</documentation>
+                    </annotation>
+                </element>
+            </sequence>
+        </extension>
+    </complexContent>
+</complexType>
+
+<complexType name="MultiPlanarSurfaceBaseType">
+    <complexContent>
+        <restriction base="gml:AbstractSurfaceType"/>
+    </complexContent>
+</complexType>
+
+<complexType name="MultiPlanarSurfaceType">
+    <annotation>
+        <documentation>Extended type based on AbstractSurfaceType. Adds elements for multi
+                planar surface type definition.</documentation>
+    </annotation>
+    <complexContent>
+        <extension base="diggs:MultiPlanarSurfaceBaseType">
+            <sequence>
+                <element ref="gml:patches"/>
+            </sequence>
+        </extension>
+    </complexContent>
+</complexType>
+
+<complexType name="PlanarSurfacePatchType">
+    <annotation>
+        <documentation>Extended type based on AbstractSurfacePatchType. Adds elements for
+                polygon patch type definition.</documentation>
+    </annotation>
+    <complexContent>
+        <extension base="gml:AbstractSurfacePatchType">
+            <sequence>
+                <element minOccurs="0" ref="gml:exterior"/>
+                <element maxOccurs="unbounded" minOccurs="0" ref="gml:interior"/>
+                <element minOccurs="0" name="uncertainty" type="diggs:UncertaintyPropertyType">
+                    <annotation>
+                        <documentation>The uncertainty property.</documentation>
+                    </annotation>
+                </element>
+            </sequence>
+            <attribute fixed="planar" name="interpolation" type="gml:SurfaceInterpolationType">
+                <annotation>
+                    <documentation>The interpolation attribute.</documentation>
+                </annotation>
+            </attribute>
+        </extension>
+    </complexContent>
+</complexType>
+
+<complexType name="AbstractSurfacePatchType" abstract="true"/>
+
+
+
+
