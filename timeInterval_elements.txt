@@ -1,0 +1,91 @@
+<complexType name="TimeIntervalType">
+    <annotation>
+        <documentation>Complex type: TimeIntervalType</documentation>
+    </annotation>
+    <complexContent>
+        <extension base="diggs:AbstractObjectType">
+            <sequence>
+                <element name="start" type="gml:TimePositionType" maxOccurs="1" minOccurs="1">
+                    <annotation>
+                        <documentation>The date/time that begins the interval</documentation>
+                    </annotation>
+                </element>
+                <element name="end" type="gml:TimePositionType" maxOccurs="1" minOccurs="0">
+                    <annotation>
+                        <documentation>The date/time that ends the interval.</documentation>
+                    </annotation>
+                </element>
+                <element name="duration" type="diggs:TimeMeasureType" maxOccurs="1" minOccurs="0">
+                    <annotation>
+                        <documentation>The duration of time since start.</documentation>
+                    </annotation>
+                </element>
+            </sequence>
+        </extension>
+    </complexContent>
+</complexType>
+
+<complexType name="AbstractObjectType" abstract="true">
+    <annotation>
+        <documentation>Standard base type for DIGGS component objects such as specifications, parameters, and materials.</documentation>
+    </annotation>
+    <complexContent>
+        <extension base="diggs:AbstractObjectBaseType">
+            <sequence>
+                <element maxOccurs="unbounded" minOccurs="0" ref="gml:name"/>
+                <element minOccurs="0" ref="diggs:status">
+                    <annotation>
+                        <documentation>A text string to provide information about the status of
+                                the object to be used to track QA/QC controls, review or release
+                                status, etc. The values used are intended to come from a controlled
+                                list of terms maintained by an organization.</documentation>
+                    </annotation>
+                </element>
+                <element name="remark" type="diggs:RemarkPropertyType" minOccurs="0"
+                    maxOccurs="unbounded">
+                    <annotation>
+                        <documentation>Any comment or remark associated with this specific
+                                feature, the person or organization making the comment, and the time
+                                comment was made.Any comment or remark associated with this specific
+                                feature, the person or organization making the comment, and the time
+                                comment was made.</documentation>
+                    </annotation>
+                </element>
+            </sequence>
+        </extension>
+    </complexContent>
+</complexType>
+
+<complexType name="AbstractObjectBaseType" abstract="true">
+    <annotation>
+        <documentation>Base type for all DIGGS objects, including required gmlid, description and identifier properties. This is the fundamental abstract type for objects (non-feature objects) in DIGGS, that represent supporting information like methods, structures and metadata, rather than primary geotechnical features.</documentation>
+    </annotation>
+    <complexContent>
+        <extension base="diggs:AbstractDiggsType">
+            <sequence>
+                <element ref="gml:description" minOccurs="0"/>
+                <element minOccurs="0" ref="gml:identifier"/>
+            </sequence>
+        </extension>
+    </complexContent>
+</complexType>
+
+<complexType abstract="true" name="AbstractDiggsType">
+    <annotation>
+        <documentation>The root abstract type for all DIGGS objects. This type extends GML's AbstractGMLType but restricts it to require a gml:id attribute. The gml:id serves as a unique identifier for the object within the DIGGS document and enables XML linking and referencing. All DIGGS types that need to be referenced ultimately derive from this base type, ensuring every object in the schema has a unique identifier for cross-referencing and data integrity.</documentation>
+    </annotation>
+    <complexContent>
+        <restriction base="gml:AbstractGMLType">
+            <attribute ref="gml:id" use="required"/>
+        </restriction>
+    </complexContent>
+</complexType>
+
+<!-- gml namespace types -->
+
+<complexType name="AbstractGMLType" abstract="true">
+    <sequence>
+        <group ref="gml:StandardObjectProperties"/>
+    </sequence>
+    <attribute ref="gml:id"/>
+</complexType>
