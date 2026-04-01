@@ -1,0 +1,1680 @@
+<complexType name="AbstractSamplingFeatureType" abstract="true">
+    <annotation>
+        <documentation>Base type for all sampling features where investigations are conducted.</documentation>
+    </annotation>
+    <complexContent>
+        <extension base="diggs:AbstractNamedFeatureType">
+            <sequence>
+                <element ref="diggs:investigationTarget" maxOccurs="unbounded" minOccurs="0"/>
+                <element ref="diggs:projectRef" maxOccurs="unbounded"/>
+                <element minOccurs="0" ref="diggs:originalProjectRef"/>
+                <element maxOccurs="unbounded" minOccurs="0" ref="diggs:associatedProjectRef"/>
+                <element minOccurs="0" ref="diggs:programRef"/>
+                <element maxOccurs="unbounded" minOccurs="0" name="environment"
+                    type="diggs:EnvironmentPropertyType">
+                    <annotation>
+                        <documentation>Reference to an object containing environmental
+                                parameters recorded during construction of the sampling
+                                feature</documentation>
+                    </annotation>
+                </element>
+                <element maxOccurs="unbounded" minOccurs="0" name="otherSamplingFeatureProperty"
+                    type="diggs:ParameterPropertyType">
+                    <annotation>
+                        <documentation>Reference to an Parameter object containing the name,
+                                value or range of values and unit of measure of a property or a
+                                measurement parameter.</documentation>
+                    </annotation>
+                </element>
+                <element name="locality" type="diggs:LocalityPropertyType" minOccurs="0"
+                    maxOccurs="1">
+                    <annotation>
+                        <documentation>A reference to a Locality object, containing
+                                non-coordinate location information for a feature.</documentation>
+                    </annotation>
+                </element>
+                <element name="referencePoint" type="diggs:PointLocationPropertyType" minOccurs="1">
+                    <annotation>
+                        <documentation>Reference to a PointLocation object on the feature that
+                                defines the location of the samplingFeature within a known spatial
+                                3D CRS or compound CRS (geographic or projected 2D CRS, plus a
+                                vertical CRS).</documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" name="localCoordinates"
+                    type="diggs:LocalCoordinatePropertyType">
+                    <annotation>
+                        <documentation>A reference to a LocalCoordinate object that holds the
+                                values of local coordinates for the reference point of the
+                                associated feature. </documentation>
+                    </annotation>
+                </element>
+            </sequence>
+        </extension>
+    </complexContent>
+</complexType>
+
+<complexType name="AbstractLinearSamplingFeatureType" abstract="true">
+    <annotation>
+        <documentation>Base type for sampling features with linear (1D) geometries including
+                boreholes and trenches.</documentation>
+    </annotation>
+    <complexContent>
+        <extension base="diggs:AbstractSamplingFeatureType">
+            <sequence>
+                <element name="centerLine" type="diggs:LinearExtentPropertyType"
+                    maxOccurs="unbounded" minOccurs="1">
+                    <annotation>
+                        <documentation>A reference to a LinearExtent object that represents the
+                                linear geometry of the feature, defining its shape and location. For
+                                a borehole for example, the linestring would represent the
+                                borehole's trajectory in 3D space. Multiple centerlines can be
+                                defined (all associated with the same reference point) to define
+                                complex objects such as a wellbore with sidetracks, or different
+                                reference datums for a single borehole.</documentation>
+                    </annotation>
+                </element>
+                <element name="linearReferencing"
+                    type="diggs:LinearSpatialReferenceSystemPropertyType" minOccurs="0"
+                    maxOccurs="unbounded">
+                    <annotation>
+                        <documentation>A reference to a LinearSpatialReferenceSystem object for
+                                this sampling feature. A linear SRS allows other objects to
+                                reference their position (location) on the sampling feature with 1D
+                                coordinates that represents distance along the linear sampling
+                                feature, typically from the centerline origin. For sampling features
+                                such as boreholes the linear SRS coordinates define measured depths
+                                down the hole's centerline.</documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" name="plunge" type="diggs:PlungeMeasureType">
+                    <annotation>
+                        <documentation>For an inclined feature, the plunge angle, measured from
+                                the horizontal, positive up</documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" name="bearing" type="diggs:BearingMeasureType">
+                    <annotation>
+                        <documentation>For an inclined feature, the direction of plunge,
+                                positive clockwise from the reference azimuth, as expressed in the
+                                refAzimuth attribute.</documentation>
+                    </annotation>
+                </element>
+            </sequence>
+        </extension>
+    </complexContent>
+</complexType>
+
+
+<complexType name="BoreholeType">
+    <annotation>
+        <documentation>Extended type based on AbstractLinearSamplingFeatureType. Adds elements
+                for borehole type definition.</documentation>
+    </annotation>
+    <complexContent>
+        <extension base="diggs:AbstractLinearSamplingFeatureType">
+            <sequence>
+                <element maxOccurs="1" minOccurs="0" name="whenConstructed"
+                    type="diggs:TimeIntervalPropertyType">
+                    <annotation>
+                        <documentation>The period of time when the hole is constructed. This
+                                should include the entire time the drill rig is on
+                                site.</documentation>
+                    </annotation>
+                </element>
+                <element maxOccurs="1" minOccurs="0" name="whenDestroyed"
+                    type="diggs:TimeIntervalPropertyType">
+                    <annotation>
+                        <documentation>The time period during which the hole was destroyed or
+                                forever abandoned. This date must occur after all related
+                                observations, measurements or activities had been performed in the
+                                borehole, and should reflect the time after which no observations or
+                                activities are possible in the hole.</documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" name="totalMeasuredDepth" type="diggs:LengthMeasureType">
+                    <annotation>
+                        <documentation>The measured depth to the bottom of the hole, measured in
+                                a hole's linear referencing system.</documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" ref="diggs:holeBearing"/>
+                <element minOccurs="0" ref="diggs:holePlunge"/>
+                <element maxOccurs="1" minOccurs="0" name="boreholePurpose" type="gml:CodeType">
+                    <annotation>
+                        <documentation>A description of the purpose for drilling the hole (eg.
+                                exploratory boring, monitoring well, etc.). Intended to come from a
+                                controlled list.</documentation>
+                    </annotation>
+                </element>
+                <element maxOccurs="unbounded" minOccurs="0" name="boreholeType" type="gml:CodeType">
+                    <annotation>
+                        <documentation>A description of the type of boring, intended to come
+                                from a controlled lis ot terms. This is intended for use as a
+                                classifier that applications may use to identify types of boreholes
+                                that may require different data storage structures. It should not be
+                                used to describe the borehole construction method. The
+                                BoreholeConstructionMethod object should be used for such
+                                purposes.</documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" name="backfill" type="diggs:BackfillPropertyType"
+                    maxOccurs="unbounded">
+                    <annotation>
+                        <documentation>Information on construction of the borehole backfill
+                                after drilling. Also used to record backfill installed during well
+                                construction or rock grouting activities</documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" name="casing" type="diggs:CasingPropertyType"
+                    maxOccurs="unbounded">
+                    <annotation>
+                        <documentation>Information on the borehole casing installed while
+                                drilling and/or after completion of drilling.</documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" name="constructionMethod"
+                    type="diggs:BoreholeConstructionMethodPropertyType" maxOccurs="unbounded">
+                    <annotation>
+                        <documentation>Information regarding construction of the hole over
+                                different depth intervals</documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" name="constructionEvent"
+                    type="diggs:BoreholeEventPropertyType" maxOccurs="unbounded">
+                    <annotation>
+                        <documentation>Information about events recorded during construction of
+                                the borehole.</documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" maxOccurs="unbounded" ref="diggs:chiseling"/>
+                <element name="drillAdvancement" maxOccurs="unbounded" minOccurs="0"
+                    type="diggs:DrillAdvancementArrayPropertyType">
+                    <annotation>
+                        <documentation>The drill advancement property.</documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" name="flush" type="diggs:FlushPropertyType"
+                    maxOccurs="unbounded">
+                    <annotation>
+                        <documentation>Information related to flushing the borehole with fluid
+                                (eg. fluid type, return, fluid color, etc.) </documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" name="holeDiameter" type="diggs:BoreholeDiameterPropertyType"
+                    maxOccurs="unbounded">
+                    <annotation>
+                        <documentation>Information on the borehole diameter with depth,
+                                generally representing the bit size used within a borehole interval.
+                                Detailed measurements of borehole derived from a caliper log is a
+                                Test property resulting from a Wireline log procedure.
+                            </documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" name="waterStrike" type="diggs:WaterStrikePropertyType"
+                    maxOccurs="unbounded">
+                    <annotation>
+                        <documentation>Information on when ground water is struck during
+                                drilling of the hole.</documentation>
+                    </annotation>
+                </element>
+            </sequence>
+        </extension>
+    </complexContent>
+</complexType>
+
+<complexType name="TimeIntervalPropertyType">
+    <annotation>
+        <documentation>roperty type for containing a TimeInterval object.</documentation>
+    </annotation>
+    <sequence>
+        <element ref="diggs:TimeInterval"/>
+    </sequence>
+</complexType>
+
+<complexType name="BackfillPropertyType">
+    <annotation>
+        <documentation>Property type for backfill references. Used to wrap backfill objects or
+                references in properties.</documentation>
+    </annotation>
+    <sequence>
+        <element minOccurs="1" ref="diggs:Backfill"/>
+    </sequence>
+</complexType>
+
+<element name="Backfill" type="diggs:BackfillType">
+    <annotation>
+        <documentation>An object that contains properites associated with backfilling of a
+                borehole. </documentation>
+    </annotation>
+</element>
+
+<complexType name="BackfillType">
+    <annotation>
+        <documentation>Extended type based on AbstractObjectType. Adds elements for backfill
+                type definition.</documentation>
+    </annotation>
+    <complexContent>
+        <extension base="diggs:AbstractObjectType">
+            <sequence>
+                <element minOccurs="0" name="backfillDateTime" type="diggs:TimeIntervalPropertyType">
+                    <annotation>
+                        <documentation>The date/time interval over which the entire backfilling
+                                operation was conducted. Date/time intervals can also be specified
+                                for the emplacement of individual backfill layers in the
+                                backfillLayers property.</documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" name="backfillLayer" type="diggs:BackfillLayerPropertyType"
+                    maxOccurs="unbounded">
+                    <annotation>
+                        <documentation>The depth intervals where backfill is emplaced. The
+                                backfill intervals should not overlap, nor should there be gaps
+                                between intervals.</documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" name="backfillType" type="diggs:backfillTypeEnumType">
+                    <annotation>
+                        <documentation>A controlled list of terms to indicate what type of
+                                backfilling is described in the object. Choices are: annular space
+                                within borehole - backfilling occurs within the annular space
+                                between the outer casing and the natural borehole wall annular space
+                                between casings - backfilling occurs within the annular space
+                                between nested casings open hole - backfilling occurs within an open
+                                hole within casing - backfilling occurs within the innermost
+                                casing</documentation>
+                    </annotation>
+                </element>
+            </sequence>
+        </extension>
+    </complexContent>
+</complexType>
+
+<complexType name="BackfillLayerPropertyType">
+    <annotation>
+        <documentation>Property type for backfill layer references. Used to wrap backfill layer
+                objects or references in properties.</documentation>
+    </annotation>
+    <sequence>
+        <element maxOccurs="1" minOccurs="1" ref="diggs:BackfillLayer"/>
+    </sequence>
+</complexType>
+
+<element name="BackfillLayer" type="diggs:BackfillLayerType">
+    <annotation>
+        <documentation>An object that carries properties for a layer of backfill
+                material.</documentation>
+    </annotation>
+</element>
+
+<complexType name="BackfillLayerType">
+    <annotation>
+        <documentation>Extended type based on AbstractObjectType. Adds elements for backfill
+                layer type definition.</documentation>
+    </annotation>
+    <complexContent>
+        <extension base="diggs:AbstractObjectType">
+            <sequence>
+                <element minOccurs="0" name="backfillInterval" type="diggs:LinearExtentPropertyType">
+                    <annotation>
+                        <documentation>The depth interval in the borehole (measured in a linear
+                                reference system), where the backfill material was emplaced. If
+                                omitted, it is assumed that the backfill information pertains to the
+                                entire length of the hole</documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" name="whenEmplaced" type="diggs:TimeIntervalPropertyType">
+                    <annotation>
+                        <documentation>Indicates the date/time during which the backfill was
+                                emplaced in this depth interval.</documentation>
+                    </annotation>
+                </element>
+                <element name="backfillMaterial" type="gml:CodeType">
+                    <annotation>
+                        <documentation>The type of material used as backfill (eg. bentonite,
+                                cuttings, sand, etc.). Intended to come from a controlled list
+                                assigned to an authority.</documentation>
+                    </annotation>
+                </element>
+                <element name="isSanitarySeal" type="boolean" minOccurs="0">
+                    <annotation>
+                        <documentation>If true, identifies this backfill layer as a sanitary
+                                seal.</documentation>
+                    </annotation>
+                </element>
+                <element name="backfillVolume" type="diggs:VolumeMeasureType" minOccurs="0">
+                    <annotation>
+                        <documentation>The total valume of backfill material emplaced in this
+                                layer</documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" name="groutingActivityRef" type="diggs:FeatureReferenceType">
+                    <annotation>
+                        <appinfo>diggs:GroutingActivity</appinfo>
+                        <documentation>If pressure and flow rate time series are recorded for
+                                this backfill layer, this information is stored in a grouting
+                                activity feature. This property points to the grouting activity
+                                corresponding to emplacement of this layer</documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" name="groutRef" type="diggs:FeatureReferenceType">
+                    <annotation>
+                        <appinfo>diggs:GroutBatch</appinfo>
+                        <documentation>If information is recorded about components of a Grout
+                                used for backfill or as part of a grouting activity,this property
+                                points to the GroutBatch object corresponding to the grout batch
+                                used in this backfill layer.</documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" name="wellOpeningRef" type="diggs:FeatureReferenceType">
+                    <annotation>
+                        <appinfo>diggs:GroutBatch</appinfo>
+                        <documentation>If information is recorded about components of a Grout
+                                used for backfill or as part of a grouting activity,this property
+                                points to the GroutBatch object corresponding to the grout batch
+                                used in this backfill layer.</documentation>
+                    </annotation>
+                </element>
+            </sequence>
+        </extension>
+    </complexContent>
+</complexType>
+
+<complexType name="CasingPropertyType">
+    <annotation>
+        <documentation>Property type for casing references. Used to wrap casing objects or
+                references in properties.</documentation>
+    </annotation>
+    <sequence>
+        <element maxOccurs="1" minOccurs="1" ref="diggs:Casing"/>
+    </sequence>
+</complexType>
+
+<element name="Casing" type="diggs:CasingType">
+    <annotation>
+        <documentation>An object containing properties pertaining to borehole
+                casing.</documentation>
+    </annotation>
+</element>
+
+<complexType name="CasingType">
+    <annotation>
+        <documentation>Extended type based on AbstractObjectType. Adds elements for casing type
+                definition.</documentation>
+    </annotation>
+    <complexContent>
+        <extension base="diggs:AbstractObjectType">
+            <sequence>
+                <element minOccurs="0" name="casingLocation" type="diggs:LinearExtentPropertyType">
+                    <annotation>
+                        <documentation>The depth interval of the casing after fully installed
+                                and advanced within the borehole. If omitted, it is assumed that the
+                                casing information pertains to the entire length of the borehole or
+                                well.</documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" name="casingOutsideDiameter" type="diggs:LengthMeasureType">
+                    <annotation>
+                        <documentation>The casing outside diameter property.</documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" name="casingInsideDiameter" type="diggs:LengthMeasureType">
+                    <annotation>
+                        <documentation>The casing inside diameter property.</documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" name="casingWallThickness" type="diggs:LengthMeasureType">
+                    <annotation>
+                        <documentation>The casing wall thickness property.</documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" name="casingMaterial" type="gml:CodeType">
+                    <annotation>
+                        <documentation>The material that the casing is made of, eg. PVC,
+                                stainless steel, etc. Intended to come from a controlled list of
+                                terms.</documentation>
+                    </annotation>
+                </element>
+                <element maxOccurs="1" minOccurs="0" name="numberGroutPorts" type="positiveInteger">
+                    <annotation>
+                        <documentation>If casing is an overburden casing as sleeve pipe (OCSP)
+                                or other casing through which grout is injected, this property
+                                records the number of ports in the casing.</documentation>
+                    </annotation>
+                </element>
+                <element maxOccurs="1" minOccurs="0" name="timeCasingInstalled"
+                    type="diggs:TimeIntervalType">
+                    <annotation>
+                        <documentation>The time interval over which the casing was installed
+                            </documentation>
+                    </annotation>
+                </element>
+                <element maxOccurs="1" minOccurs="0" name="timeCasingRemoved"
+                    type="diggs:TimeIntervalType">
+                    <annotation>
+                        <documentation>The time interval during which the casing was removed
+                            </documentation>
+                    </annotation>
+                </element>
+                <element maxOccurs="unbounded" minOccurs="0" name="casingAdvancement"
+                    type="diggs:CasingAdvancementPropertyType">
+                    <annotation>
+                        <documentation>The casing advancement property.</documentation>
+                    </annotation>
+                </element>
+            </sequence>
+        </extension>
+    </complexContent>
+</complexType>
+
+<complexType name="CasingAdvancementPropertyType">
+    <annotation>
+        <documentation>Property type for casing advancement references. Used to wrap casing
+                advancement objects or references in properties.</documentation>
+    </annotation>
+    <sequence>
+        <element ref="diggs:CasingAdvancement" minOccurs="0"/>
+    </sequence>
+    <attributeGroup ref="gml:AssociationAttributeGroup"/>
+    <attributeGroup ref="gml:OwnershipAttributeGroup"/>
+</complexType>
+
+<element name="CasingAdvancement" type="diggs:CasingAdvancementType">
+    <annotation>
+        <documentation>If casing is advanced while drilling, or retracted during an activity,
+                like grouting, this object records the time interval when casing
+                advancement/retraction occurs, along with the start and end position of the casing
+                bottom.</documentation>
+    </annotation>
+</element>
+
+<complexType name="CasingAdvancementType">
+    <annotation>
+        <documentation>Extended type based on AbstractObjectType. Adds elements for casing
+                advancement type definition.</documentation>
+    </annotation>
+    <complexContent>
+        <extension base="diggs:AbstractObjectType">
+            <sequence>
+                <element maxOccurs="1" minOccurs="0" name="advancementTime"
+                    type="diggs:TimeIntervalPropertyType">
+                    <annotation>
+                        <documentation>Time at start and end of the casing advancement
+                                interval</documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" name="casingBaseAtStart"
+                    type="diggs:PointLocationPropertyType">
+                    <annotation>
+                        <documentation>The location of the bottom at the casing at the beginning
+                                of the casing interval.</documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" name="casingBaseAtEnd" type="diggs:PointLocationPropertyType">
+                    <annotation>
+                        <documentation>The location of the bottom at the casing at the end of
+                                the casing advancement interval.</documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" name="casingBlows" type="positiveInteger">
+                    <annotation>
+                        <documentation>If casing is driven, the number of blows to drive the
+                                casing the reported distance. Details about the process should be
+                                reported in the relevant equipment or construction method
+                                object.</documentation>
+                    </annotation>
+                </element>
+            </sequence>
+        </extension>
+    </complexContent>
+</complexType>
+
+<complexType name="BoreholeConstructionMethodPropertyType">
+    <annotation>
+        <documentation>Property type for borehole construction method references. Used to wrap
+                borehole construction method objects or references in properties.</documentation>
+    </annotation>
+    <sequence>
+        <element maxOccurs="1" minOccurs="1" ref="diggs:BoreholeConstructionMethod"/>
+    </sequence>
+</complexType>
+
+<element name="BoreholeConstructionMethod" type="diggs:BoreholeConstructionMethodType">
+    <annotation>
+        <documentation>An object that contains properties of borehole
+                construction.</documentation>
+    </annotation>
+</element>
+
+<complexType name="BoreholeConstructionMethodType">
+    <annotation>
+        <documentation>Extended type based on AbstractNamedRoleObjectType. Adds elements for
+                borehole construction method type definition.</documentation>
+    </annotation>
+    <complexContent>
+        <extension base="diggs:AbstractNamedRoleObjectType">
+            <sequence>
+                <element minOccurs="0" ref="diggs:location">
+                    <annotation>
+                        <documentation>The location within the sampling feature that corresponds
+                                to the particular construction method being referenced here. If
+                                omitted, it is assumed that the procedures specified apply to the
+                                entire extent of the sampling feature</documentation>
+                    </annotation>
+                </element>
+                <element maxOccurs="1" minOccurs="0" name="methodTime"
+                    type="diggs:TimeIntervalPropertyType">
+                    <annotation>
+                        <documentation>The period of time during which the construction event is
+                                occurring</documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" name="holeStability" type="string">
+                    <annotation>
+                        <documentation>Uncontrolled string describing stability conditions of
+                                the hole during this interval</documentation>
+                    </annotation>
+                </element>
+                <element name="constructionMethod" type="diggs:SpecificationPropertyType"
+                    maxOccurs="unbounded" minOccurs="0">
+                    <annotation>
+                        <documentation>Contains a Specification object that may be used to
+                                describe any details regarding the method of construction. It should
+                                not be used to simply provide a name for the construction method.
+                                That value should be entered in the gml:name property for this
+                                object.</documentation>
+                    </annotation>
+                </element>
+                <element name="constructionEquipment" type="diggs:EquipmentPropertyType"
+                    maxOccurs="unbounded" minOccurs="0">
+                    <annotation>
+                        <documentation>A property element that contains an Equipment feature (or
+                                reference to one) that details the construction equipment
+                                used.</documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" name="cuttingToolInfo"
+                    type="diggs:CuttingToolArrayPropertyType">
+                    <annotation>
+                        <documentation>The cutting tool info property.</documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" name="drillPipeInfo" type="diggs:DrillPipeArrayPropertyType">
+                    <annotation>
+                        <documentation>The drill pipe info property.</documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" name="hydraulicFluidFlowRate"
+                    type="diggs:VolumePerTimeMeasureType">
+                    <annotation>
+                        <documentation>The flow rate of the hydraulic fluid.</documentation>
+                    </annotation>
+                </element>
+            </sequence>
+        </extension>
+    </complexContent>
+</complexType>
+
+<complexType name="SpecificationPropertyType">
+    <annotation>
+        <documentation>Property type for containing or referencing a Specification
+                object.</documentation>
+    </annotation>
+    <sequence>
+        <element ref="diggs:Specification" maxOccurs="1" minOccurs="0"> </element>
+    </sequence>
+    <attributeGroup ref="gml:AssociationAttributeGroup"/>
+    <attributeGroup ref="gml:OwnershipAttributeGroup"/>
+</complexType>
+
+<element name="Specification" type="diggs:SpecificationType"
+    substitutionGroup="diggs:AbstractProcedure" abstract="false">
+    <annotation>
+        <documentation>An object that describes the specification or method used for testing or
+                construction.</documentation>
+    </annotation>
+</element>
+
+
+<complexType name="SpecificationType">
+    <annotation>
+        <documentation>Extended type based on AbstractProcedureType. Adds elements for
+                specification type definition.</documentation>
+    </annotation>
+    <complexContent>
+        <extension base="diggs:AbstractProcedureType">
+            <sequence>
+                <element name="accredtingBody" type="string" minOccurs="0" maxOccurs="1">
+                    <annotation>
+                        <documentation>Identification of the accrediting body and reference
+                                number, if applicable.</documentation>
+                    </annotation>
+                </element>
+                <element name="shortMethodName" type="string" minOccurs="0" maxOccurs="1">
+                    <annotation>
+                        <documentation>Name of the short method.</documentation>
+                    </annotation>
+                </element>
+                <element name="standardClause" type="string" minOccurs="0" maxOccurs="1">
+                    <annotation>
+                        <documentation>The standard clause property.</documentation>
+                    </annotation>
+                </element>
+                <element name="standardPart" type="string" minOccurs="0" maxOccurs="1">
+                    <annotation>
+                        <documentation>The standard part property.</documentation>
+                    </annotation>
+                </element>
+                <element name="standardReferenceNumber" type="string" minOccurs="0" maxOccurs="1">
+                    <annotation>
+                        <documentation>Number or numerical identifier for the standard
+                                reference.</documentation>
+                    </annotation>
+                </element>
+                <element name="standardTitle" type="string" minOccurs="0" maxOccurs="1">
+                    <annotation>
+                        <documentation>The standard title property.</documentation>
+                    </annotation>
+                </element>
+                <element name="standardVersion" type="string" minOccurs="0" maxOccurs="1">
+                    <annotation>
+                        <documentation>The standard version property.</documentation>
+                    </annotation>
+                </element>
+                <element maxOccurs="unbounded" minOccurs="0" name="otherSpecificationProperty"
+                    type="diggs:ParameterPropertyType">
+                    <annotation>
+                        <documentation>The other specification property
+                                property.</documentation>
+                    </annotation>
+                </element>
+            </sequence>
+        </extension>
+    </complexContent>
+</complexType>
+
+<complexType name="EquipmentPropertyType">
+    <annotation>
+        <documentation>Property type for referencing or containing any equipment
+                feature</documentation>
+    </annotation>
+    <sequence>
+        <element ref="diggs:AbstractEquipment" maxOccurs="1" minOccurs="0"/>
+    </sequence>
+    <attributeGroup ref="gml:AssociationAttributeGroup"/>
+    <attributeGroup ref="gml:OwnershipAttributeGroup"/>
+</complexType>
+
+<element name="AbstractEquipment" abstract="true" type="diggs:AbstractEquipmentType">
+    <annotation>
+        <documentation>The base type for Diggs equipment types. Derivations are objects that
+                contains properties of equipment used to construct, test, or monitor objects within
+                the geotechnical and geoenvironmental domains.</documentation>
+    </annotation>
+</element>
+
+<complexType name="AbstractEquipmentType" abstract="true">
+    <annotation>
+        <documentation>Base type for equipment objects used in geotechnical investigations. Includes manufacturer, model, serial number, and calibration information.</documentation>
+    </annotation>
+    <complexContent>
+        <extension base="diggs:AbstractFeatureType">
+            <sequence>
+                <element name="class" type="gml:CodeType" minOccurs="0" maxOccurs="1">
+                    <annotation>
+                        <documentation>The class or type of equipment - eg. drill rig, CPT rig,
+                                etc. Intended to come from a controlled list.</documentation>
+                    </annotation>
+                </element>
+                <element name="make" type="string" minOccurs="0" maxOccurs="1">
+                    <annotation>
+                        <documentation>The manufacturer or brand of the
+                                equipment</documentation>
+                    </annotation>
+                </element>
+                <element name="modelNumber" type="string" minOccurs="0" maxOccurs="1">
+                    <annotation>
+                        <documentation>The model name or number of the equipment</documentation>
+                    </annotation>
+                </element>
+                <element name="serialNumber" type="string" minOccurs="0" maxOccurs="1">
+                    <annotation>
+                        <documentation>The serial number that identifies the unique equipment
+                                item.</documentation>
+                    </annotation>
+                </element>
+                <element name="calibrationAuditTrail" type="diggs:CalibrationPropertyType"
+                    minOccurs="0" maxOccurs="unbounded">
+                    <annotation>
+                        <documentation>A reference to a Calibration object that stores
+                                calibration information for the equipment</documentation>
+                    </annotation>
+                </element>
+                <element maxOccurs="unbounded" minOccurs="0" name="otherEquipmentProperty"
+                    type="diggs:ParameterPropertyType">
+                    <annotation>
+                        <documentation>Reference to a Parameter object containing the name,
+                                value or range of values and unit of measure of a
+                                property.</documentation>
+                    </annotation>
+                </element>
+            </sequence>
+        </extension>
+    </complexContent>
+</complexType>
+
+<complexType name="CalibrationPropertyType">
+    <annotation>
+        <documentation> Property type for containing a Calibration feature.</documentation>
+    </annotation>
+    <sequence>
+        <element ref="diggs:Calibration" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+</complexType>
+
+<element name="Calibration" type="diggs:CalibrationType" abstract="false">
+    <annotation>
+        <documentation>An object containing properties pertaining to instrument
+                calibration.</documentation>
+    </annotation>
+</element>
+
+<complexType name="CalibrationType">
+    <annotation>
+        <documentation>Type for instrument calibration information. Contains calibration data,
+                calibration values, date, and use since last calibration. Documents calibration
+                history and parameters for equipment and sensors.</documentation>
+    </annotation>
+    <complexContent>
+        <extension base="diggs:AbstractFeatureType">
+            <sequence>
+                <element minOccurs="0" name="calibrationData" type="gml:StringOrRefType">
+                    <annotation>
+                        <documentation>Procedure and recorded data obtained during calibration.
+                                This can be represented as text or as a reference to another object
+                                or external file via an xlink:href attribute</documentation>
+                    </annotation>
+                </element>
+                <element name="cqlibrationValues" type="diggs:ParameterArrayPropertyType"
+                    minOccurs="0" maxOccurs="1">
+                    <annotation>
+                        <documentation>Date calibration was perfomed</documentation>
+                    </annotation>
+                </element>
+                <element name="date" type="gml:TimePositionType" minOccurs="0" maxOccurs="1">
+                    <annotation>
+                        <documentation>Date calibration was perfomed</documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" name="useSinceLastCalibration" type="string">
+                    <annotation>
+                        <documentation>Note about the amount of use of the equipment since the
+                                last calibration.</documentation>
+                    </annotation>
+                </element>
+            </sequence>
+        </extension>
+    </complexContent>
+</complexType>
+
+<complexType name="CoringDeviceType">
+    <annotation>
+        <documentation>Extended type based on AbstractEquipmentType. Adds elements for coring
+                device type definition.</documentation>
+    </annotation>
+    <complexContent>
+        <extension base="diggs:AbstractEquipmentType">
+            <sequence>
+                <element minOccurs="0" name="areaRatio" type="diggs:AreaPerAreaMeasureType">
+                    <annotation>
+                        <documentation>A sample disturbance parameter, defined as the difference
+                                of the squares of the outside and inside diameter of the cutting
+                                shoe, divided by the square of the inside diameter of the cutting
+                                shoe.</documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" name="barrelExtension" type="diggs:LengthMeasureType">
+                    <annotation>
+                        <documentation>Distance that coring device extends beyond drill bit at
+                                full extension. Negative values indicate barrel is recessed behind
+                                bit.</documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" name="barrelInnerDiameter" type="diggs:LengthMeasureType">
+                    <annotation>
+                        <documentation>Diamter of inside of core barrel or sampling tube
+                            </documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" name="barrelOuterDiameter" type="diggs:LengthMeasureType">
+                    <annotation>
+                        <documentation>Diameter of outside of core barrel or sampling
+                                tube</documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" name="barrelLength" type="diggs:LengthMeasureType">
+                    <annotation>
+                        <documentation>Length of core barrel or sampling tube</documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" name="insideClearanceRatio"
+                    type="diggs:LengthPerLengthMeasureType">
+                    <annotation>
+                        <documentation>The inside sample diameter minus the cutting shoe inside
+                                diameter divided by the cutting shoe inside diameter, expressed as a
+                                percentage. A sample disturbance parameter.</documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" name="linerPresent" type="boolean">
+                    <annotation>
+                        <documentation>True if a liner is present in the barrel.</documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" name="linerType" type="gml:CodeType">
+                    <annotation>
+                        <documentation>The type of liner material or the type of coating within
+                                the coring device (eg. porcelain coating on a shelby tube). Intended
+                                to come from a controlled list of terms.</documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" name="outsideClearanceRatio"
+                    type="diggs:LengthPerLengthMeasureType">
+                    <annotation>
+                        <documentation>The outside cutting shoe diameter minus the outside
+                                sampler diameter, divided by the outside sampler diameter, expressed
+                                as a percentage. A sample disturbance parameter.</documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" name="shoeInnerDiameter" type="diggs:LengthMeasureType">
+                    <annotation>
+                        <documentation>Inner diameter of the cutting shoe</documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" name="shoeLength" type="diggs:LengthMeasureType">
+                    <annotation>
+                        <documentation>Length of the core shoe, eg. the device that fastens onto
+                                the lower end of the main core barrel.</documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" name="shoeOuterDiameter" type="diggs:LengthMeasureType">
+                    <annotation>
+                        <documentation>Inner diameter of the cutting shoe</documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" name="shoeType" type="gml:CodeType">
+                    <annotation>
+                        <documentation>Refers to the type of shoe used, typically manufacturer
+                                specific.</documentation>
+                    </annotation>
+                </element>
+            </sequence>
+        </extension>
+    </complexContent>
+</complexType>
+
+<complexType name="DrillRigType">
+    <annotation>
+        <documentation>Extended type based on AbstractEquipmentType. Adds elements for drill rig
+                type definition.</documentation>
+    </annotation>
+    <complexContent>
+        <extension base="diggs:AbstractEquipmentType">
+            <sequence>
+                <element minOccurs="0" name="engine" type="string">
+                    <annotation>
+                        <documentation>A text string describing the name and other parameters
+                                associated with the engine that drives the drill rig.
+                            </documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" name="carrierType" type="gml:CodeType">
+                    <annotation>
+                        <documentation>A description of the type of device that "carries" the
+                                rig, eg. "rubber tire ATV", "truck mounted", "track mounted".
+                                Intended to come from a controled list of terms. </documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" name="tireSizeFront" type="string">
+                    <annotation>
+                        <documentation>A text string describing the size of the front tires for
+                                a rubber tire mounted rig.</documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" name="tireSizeRear" type="string">
+                    <annotation>
+                        <documentation>A text string describing the size of the rear tires for a
+                                rubber tire mounted rig.</documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" name="groundBearingPressure" type="diggs:PressureMeasureType">
+                    <annotation>
+                        <documentation>The typical or maximum pressure exerted on the ground by
+                                the weight of the rig.</documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" name="numberForwardGears" type="positiveInteger">
+                    <annotation>
+                        <documentation>The number of forward gears in the
+                                transmission.</documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" name="numberReverseGears" type="positiveInteger">
+                    <annotation>
+                        <documentation>The number of reverse gears in the
+                                transmission.</documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" name="transferCaseInfo" type="string">
+                    <annotation>
+                        <documentation>A text string describing the transfer case capabilities,
+                                eg. "air shift controls for drill, rear axle (4x2) and front axle
+                                (4x4)"</documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" name="axleInfo" type="string">
+                    <annotation>
+                        <documentation>A text string describing axle information where
+                                applicable, eg. "planetary with no-spin differentials, front and
+                                rear"</documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" name="winchCapacity" type="diggs:WinchCapacityMeasureType">
+                    <annotation>
+                        <documentation>Maximum capacity of the winch (expressed as a
+                                weight).</documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" name="waterTankCapacity" type="diggs:VolumeMeasureType">
+                    <annotation>
+                        <documentation>Maximum volume of the onboard water tank.</documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" name="levelingSystem" type="string">
+                    <annotation>
+                        <documentation>A text string describing the system used for leveling the
+                                rig (eg."Three hydraulic jacks, 36 inch (91.4 cm) stroke"
+                            </documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" name="rotaryDriveMaxTorque"
+                    type="diggs:MomentOfForceMeasureType">
+                    <annotation>
+                        <documentation>The maximum torque produced by the rotary drive system.
+                            </documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" name="rotaryDriveMaxSpeed"
+                    type="diggs:AngularVelocityMeasureType">
+                    <annotation>
+                        <documentation>The maximum rotational speed of the rotary drive system.
+                            </documentation>
+                    </annotation>
+                </element>
+                <element maxOccurs="unbounded" minOccurs="0" name="rotaryDriveGearRatio"
+                    type="diggs:rotaryDriveGearRatioMeasureType">
+                    <annotation>
+                        <documentation>The ratio between the input rotation speed at the head
+                                and rotation of the bit, depending on the gear
+                                selected.</documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" name="pullDownForceMax" type="diggs:ForceMeasureType">
+                    <annotation>
+                        <documentation>Maximum crowd or pulldown force of the feed
+                                system.</documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" name="feedRateMax" type="diggs:LengthPerTimeMeasureType">
+                    <annotation>
+                        <documentation>Maximum rate that the rig can feed the drill pipe into
+                                the ground</documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" name="retractForceMax" type="diggs:ForceMeasureType">
+                    <annotation>
+                        <documentation>Maximum retract force of the feed system.</documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" name="retractRateMax" type="diggs:LengthPerTimeMeasureType">
+                    <annotation>
+                        <documentation>Maximum rate that the rig can retract the drill
+                                pipe</documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" name="strokeMax" type="diggs:LengthMeasureType">
+                    <annotation>
+                        <documentation>Maximum stroke height of the feed system.</documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" name="crowdSystemType" type="gml:CodeType">
+                    <annotation>
+                        <documentation>The type of system used to apply downward pressure
+                                (typically winch or cylinder). Intended to come from a controlled
+                                list of terms.</documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" name="crowdCylinderArea" type="diggs:AreaMeasureType">
+                    <annotation>
+                        <documentation>For a cylinder crowd system, this property holds the
+                                cross-sectional area of the crowd sylinder.</documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" name="baselineCrowdPressure" type="diggs:PressureMeasureType">
+                    <annotation>
+                        <documentation>The standard operating pressure for crowd force
+                                application on the drill rig,</documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" name="crowdConversionCoeff" type="double">
+                    <annotation>
+                        <documentation>The ratio of crowd force to the pressure applied
+                                (force/pressure) to convert crowd pressure to force.</documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" name="baselineTorquePressure"
+                    type="diggs:PressureMeasureType">
+                    <annotation>
+                        <documentation>The standard operating pressure for torque application on
+                                the drill rig,</documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" name="noHydraulicMotors" type="integer">
+                    <annotation>
+                        <documentation>The count of hydraulic motors used in the drilling
+                                setup.</documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" name="maxHydMotorDisplacement"
+                    type="diggs:VolumePerRotationMeasureType">
+                    <annotation>
+                        <documentation>he maximum volume displaced by the hydraulic motor per
+                                revolution.</documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" name="minHydMotorDisplacement"
+                    type="diggs:VolumePerRotationMeasureType">
+                    <annotation>
+                        <documentation>The minimum volume displaced by the hydraulic motor per
+                                revolution.</documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" name="maxHydPressure" type="diggs:PressureMeasureType">
+                    <annotation>
+                        <documentation>The highest pressure at which the drill rig's hydraulic
+                                system can operate.</documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" name="maxTorque" type="diggs:MomentOfForceMeasureType">
+                    <annotation>
+                        <documentation>The highest rotational force that can be applied by the
+                                drill rig</documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" name="mastLength" type="diggs:LengthMeasureType">
+                    <annotation>
+                        <documentation>Nominal length of the mast, typically measured from
+                                ground to sheaves.</documentation>
+                    </annotation>
+                </element>
+            </sequence>
+        </extension>
+    </complexContent>
+</complexType>
+
+<complexType name="EquipmentType">
+    <annotation>
+        <documentation>Concrete type extending AbstractEquipmentType. Provides implementation
+                for equipment type.</documentation>
+    </annotation>
+    <complexContent>
+        <extension base="diggs:AbstractEquipmentType"/>
+    </complexContent>
+</complexType>
+
+
+<complexType name="CuttingToolArrayPropertyType">
+    <annotation>
+        <documentation>Property type for cutting tool array references. Used to wrap cutting
+                tool array objects or references in properties.</documentation>
+    </annotation>
+    <sequence maxOccurs="1">
+        <element ref="diggs:CuttingTool"/>
+    </sequence>
+</complexType>
+
+<element name="CuttingTool" type="diggs:CuttingToolType">
+    <annotation>
+        <documentation>The cutting tool property.</documentation>
+    </annotation>
+</element>
+
+<complexType name="CuttingToolType">
+    <annotation>
+        <documentation>Extended type based on AbstractComponentObjectType. Adds elements for
+                cutting tool type definition.</documentation>
+    </annotation>
+    <complexContent>
+        <extension base="diggs:AbstractComponentObjectType">
+            <sequence>
+                <element minOccurs="0" name="toolType" type="gml:CodeType">
+                    <annotation>
+                        <documentation>The type of cutting tool (bit) used, such as hollow-stem
+                                auger, tri-cone bit, roller bit, etc. Intended to come form a
+                                controlled list of terms.</documentation>
+                    </annotation>
+                </element>
+                <element name="classIADC" type="gml:CodeType" minOccurs="0" maxOccurs="1">
+                    <annotation>
+                        <documentation>For roller cone and fixed cutter (PDC) drill bits, the
+                                four-character International Association of Drilling Contractors
+                                code assigned to the bit</documentation>
+                    </annotation>
+                </element>
+                <element name="make" type="string" minOccurs="0" maxOccurs="1">
+                    <annotation>
+                        <documentation>The manufacturer or brand of the cutting
+                                tool</documentation>
+                    </annotation>
+                </element>
+                <element name="modelNumber" type="string" minOccurs="0" maxOccurs="1">
+                    <annotation>
+                        <documentation>The model name or number of the cutting
+                                tool</documentation>
+                    </annotation>
+                </element>
+                <element name="serialNumber" type="string" minOccurs="0" maxOccurs="1">
+                    <annotation>
+                        <documentation>The serial number that identifies the unique cutting
+                                tool.</documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" name="toolInnerDiameter" type="diggs:LengthMeasureType">
+                    <annotation>
+                        <documentation>The inner diameter of the cuktting tool or bit (where
+                                applicable, such as for a hollow stem auger).</documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" name="toolOuterDiameter" type="diggs:LengthMeasureType">
+                    <annotation>
+                        <documentation>The outer diameter of the cutting tool or
+                                bit.</documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" name="toolMaterial" type="gml:CodeType">
+                    <annotation>
+                        <documentation>The material that the tool is made from, eg. tungsten
+                                carbide. Intended to come from a controlled list of
+                                terms.</documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" name="toolWearStart" type="string">
+                    <annotation>
+                        <documentation>A qualitative or quantitative (eg. gauge ring diameter)
+                                description of the tool condition (wear) at the start of the
+                                interval.</documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" name="toolWearEnd" type="string">
+                    <annotation>
+                        <documentation>A qualitative or quantitative (eg. gauge ring diameter)
+                                description of the tool condition (wear) at the end of the
+                                interval.</documentation>
+                    </annotation>
+                </element>
+            </sequence>
+        </extension>
+    </complexContent>
+</complexType>
+
+<complexType name="DrillPipeArrayPropertyType">
+    <annotation>
+        <documentation>Property type for drill pipe array references. Used to wrap drill pipe
+                array objects or references in properties.</documentation>
+    </annotation>
+    <sequence maxOccurs="1">
+        <element ref="diggs:DrillPipe"/>
+    </sequence>
+</complexType>
+
+<element name="DrillPipe" type="diggs:DrillPipeType">
+    <annotation>
+        <documentation>The drill pipe property.</documentation>
+    </annotation>
+</element>
+
+<complexType name="DrillPipeType">
+    <annotation>
+        <documentation>Extended type based on AbstractComponentObjectType. Adds elements for
+                drill pipe type definition.</documentation>
+    </annotation>
+    <complexContent>
+        <extension base="diggs:AbstractComponentObjectType">
+            <sequence>
+                <element minOccurs="0" name="pipeInnerDiameter" type="diggs:LengthMeasureType">
+                    <annotation>
+                        <documentation>The inner diameter of the drill pipe (where hollow pipe
+                                is used).</documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" name="pipeOuterDiameter" type="diggs:LengthMeasureType">
+                    <annotation>
+                        <documentation>The outer diameter of the drill pipe.</documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" name="pipeMaterial" type="gml:CodeType">
+                    <annotation>
+                        <documentation>The material that the pipe is made from, eg. steel.
+                                Intended to come from a controlled list of terms.</documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" name="pipeSectionLength" type="diggs:LengthMeasureType">
+                    <annotation>
+                        <documentation>The length of each pipe section used for this depth
+                                interval. Note: if pipe section lengths change, a new new DrillPipe
+                                object should be instantiated to identify the depth interval for the
+                                new pipe section length.</documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" name="pipeSectcionWeight" type="diggs:ForceMeasureType">
+                    <annotation>
+                        <documentation>Weight of an individual pipe section used in this
+                                interval.</documentation>
+                    </annotation>
+                </element>
+            </sequence>
+        </extension>
+    </complexContent>
+</complexType>
+
+<complexType name="BoreholeEventPropertyType">
+    <annotation>
+        <documentation>Property type for borehole event references. Used to wrap borehole event
+                objects or references in properties.</documentation>
+    </annotation>
+    <sequence>
+        <element maxOccurs="1" minOccurs="1" ref="diggs:BoreholeEvent"/>
+    </sequence>
+</complexType>
+
+<element name="BoreholeEvent" type="diggs:BoreholeEventType">
+    <annotation>
+        <documentation>Depth and/or time related information recorded during construction of the
+                borehole.These events are intended to record information that is non-geological.
+                Typically this includes drillers comments usually found on the boring or drilling
+                log, for reporting incidents during drilling (such as "Fishing for broken U100"),
+                drilling records that don't readily fit in any other groups (such as "Pushing
+                boulder ahead of casing"), observations that are not strictly geological (such as
+                "Strong petrol smell").</documentation>
+    </annotation>
+</element>
+
+<complexType name="BoreholeEventType">
+    <annotation>
+        <documentation>Extended type based on AbstractEventType. Adds elements for borehole
+                event type definition.</documentation>
+    </annotation>
+    <complexContent>
+        <extension base="diggs:AbstractEventType">
+            <sequence>
+                <element minOccurs="0" name="casingBottom" type="diggs:PointLocationPropertyType">
+                    <annotation>
+                        <documentation>Measured Depth to Base of Casing installed at this event
+                                time, in the hole's linear referencing system. </documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" name="holeBottom" type="diggs:PointLocationPropertyType">
+                    <annotation>
+                        <documentation>Measured Depth to Base of Hole at this event time,
+                                reported in the hole's linear referencing system.</documentation>
+                    </annotation>
+                </element>
+                <choice>
+                    <element minOccurs="0" name="waterDepth" type="diggs:PointLocationPropertyType">
+                        <annotation>
+                            <documentation>Depth to Water Surface as measured at this event
+                                    time, recorded in the hole's linear referencing
+                                    system.</documentation>
+                        </annotation>
+                    </element>
+                    <element minOccurs="0" name="isDry" type="boolean" fixed="true">
+                        <annotation>
+                            <documentation>Indicates whether dry.</documentation>
+                        </annotation>
+                    </element>
+                </choice>
+            </sequence>
+        </extension>
+    </complexContent>
+</complexType>
+
+<complexType name="AbstractEventType" abstract="true">
+    <annotation>
+        <documentation>Base type for event objects that record time-based or location-based occurrences during investigations.</documentation>
+    </annotation>
+    <complexContent>
+        <extension base="diggs:AbstractComponentObjectType">
+            <sequence>
+                <element minOccurs="0" ref="diggs:location">
+                    <annotation>
+                        <documentation>The measured depth interval over which the event takes
+                                place, recorded in the hole's linear referencing
+                                system.</documentation>
+                    </annotation>
+                </element>
+                <element name="time" type="diggs:TimeIntervalPropertyType" minOccurs="0">
+                    <annotation>
+                        <documentation>Date/time when this event information was
+                                recorded</documentation>
+                    </annotation>
+                </element>
+                <element maxOccurs="unbounded" minOccurs="0" name="infoRecorded"
+                    type="diggs:ParameterPropertyType">
+                    <annotation>
+                        <documentation>Other associated data measured or observed at this
+                                time</documentation>
+                    </annotation>
+                </element>
+            </sequence>
+        </extension>
+    </complexContent>
+</complexType>
+
+<complexType name="FlushPropertyType">
+    <annotation>
+        <documentation>Property type for flush references. Used to wrap flush objects or
+                references in properties.</documentation>
+    </annotation>
+    <sequence>
+        <element ref="diggs:Flush" maxOccurs="1" minOccurs="1"/>
+    </sequence>
+</complexType>
+
+<element name="Flush" type="diggs:FlushType">
+    <annotation>
+        <documentation>The flush property.</documentation>
+    </annotation>
+</element>
+
+<complexType name="FlushType">
+    <annotation>
+        <documentation>Extended type based on AbstractObjectType. Adds elements for flush type
+                definition.</documentation>
+    </annotation>
+    <complexContent>
+        <extension base="diggs:AbstractObjectType">
+            <sequence>
+                <element name="flushZoneLocation" type="diggs:LinearExtentPropertyType"
+                    minOccurs="0">
+                    <annotation>
+                        <documentation>The depth interval of the flush zone, measured in a
+                                linear reference system. If omitted, it is to be assumed that the
+                                flushing activity pertains to the entire hole
+                                length.</documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" name="fluidType" type="gml:CodeType">
+                    <annotation>
+                        <documentation>Type of fluid used for flushing. Intended to derive from
+                                a controlled list.</documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" name="minFlushReturn" type="diggs:VolumePerVolumeMeasureType">
+                    <annotation>
+                        <documentation>Percentage of fluid that returns from the hole following
+                                flushing. (minimum value)</documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" name="maxflushReturn" type="diggs:VolumePerVolumeMeasureType">
+                    <annotation>
+                        <documentation>Percentage of fluid that returns from the hole following
+                                flushing. (maximum value)</documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" name="flushColor" type="string">
+                    <annotation>
+                        <documentation>Color of the fluid return; an uncontrolled
+                                string.</documentation>
+                    </annotation>
+                </element>
+            </sequence>
+        </extension>
+    </complexContent>
+</complexType>
+
+<complexType name="BoreholeDiameterPropertyType">
+    <annotation>
+        <documentation>Property type for borehole diameter references. Used to wrap borehole
+                diameter objects or references in properties.</documentation>
+    </annotation>
+    <sequence>
+        <element ref="diggs:BoreholeDiameter" maxOccurs="1"/>
+    </sequence>
+</complexType>
+
+<element name="BoreholeDiameter" type="diggs:BoreholeDiameterType">
+    <annotation>
+        <documentation>An object that carries the diameter of a borehole and its
+                location.</documentation>
+    </annotation>
+</element>
+
+<complexType name="BoreholeDiameterType">
+    <annotation>
+        <documentation>Extended type based on AbstractObjectType. Adds elements for borehole
+                diameter type definition.</documentation>
+    </annotation>
+    <complexContent>
+        <extension base="diggs:AbstractObjectType">
+            <sequence>
+                <element name="diameterLocation" type="diggs:LinearExtentPropertyType" maxOccurs="1"
+                    minOccurs="0">
+                    <annotation>
+                        <documentation>The depth interval in the hole that pertains to the
+                                diameter reported, measured in a linear referencing system. If
+                                omitted, it is assumed that the diameter reported pertains to the
+                                entire length of the hole</documentation>
+                    </annotation>
+                </element>
+                <element name="diameter" type="diggs:LengthMeasureType">
+                    <annotation>
+                        <documentation>The diameter of the borehole over the depth interval
+                                reported.</documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" name="computedBoreholeCrossSectionalArea"
+                    type="diggs:AreaMeasureType">
+                    <annotation>
+                        <documentation>Cross-sectional area of the borehole, computed from
+                                inferred borehole diameter for the interval</documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" name="computedBoreholeVolume" type="diggs:VolumeMeasureType">
+                    <annotation>
+                        <documentation>Volume of the boreholein this interval, computed from the
+                                inferred borehole diameter.</documentation>
+                    </annotation>
+                </element>
+            </sequence>
+        </extension>
+    </complexContent>
+</complexType>
+
+<complexType name="WaterStrikePropertyType">
+    <annotation>
+        <documentation>Property type for water strike references. Used to wrap water strike
+                objects or references in properties.</documentation>
+    </annotation>
+    <sequence>
+        <element maxOccurs="1" minOccurs="1" ref="diggs:WaterStrike"/>
+    </sequence>
+</complexType>
+
+<element name="WaterStrike" type="diggs:WaterStrikeType">
+    <annotation>
+        <documentation>A water strike consists of one or more water level readings taken upon
+                encountering or expecting to encounter water during drilling. Depending on practice,
+                this may consist of individual reasurements taken one or more times as drilling
+                progresses or a series of measurements taken over a short time interval when
+                drilling is halted at a particular depth.</documentation>
+    </annotation>
+</element>
+
+<complexType name="WaterStrikeType">
+    <annotation>
+        <documentation>Extended type based on AbstractObjectType. Adds elements for water strike
+                type definition.</documentation>
+    </annotation>
+    <complexContent>
+        <extension base="diggs:AbstractObjectType">
+            <sequence minOccurs="0">
+                <element name="waterStrikeReadings" type="diggs:WaterStrikeReadingPropertyType">
+                    <annotation>
+                        <documentation>Water level readings taken as part of this water
+                                strike.</documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" name="sealLocation" type="diggs:PointLocationPropertyType">
+                    <annotation>
+                        <documentation>Location at which water strike is sealed by casing;
+                                measured in borehole linear referencing system.</documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" name="bottomCasing" type="diggs:PointLocationPropertyType">
+                    <annotation>
+                        <documentation>Measured depth to base of casing at time water strike
+                                occurred; measured in borehole linear referencing
+                                system.</documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" name="bottomHole" type="diggs:PointLocationPropertyType">
+                    <annotation>
+                        <documentation>Location of the bottom of the hole when the water strike
+                                readings are made, given in the hole's linear referencing
+                                system.</documentation>
+                    </annotation>
+                </element>
+            </sequence>
+        </extension>
+    </complexContent>
+</complexType>
+
+<complexType name="WaterStrikeReadingPropertyType">
+    <annotation>
+        <documentation>Property type for water strike reading references. Used to wrap water
+                strike reading objects or references in properties.</documentation>
+    </annotation>
+    <sequence maxOccurs="1" minOccurs="1">
+        <element ref="diggs:WaterStrikeReading"/>
+    </sequence>
+</complexType>
+
+<element name="WaterStrikeReading" type="diggs:WaterStrikeReadingType">
+    <annotation>
+        <documentation>An element containing water level reading properties following a water
+                strick.</documentation>
+    </annotation>
+</element>
+
+<complexType name="WaterStrikeReadingType">
+    <annotation>
+        <documentation>Extended type based on AbstractObjectType. Adds elements for water strike
+                reading type definition.</documentation>
+    </annotation>
+    <complexContent>
+        <extension base="diggs:AbstractObjectType">
+            <sequence>
+                <choice minOccurs="0">
+                    <element name="elapsedTime" type="diggs:TimeMeasureType">
+                        <annotation>
+                            <documentation>The elapsed time following an initial water strike
+                                    when water level is again measured</documentation>
+                        </annotation>
+                    </element>
+                    <element name="dateTime" type="gml:TimePositionType" minOccurs="1">
+                        <annotation>
+                            <documentation>DateTime that water strike measurement
+                                    occurred.</documentation>
+                        </annotation>
+                    </element>
+                </choice>
+                <choice>
+                    <element name="notEncountered" fixed="true" type="boolean" minOccurs="1">
+                        <annotation>
+                            <documentation>The not encountered property.</documentation>
+                        </annotation>
+                    </element>
+                    <element name="waterLocation" type="diggs:PointLocationPropertyType">
+                        <annotation>
+                            <documentation>The measure depth to water; measured in a hole's
+                                    linear referencing system.</documentation>
+                        </annotation>
+                    </element>
+                </choice>
+                <element maxOccurs="unbounded" minOccurs="0" name="linkedReading"
+                    type="diggs:LinkedWSReadingPropertyType">
+                    <annotation>
+                        <documentation>The linked reading property.</documentation>
+                    </annotation>
+                </element>
+            </sequence>
+        </extension>
+    </complexContent>
+</complexType>
+
+
+<complexType name="LinkedWSReadingPropertyType">
+    <annotation>
+        <documentation>Property type for linked ws reading references. Used to wrap linked ws
+                reading objects or references in properties.</documentation>
+    </annotation>
+    <sequence maxOccurs="1" minOccurs="1">
+        <element ref="diggs:LinkedWSReading"/>
+    </sequence>
+</complexType>
+
+<element name="LinkedWSReading" type="diggs:LinkedWSReadingType">
+    <annotation>
+        <documentation>An element containing water level reading properties following a water
+                strick.</documentation>
+    </annotation>
+</element>
+
+<complexType name="LinkedWSReadingType">
+    <annotation>
+        <documentation>Extended type based on AbstractObjectType. Adds elements for linked ws
+                reading type definition.</documentation>
+    </annotation>
+    <complexContent>
+        <extension base="diggs:AbstractObjectType">
+            <sequence>
+                <choice minOccurs="0">
+                    <element name="elapsedTime" type="diggs:TimeMeasureType">
+                        <annotation>
+                            <documentation>The elapsed time following an initial water strike
+                                    when water level is again measured</documentation>
+                        </annotation>
+                    </element>
+                    <element name="dateTime" type="gml:TimePositionType" minOccurs="1">
+                        <annotation>
+                            <documentation>DateTime that water strike measurement
+                                    occurred.</documentation>
+                        </annotation>
+                    </element>
+                </choice>
+                <choice>
+                    <element name="notEncountered" fixed="true" type="boolean" minOccurs="1">
+                        <annotation>
+                            <documentation>The not encountered property.</documentation>
+                        </annotation>
+                    </element>
+                    <element name="waterLocation" type="diggs:PointLocationPropertyType">
+                        <annotation>
+                            <documentation>The measure depth to water; measured in a hole's
+                                    linear referencing system.</documentation>
+                        </annotation>
+                    </element>
+                </choice>
+            </sequence>
+        </extension>
+    </complexContent>
+</complexType>
