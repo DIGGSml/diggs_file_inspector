@@ -2554,7 +2554,7 @@ const SOFTWARE_APPLICATION_FIELDS = [
 // Remark — applied to the diggs:Remark element (not the property wrapper)
 const REMARK_FIELDS = [
   { path: 'diggs:content',        italic: true },
-  { path: 'diggs:remarkDateTime', format: 'date',          meta: true },
+  { path: 'diggs:remarkDateTime', format: 'dateTimePos',   meta: true },
   { path: 'diggs:author',         format: 'resolveBAName', meta: true, multi: true },
 ];
 
@@ -2765,7 +2765,7 @@ const LOCATION_UNCERTAINTY_FIELDS = [
 ];
 
 const ENVIRONMENT_FIELDS = [
-  { label: 'Date/Time',    path: 'diggs:dateTime',            format: 'date' },
+  { label: 'Date/Time',    path: 'diggs:dateTime',            format: 'dateTimePos' },
   { label: 'Temperature',  path: 'diggs:ambientTemperature',  format: 'measure' },
   { label: 'Pressure',     path: 'diggs:barometricPressure',  format: 'measure' },
   { label: 'Humidity',     path: 'diggs:humidity',            format: 'measure' },
@@ -2898,6 +2898,12 @@ const FORMAT_FN = {
     return formatDiggsDate(nodeText(node));
   },
 
+  // Format a gml:TimePositionType node → MM/DD/YYYY, H:MM AM/PM when a
+  // non-midnight time component is present; MM/DD/YYYY for date-only or midnight.
+  dateTimePos(node) {
+    return formatDiggsDateTime(nodeText(node));
+  },
+
   // Format a measure element: numeric text + uom attribute → "value uom"
   measure(node) {
     if (!node) return '';
@@ -2907,11 +2913,17 @@ const FORMAT_FN = {
     return uom ? `${val} ${uom}` : val;
   },
 
-  // Humanize a rolePerformed element's codeSpace fragment → Title Case string
+  // Render a rolePerformed element → display string.
+  // Priority: element text content (the actual coded value) → codeSpace # fragment
+  // (converted from camelCase/underscore to Title Case) → empty string.
   humanizeRole(node) {
     if (!node) return '';
+    const text = nodeText(node).trim();
+    if (text) return text;
+    // Fallback: derive label from codeSpace URI fragment, title-cased
     const cs   = (node.getAttribute && node.getAttribute('codeSpace')) || '';
-    const frag = cs.includes('#') ? cs.split('#').pop() : nodeText(node);
+    const frag = cs.includes('#') ? cs.split('#').pop() : '';
+    if (!frag) return '';
     return frag.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
   },
 
@@ -3023,6 +3035,15 @@ const FORMAT_FN = {
     }
 
     // ── Default rendering ────────────────────────────────────────────────────
+    // When only one date is present and it carries a time component, render it
+    // with time in MM/DD/YYYY, H:MM AM/PM format.
+    const onlyOne = (startRaw && !endRaw) || (!startRaw && endRaw);
+    const soloRaw = startRaw || endRaw;
+    if (onlyOne && soloRaw && soloRaw.includes('T')) {
+      let out = formatDiggsDateTime(soloRaw);
+      if (dur) out += ` (${dur})`;
+      return out;
+    }
     const start = formatDiggsDate(startRaw);
     const end   = formatDiggsDate(endRaw);
     let out = start || '';
@@ -4161,7 +4182,7 @@ const KV_FORMAT = {
       const elapsedEl = evalXPath(rEl, 'diggs:elapsedTime')[0];
       const dateTimeEl = evalXPath(rEl, 'diggs:dateTime')[0];
       if (elapsedEl)  rdRows.push(`<div class="kv-row"><span class="kv-key">Elapsed</span><span class="kv-val">${escHtml(FORMAT_FN.measure(elapsedEl))}</span></div>`);
-      else if (dateTimeEl) rdRows.push(`<div class="kv-row"><span class="kv-key">Time</span><span class="kv-val">${escHtml(FORMAT_FN.date(dateTimeEl))}</span></div>`);
+      else if (dateTimeEl) rdRows.push(`<div class="kv-row"><span class="kv-key">Time</span><span class="kv-val">${escHtml(FORMAT_FN.dateTimePos(dateTimeEl))}</span></div>`);
       // Location: choice of notEncountered or waterLocation
       const notEnc = evalXPath(rEl, 'diggs:notEncountered')[0];
       const waterLoc = evalXPath(rEl, 'diggs:waterLocation')[0];
@@ -4180,7 +4201,7 @@ const KV_FORMAT = {
           const lkDt      = evalXPath(lk, 'diggs:dateTime')[0];
           const lkNotEnc  = evalXPath(lk, 'diggs:notEncountered')[0];
           const lkWaterLoc= evalXPath(lk, 'diggs:waterLocation')[0];
-          const tCell = lkElapsed ? escHtml(FORMAT_FN.measure(lkElapsed)) : (lkDt ? escHtml(FORMAT_FN.date(lkDt)) : '—');
+          const tCell = lkElapsed ? escHtml(FORMAT_FN.measure(lkElapsed)) : (lkDt ? escHtml(FORMAT_FN.dateTimePos(lkDt)) : '—');
           let locCell = '—';
           if (lkNotEnc && nodeText(lkNotEnc).toLowerCase() === 'true') locCell = '<span style="color:var(--text-muted)">Not encountered</span>';
           else if (lkWaterLoc) { const d = FORMAT_FN.resolvePointDepth(lkWaterLoc); if (d) locCell = escHtml(d); }
@@ -4638,6 +4659,36 @@ function formatDiggsDate(str, includeTime = false) {
   const HH = String(d.getHours()).padStart(2, '0');
   const MM = String(d.getMinutes()).padStart(2, '0');
   return `${mm}/${dd}/${yyyy} ${HH}:${MM}`;
+}
+
+/**
+ * formatDiggsDateTime(str)
+ *
+ * Parses an ISO 8601 gml:TimePositionType value and returns:
+ *   - MM/DD/YYYY, H:MM AM/PM  when a non-midnight time component is present
+ *   - MM/DD/YYYY              for date-only values or midnight (T00:00:00)
+ *
+ * Used for elements typed as gml:TimePositionType (e.g. diggs:dateTime,
+ * diggs:remarkDateTime) where a time component is meaningful.
+ * Falls back to the raw string if parsing fails.
+ */
+function formatDiggsDateTime(str) {
+  if (!str) return '';
+  const s = str.trim();
+  if (!s) return '';
+  if (!s.includes('T')) return formatDiggsDate(s);
+  const d = new Date(s);
+  if (isNaN(d.getTime())) return s;
+  const mm   = String(d.getMonth() + 1).padStart(2, '0');
+  const dd   = String(d.getDate()).padStart(2, '0');
+  const yyyy = d.getFullYear();
+  const dateStr = `${mm}/${dd}/${yyyy}`;
+  if (d.getHours() === 0 && d.getMinutes() === 0) return dateStr;
+  let   hr   = d.getHours();
+  const min  = String(d.getMinutes()).padStart(2, '0');
+  const ampm = hr >= 12 ? 'PM' : 'AM';
+  hr = hr % 12 || 12;
+  return `${dateStr}, ${hr}:${min} ${ampm}`;
 }
 
 // ══════════════════════════════════════════════════════════════
