@@ -6404,10 +6404,11 @@ function initMap() {
 
   mapInstance = L.map('map', { zoomControl: true, attributionControl: false });
 
-  // OSM tile layer with offline fallback: if tiles fail to load, the map still
-  // works with markers on a plain background — no error, no blank crash
+  // Street tile layer (default basemap) with offline fallback: if tiles fail to load,
+  // the map still works with markers on a plain background — no error, no blank crash
   let currentTileLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    maxZoom: 20,
+    maxZoom: 19,
+    attribution: '© OpenStreetMap contributors',
     errorTileUrl: 'data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs='  // 1px transparent
   }).addTo(mapInstance);
 
@@ -6526,146 +6527,158 @@ function initMap() {
   // Pass true to skip geometry re-render (already done above)
   filterByProject(true);
 
-    // ── Basemap switcher control ──────────────────────────────
+    // ── Basemap switcher control (3 layers: Street, Dark, Satellite) ──
   const BASEMAPS = [
     {
-      id: 'osm',
-      label: 'OpenStreetMap',
+      id: 'street',
+      label: 'Street',
       url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-      maxZoom: 20,
-      // Road icon
-      icon: `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
-        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M3 17l6-12 6 12 6-12"/></svg>`
+      attribution: '© OpenStreetMap contributors',
+      maxZoom: 19
     },
     {
-      id: 'carto-light',
-      label: 'Light (CartoDB)',
-      url: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
-      maxZoom: 20,
-      subdomains: 'abcd',
-      // Sun icon
-      icon: `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
-        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <circle cx="12" cy="12" r="4"/>
-        <line x1="12" y1="2" x2="12" y2="4"/><line x1="12" y1="20" x2="12" y2="22"/>
-        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
-        <line x1="2" y1="12" x2="4" y2="12"/><line x1="20" y1="12" x2="22" y2="12"/>
-        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
-      </svg>`
-    },
-    {
-      id: 'carto-dark',
-      label: 'Dark (CartoDB)',
+      id: 'dark',
+      label: 'Dark',
       url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
-      maxZoom: 20,
-      subdomains: 'abcd',
-      // Moon icon
-      icon: `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
-        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>`
+      attribution: '© OpenStreetMap contributors © CARTO',
+      maxZoom: 19,
+      subdomains: 'abcd'
     },
     {
-      id: 'esri-imagery',
-      label: 'Satellite (Esri)',
+      id: 'satellite',
+      label: 'Satellite',
       url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-      maxZoom: 19,
-      // Satellite icon
-      icon: `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
-        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <circle cx="12" cy="12" r="3"/>
-        <path d="M6.3 6.3a8 8 0 0 0 0 11.4m11.4 0a8 8 0 0 0 0-11.4"/>
-        <path d="M3 3l3.3 3.3m11.4 11.4 3.3 3.3M3 21l3.3-3.3M17.7 6.3 21 3"/>
-      </svg>`
-    },
-    {
-      id: 'esri-topo',
-      label: 'Topo (Esri)',
-      url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}',
-      maxZoom: 19,
-      // Mountain icon
-      icon: `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
-        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <polygon points="3 20 9 4 15 14 18 10 21 20 3 20"/>
-        <polyline points="3 20 21 20"/></svg>`
+      attribution: '© Esri, Maxar, Earthstar Geographics',
+      maxZoom: 19
     }
   ];
 
-  let _activeBasemapId = 'osm';
+  let _activeBasemapId = 'street';
 
   const BasemapControl = L.Control.extend({
-    options: { position: 'topleft' },
-    onAdd: function() {
-      const container = L.DomUtil.create('div', 'leaflet-basemap-switcher');
-      container.style.cssText = [
-        'display:flex','flex-direction:column','gap:2px',
-        'background:transparent','padding:0',
+    options: { position: 'topright' },
+    onAdd: function(map) {
+      // Outer wrapper — houses the toggle button + dropdown panel
+      const wrapper = L.DomUtil.create('div', 'diggs-basemap-ctrl');
+      wrapper.style.cssText = 'position:relative;';
+      L.DomEvent.disableClickPropagation(wrapper);
+      L.DomEvent.disableScrollPropagation(wrapper);
+
+      // Toggle button (layers/stack SVG icon)
+      const toggleBtn = L.DomUtil.create('button', 'diggs-basemap-toggle', wrapper);
+      toggleBtn.title = 'Switch basemap';
+      toggleBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"
+        viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+        stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <polygon points="12 2 2 7 12 12 22 7 12 2"/>
+        <polyline points="2 17 12 22 22 17"/>
+        <polyline points="2 12 12 17 22 12"/>
+      </svg>`;
+      toggleBtn.style.cssText = [
+        'display:flex','align-items:center','justify-content:center',
+        'width:30px','height:30px','cursor:pointer',
+        'background:var(--surface,#161b22)',
+        'color:var(--text,#e6edf3)',
+        'border:2px solid rgba(255,255,255,.12)',
+        'border-radius:4px','padding:0',
+        'box-shadow:0 1px 5px rgba(0,0,0,.5)',
+        'transition:background .15s,border-color .15s',
       ].join(';');
 
+      // Dropdown panel (initially hidden)
+      const panel = L.DomUtil.create('div', 'diggs-basemap-panel', wrapper);
+      panel.style.cssText = [
+        'display:none',
+        'position:absolute','top:34px','right:0',
+        'min-width:110px',
+        'background:var(--surface,#161b22)',
+        'border:1px solid var(--border,#30363d)',
+        'border-radius:6px',
+        'box-shadow:0 4px 12px rgba(0,0,0,.6)',
+        'overflow:hidden',
+        'z-index:1000',
+      ].join(';');
+
+      // Build one row per basemap
       BASEMAPS.forEach(bm => {
-        const btn = L.DomUtil.create('button', 'leaflet-control-basemap', container);
-        btn.title = bm.label;
-        btn.innerHTML = bm.icon;
-        btn.dataset.bmId = bm.id;
-        const baseStyle = [
-          'display:flex','align-items:center','justify-content:center',
-          'width:30px','height:30px','cursor:pointer',
-          'background:var(--surface,#161b22)',
-          'color:var(--text,#e6edf3)',
-          'border:2px solid rgba(0,0,0,.3)',
-          'border-radius:4px','padding:0',
-          'font-size:0','transition:background .15s,color .15s',
+        const row = L.DomUtil.create('button', 'diggs-basemap-row', panel);
+        row.dataset.bmId = bm.id;
+        row.textContent = bm.label;
+        const isActive = bm.id === _activeBasemapId;
+        row.style.cssText = [
+          'display:block','width:100%','text-align:left',
+          'padding:7px 12px',
+          'background:' + (isActive ? 'var(--surface2,#21262d)' : 'transparent'),
+          'color:' + (isActive ? 'var(--accent,#e8a045)' : 'var(--text,#e6edf3)'),
+          'font-weight:' + (isActive ? '600' : '400'),
+          'border:none','cursor:pointer','font-size:12px',
+          'white-space:nowrap',
+          'transition:background .1s,color .1s',
         ].join(';');
-        btn.style.cssText = baseStyle;
 
-        // Highlight active on init
-        if (bm.id === _activeBasemapId) {
-          btn.style.background = 'var(--accent,#e8a045)';
-          btn.style.color = '#000';
-        }
-
-        btn.onmouseover = () => {
-          btn.style.background = 'var(--accent,#e8a045)';
-          btn.style.color = '#000';
+        row.onmouseover = () => {
+          if (bm.id !== _activeBasemapId) {
+            row.style.background = 'var(--surface2,#21262d)';
+            row.style.color = 'var(--text,#e6edf3)';
+          }
         };
-        btn.onmouseout = () => {
-          if (btn.dataset.bmId !== _activeBasemapId) {
-            btn.style.background = 'var(--surface,#161b22)';
-            btn.style.color = 'var(--text,#e6edf3)';
+        row.onmouseout = () => {
+          if (bm.id !== _activeBasemapId) {
+            row.style.background = 'transparent';
+            row.style.color = 'var(--text,#e6edf3)';
           }
         };
 
-        L.DomEvent.on(btn, 'click', e => {
-          L.DomEvent.stopPropagation(e);
-          if (bm.id === _activeBasemapId) return;
+        L.DomEvent.on(row, 'click', () => {
+          if (bm.id === _activeBasemapId) { panel.style.display = 'none'; return; }
 
-          // Remove old layer
+          // Swap tile layer
           mapInstance.removeLayer(currentTileLayer);
-
-          // Add new layer
-          const opts = { maxZoom: bm.maxZoom };
+          const opts = { maxZoom: bm.maxZoom, attribution: bm.attribution };
           if (bm.subdomains) opts.subdomains = bm.subdomains;
           currentTileLayer = L.tileLayer(bm.url, opts).addTo(mapInstance);
-          // Ensure markers stay on top
           currentTileLayer.bringToBack();
 
           _activeBasemapId = bm.id;
 
-          // Update button highlights
-          container.querySelectorAll('.leaflet-control-basemap').forEach(b => {
-            if (b.dataset.bmId === bm.id) {
-              b.style.background = 'var(--accent,#e8a045)';
-              b.style.color = '#000';
-            } else {
-              b.style.background = 'var(--surface,#161b22)';
-              b.style.color = 'var(--text,#e6edf3)';
-            }
+          // Update row styles
+          panel.querySelectorAll('.diggs-basemap-row').forEach(r => {
+            const active = r.dataset.bmId === bm.id;
+            r.style.background = active ? 'var(--surface2,#21262d)' : 'transparent';
+            r.style.color      = active ? 'var(--accent,#e8a045)'   : 'var(--text,#e6edf3)';
+            r.style.fontWeight = active ? '600' : '400';
           });
+
+          // Close panel
+          panel.style.display = 'none';
+          toggleBtn.style.background = 'var(--surface,#161b22)';
+          toggleBtn.style.borderColor = 'rgba(255,255,255,.12)';
         });
-        L.DomEvent.disableClickPropagation(btn);
       });
 
-      return container;
+      // Toggle panel open/close
+      let _panelOpen = false;
+      L.DomEvent.on(toggleBtn, 'click', () => {
+        _panelOpen = !_panelOpen;
+        panel.style.display = _panelOpen ? 'block' : 'none';
+        toggleBtn.style.background    = _panelOpen ? 'var(--surface2,#21262d)'  : 'var(--surface,#161b22)';
+        toggleBtn.style.borderColor   = _panelOpen ? 'var(--accent,#e8a045)'    : 'rgba(255,255,255,.12)';
+      });
+
+      // Close on outside click
+      const _closeOnOutside = (e) => {
+        if (!wrapper.contains(e.target)) {
+          _panelOpen = false;
+          panel.style.display = 'none';
+          toggleBtn.style.background  = 'var(--surface,#161b22)';
+          toggleBtn.style.borderColor = 'rgba(255,255,255,.12)';
+        }
+      };
+      document.addEventListener('click', _closeOnOutside, true);
+      // Clean up listener when map is removed
+      map.once('unload', () => document.removeEventListener('click', _closeOnOutside, true));
+
+      return wrapper;
     }
   });
   new BasemapControl().addTo(mapInstance);
