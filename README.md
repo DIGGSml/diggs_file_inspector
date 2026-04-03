@@ -1,2 +1,5 @@
-# content_viewer
-Stanalone HTML Viewer for DIGGS FIles
+# DIGGS FILE INSPECTOR
+
+## Standalone HTML Viewer for DIGGS FIles
+
+(content coming...)
