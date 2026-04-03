@@ -1,0 +1,1043 @@
+<complexType name="AbstractSamplingFeatureType" abstract="true">
+    <annotation>
+        <documentation>Base type for all sampling features where investigations are conducted.</documentation>
+    </annotation>
+    <complexContent>
+        <extension base="diggs:AbstractNamedFeatureType">
+            <sequence>
+                <element ref="diggs:investigationTarget" maxOccurs="unbounded" minOccurs="0"/>
+                <element ref="diggs:projectRef" maxOccurs="unbounded"/>
+                <element minOccurs="0" ref="diggs:originalProjectRef"/>
+                <element maxOccurs="unbounded" minOccurs="0" ref="diggs:associatedProjectRef"/>
+                <element minOccurs="0" ref="diggs:programRef"/>
+                <element maxOccurs="unbounded" minOccurs="0" name="environment"
+                    type="diggs:EnvironmentPropertyType">
+                    <annotation>
+                        <documentation>Reference to an object containing environmental
+                                parameters recorded during construction of the sampling
+                                feature</documentation>
+                    </annotation>
+                </element>
+                <element maxOccurs="unbounded" minOccurs="0" name="otherSamplingFeatureProperty"
+                    type="diggs:ParameterPropertyType">
+                    <annotation>
+                        <documentation>Reference to an Parameter object containing the name,
+                                value or range of values and unit of measure of a property or a
+                                measurement parameter.</documentation>
+                    </annotation>
+                </element>
+                <element name="locality" type="diggs:LocalityPropertyType" minOccurs="0"
+                    maxOccurs="1">
+                    <annotation>
+                        <documentation>A reference to a Locality object, containing
+                                non-coordinate location information for a feature.</documentation>
+                    </annotation>
+                </element>
+                <element name="referencePoint" type="diggs:PointLocationPropertyType" minOccurs="1">
+                    <annotation>
+                        <documentation>Reference to a PointLocation object on the feature that
+                                defines the location of the samplingFeature within a known spatial
+                                3D CRS or compound CRS (geographic or projected 2D CRS, plus a
+                                vertical CRS).</documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" name="localCoordinates"
+                    type="diggs:LocalCoordinatePropertyType">
+                    <annotation>
+                        <documentation>A reference to a LocalCoordinate object that holds the
+                                values of local coordinates for the reference point of the
+                                associated feature. </documentation>
+                    </annotation>
+                </element>
+            </sequence>
+        </extension>
+    </complexContent>
+</complexType>
+
+<complexType name="AbstractLinearSamplingFeatureType" abstract="true">
+    <annotation>
+        <documentation>Base type for sampling features with linear (1D) geometries including
+                boreholes and trenches.</documentation>
+    </annotation>
+    <complexContent>
+        <extension base="diggs:AbstractSamplingFeatureType">
+            <sequence>
+                <element name="centerLine" type="diggs:LinearExtentPropertyType"
+                    maxOccurs="unbounded" minOccurs="1">
+                    <annotation>
+                        <documentation>A reference to a LinearExtent object that represents the
+                                linear geometry of the feature, defining its shape and location. For
+                                a borehole for example, the linestring would represent the
+                                borehole's trajectory in 3D space. Multiple centerlines can be
+                                defined (all associated with the same reference point) to define
+                                complex objects such as a wellbore with sidetracks, or different
+                                reference datums for a single borehole.</documentation>
+                    </annotation>
+                </element>
+                <element name="linearReferencing"
+                    type="diggs:LinearSpatialReferenceSystemPropertyType" minOccurs="0"
+                    maxOccurs="unbounded">
+                    <annotation>
+                        <documentation>A reference to a LinearSpatialReferenceSystem object for
+                                this sampling feature. A linear SRS allows other objects to
+                                reference their position (location) on the sampling feature with 1D
+                                coordinates that represents distance along the linear sampling
+                                feature, typically from the centerline origin. For sampling features
+                                such as boreholes the linear SRS coordinates define measured depths
+                                down the hole's centerline.</documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" name="plunge" type="diggs:PlungeMeasureType">
+                    <annotation>
+                        <documentation>For an inclined feature, the plunge angle, measured from
+                                the horizontal, positive up</documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" name="bearing" type="diggs:BearingMeasureType">
+                    <annotation>
+                        <documentation>For an inclined feature, the direction of plunge,
+                                positive clockwise from the reference azimuth, as expressed in the
+                                refAzimuth attribute.</documentation>
+                    </annotation>
+                </element>
+            </sequence>
+        </extension>
+    </complexContent>
+</complexType>
+
+
+<complexType name="BoreholeType">
+    <annotation>
+        <documentation>Extended type based on AbstractLinearSamplingFeatureType. Adds elements
+                for borehole type definition.</documentation>
+    </annotation>
+    <complexContent>
+        <extension base="diggs:AbstractLinearSamplingFeatureType">
+            <sequence>
+                <element maxOccurs="1" minOccurs="0" name="whenConstructed"
+                    type="diggs:TimeIntervalPropertyType">
+                    <annotation>
+                        <documentation>The period of time when the hole is constructed. This
+                                should include the entire time the drill rig is on
+                                site.</documentation>
+                    </annotation>
+                </element>
+                <element maxOccurs="1" minOccurs="0" name="whenDestroyed"
+                    type="diggs:TimeIntervalPropertyType">
+                    <annotation>
+                        <documentation>The time period during which the hole was destroyed or
+                                forever abandoned. This date must occur after all related
+                                observations, measurements or activities had been performed in the
+                                borehole, and should reflect the time after which no observations or
+                                activities are possible in the hole.</documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" name="totalMeasuredDepth" type="diggs:LengthMeasureType">
+                    <annotation>
+                        <documentation>The measured depth to the bottom of the hole, measured in
+                                a hole's linear referencing system.</documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" ref="diggs:holeBearing"/>
+                <element minOccurs="0" ref="diggs:holePlunge"/>
+                <element maxOccurs="1" minOccurs="0" name="boreholePurpose" type="gml:CodeType">
+                    <annotation>
+                        <documentation>A description of the purpose for drilling the hole (eg.
+                                exploratory boring, monitoring well, etc.). Intended to come from a
+                                controlled list.</documentation>
+                    </annotation>
+                </element>
+                <element maxOccurs="unbounded" minOccurs="0" name="boreholeType" type="gml:CodeType">
+                    <annotation>
+                        <documentation>A description of the type of boring, intended to come
+                                from a controlled lis ot terms. This is intended for use as a
+                                classifier that applications may use to identify types of boreholes
+                                that may require different data storage structures. It should not be
+                                used to describe the borehole construction method. The
+                                BoreholeConstructionMethod object should be used for such
+                                purposes.</documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" name="backfill" type="diggs:BackfillPropertyType"
+                    maxOccurs="unbounded">
+                    <annotation>
+                        <documentation>Information on construction of the borehole backfill
+                                after drilling. Also used to record backfill installed during well
+                                construction or rock grouting activities</documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" name="casing" type="diggs:CasingPropertyType"
+                    maxOccurs="unbounded">
+                    <annotation>
+                        <documentation>Information on the borehole casing installed while
+                                drilling and/or after completion of drilling.</documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" name="constructionMethod"
+                    type="diggs:BoreholeConstructionMethodPropertyType" maxOccurs="unbounded">
+                    <annotation>
+                        <documentation>Information regarding construction of the hole over
+                                different depth intervals</documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" name="constructionEvent"
+                    type="diggs:BoreholeEventPropertyType" maxOccurs="unbounded">
+                    <annotation>
+                        <documentation>Information about events recorded during construction of
+                                the borehole.</documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" maxOccurs="unbounded" ref="diggs:chiseling"/>
+                <element name="drillAdvancement" maxOccurs="unbounded" minOccurs="0"
+                    type="diggs:DrillAdvancementArrayPropertyType">
+                    <annotation>
+                        <documentation>The drill advancement property.</documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" name="flush" type="diggs:FlushPropertyType"
+                    maxOccurs="unbounded">
+                    <annotation>
+                        <documentation>Information related to flushing the borehole with fluid
+                                (eg. fluid type, return, fluid color, etc.) </documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" name="holeDiameter" type="diggs:BoreholeDiameterPropertyType"
+                    maxOccurs="unbounded">
+                    <annotation>
+                        <documentation>Information on the borehole diameter with depth,
+                                generally representing the bit size used within a borehole interval.
+                                Detailed measurements of borehole derived from a caliper log is a
+                                Test property resulting from a Wireline log procedure.
+                            </documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" name="waterStrike" type="diggs:WaterStrikePropertyType"
+                    maxOccurs="unbounded">
+                    <annotation>
+                        <documentation>Information on when ground water is struck during
+                                drilling of the hole.</documentation>
+                    </annotation>
+                </element>
+            </sequence>
+        </extension>
+    </complexContent>
+</complexType>
+
+<complexType name="SoundingType">
+    <annotation>
+        <documentation>Extended type based on AbstractLinearSamplingFeatureType. Adds elements
+                for sounding type definition.</documentation>
+    </annotation>
+    <complexContent>
+        <extension base="diggs:AbstractLinearSamplingFeatureType">
+            <sequence>
+                <element maxOccurs="1" minOccurs="0" name="whenConstructed"
+                    type="diggs:TimeIntervalPropertyType">
+                    <annotation>
+                        <documentation>The period of time when the sounding is constructed. This
+                                should include the entire time the drill rig is on
+                                site.</documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" name="totalMeasuredDepth" type="diggs:LengthMeasureType">
+                    <annotation>
+                        <documentation>The measured depth to the bottom of the hole, measured in
+                                a hole's linear referencing system.</documentation>
+                    </annotation>
+                </element>
+                <element maxOccurs="1" minOccurs="0" name="soundingPurpose" type="gml:CodeType">
+                    <annotation>
+                        <documentation>A description of the purpose for the sounding. Intended
+                                to come from a controlled list (eg. CPT, Flat Dilatometer,
+                                etc).</documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" name="backfill" type="diggs:BackfillPropertyType">
+                    <annotation>
+                        <documentation>Information on construction of the backfill after the
+                                sounding is made.</documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" name="casing" type="diggs:CasingPropertyType"
+                    maxOccurs="unbounded">
+                    <annotation>
+                        <documentation>Information on the casing installed following or during
+                                the sounding</documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" name="constructionMethod"
+                    type="diggs:SoundingConstructionMethodPropertyType" maxOccurs="unbounded">
+                    <annotation>
+                        <documentation>Information regarding construction of the sounding over
+                                different depth intervals</documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" name="constructionEvent"
+                    type="diggs:SoundingEventPropertyType" maxOccurs="unbounded">
+                    <annotation>
+                        <documentation>Information on sounding construction events with
+                                time.</documentation>
+                    </annotation>
+                </element>
+            </sequence>
+        </extension>
+    </complexContent>
+</complexType>
+
+<complexType name="TrialPitType">
+    <annotation>
+        <documentation>Extended type based on AbstractLinearSamplingFeatureType. Adds elements
+                for trial pit type definition.</documentation>
+    </annotation>
+    <complexContent>
+        <extension base="diggs:AbstractLinearSamplingFeatureType">
+            <sequence>
+                <element maxOccurs="1" minOccurs="0" name="whenConstructed"
+                    type="diggs:TimeIntervalPropertyType">
+                    <annotation>
+                        <documentation>The period of time when the hole is constructed. This
+                                should include the entire time the drill rig is on
+                                site.</documentation>
+                    </annotation>
+                </element>
+                <element name="totalMeasuredDepth" type="diggs:LengthMeasureType" minOccurs="0">
+                    <annotation>
+                        <documentation>The maximum depth of the pit, referenced to a linear
+                                reference system.</documentation>
+                    </annotation>
+                </element>
+                <element name="pitLength" type="diggs:LengthMeasureType" minOccurs="0" maxOccurs="1">
+                    <annotation>
+                        <documentation>The length of the long horizontal dimension of the pit.
+                            </documentation>
+                    </annotation>
+                </element>
+                <element name="pitWidth" type="diggs:LengthMeasureType" minOccurs="0" maxOccurs="1">
+                    <annotation>
+                        <documentation>The length of the short horizontal dimension of the
+                                pit.</documentation>
+                    </annotation>
+                </element>
+                <element name="shoring" type="string" minOccurs="0" maxOccurs="1">
+                    <annotation>
+                        <documentation>Description of shoring equipment and
+                                method.</documentation>
+                    </annotation>
+                </element>
+                <element maxOccurs="1" minOccurs="0" name="trialPitPurpose" type="gml:CodeType">
+                    <annotation>
+                        <documentation>A description of the purpose for excavating the pit (eg.
+                                exploratory). Intended to come from a controlled
+                                list.</documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" name="backfill" type="diggs:BackfillPropertyType">
+                    <annotation>
+                        <documentation>Information on construction of the trial pit
+                                backfill.</documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" name="constructionMethod"
+                    type="diggs:TrenchConstructionMethodPropertyType" maxOccurs="unbounded">
+                    <annotation>
+                        <documentation>Information regarding construction of the pit over
+                                different depth intervals</documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" name="constructionEvent"
+                    type="diggs:TrialPitEventPropertyType" maxOccurs="unbounded">
+                    <annotation>
+                        <documentation>Information on construction of the trial pit with
+                                time</documentation>
+                    </annotation>
+                </element>
+            </sequence>
+        </extension>
+    </complexContent>
+</complexType>
+
+<complexType name="TransectType">
+    <annotation>
+        <documentation>Extended type based on AbstractLinearSamplingFeatureType. Adds elements
+                for transect type definition.</documentation>
+    </annotation>
+    <complexContent>
+        <extension base="diggs:AbstractLinearSamplingFeatureType">
+            <sequence>
+                <element maxOccurs="1" minOccurs="0" name="whenTransectRun"
+                    type="diggs:TimeIntervalPropertyType">
+                    <annotation>
+                        <documentation>The period of time when during which the transect is
+                                run.</documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" name="totalTransectLength" type="diggs:LengthMeasureType">
+                    <annotation>
+                        <documentation>The total length of the transect.</documentation>
+                    </annotation>
+                </element>
+                <element maxOccurs="1" minOccurs="0" name="transectPurpose" type="gml:CodeType">
+                    <annotation>
+                        <documentation>A description of the purpose for running the transect.
+                                Intended to come from a controlled list.</documentation>
+                    </annotation>
+                </element>
+            </sequence>
+        </extension>
+    </complexContent>
+</complexType>
+
+<complexType name="GroutTrenchCutoffWallType">
+    <annotation>
+        <documentation>Extended type based on AbstractLinearSamplingFeatureType. Adds elements for grout trench cutoff wall type definition.</documentation>
+    </annotation>
+    <complexContent>
+        <extension base="diggs:AbstractLinearSamplingFeatureType">
+            <sequence>
+                <element minOccurs="0" name="cutoffWallWidth" type="diggs:LengthMeasureType">
+                    <annotation>
+                        <documentation>The width of the trench cutoff wall - this is typically
+                                the same as the thickness of the cutting tool or backhoe
+                                shovel</documentation>
+                    </annotation>
+                </element>
+                <element name="wallSectionDepths" type="diggs:WallSectionDepthsArrayPropertyType">
+                    <annotation>
+                        <documentation>The wall section depths property.</documentation>
+                    </annotation>
+                </element>
+            </sequence>
+        </extension>
+    </complexContent>
+</complexType>
+
+<complexType name="GP_TracklineType">
+    <annotation>
+        <documentation>Extended type based on AbstractLinearSamplingFeatureType. Adds elements for trackline type definition.</documentation>
+    </annotation>
+    <complexContent>
+        <extension base="diggs:AbstractLinearSamplingFeatureType">
+            <sequence>
+                <element name="sensorMix" type="diggs:SensorMixEnumType">
+                    <annotation>
+                        <documentation>Describes the kind of sensors that are located along the
+                                trackline; from an enumerated list.</documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" name="whenTracklineOccupied"
+                    type="diggs:TimeIntervalPropertyType">
+                    <annotation>
+                        <documentation>The time interval during which receivers were deployed
+                                along the trackline.</documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" name="totalTracklineLength" type="diggs:LengthMeasureType">
+                    <annotation>
+                        <documentation>The total length of the trackline.</documentation>
+                    </annotation>
+                </element>
+            </sequence>
+        </extension>
+    </complexContent>
+</complexType>
+
+<element abstract="true" name="AbstractLinearInstallation"
+    substitutionGroup="diggs:AbstractSamplingFeature" type="diggs:AbstractLinearInstallationType">
+    <annotation>
+        <documentation>Abstract element for linear installations within sampling features.
+                Serves as the head of the substitution group for linear installation
+                types.</documentation>
+    </annotation>
+</element>
+
+<complexType name="WellType">
+    <annotation>
+        <documentation>Extended type based on AbstractLinearInstallationType. Adds elements for
+                well type definition.</documentation>
+    </annotation>
+    <complexContent>
+        <extension base="diggs:AbstractLinearInstallationType">
+            <sequence>
+                <element minOccurs="0" name="aquiferTested" type="gml:CodeType">
+                    <annotation>
+                        <documentation>Name or other identifier for the aquifer being sampled by
+                                the well.</documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" name="fluidPurpose" type="gml:CodeType">
+                    <annotation>
+                        <documentation>If a production or extraction well, a code or description
+                                of the purpose for the fluid (eg. public supply, municipal,
+                                etc.)</documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" name="initialDevelopmentMethod"
+                    type="diggs:SpecificationPropertyType">
+                    <annotation>
+                        <documentation>Description of the method used to develop the well after
+                                initial construction (eg. compressed air, surged,
+                                etc.)</documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" name="initialDevelopmentTime"
+                    type="diggs:TimeIntervalPropertyType">
+                    <annotation>
+                        <documentation>Time required for initial development </documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" name="maintenanceEvent"
+                    type="diggs:InstallationEventPropertyType" maxOccurs="unbounded">
+                    <annotation>
+                        <documentation>Information on the occurrence and activities involved in
+                                well maintenance and servicing.</documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" name="opening" type="diggs:WellOpeningPropertyType"
+                    maxOccurs="unbounded">
+                    <annotation>
+                        <documentation>Information on the location and type of well openings
+                                (perforations) installed to allow fluid communication between the
+                                well and adjacent earth material</documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" ref="diggs:sanitarySealLocation"/>
+                <element minOccurs="0" ref="diggs:sanitarySealType">
+                    <annotation>
+                        <documentation/>
+                    </annotation>
+                </element>
+                <element minOccurs="0" name="specialTreatment" type="string">
+                    <annotation>
+                        <documentation>Description of any special procedures employed upon
+                                initial development of well.</documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" name="wellAbandonment"
+                    type="diggs:InstallationEventPropertyType" maxOccurs="unbounded">
+                    <annotation>
+                        <documentation>Information on the occurrence and procedures performed
+                                upon abandoning the well</documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" name="wellCasing" type="diggs:CasingPropertyType"
+                    maxOccurs="unbounded">
+                    <annotation>
+                        <documentation>Information on the type and location of the solid well
+                                casing installed.</documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" name="wellDepth" type="diggs:LengthMeasureType">
+                    <annotation>
+                        <documentation>The measured depth to the bottom of the well, measured
+                                from the top of the well casing or the well's centerline origin if
+                                different from top of casing</documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" name="wellFinishType" type="gml:CodeType">
+                    <annotation>
+                        <documentation>Description of how the well is finished (eg. gravel pack
+                                with perforations, open end, sand point, etc.) </documentation>
+                    </annotation>
+                </element>
+                <element maxOccurs="1" minOccurs="0" name="wellPurpose" type="gml:CodeType">
+                    <annotation>
+                        <documentation>A description of the purpose for installing the hole (eg.
+                                ground water withdrawal, observation, etc.). Intended to come from a
+                                controlled list.</documentation>
+                    </annotation>
+                </element>
+            </sequence>
+        </extension>
+    </complexContent>
+</complexType>
+
+<complexType name="AbstractPileType" abstract="true">
+    <annotation>
+        <documentation>Abstract supertype for all pile types.</documentation>
+    </annotation>
+    <complexContent>
+        <extension base="diggs:AbstractLinearInstallationType">
+            <sequence>
+                <element minOccurs="0" name="whenInstalled" type="diggs:TimeIntervalType">
+                    <annotation>
+                        <documentation>The date and time the pile was installed.</documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" name="referenceElevation" type="diggs:LengthMeasureType">
+                    <annotation>
+                        <documentation>A true vertical control element, in the same vertical CRS
+                                as the referencePoint), that is used to set elevations for the
+                                structural elements, and not the top of the piling. This property is
+                                used when groundSurfaceElevation is not used as the reference
+                                elevation. </documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="1" name="groundSurfaceElevation" type="diggs:LengthMeasureType">
+                    <annotation>
+                        <documentation>The elevation of the ground surface, in the same vertical
+                                CRS as the referencePoint. This point often serves as the pile's
+                                reference elevation.</documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="1" name="cutoffElevation" type="diggs:LengthMeasureType">
+                    <annotation>
+                        <documentation>Elevation of the pile cutoff in the same vertical CRS as
+                                the referencePoint.</documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" name="jettingElevation" type="diggs:LengthMeasureType">
+                    <annotation>
+                        <documentation>Elevation of the top of the pile in the same CRS as the
+                                referencePoint, that is reached by pile jetting.</documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" name="totalPileLength" type="diggs:LengthMeasureType">
+                    <annotation>
+                        <documentation>The total length of the pile as
+                                installed.</documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" name="weightPerLength" type="diggs:ForcePerLengthMeasureType">
+                    <annotation>
+                        <documentation>The weight of the pile per unit length.</documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" name="tipDeviationNorth" type="diggs:LengthMeasureType">
+                    <annotation>
+                        <documentation>The deviation of the pile tip from the vertical in the
+                                north direction.</documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" name="tipDeviationEast" type="diggs:LengthMeasureType">
+                    <annotation>
+                        <documentation>The deviation of the pile tip from the vertical in the
+                                east direction.</documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" name="lengthAboveGroundSurface"
+                    type="diggs:LengthMeasureType">
+                    <annotation>
+                        <documentation>Length of the pile above the ground
+                                surface.</documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" name="lengthBelowGroundSurface"
+                    type="diggs:LengthMeasureType">
+                    <annotation>
+                        <documentation>Length of the pile below the ground
+                                surface.</documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" name="lengthNonFriction" type="diggs:LengthMeasureType">
+                    <annotation>
+                        <documentation>Length of the pile that is not contributing to
+                                friction.</documentation>
+                    </annotation>
+                </element>
+                <element form="qualified" maxOccurs="1" minOccurs="0" name="finalTipElevation"
+                    type="diggs:LengthMeasureType">
+                    <annotation>
+                        <documentation>The final elevation of the pile tip after driving, in the
+                                same CRS as the referencePoint</documentation>
+                    </annotation>
+                </element>
+                <element maxOccurs="unbounded" minOccurs="1" name="taperInterval"
+                    type="diggs:TaperPropertyType">
+                    <annotation>
+                        <documentation>A list of intervals along the length of the pile that
+                                defines the pile diameter and other properties. The Taper object is
+                                used to define the parameters of any kind of pile
+                                taper.</documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" name="productionPile" type="boolean">
+                    <annotation>
+                        <documentation>True indicates that this is a production pile, false or
+                                not provided indicates it is not a production pile.</documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" name="testPile" type="boolean">
+                    <annotation>
+                        <documentation>True indicates that this is a test pile, false or not
+                                provided indicates it is not a test pile.</documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" name="tipType" type="gml:CodeType">
+                    <annotation>
+                        <documentation>The type of tip used on the pile, if applicable. Intended
+                                to come from a controlled list of terms (eg. normal, heavy, conical,
+                                etc.)</documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" name="nominalCapacity" type="diggs:ForceMeasureType">
+                    <annotation>
+                        <documentation>The nominal capacity of the pile.</documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" name="allowableDrivingStress"
+                    type="diggs:PressureMeasureType">
+                    <annotation>
+                        <documentation>The maximum stress to be imposed on the pile when
+                                driving. </documentation>
+                    </annotation>
+                </element>
+            </sequence>
+        </extension>
+    </complexContent>
+</complexType>
+
+<complexType name="SteelHPileType">
+    <annotation>
+        <documentation>A pile made of steel with an H shaped cross section.</documentation>
+    </annotation>
+    <complexContent>
+        <extension base="diggs:AbstractPileType">
+            <sequence>
+                <element name="pileSizeDesignation" type="gml:CodeType">
+                    <annotation>
+                        <documentation>A code or name identifying the pile size (typically
+                                diameter and weight/unit length) along with other shape parameters
+                                as applicable. Intended to come from a controlled list of terms,
+                                Example: &lt;pileSizeDesignation codeSpace="ASTM A6 H-Piling">HP 200 x
+                                    64&lt;/pileSizeDesignation></documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" ref="diggs:weldType">
+                    <annotation>
+                        <documentation>The type of weld used on the pile, from an enumerated
+                                list (circular, spiral)</documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" name="flangeLength" type="diggs:LengthMeasureType">
+                    <annotation>
+                        <documentation>Length of the flange.</documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" name="flangeThickness" type="diggs:LengthMeasureType">
+                    <annotation>
+                        <documentation>Thickness of the flange.</documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" name="webThickness" type="diggs:LengthMeasureType">
+                    <annotation>
+                        <documentation>Thickness of the web.</documentation>
+                    </annotation>
+                </element>
+                <element maxOccurs="1" minOccurs="0" name="splices"
+                    type="diggs:SpliceArrayPropertyType">
+                    <annotation>
+                        <documentation>List of the splices present in the pile.</documentation>
+                    </annotation>
+                </element>
+            </sequence>
+        </extension>
+    </complexContent>
+</complexType>
+
+<complexType name="SteelPipePileType">
+    <annotation>
+        <documentation>A pile made from a steel pipe.</documentation>
+    </annotation>
+    <complexContent>
+        <extension base="diggs:AbstractPileType">
+            <sequence>
+                <element name="pileSizeDesignation" type="gml:CodeType">
+                    <annotation>
+                        <documentation>A code or name identifying the pile size (typically
+                                diameter and weight/unit length) along with other shape parameters
+                                as applicable. Intended to come from a controlled list of terms,
+                                Example: &lt;pileSizeDesignation codeSpace="ASTM A6 H-Piling">HP 200 x
+                                    64&lt;/pileSizeDesignation></documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" name="wallThickness" type="diggs:LengthMeasureType">
+                    <annotation>
+                        <documentation>The thickness of the pipe wall.</documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="1" name="openEnded" type="boolean">
+                    <annotation>
+                        <documentation>True indicates that the pipe is open ended, false
+                                indicates that it is closed ended.</documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" name="concreteFilled" type="boolean">
+                    <annotation>
+                        <documentation>True indicates that the pile is filled with concrete,
+                                false or not provided indicates that the pile is not filled with
+                                concrete.</documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" name="soilPlugDepth" type="diggs:LengthMeasureType">
+                    <annotation>
+                        <documentation>Depth of the soil plug inside the pile.</documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" name="soilPlugElevation" type="diggs:LengthMeasureType">
+                    <annotation>
+                        <documentation>Elevation of the top of the soil plug.</documentation>
+                    </annotation>
+                </element>
+                <element maxOccurs="1" minOccurs="0" name="splices"
+                    type="diggs:SpliceArrayPropertyType">
+                    <annotation>
+                        <documentation>The list of splices in the pile.</documentation>
+                    </annotation>
+                </element>
+            </sequence>
+        </extension>
+    </complexContent>
+</complexType>
+
+<complexType name="ConcretePileType">
+    <annotation>
+        <documentation>A pile made from concrete.</documentation>
+    </annotation>
+    <complexContent>
+        <extension base="diggs:AbstractPileType">
+            <sequence>
+                <element name="pileSizeDesignation" type="gml:CodeType" minOccurs="0">
+                    <annotation>
+                        <documentation>A code or name identifying the pile size (typically
+                                diameter and weight/unit length) along with other shape parameters
+                                as applicable. Intended to come from a controlled list of terms,
+                                Example: &lt;pileSizeDesignation codeSpace="ASTM A6 H-Piling">HP 200 x
+                                    64&lt;/pileSizeDesignation></documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" name="shape" type="diggs:PileShapeEnumExtType">
+                    <annotation>
+                        <documentation>The shape of the pile cross section.</documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" name="hollowWidth" type="diggs:LengthMeasureType">
+                    <annotation>
+                        <documentation>Width of the hollow center of the pile.</documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" name="wallThickness" type="diggs:LengthMeasureType">
+                    <annotation>
+                        <documentation>Thickness of the pile wall.</documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" name="sideLength" type="diggs:LengthMeasureType">
+                    <annotation>
+                        <documentation>Length of one side for square or hexagonal
+                                piles.</documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" name="soilPlugDepth" type="diggs:LengthMeasureType">
+                    <annotation>
+                        <documentation>Depth of the soil plug inside the pile.</documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" name="soilPlugElevation"
+                    type="diggs:PointLocationPropertyType">
+                    <annotation>
+                        <documentation>Elevation of the top of the soil plug.</documentation>
+                    </annotation>
+                </element>
+                <element maxOccurs="unbounded" minOccurs="0" name="splices"
+                    type="diggs:SpliceArrayPropertyType">
+                    <annotation>
+                        <documentation>The list of splices present in the pile.</documentation>
+                    </annotation>
+                </element>
+            </sequence>
+        </extension>
+    </complexContent>
+</complexType>
+
+
+<complexType name="TimberPileType">
+    <annotation>
+        <documentation>A pile made from timber.</documentation>
+    </annotation>
+    <complexContent>
+        <extension base="diggs:AbstractPileType">
+            <sequence>
+                <element name="pileSizeDesignation" type="gml:CodeType" minOccurs="0">
+                    <annotation>
+                        <documentation>A code or name identifying the pile size (typically
+                                diameter and weight/unit length) along with other shape parameters
+                                as applicable. Intended to come from a controlled list of terms,
+                                Example: &lt;pileSizeDesignation codeSpace="ASTM A6 H-Piling">HP 200 x
+                                    64&lt;/pileSizeDesignation></documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" name="timberType" type="gml:CodeType">
+                    <annotation>
+                        <documentation>The type of timber used to construct the
+                                pile.</documentation>
+                    </annotation>
+                </element>
+            </sequence>
+        </extension>
+    </complexContent>
+</complexType>
+
+<complexType name="AbstractPointSamplingFeatureType">
+    <annotation>
+        <documentation>Base type for all point sampling features - discrete locations where
+                samples are collected or measurements made. Point sampling features represent
+                zero-dimensional sampling positions at the scale of the investigation. Examples
+                include CPT soundings, groundwater monitoring points, surface soil sample locations,
+                and probe test positions. While these features may have physical dimensions (e.g., a
+                monitoring well has a diameter), they are treated as points because their spatial
+                extent is negligible compared to the investigation area. Point features are
+                characterized by a single location coordinate.</documentation>
+    </annotation>
+    <complexContent>
+        <extension base="diggs:AbstractSamplingFeatureType">
+            <sequence> </sequence>
+        </extension>
+    </complexContent>
+</complexType>
+
+<complexType name="StationType">
+    <annotation>
+        <documentation>Extended type based on AbstractPointSamplingFeatureType. Adds elements
+                for station type definition.</documentation>
+    </annotation>
+    <complexContent>
+        <extension base="diggs:AbstractPointSamplingFeatureType">
+            <sequence>
+                <element minOccurs="0" name="type" type="gml:CodeType">
+                    <annotation>
+                        <documentation>A definition of the type of station (eg. outcrop, survey
+                                marker, etc.). This is intended to come from a list controlled by an
+                                authority. </documentation>
+                    </annotation>
+                </element>
+            </sequence>
+        </extension>
+    </complexContent>
+</complexType>
+
+<complexType name="AbstractPlanarSamplingFeatureType" abstract="true">
+    <annotation>
+        <documentation>Base type for sampling features with planar (2D) geometries including
+                test pits and excavations.</documentation>
+    </annotation>
+    <complexContent>
+        <extension base="diggs:AbstractSamplingFeatureType">
+            <sequence>
+                <element minOccurs="0" maxOccurs="1" ref="diggs:referenceEdge"/>
+                <element name="featureExtent" type="diggs:SurfacePropertyType" maxOccurs="1"
+                    minOccurs="1">
+                    <annotation>
+                        <documentation> This element defines the extent of the surface feature
+                                using a spatial CRS. This element can be used for visual
+                                representations using typical/simple mapping software. Either this
+                                element, or relativeFeatureExtent is required, and can be optionally
+                                added if relativeFeatureExtent is used. </documentation>
+                    </annotation>
+                </element>
+                <element ref="diggs:relativeFeatureBoundary" maxOccurs="1" minOccurs="0"/>
+                <element ref="diggs:planarReferencing" maxOccurs="unbounded" minOccurs="0"/>
+            </sequence>
+        </extension>
+    </complexContent>
+</complexType>
+
+<complexType name="PlanarSamplingFeatureType">
+    <annotation>
+        <documentation>Concrete type extending AbstractPlanarSamplingFeatureType. Provides
+                implementation for surface space type.</documentation>
+    </annotation>
+    <complexContent>
+        <extension base="diggs:AbstractPlanarSamplingFeatureType">
+            <sequence/>
+        </extension>
+    </complexContent>
+</complexType>
+
+<complexType name="PlanarSamplingFeatureType">
+    <annotation>
+        <documentation>Concrete type extending AbstractPlanarSamplingFeatureType. Provides
+                implementation for surface space type.</documentation>
+    </annotation>
+    <complexContent>
+        <extension base="diggs:AbstractPlanarSamplingFeatureType">
+            <sequence/>
+        </extension>
+    </complexContent>
+</complexType>
+
+<complexType name="GP_ArealSurveyType">
+    <annotation>
+        <documentation>Extended type based on AbstractPlanarSamplingFeatureType. Adds elements for areal survey type definition.</documentation>
+    </annotation>
+    <complexContent>
+        <extension base="diggs:AbstractPlanarSamplingFeatureType">
+            <sequence>
+                <element name="sensorMix" type="diggs:SensorMixEnumType">
+                    <annotation>
+                        <documentation>Describes the kind of sensors that are located within the
+                                areal survey; from an enumerated list. </documentation>
+                    </annotation>
+                </element>
+                <element minOccurs="0" name="totalSurveyArea" type="diggs:AreaMeasureType">
+                    <annotation>
+                        <documentation>The total area of the survey</documentation>
+                    </annotation>
+                </element>
+            </sequence>
+        </extension>
+    </complexContent>
+</complexType>
+
+<complexType abstract="true" name="AbstractVolumeSamplingFeatureType">
+    <annotation>
+        <documentation>Base type for sampling features with volume (3D)
+                geometries.</documentation>
+    </annotation>
+    <complexContent>
+        <extension base="diggs:AbstractSamplingFeatureType">
+            <sequence>
+                <element minOccurs="0" ref="diggs:referenceEdge"/>
+                <element maxOccurs="1" minOccurs="1" name="featureExtent"
+                    type="diggs:VolumePropertyType">
+                    <annotation>
+                        <documentation> This element defines the extent of the solid feature
+                                using a absolute CRS. This element can be used for visual
+                                representations using typical/simple mapping software
+                            </documentation>
+                    </annotation>
+                </element>
+                <element maxOccurs="1" minOccurs="0" ref="diggs:relativeFeatureExtent"/>
+                <element maxOccurs="unbounded" minOccurs="0" ref="diggs:volumeReferencing"/>
+            </sequence>
+        </extension>
+    </complexContent>
+</complexType>
+
+<complexType name="VolumetricSamplingFeatureType">
+    <annotation>
+        <documentation>Concrete type extending AbstractVolumeSamplingFeatureType. Provides
+                implementation for volume space type.</documentation>
+    </annotation>
+    <complexContent>
+        <extension base="diggs:AbstractVolumeSamplingFeatureType">
+            <sequence/>
+        </extension>
+    </complexContent>
+</complexType>
+
+<complexType name="GP_MultiTrackType">
+    <annotation>
+        <documentation>Extended type based on AbstractSamplingFeatureType. Adds elements for multi track type definition.</documentation>
+    </annotation>
+    <complexContent>
+        <extension base="diggs:AbstractSamplingFeatureType">
+            <sequence>
+                <element name="trackline" type="diggs:GP_TracklinePropertyType"
+                    maxOccurs="unbounded" minOccurs="2">
+                    <annotation>
+                        <documentation>The trackline property.</documentation>
+                    </annotation>
+                </element>
+            </sequence>
+        </extension>
+    </complexContent>
+</complexType>

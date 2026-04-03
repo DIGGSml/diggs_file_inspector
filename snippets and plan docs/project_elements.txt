@@ -1,0 +1,168 @@
+<complexType name="ProjectType">
+    <annotation>
+        <documentation>Concrete type extending AbstractProjectType. Provides implementation for
+                project type.</documentation>
+    </annotation>
+    <complexContent>
+        <extension base="diggs:AbstractProjectType">
+            <sequence/>
+        </extension>
+    </complexContent>
+</complexType>
+
+<complexType name="AbstractProjectType" abstract="true">
+    <annotation>
+        <documentation>Base type for projects that organize investigations with defined scope, location, and time frame.</documentation>
+    </annotation>
+    <complexContent>
+        <extension base="diggs:AbstractNamedFeatureType">
+            <sequence>
+                <element name="referencePoint" type="diggs:PointLocationPropertyType" minOccurs="0"
+                    maxOccurs="1">
+                    <annotation>
+                        <documentation>Defines the location of the project (usually a location
+                                at the ground surface) within a well-known 3D CRS or combined CRS
+                                (geographic or projected, and elevation), as an extension of
+                                gml:Point object with an additional uncertainty property
+                            </documentation>
+                    </annotation>
+                </element>
+                <element name="linearExtent" type="diggs:LinearExtentPropertyType" minOccurs="0"
+                    maxOccurs="unbounded">
+                    <annotation>
+                        <documentation>Defines a project geometry that may be defined as a line
+                                in geographic or projected space and contains a LinearExtent
+                                geometry object. </documentation>
+                    </annotation>
+                </element>
+                <element name="arealExtent" type="diggs:SurfacePropertyType" minOccurs="0"
+                    maxOccurs="unbounded">
+                    <annotation>
+                        <documentation>Defines a project geometry that represents the areal
+                                extent of a project in geographic or projected space and contains a
+                                surface geometry object.</documentation>
+                    </annotation>
+                </element>
+                <element name="projectDateTimeSpan" type="diggs:TimeIntervalPropertyType"
+                    minOccurs="0" maxOccurs="1">
+                    <annotation>
+                        <documentation>The interval of time during which the project was
+                                active.</documentation>
+                    </annotation>
+                </element>
+                <element name="locality" type="diggs:LocalityPropertyType" minOccurs="0"
+                    maxOccurs="unbounded">
+                    <annotation>
+                        <documentation>Contains either a Locality object or a PointLocation
+                                object that describes, repectively, the non-coordinate or coordinate
+                                location of the project. If only one locality property exists for
+                                the project, referencePoint should be used to desccribe the
+                                coordinate location for the project instead of the PointLocation
+                                object.</documentation>
+                    </annotation>
+                </element>
+                <element name="purpose" type="gml:CodeType" minOccurs="0" maxOccurs="1">
+                    <annotation>
+                        <documentation>A string descxribing the purpose for the project. This is
+                                intended to come from a controlled list of terms.</documentation>
+                    </annotation>
+                </element>
+                <element maxOccurs="unbounded" minOccurs="0" name="projectEvent"
+                    type="diggs:ProjectEventPropertyType">
+                    <annotation>
+                        <documentation>Contains a ProjectEvent property describing the
+                                occurrence of a time or location related event associated with a
+                                project.</documentation>
+                    </annotation>
+                </element>
+                <element name="contract" type="diggs:ContractPropertyType" minOccurs="0"
+                    maxOccurs="unbounded">
+                    <annotation>
+                        <documentation>Contains a Contract object that describes the properties
+                                of a business contract associated with the project. </documentation>
+                    </annotation>
+                </element>
+                <element maxOccurs="unbounded" minOccurs="0" name="otherProjectProperty"
+                    type="diggs:ParameterPropertyType">
+                    <annotation>
+                        <documentation>Contains a Parameter object used to describe the name and
+                                value of a project property not otherwise explicitly defined in the
+                                schema.</documentation>
+                    </annotation>
+                </element>
+            </sequence>
+        </extension>
+    </complexContent>
+</complexType>
+
+<complexType name="AbstractNamedFeatureType" abstract="true">
+    <annotation>
+        <documentation>Feature type emphasizing naming through multiple gml:name elements.</documentation>
+    </annotation>
+    <complexContent>
+        <restriction base="diggs:AbstractFeatureType">
+            <sequence>
+                <sequence>
+                    <element minOccurs="0" ref="gml:description"/>
+                    <element minOccurs="0" ref="gml:identifier"/>
+                </sequence>
+                <sequence>
+                    <element maxOccurs="unbounded" minOccurs="1" ref="gml:name"/>
+                    <element minOccurs="0" ref="diggs:internalIdentifier">
+                        <annotation>
+                            <documentation>The value of this property is the identifier
+                                    originally created by the authority for this feature, or that is
+                                    used as the identifier in the authority's internal data
+                                    management system. There is no assumption as to the unique scope
+                                    or persistence of this identifier. In cases where the original
+                                    or internal identifier does not meet the semantic requirements
+                                    for gml:id or gml:identifier, the internal identifier may be
+                                    included in this property in order for the originating authority
+                                    to "map back" the identifier to an internal data management
+                                    system. The codeSpace attribute must be populated to identify
+                                    the authority that uses the internalIdentifier
+                                    value.</documentation>
+                        </annotation>
+                    </element>
+                    <element minOccurs="0" ref="diggs:status">
+                        <annotation>
+                            <documentation>A text string to provide information about the status
+                                    of the object to be used to track QA/QC controls, review or
+                                    release status, etc. The values used are intended to come from a
+                                    controlled list of terms maintained by an
+                                    organization.</documentation>
+                        </annotation>
+                    </element>
+                    <element minOccurs="0" ref="diggs:implementationStatus"/>
+                    <element maxOccurs="unbounded" minOccurs="0" name="associatedFile"
+                        type="diggs:AssociatedFilePropertyType">
+                        <annotation>
+                            <documentation>Identifies external files associated with this
+                                    feature. This allows for the feature to be further elaborated
+                                    with information that cannot be represented by ASCII text, such
+                                    as a photograph or other media, binary data, or a formatted
+                                    report.</documentation>
+                        </annotation>
+                    </element>
+                    <element maxOccurs="unbounded" minOccurs="0" name="role"
+                        type="diggs:RolePropertyType">
+                        <annotation>
+                            <documentation>Identifies a specific role or task performed that is
+                                    associated with this specific feature, the person or
+                                    organization that performed the role, and associated time frame,
+                                    if applicable.</documentation>
+                        </annotation>
+                    </element>
+                    <element maxOccurs="unbounded" minOccurs="0" name="remark"
+                        type="diggs:RemarkPropertyType">
+                        <annotation>
+                            <documentation>Any comment or remark associated with this specific
+                                    feature.</documentation>
+                        </annotation>
+                    </element>
+                </sequence>
+            </sequence>
+        </restriction>
+    </complexContent>
+</complexType>
+

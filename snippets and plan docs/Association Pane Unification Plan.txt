@@ -1,0 +1,42 @@
+he work falls into roughly four layers, each enabling the next:
+
+Step 1 — DIGGS_DISPLAY_LABELS + diggsLabel()
+This is pure addition, zero risk, and unblocks everything else. Add the descriptor object and the resolver function. Then do a sweep replacing all hard-coded label strings and bare splitCamelCase() calls with diggsLabel(). This is the foundation that makes all subsequent config-driven work readable.
+
+Step 2 — Unified badge renderer + clean up the duplication
+Extract renderBadgeGrid(badges, sfId) as the single function that turns a badges[] array into the sf-assoc-section HTML. Make buildAssocBadges return only the array (dropping its own HTML-building tail). Fix showSFDetail to stop rebuilding the grid itself — it calls buildAssocBadges, gets the array, injects the CPT badge (or better, moves that into the assembler), then calls renderBadgeGrid. The badgeHtml dead return value disappears. This is also low risk and makes the subsequent steps much cleaner to implement.
+
+Step 3 — Per-top-level-element assembler functions + registry
+Refactor the internals of buildAssocBadges into the individual assemblers: assocBadges_Observation, assocBadges_SamplingActivity, assocBadges_Measurement, plus stubs for ConstructionActivity, Program, Group. Register them in ASSOC_BADGE_ASSEMBLERS. buildAssocBadges becomes the five-line orchestrator. The CPT profile badge moves into assocBadges_Measurement where it belongs. Add the afterRender hook to the badge descriptor shape so showAssocBadge can fire it — this eliminates the scattered requestAnimationFrame / ppdDrawFns side-channel on the badge objects.
+At this point you have a clean, extensible badge pipeline. Steps 1–3 are all refactoring of existing behavior — nothing new should appear or disappear in the UI.
+
+Step 4 — DIGGS_PROC_CONFIG + unified measurement assoc pane
+This is where new capability starts. Define a DIGGS_PROC_CONFIG descriptor keyed by procedure type that declares per-procedure rendering behavior:
+javascriptconst DIGGS_PROC_CONFIG = {
+  StaticConePenetrationTest: {
+    contentType: 'plot',        // render plot, not column table
+    plotFn: drawCPTPlots,
+    metaFields: [...],          // KV metadata descriptor
+  },
+  PorePressureDissipationTest: {
+    contentType: 'table+plot',
+    plotFn: drawPPDPlot,
+    metaFields: [...],
+  },
+  DrivenPenetrationTest: {
+    contentType: 'table',
+    metaFields: [...],
+  },
+  _default: {
+    contentType: 'table',       // fallback for unknown procedure types
+    metaFields: [],
+  },
+};
+The contentFn for every measurement badge then runs through a single buildMeasAssocContent(procType, procObj, rows, depthUom) function that reads from DIGGS_PROC_CONFIG rather than containing if (isPPD) / if (isDPT) branches. Adding a new procedure type means adding an entry to the config, not modifying function bodies.
+
+Step 5 — Unified meta-grid renderer
+Build buildMetaGrid(sf, descriptor) and the per-SF-type descriptor arrays that drive buildSFCommonGrid. This can happen in parallel with or after Step 4 — it doesn't block the badge pipeline work.
+
+Practical sequencing
+Steps 1 and 2 are a single session's work each and carry essentially no regression risk since they're pure refactoring of existing behavior. Step 3 is another session. Steps 4 and 5 overlap with building out the new assoc pane content for CPT and measurements, so they're naturally the point where refactoring and new development merge.
+The key discipline throughout is: don't add new assoc pane content until Step 3 is done. Adding content into the current buildAssocBadges monolith before splitting it would just make the split harder. Steps 1–3 first, then build
