@@ -980,14 +980,7 @@ html,body{height:100%;font-family:var(--font-ui);background:var(--bg);color:var(
   padding:10px 16px;flex-shrink:0;
 }
 #project-detail-pane.open { display:block; }
-.proj-detail-row {
-  display:flex;gap:10px;padding:3px 0;font-size:12px;border-bottom:1px solid var(--surface2);
-}
-.proj-detail-row:last-child { border-bottom:none; }
-.proj-detail-key {
-  color:var(--text-muted);font-weight:600;min-width:110px;flex-shrink:0;font-size:11px;padding-top:1px;
-}
-.proj-detail-val { color:var(--text);word-break:break-word; }
+/* .proj-detail-row/.key/.val removed — project detail pane uses .kv-row/.kv-key/.kv-val */
 
 /* ── GENERIC KV TABLE (renderKVTable) ─────────────── */
 .kv-row {
@@ -1196,11 +1189,10 @@ table.mt-subtable tr.mt-member-selected { background:rgba(232,160,69,.15); }
   display:flex;align-items:center;gap:4px;margin-bottom:2px;
 }
 .cpt-plots-section { padding:12px 16px; overflow:visible; }
-.cpt-plots-title {
-  font-size:11px;font-weight:600;text-transform:uppercase;
+/* .cpt-plots-title is identical to .section-title — use that class instead */
+.cpt-plots-title { font-size:11px;font-weight:600;text-transform:uppercase;
   letter-spacing:.8px;color:var(--text-muted);margin-bottom:10px;
-  display:flex;align-items:center;gap:8px;
-}
+  display:flex;align-items:center;gap:8px; }
 .cpt-plots-title::after { content:'';flex:1;height:1px;background:var(--surface3); }
 #cpt-canvas-area, #cpt-canvas-area-assoc {
   display:flex;flex-direction:row;gap:10px;
@@ -2925,6 +2917,58 @@ function renderFields(el, fields) {
   if (!el || !fields) return [];
   const items = [];
   for (const spec of fields) {
+    // Skip renderKVTable-only sentinels
+    if (spec.sectionHeader) continue;
+
+    // subHeader: emit a styled sub-section label (no border rule).
+    // If guardPath is set, only emit when that path matches at least one node.
+    if (spec.subHeader) {
+      if (!spec.guardPath || evalXPath(el, spec.guardPath).length) {
+        items.push({ html: `<div style="font-size:10px;font-weight:700;color:var(--text-muted);
+          text-transform:uppercase;letter-spacing:.06em;margin:8px 0 2px">${escHtml(spec.subHeader)}</div>`,
+          block: true });
+      }
+      continue;
+    }
+
+    // parentPath: navigate to child node(s) first, then evaluate composite/fields
+    // relative to each one — mirrors renderKVTable behaviour.
+    if (spec.parentPath) {
+      const parentNodes = evalXPath(el, spec.parentPath);
+      const targets = spec.multi ? parentNodes : parentNodes.slice(0, 1);
+      if (!targets.length) {
+        if (spec.showEmpty) items.push(makeRenderItem('—', { ...spec, _emptyPlaceholder: true }));
+        continue;
+      }
+      for (const pn of targets) {
+        if (!pn) continue;
+        let result = [];
+        if (spec.composite) {
+          const sep   = spec.separator || '';
+          const parts = spec.composite.map(sub => {
+            const subNodes = sub.path ? evalXPath(pn, sub.path) : [pn];
+            if (!subNodes.length) return '';
+            const fn  = sub.format && FORMAT_FN[sub.format];
+            const raw = fn ? fn(subNodes[0]) : nodeText(subNodes[0]);
+            if (!raw) return '';
+            return (sub.prefix || '') + raw + (sub.suffix || '');
+          }).filter(Boolean);
+          const val = parts.join(sep);
+          if (val) result = [makeRenderItem(val, spec)];
+          else if (spec.showEmpty) result = [makeRenderItem('—', { ...spec, _emptyPlaceholder: true })];
+        } else if (spec.fields) {
+          result = renderFields(pn, spec.fields)
+            .map(item => spec.indent ? { ...item, indent: true } : item);
+        } else {
+          const val = nodeText(pn);
+          if (val) result = [makeRenderItem(val, spec)];
+          else if (spec.showEmpty) result = [makeRenderItem('—', { ...spec, _emptyPlaceholder: true })];
+        }
+        items.push(...result);
+      }
+      continue;
+    }
+
     const nodes   = spec.path ? evalXPath(el, spec.path) : [el];
     const targets = spec.multi ? nodes : nodes.slice(0, 1);
 
@@ -3234,45 +3278,29 @@ const FORMAT_FN = {
 
   // ── Borehole descriptor helpers ─────────────────────────────
 
-  // Resolve measure element value + uom attribute → "value uom"
-  // Identical to FORMAT_FN.measure but callable from renderFields spec
-  measureAttr(node) {
-    return FORMAT_FN.measure(node);
+  // Shared helper: resolve a plunge or bearing element from a LinearExtent node.
+  // sfGetterFn(leEl) → the ancestor SF element to search on.
+  // primaryEl: local element name to find first; fallbackEl: optional secondary name.
+  // Returns '' if orientation is not 'Inclined' or element absent.
+  _resolveOrientationAttr(leEl, sfGetterFn, primaryEl, fallbackEl) {
+    if (FORMAT_FN._boreholeOrientationFromLE(leEl) !== 'Inclined') return '';
+    const sfEl = sfGetterFn(leEl);
+    if (!sfEl) return '';
+    const el = sfEl.getElementsByTagNameNS(NS.diggs, primaryEl)[0]
+            || (fallbackEl && sfEl.getElementsByTagNameNS(NS.diggs, fallbackEl)[0]);
+    if (!el) return '';
+    const val = nodeText(el);
+    if (!val) return '';
+    const uom = el.getAttribute('uom') || '';
+    return uom ? `${val}\u00a0${uom}` : val;
   },
 
-  // Resolve plunge — check diggs:plunge first, fall back to diggs:holePlunge.
-  // Returns '' if Deviated or Vertical (caller suppresses row).
-  // node is the diggs:centerLine/diggs:LinearExtent element (passed from rawFormat).
   resolvePlunge(node) {
-    // Determine orientation from the same LinearExtent node
-    const orient = FORMAT_FN._boreholeOrientationFromLE(node);
-    if (orient !== 'Inclined') return '';
-    // Walk up to Borehole element
-    const bhEl = FORMAT_FN._bhFromLE(node);
-    if (!bhEl) return '';
-    const plungeEl = bhEl.getElementsByTagNameNS(NS.diggs, 'plunge')[0]
-                  || bhEl.getElementsByTagNameNS(NS.diggs, 'holePlunge')[0];
-    if (!plungeEl) return '';
-    const val = nodeText(plungeEl);
-    if (!val) return '';
-    const uom = plungeEl.getAttribute('uom') || '';
-    return uom ? `${val}\u00a0${uom}` : val;
+    return FORMAT_FN._resolveOrientationAttr(node, FORMAT_FN._bhFromLE, 'plunge', 'holePlunge');
   },
 
-  // Resolve bearing — check diggs:bearing first, fall back to diggs:holeBearing.
-  // Returns '' if Deviated or Vertical.
   resolveBearing(node) {
-    const orient = FORMAT_FN._boreholeOrientationFromLE(node);
-    if (orient !== 'Inclined') return '';
-    const bhEl = FORMAT_FN._bhFromLE(node);
-    if (!bhEl) return '';
-    const bearingEl = bhEl.getElementsByTagNameNS(NS.diggs, 'bearing')[0]
-                   || bhEl.getElementsByTagNameNS(NS.diggs, 'holeBearing')[0];
-    if (!bearingEl) return '';
-    const val = nodeText(bearingEl);
-    if (!val) return '';
-    const uom = bearingEl.getAttribute('uom') || '';
-    return uom ? `${val}\u00a0${uom}` : val;
+    return FORMAT_FN._resolveOrientationAttr(node, FORMAT_FN._bhFromLE, 'bearing', 'holeBearing');
   },
 
   // Compute borehole orientation from a LinearExtent element.
@@ -3322,34 +3350,16 @@ const FORMAT_FN = {
     return orient;
   },
 
-  // Sounding plunge — same logic as Borehole but walks to Sounding ancestor.
-  // Returns '' if Deviated or Vertical.
   resolveSoundingPlunge(leEl) {
-    const orient = FORMAT_FN._boreholeOrientationFromLE(leEl);
-    if (orient !== 'Inclined') return '';
-    const sfEl = FORMAT_FN._sfFromLE(leEl, 'Sounding') || FORMAT_FN._sfFromLE(leEl, 'Well');
-    if (!sfEl) return '';
-    const plungeEl = sfEl.getElementsByTagNameNS(NS.diggs, 'plunge')[0];
-    if (!plungeEl) return '';
-    const val = nodeText(plungeEl);
-    if (!val) return '';
-    const uom = plungeEl.getAttribute('uom') || '';
-    return uom ? `${val}\u00a0${uom}` : val;
+    return FORMAT_FN._resolveOrientationAttr(leEl,
+      n => FORMAT_FN._sfFromLE(n, 'Sounding') || FORMAT_FN._sfFromLE(n, 'Well'),
+      'plunge', null);
   },
 
-  // Sounding bearing — same logic as Borehole but walks to Sounding ancestor.
-  // Returns '' if Deviated or Vertical.
   resolveSoundingBearing(leEl) {
-    const orient = FORMAT_FN._boreholeOrientationFromLE(leEl);
-    if (orient !== 'Inclined') return '';
-    const sfEl = FORMAT_FN._sfFromLE(leEl, 'Sounding') || FORMAT_FN._sfFromLE(leEl, 'Well');
-    if (!sfEl) return '';
-    const bearingEl = sfEl.getElementsByTagNameNS(NS.diggs, 'bearing')[0];
-    if (!bearingEl) return '';
-    const val = nodeText(bearingEl);
-    if (!val) return '';
-    const uom = bearingEl.getAttribute('uom') || '';
-    return uom ? `${val}\u00a0${uom}` : val;
+    return FORMAT_FN._resolveOrientationAttr(leEl,
+      n => FORMAT_FN._sfFromLE(n, 'Sounding') || FORMAT_FN._sfFromLE(n, 'Well'),
+      'bearing', null);
   },
 
   // Resolve PointLocation depth from a PointLocationPropertyType wrapper node.
@@ -3490,23 +3500,45 @@ const LITH_TABLE_COLUMNS = [
 //  LithProperties / ComponentProperties popup
 // ══════════════════════════════════════════════════════════════
 
-/** Particle Size Distribution nested block descriptor */
+/** Particle Size Distribution nested block descriptor.
+ *  Context el = diggs:ParticleSizeDistribution element.
+ *  howDetermined is an attribute. Each grain-size property wraps a
+ *  diggs:ParticleSize child with particleSizeValue (@uom) and/or description. */
 const LITH_PSD_DESCRIPTOR = [
-  { label:'How Determined',      path:'diggs:howDetermined' },
-  { label:'Mean Grain Size',     parentPath:'diggs:meanGrainsize',
-    composite:[{ path:'.' },{ path:'@uom', prefix:' ' }] },
-  { label:'Modal Grain Size',    parentPath:'diggs:modalGrainsize',
-    composite:[{ path:'.' },{ path:'@uom', prefix:' ' }] },
-  { label:'Equiv. Diameter',     parentPath:'diggs:equivalentDiameter',
-    composite:[{ path:'.' },{ path:'@uom', prefix:' ' }] },
-  { label:'Min. Diameter',       parentPath:'diggs:minimumDiameter',
-    composite:[{ path:'.' },{ path:'@uom', prefix:' ' }] },
-  { label:'Max. Diameter',       parentPath:'diggs:maximumDiameter',
-    composite:[{ path:'.' },{ path:'@uom', prefix:' ' }] },
+  { label:'How Determined',  composite:[{ path:'@howDetermined' }] },
+  { label:'Mean Grain Size',
+    parentPath:'diggs:meanGrainsize/diggs:ParticleSize',
+    composite:[{ path:'diggs:particleSizeValue' },
+               { path:'diggs:particleSizeValue/@uom', prefix:' ' },
+               { path:'diggs:particleSizeDescription', prefix:' (', suffix:')' }] },
+  { label:'Modal Grain Size',
+    parentPath:'diggs:modalGrainsize/diggs:ParticleSize',
+    composite:[{ path:'diggs:particleSizeValue' },
+               { path:'diggs:particleSizeValue/@uom', prefix:' ' },
+               { path:'diggs:particleSizeDescription', prefix:' (', suffix:')' }] },
+  { label:'Equiv. Diameter',
+    parentPath:'diggs:equivalentDiameter/diggs:ParticleSize',
+    composite:[{ path:'diggs:particleSizeValue' },
+               { path:'diggs:particleSizeValue/@uom', prefix:' ' },
+               { path:'diggs:particleSizeDescription', prefix:' (', suffix:')' }] },
+  { label:'Min. Diameter',
+    parentPath:'diggs:minimumDiameter/diggs:ParticleSize',
+    composite:[{ path:'diggs:particleSizeValue' },
+               { path:'diggs:particleSizeValue/@uom', prefix:' ' },
+               { path:'diggs:particleSizeDescription', prefix:' (', suffix:')' }] },
+  { label:'Max. Diameter',
+    parentPath:'diggs:maximumDiameter/diggs:ParticleSize',
+    composite:[{ path:'diggs:particleSizeValue' },
+               { path:'diggs:particleSizeValue/@uom', prefix:' ' },
+               { path:'diggs:particleSizeDescription', prefix:' (', suffix:')' }] },
 ];
 
 /** General / Soil group */
 const LITH_PROPS_SOIL = [
+  // Description and remarks shown before the sectionHeader
+  { path:'gml:description', italic:true },
+  { subHeader:'Remarks', guardPath:'diggs:remark' },
+  { path:'diggs:remark', format:'renderRemarkNested', multi:true, indent:true },
   { sectionHeader:'General / Soil' },
   { label:'Consistency',        path:'diggs:consistency' },
   { label:'Apparent Density',   path:'diggs:apparentDensity' },
@@ -3524,27 +3556,26 @@ const LITH_PROPS_SOIL = [
   { label:'Particle Hardness',  path:'diggs:particleHardness' },
   { label:'Particle Sorting',   parentPath:'diggs:particleSorting',
     composite:[{ path:'.' }], multi:true },
-  { label:'Particle Size Dist.', parentPath:'diggs:particleSizeDistribution',
-    composite:[{ path:'diggs:howDetermined' }],
-    children:{ parentPath:'diggs:particleSizeDistribution',
-               composite:[
-                 { path:'diggs:meanGrainsize', prefix:'Mean: ' },
-                 { path:'diggs:meanGrainsize/@uom', prefix:' ' },
-               ] } },
+  { subHeader:'Particle Size Distribution',
+    guardPath:'diggs:particleSizeDistribution/diggs:ParticleSizeDistribution' },
+  { parentPath:'diggs:particleSizeDistribution/diggs:ParticleSizeDistribution',
+    fields:LITH_PSD_DESCRIPTOR, indent:true },
   { label:'Reaction to HCl',    path:'diggs:reactionToHCl' },
   { label:'Staining',           path:'diggs:staining' },
   { label:'Odor',               path:'diggs:odor' },
   { label:'Bedding Orientation',path:'diggs:beddingOrientation' },
   { label:'Dip Angle',          parentPath:'diggs:dipAngle',
-    composite:[{ path:'.' },{ path:'@apparent', prefix:' (apparent: ' , suffix:')' }] },
+    composite:[{ path:'.' },
+               { path:'@apparent[.="true"]', prefix:' (apparent)' }] },
   { label:'Dip Direction',      path:'diggs:dipDirection' },
   { label:'Bedding Spacing',    path:'diggs:beddingSpacing' },
   { label:'Surface Texture',    path:'diggs:surfaceTexture' },
   { label:'Recovery Length',    parentPath:'diggs:unitRecoveryLength',
     composite:[{ path:'.' },{ path:'@uom', prefix:' ' }] },
-  { label:'Other Properties',   parentPath:'diggs:otherLithProperty',
-    composite:[{ path:'diggs:name', suffix:': ' },{ path:'diggs:value' },
-               { path:'diggs:units', prefix:' ' }], multi:true },
+  { label:'Other Properties',   parentPath:'diggs:otherLithProperty/diggs:Parameter',
+    composite:[{ path:'diggs:parameterName', suffix:': ' },
+               { path:'diggs:parameterValue' },
+               { path:'diggs:parameterUnits', prefix:' ' }], multi:true },
 ];
 
 /** Rock group */
@@ -3561,10 +3592,7 @@ const LITH_PROPS_ROCK = [
     composite:[{ path:'.' },{ path:'@uom', prefix:' ' }] },
   { label:'RQD Length',         parentPath:'diggs:unitRQDLength',
     composite:[{ path:'.' },{ path:'@uom', prefix:' ' }] },
-  { label:'Surface Texture',    path:'diggs:surfaceTexture' },
-  { label:'Other Properties',   parentPath:'diggs:otherLithProperty',
-    composite:[{ path:'diggs:name', suffix:': ' },{ path:'diggs:value' },
-               { path:'diggs:units', prefix:' ' }], multi:true },
+  // surfaceTexture and otherLithProperty omitted — already in LITH_PROPS_SOIL
 ];
 
 /** Combined descriptor used for both LithProperties and ComponentProperties */
@@ -3648,12 +3676,17 @@ const LITH_DETAIL_SECTIONS = [
   {
     key: 'properties',
     label: 'Properties',
-    hasData: (obs) => !!(obs.primary && obs.primary.lithProperties),
+    // Guard: lithProperties must be non-null AND have a real DOM element
+    hasData: (obs) => !!(obs.primary &&
+                         obs.primary.lithProperties &&
+                         obs.primary.lithProperties.el &&
+                         obs.primary.lithProperties.el.nodeType === 1),
     popupTitle: (obs) => 'Lithology Properties',
-    buildSections: (obs) => [{
-      els: [obs.primary.lithProperties.el],
-      fields: LITH_PROPERTIES_GROUPS,
-    }],
+    buildSections: (obs) => {
+      const lp = obs.primary && obs.primary.lithProperties;
+      if (!lp || !lp.el) return [];
+      return [{ els: [lp.el], fields: LITH_PROPERTIES_GROUPS }];
+    },
   },
 
   // ── Components ───────────────────────────────────────────────
@@ -4337,9 +4370,7 @@ const KV_FORMAT = {
       return sf.id === href;
     });
     if (target) {
-      const clickFn = target.type === 'Borehole' ? `selectBH('${esc(target.id)}')`
-                    : target.type === 'Sounding' ? `selectCPT('${esc(target.id)}')`
-                    : `selectSF('${esc(target.type)}','${esc(target.id)}')`;
+      const clickFn = `selectSF('${esc(target.type)}','${esc(target.id)}')`;
       return `<span style="cursor:pointer;color:var(--accent);text-decoration:underline" onclick="${clickFn}">${esc(target.name || target.id)}</span>`;
     }
     return esc(href);
@@ -7861,62 +7892,6 @@ function clearSelections() {
   });
 }
 
-function _selectBHCore(id) {
-  const bh = DIGGS_BH.find(b => b.id === id);
-  if (!bh) return;
-  const entry = sfMarkers.get(id);
-  if (entry) { entry.mapObj.setIcon(makeSFIcon('Borehole', true)); }
-  if (bh.lat && bh.lon && mapInstance) mapInstance.panTo([bh.lat, bh.lon]);
-  showSFDetail(bh);
-}
-function selectBH(id) {
-  window._selectedFeatureId = id;
-  clearSelections();
-  switchTab(sfTabKey('Borehole'));
-  const row = document.getElementById('sfrow-' + id);
-  if (row) { row.classList.add('selected'); row.scrollIntoView({ block:'nearest' }); }
-  _selectBHCore(id);
-}
-
-function _selectCPTCore(id) {
-  const cpt = DIGGS_CPT.find(c => c.id === id);
-  if (!cpt) return;
-  const entry = sfMarkers.get(id);
-  if (entry) { entry.mapObj.setIcon(makeSFIcon('Sounding', true)); }
-  if (cpt.lat && cpt.lon && mapInstance) mapInstance.panTo([cpt.lat, cpt.lon]);
-  showSFDetail(cpt);
-}
-function selectCPT(id) {
-  window._selectedFeatureId = id;
-  clearSelections();
-  switchTab(sfTabKey('Sounding'));
-  const row = document.getElementById('sfrow-' + id);
-  if (row) { row.classList.add('selected'); row.scrollIntoView({ block:'nearest' }); }
-  _selectCPTCore(id);
-}
-
-function _selectWellCore(id) {
-  const well = DIGGS_WELL.find(w => w.id === id);
-  if (!well) return;
-  if (well.sfRefHref) {
-    const bhRow = document.getElementById('sfrow-' + well.sfRefHref);
-    if (bhRow) { bhRow.classList.add('selected'); }
-    const parentEntry = sfMarkers.get(well.sfRefHref);
-    if (parentEntry) { parentEntry.mapObj.setIcon(makeSFIcon(parentEntry.type, true)); }
-    const bh = DIGGS_BH.find(b => b.id === well.sfRefHref);
-    if (bh && bh.lat && bh.lon && mapInstance) mapInstance.panTo([bh.lat, bh.lon]);
-  }
-  showSFDetail(well);
-}
-function selectWell(id) {
-  window._selectedFeatureId = id;
-  clearSelections();
-  switchTab(sfTabKey('Well'));
-  const row = document.getElementById('sfrow-' + id);
-  if (row) { row.classList.add('selected'); row.scrollIntoView({ block:'nearest' }); }
-  _selectWellCore(id);
-}
-
 // ══════════════════════════════════════════════════════════════
 //  TABS
 // ══════════════════════════════════════════════════════════════
@@ -7997,52 +7972,61 @@ function switchTab(key) {
 }
 
 /**
- * selectSF(type, id) — unified selection dispatcher.
- * Routes to the type-specific select function (selectBH, selectCPT, etc.)
- * or falls back to a generic highlight + tab switch.
+ * selectSF(type, id) — unified SF selection entry point.
+ * Handles tab switch, row highlight, detail panel, and map highlight
+ * for all SF types including the legacy Borehole/Sounding/Well types.
  */
 function selectSF(type, id) {
   window._selectedFeatureId = id;
   clearSelections();
-  const key = sfTabKey(type);
-  switchTab(key);
+  switchTab(sfTabKey(type));
   const row = document.getElementById(`sfrow-${id}`);
   if (row) { row.classList.add('selected'); row.scrollIntoView({ block: 'nearest' }); }
-  // Delegate to type-specific detail/map handlers
-  if (type === 'Borehole') { _selectBHCore(id); return; }
-  if (type === 'Sounding') { _selectCPTCore(id); return; }
-  if (type === 'Well')     { _selectWellCore(id); return; }
-  // Generic: show detail panel for any other SF type
-  {
-    const allSFs = [...DIGGS_SF.values()].flat();
-    const sf = allSFs.find(s => s.id === id);
-    if (sf) showSFDetail(sf);
-  }
-  // Generic: highlight map object for any other SF type
-  const _entry = sfMarkers.get(id);
-  if (_entry && mapInstance) {
-    const _geom = SF_TYPE_CONFIG[_entry.type] ? SF_TYPE_CONFIG[_entry.type].mapGeom : 'point';
-    if (_geom === 'line') {
-      const _cfg = (SF_TYPE_CONFIG[_entry.type] && SF_TYPE_CONFIG[_entry.type].marker) || {};
-      _entry.mapObj.setStyle({ color: '#00FEFC', weight: (_cfg.weight || 2) + 1, opacity: 1.0, dashArray: null });
-      const _b = _entry.mapObj.getBounds();
-      if (_b.isValid()) mapInstance.fitBounds(_b, { padding: [40, 40], animate: true });
-    } else if (_geom === 'polygon') {
-      if (typeof _entry.mapObj.setStyle === 'function') {
-        // True polygon
-        _entry.mapObj.setStyle({ color: '#00FEFC', weight: (_entry.mapObj.options.weight || 2) + 1,
-          opacity: 1.0, fillColor: '#00FEFC', fillOpacity: 0.30 });
-        const _b = _entry.mapObj.getBounds();
-        if (_b.isValid()) mapInstance.fitBounds(_b, { padding: [40, 40], animate: true });
-      } else {
-        // Point fallback for unresolvable CRS
-        _entry.mapObj.setIcon(makeSFIcon(_entry.type, true));
-        mapInstance.panTo(_entry.mapObj.getLatLng());
-      }
-    } else {
-      _entry.mapObj.setIcon(makeSFIcon(_entry.type, true));
-      mapInstance.panTo(_entry.mapObj.getLatLng());
+
+  // Find the SF object from the unified registry
+  const allSFs = [...DIGGS_SF.values()].flat();
+  const sf = allSFs.find(s => s.id === id);
+  if (!sf) return;
+
+  // For installations (Wells etc.) also highlight the parent SF row + marker
+  if (sf.parentRef) {
+    const parentRow = document.getElementById(`sfrow-${sf.parentRef}`);
+    if (parentRow) parentRow.classList.add('selected');
+    const parentEntry = sfMarkers.get(sf.parentRef);
+    if (parentEntry) parentEntry.mapObj.setIcon(makeSFIcon(parentEntry.type, true));
+    // Pan to parent's location (installations share parent coordinates)
+    const parentSF = allSFs.find(s => s.id === sf.parentRef);
+    if (parentSF && parentSF.lat && parentSF.lon && mapInstance) {
+      mapInstance.panTo([parentSF.lat, parentSF.lon]);
     }
+  }
+
+  showSFDetail(sf);
+
+  // Map highlight for the SF's own marker (if it has one)
+  const entry = sfMarkers.get(id);
+  if (!entry || !mapInstance) return;
+  const geom = SF_TYPE_CONFIG[type] ? SF_TYPE_CONFIG[type].mapGeom : 'point';
+
+  if (geom === 'line') {
+    const cfg = (SF_TYPE_CONFIG[type] && SF_TYPE_CONFIG[type].marker) || {};
+    entry.mapObj.setStyle({ color: '#00FEFC', weight: (cfg.weight || 2) + 1, opacity: 1.0, dashArray: null });
+    const b = entry.mapObj.getBounds();
+    if (b.isValid()) mapInstance.fitBounds(b, { padding: [40, 40], animate: true });
+  } else if (geom === 'polygon') {
+    if (typeof entry.mapObj.setStyle === 'function') {
+      entry.mapObj.setStyle({ color: '#00FEFC', weight: (entry.mapObj.options.weight || 2) + 1,
+        opacity: 1.0, fillColor: '#00FEFC', fillOpacity: 0.30 });
+      const b = entry.mapObj.getBounds();
+      if (b.isValid()) mapInstance.fitBounds(b, { padding: [40, 40], animate: true });
+    } else {
+      entry.mapObj.setIcon(makeSFIcon(type, true));
+      mapInstance.panTo(entry.mapObj.getLatLng());
+    }
+  } else {
+    // Point marker — pan to it (unless installation already panned to parent above)
+    entry.mapObj.setIcon(makeSFIcon(type, true));
+    if (!sf.parentRef && sf.lat && sf.lon) mapInstance.panTo([sf.lat, sf.lon]);
   }
 }
 
@@ -10149,175 +10133,92 @@ function esc(s) {
 //  RESIZABLE PANELS
 // ══════════════════════════════════════════════════════════════
 (function() {
-  // ── Horizontal drag: table vs map height within left-col ──
-  const hDrag    = document.getElementById('h-drag');
-  const tablePanel = document.getElementById('table-panel');
-  const mapPanel   = document.getElementById('map-panel');
+  /**
+   * makeDragHandle(handleEl, opts)
+   * Wire up a resizable panel drag handle (mouse + touch).
+   *
+   * opts.axis        'x' | 'y'
+   * opts.getStart()  → current size of the resized element (px)
+   * opts.getMax()    → total container size for clamp calculation (px)
+   * opts.apply(px)   → set the new size
+   * opts.cursor      CSS cursor string ('col-resize' | 'row-resize')
+   * opts.onEnd()     optional callback after drag completes
+   */
+  function makeDragHandle(handleEl, opts) {
+    let dragging = false, startCoord = 0, startSize = 0;
+
+    function begin(coord) {
+      dragging   = true;
+      startCoord = coord;
+      startSize  = opts.getStart();
+      handleEl.classList.add('dragging');
+      document.body.style.cursor    = opts.cursor;
+      document.body.style.userSelect = 'none';
+    }
+
+    function move(coord) {
+      if (!dragging) return;
+      const total  = opts.getMax();
+      const delta  = opts.axis === 'x' ? coord - startCoord : startCoord - coord;
+      const newSize = Math.max(total * 0.15, Math.min(total * 0.65, startSize + delta));
+      opts.apply(newSize);
+      mapInstance && mapInstance.invalidateSize({ animate: false });
+    }
+
+    function end() {
+      if (!dragging) return;
+      dragging = false;
+      handleEl.classList.remove('dragging');
+      document.body.style.cursor    = '';
+      document.body.style.userSelect = '';
+      if (opts.onEnd) opts.onEnd();
+      mapInstance && mapInstance.invalidateSize({ animate: false });
+    }
+
+    handleEl.addEventListener('mousedown', e => { begin(opts.axis === 'x' ? e.clientX : e.clientY); e.preventDefault(); });
+    document.addEventListener('mousemove', e => move(opts.axis === 'x' ? e.clientX : e.clientY));
+    document.addEventListener('mouseup',   end);
+
+    handleEl.addEventListener('touchstart', e => {
+      begin(opts.axis === 'x' ? e.touches[0].clientX : e.touches[0].clientY);
+      e.preventDefault();
+    }, { passive: false });
+    document.addEventListener('touchmove', e => {
+      move(opts.axis === 'x' ? e.touches[0].clientX : e.touches[0].clientY);
+    }, { passive: false });
+    document.addEventListener('touchend', end);
+  }
+
   const leftCol    = document.getElementById('left-col');
+  const mapPanel   = document.getElementById('map-panel');
+  const mainLayout = document.getElementById('main-layout');
+  const detailPanel = document.getElementById('detail-panel');
 
-  let hDragging = false, hStartY = 0, hStartH = 0;
-
-  hDrag.addEventListener('mousedown', e => {
-    hDragging = true;
-    hStartY = e.clientY;
-    hStartH = mapPanel.getBoundingClientRect().height;
-    hDrag.classList.add('dragging');
-    document.body.style.cursor = 'row-resize';
-    document.body.style.userSelect = 'none';
-    e.preventDefault();
-  });
-
-  document.addEventListener('mousemove', e => {
-    if (!hDragging) return;
-    const colH = leftCol.getBoundingClientRect().height;
-    const newH = Math.max(colH * 0.15, Math.min(colH * 0.85, hStartH - (e.clientY - hStartY)));
-    mapPanel.style.flex = `0 0 ${newH}px`;
-    mapInstance && mapInstance.invalidateSize({ animate: false });
-  });
-
-  document.addEventListener('mouseup', () => {
-    if (!hDragging) return;
-    hDragging = false;
-    hDrag.classList.remove('dragging');
-    document.body.style.cursor = '';
-    document.body.style.userSelect = '';
-    mapInstance && mapInstance.invalidateSize({ animate: false });
-  });
-
-  // Touch support for horizontal
-  hDrag.addEventListener('touchstart', e => {
-    hDragging = true;
-    hStartY = e.touches[0].clientY;
-    hStartH = mapPanel.getBoundingClientRect().height;
-    hDrag.classList.add('dragging');
-    e.preventDefault();
-  }, { passive: false });
-
-  document.addEventListener('touchmove', e => {
-    if (!hDragging) return;
-    const colH = leftCol.getBoundingClientRect().height;
-    const newH = Math.max(colH * 0.15, Math.min(colH * 0.85, hStartH - (e.touches[0].clientY - hStartY)));
-    mapPanel.style.flex = `0 0 ${newH}px`;
-    mapInstance && mapInstance.invalidateSize({ animate: false });
-  }, { passive: false });
-
-  document.addEventListener('touchend', () => {
-    if (!hDragging) return;
-    hDragging = false;
-    hDrag.classList.remove('dragging');
-    mapInstance && mapInstance.invalidateSize({ animate: false });
+  // ── Horizontal drag: table vs map height within left-col ──
+  makeDragHandle(document.getElementById('h-drag'), {
+    axis:     'y',
+    cursor:   'row-resize',
+    getStart: () => mapPanel.getBoundingClientRect().height,
+    getMax:   () => leftCol.getBoundingClientRect().height,
+    apply:    h => { mapPanel.style.flex = `0 0 ${h}px`; },
   });
 
   // ── Vertical drag 1: left-col vs detail-panel ────────────
-  const vDrag      = document.getElementById('v-drag');
-  const mainLayout = document.getElementById('main-layout');
-
-  let vDragging = false, vStartX = 0, vStartW = 0;
-
-  vDrag.addEventListener('mousedown', e => {
-    vDragging = true;
-    vStartX = e.clientX;
-    vStartW = leftCol.getBoundingClientRect().width;
-    vDrag.classList.add('dragging');
-    document.body.style.cursor = 'col-resize';
-    document.body.style.userSelect = 'none';
-    e.preventDefault();
-  });
-
-  document.addEventListener('mousemove', e => {
-    if (!vDragging) return;
-    const totalW = mainLayout.getBoundingClientRect().width;
-    const newW = Math.max(totalW * 0.15, Math.min(totalW * 0.65, vStartW + (e.clientX - vStartX)));
-    leftCol.style.flex = `0 0 ${newW}px`;
-    mapInstance && mapInstance.invalidateSize({ animate: false });
-  });
-
-  document.addEventListener('mouseup', () => {
-    if (!vDragging) return;
-    vDragging = false;
-    vDrag.classList.remove('dragging');
-    document.body.style.cursor = '';
-    document.body.style.userSelect = '';
-    mapInstance && mapInstance.invalidateSize({ animate: false });
-  });
-
-  // Touch support for vertical 1
-  vDrag.addEventListener('touchstart', e => {
-    vDragging = true;
-    vStartX = e.touches[0].clientX;
-    vStartW = leftCol.getBoundingClientRect().width;
-    vDrag.classList.add('dragging');
-    e.preventDefault();
-  }, { passive: false });
-
-  document.addEventListener('touchmove', e => {
-    if (!vDragging) return;
-    const totalW = mainLayout.getBoundingClientRect().width;
-    const newW = Math.max(totalW * 0.15, Math.min(totalW * 0.65, vStartW + (e.touches[0].clientX - vStartX)));
-    leftCol.style.flex = `0 0 ${newW}px`;
-    mapInstance && mapInstance.invalidateSize({ animate: false });
-  }, { passive: false });
-
-  document.addEventListener('touchend', () => {
-    if (!vDragging) return;
-    vDragging = false;
-    vDrag.classList.remove('dragging');
-    mapInstance && mapInstance.invalidateSize({ animate: false });
+  makeDragHandle(document.getElementById('v-drag'), {
+    axis:     'x',
+    cursor:   'col-resize',
+    getStart: () => leftCol.getBoundingClientRect().width,
+    getMax:   () => mainLayout.getBoundingClientRect().width,
+    apply:    w => { leftCol.style.flex = `0 0 ${w}px`; },
   });
 
   // ── Vertical drag 2: detail-panel vs assoc-panel ────────
-  const vDrag2     = document.getElementById('v-drag2');
-  const detailPanel = document.getElementById('detail-panel');
-  const assocPanel = document.getElementById('assoc-panel');
-
-  let v2Dragging = false, v2StartX = 0, v2StartW = 0;
-
-  vDrag2.addEventListener('mousedown', e => {
-    v2Dragging = true;
-    v2StartX = e.clientX;
-    v2StartW = detailPanel.getBoundingClientRect().width;
-    vDrag2.classList.add('dragging');
-    document.body.style.cursor = 'col-resize';
-    document.body.style.userSelect = 'none';
-    e.preventDefault();
-  });
-
-  document.addEventListener('mousemove', e => {
-    if (!v2Dragging) return;
-    const totalW = mainLayout.getBoundingClientRect().width;
-    const newW = Math.max(totalW * 0.15, Math.min(totalW * 0.65, v2StartW + (e.clientX - v2StartX)));
-    detailPanel.style.flex = `0 0 ${newW}px`;
-  });
-
-  document.addEventListener('mouseup', () => {
-    if (!v2Dragging) return;
-    v2Dragging = false;
-    vDrag2.classList.remove('dragging');
-    document.body.style.cursor = '';
-    document.body.style.userSelect = '';
-    mapInstance && mapInstance.invalidateSize({ animate: false });
-  });
-
-  // Touch support for vertical 2
-  vDrag2.addEventListener('touchstart', e => {
-    v2Dragging = true;
-    v2StartX = e.touches[0].clientX;
-    v2StartW = detailPanel.getBoundingClientRect().width;
-    vDrag2.classList.add('dragging');
-    e.preventDefault();
-  }, { passive: false });
-
-  document.addEventListener('touchmove', e => {
-    if (!v2Dragging) return;
-    const totalW = mainLayout.getBoundingClientRect().width;
-    const newW = Math.max(totalW * 0.15, Math.min(totalW * 0.65, v2StartW + (e.touches[0].clientX - v2StartX)));
-    detailPanel.style.flex = `0 0 ${newW}px`;
-  }, { passive: false });
-
-  document.addEventListener('touchend', () => {
-    if (!v2Dragging) return;
-    v2Dragging = false;
-    vDrag2.classList.remove('dragging');
+  makeDragHandle(document.getElementById('v-drag2'), {
+    axis:     'x',
+    cursor:   'col-resize',
+    getStart: () => detailPanel.getBoundingClientRect().width,
+    getMax:   () => mainLayout.getBoundingClientRect().width,
+    apply:    w => { detailPanel.style.flex = `0 0 ${w}px`; },
   });
 
   // ── Resize observer: keep map tiles correct on window resize ─

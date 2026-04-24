@@ -1,0 +1,28 @@
+Field_Name,Definition,Unit_or_format
+Array,Array used during survey,n/a
+Dev.,Standard deviation (quality factor),%
+Elev_Z,"Elevation in meters, National Geodetic Vertical Datum 1988",Meters
+Electrode Number,Number of the electrode in the array,n/a
+In  ,Injected current intensity,milliAmps
+Induced_Polarization,Was Induced Polarization applied to the line,n/a
+Line_No,Line number,n/a
+M,Global chargeability value,milliVolts/Volt
+Pab ,Generated power,Watts
+Rab ,Grounding resistance value of the injection dipole,kiloOhms
+Resistivity,Electrical resistivity,Ohm-meters
+Rho ,Apparent resistivity ,Ohm-meter
+Rx-Bat,Receiver battery voltage,Volts
+Site_Name,Name of campground where survey was conducted,n/a
+Sp,Spontaneous polarization before injection,milliVolts
+Spa.1,"Transmitter A, location of electrode referenced to Electrode_Locs table, measured spacing",Meters
+Spa.2,"Transmitter B, location of electrode referenced to Electrode_Locs table, measured spacing",Meters
+Spa.3,"Receiver M, location of electrode referenced to Electrode_Locs table, measure spacing",Meters
+Spa.4,"Receiver N, location of electrode referenced to Electrode_Locs table, measured spacing",Meters
+Stack,Number of measurements taken at each location,n/a
+Tx-Bat,Transmission battery voltage,Volts
+UTM_E_X,"Easting in Universal Transverse Mercator (UTM) Zone 15 North, World Geodetic Survey of 1984 (WGS84)",Meters
+UTM_N_Y,"Northing in Universal Transverse Mercator (UTM) Zone 15 North, World Geodetic Survey of 1984 (WGS84)",Meters
+Vab ,Injected voltage ,Volts
+Vp  ,Measured primary voltage ,milliSiemens/meter
+X Distance (m),Distance from the beginning of the transect in meters,Meters
+Y Distance (m) ,"Distance from the beginning of the transect in meters, perpindicular to the X Distance line, only present on 3D array",Meters

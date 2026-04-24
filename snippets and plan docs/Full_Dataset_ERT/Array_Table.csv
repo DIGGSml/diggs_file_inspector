@@ -1,0 +1,11 @@
+Site Name/Campground,Line Number,Number of Electrodes,Electrode Spacing (meters),Arrays,Notes
+Kyles Landing,1,96,2,Reciprocal Schlumberger and Induced Polarization,
+Kyles Landing,2,48,1.5,Reciprocal Schlumberger and Dipole-Dipole,
+Kyles Landing,3,48,1.5,Reciprocal Schlumberger and Dipole-Dipole,
+Kyles Landing,4,48,1.5,Reciprocal Schlumberger and Dipole-Dipole,
+Kyles Landing,5,48,2,Reciprocal Schlumberger,
+Ozark ,6,96,1.5,Reciprocal Schlumberger,
+Ozark ,7,48,2,Reciprocal Schlumberger,
+Ozark ,8,48,2,Reciprocal Schlumberger,
+Ozark ,9,48,2,Reciprocal Schlumberger,
+Ozark ,3D,96,5,"Reciprocal Schlumberger, Wenner-Schlumberger, and Dipole-Dipole",3D array was 12 electrodes long by 8 electrodes wide

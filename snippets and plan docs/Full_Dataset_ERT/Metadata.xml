@@ -1,0 +1,263 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<metadata>
+  <idinfo>
+    <citation>
+      <citeinfo>
+        <origin>Ryan F. Adams</origin>
+        <origin>Benjamin V. Miller</origin>
+        <origin>Charles J. Bitting</origin>
+        <origin>Zoe Boyles</origin>
+        <origin>Riannon Colton</origin>
+        <origin>Wade Kress</origin>
+        <pubdate>20210501</pubdate>
+        <title>Electric Resistivity Tomography (ERT) surveys conducted near campgrounds on the Buffalo National River, Arkansas</title>
+        <geoform>tabular digital data</geoform>
+        <onlink>https://doi.org/10.5066/P9CRLINN</onlink>
+      </citeinfo>
+    </citation>
+    <descript>
+      <abstract>Karst environments present many challenges to agencies and engineers attempting to work in these landscapes, particularly towards building infrastructure.  The interconnectivity of karst hydrologic systems means that activities occurring on the surface of a karst landscape can have an impact on water quality and quantity.  Additionally, soil thickness in karst landscape is often highly variable due to the presence of solutionally-enlarged fractures, joints, and openings at the soil-bedrock interface.  Therefore, when planning infrastructure in karst terrains it is critical to do a thorough assessment to ensure that planned activities will not negatively impact the sensitive environment.  In October 2020 Electric Resistivity Tomography (ERT) surveys were conducted at two National Park Service (NPS) campgrounds on the Buffalo National River: Kyles Landing and Ozark campgrounds.  The surveys were done in order to map the thickness of soil over the bedrock surface to aid NPS management in making future decisions regarding the wastewater treatment systems for both campgrounds.
+	  
+	  This data release includes three types of data: (1) raw direct current (DC) resistivity data, (2) inverted resistivity data, and (3) geospatial data collected via global positioning system (GPS) of the electrode locations and other relevant geospatial data.  A data dictionary is included along with the data and defines all of the table headings, definitions, and units.  Additional information related to the collection of the data present are included in the process steps within the metadata.  
+ 
+An Iris Syscal Pro Switch 96 resistivity meter (http://www.iris-instruments.com/syscal-prosw.html) was used to conduct the DC resistivity survey along with a series of cables to connect a total of 96 electrodes.  Resistivity arrays were designed using the Electre 2.03 software by Iris Instruments (http://www.iris-instruments.com/download.html#processing).  Electrodes were connected to steel pins driven into the soil at set spacings.  In most cases 2D resistivity arrays were used for data collection, however; at Ozark campground one 3D resistivity array was collected as a proof of concept.  
+
+The geographic location and elevation for each electrode was also surveyed using a differential GPS.  A Hemisphere SmartLink Antenna with Atlas H10 differential correction was used to georeference each stainless-steel pin location as well as other relevant features including river levels, benchmarks, and features related to nearby infrastructure.  In all cases, once the GPS had acquired satellite connectivity the device was left to acquire position until horizontal (2D) position was less than 10 centimeters (cm), and vertical (3D) position was less than 15 cm.  These locations were then used in the inversion process required to interpret the geophysical data.  
+</abstract>
+      <purpose>Data were collected to map soil thickness over the bedrock surface</purpose>
+    </descript>
+    <timeperd>
+      <timeinfo>
+        <rngdates>
+          <begdate>20201005</begdate>
+          <enddate>20201009</enddate>
+        </rngdates>
+      </timeinfo>
+      <current>ground condition</current>
+    </timeperd>
+    <status>
+      <progress>Complete</progress>
+      <update>None planned</update>
+    </status>
+    <spdom>
+      <descgeog>World</descgeog>
+      <bounding>
+        <westbc>-93.2826</westbc>
+        <eastbc>-93.1497</eastbc>
+        <northbc>36.0654</northbc>
+        <southbc>36.0545</southbc>
+      </bounding>
+    </spdom>
+    <keywords>
+      <theme>
+        <themekt>ISO 19115 Topic Category</themekt>
+        <themekey>environment</themekey>
+        <themekey>biota</themekey>
+      </theme>
+      <theme>
+        <themekt>None</themekt>
+        <themekey>geophysical survey</themekey>
+      </theme>
+      <theme>
+        <themekt>USGS Thesaurus</themekt>
+        <themekey>geophysics</themekey>
+        <themekey>electrical resistivity imaging</themekey>
+        <themekey>resistivity</themekey>
+        <themekey>karst</themekey>
+      </theme>
+      <place>
+        <placekt>None</placekt>
+        <placekey>Buffalo National River</placekey>
+        <placekey>Ozarks</placekey>
+        <placekey>Newton County</placekey>
+        <placekey>Jasper</placekey>
+        <placekey>Buffalo River</placekey>
+      </place>
+      <place>
+        <placekt>Common geographic areas</placekt>
+        <placekey>Arkansas</placekey>
+      </place>
+    </keywords>
+    <accconst>None.  Please see 'Distribution Info' for details.</accconst>
+    <useconst>None.  Users are advised to read the data set's metadata thoroughly to understand appropriate use and data limitations.</useconst>
+    <ptcontac>
+      <cntinfo>
+        <cntperp>
+          <cntper>Ryan F. Adams</cntper>
+          <cntorg>U.S. Geological Survey</cntorg>
+        </cntperp>
+        <cntpos>Hydrologist</cntpos>
+        <cntaddr>
+          <addrtype>Mailing and Physical</addrtype>
+          <address>Ste. 100</address>
+          <city>Nashville</city>
+          <state>Tennessee</state>
+          <postal>37122</postal>
+          <country>United States</country>
+        </cntaddr>
+        <cntvoice>615-837-4753</cntvoice>
+        <cntemail>rfadams@usgs.gov</cntemail>
+      </cntinfo>
+    </ptcontac>
+  </idinfo>
+  <dataqual>
+    <attracc>
+      <attraccr>GPS data were plotted against aerial imagery to ensure that the positions accurately reflected the survey as collected.  Electrical data was processed using histogram removal to remove anomalous data points.  Before inversion, negative electrical values were removed.  Further details are listed in the data processing section</attraccr>
+    </attracc>
+    <logic>Both of these locations are potentially Native American archeological sites.  No drilling or trenching was allowed to directly ground-truth these measurements.  The values of electrical resistivity and shapes of the layers generally conform to sediment and rock descriptions from geologic maps of the area</logic>
+    <complete>Data set is considered complete for the information presented, as described in the abstract.  Users are advised to read the rest of the metadata record carefully for additional details.</complete>
+    <posacc>
+      <horizpa>
+        <horizpar>The geographic location and elevation for each electrode was also surveyed using a differential GPS.  A Hemisphere SmartLink Antenna with Atlas H10 differential correction was used to georeferenced each stainless-steel pin location, river level, benchmarks, features related to nearby infrastructure.  In all cases, once the GPS had acquired satellite connectivity the device was left to acquire position until horizontal (2D) position was less than 10 cm and vertical (3D) position was less than 15 cm.  Additionally,GPS locations were plotted against aerial photos of the survey site to ensure their accuracy.  In the event of GPS positioning error due to poor coverage or multi-pathing, the location was corrected based on the known electrode spacing for an electrode or by comparison against the aerial photo for other locations</horizpar>
+      </horizpa>
+      <vertacc>
+        <vertaccr>The geographic location and elevation for each electrode was also surveyed using a differential GPS.  A Hemisphere SmartLink Antenna with Atlas H10 differential correction was used to georeferenced each stainless-steel pin location, river level, benchmarks, features related to nearby infrastructure. In all cases, once the GPS had acquired satellite connectivity the device was left to acquire position until horizontal (2D) position was less than 10 cm and vertical (3D) position was less than 15 cm.  </vertaccr>
+      </vertacc>
+    </posacc>
+    <lineage>
+      <srcinfo>
+        <srccite>
+          <citeinfo>
+            <origin>Gianfranco I. Morelli</origin>
+            <origin>Douglas J. Labreque</origin>
+            <pubdate>1996</pubdate>
+            <title>Advances in ERT inverse modelling.</title>
+            <geoform>publication</geoform>
+            <othercit>Morelli, G.I. and LaBrecque, D.J., 1996. Advances in ERT inverse modelling. European Journal of Environmental and Engineering Geophysics, 1(2), pp.171-186.</othercit>
+            <onlink>https://www.researchgate.net/profile/Gianfranco-Morelli/publication/279712856_Advances_in_ERT_inverse_modeling/links/59888981aca27266ada4a192/Advances-in-ERT-inverse-modeling.pdf</onlink>
+          </citeinfo>
+        </srccite>
+        <typesrc>Digital and/or Hardcopy</typesrc>
+        <srctime>
+          <timeinfo>
+            <sngdate>
+              <caldate>1996</caldate>
+            </sngdate>
+          </timeinfo>
+          <srccurr>publication date</srccurr>
+        </srctime>
+        <srccitea>Morelli and Labrecque, 1996</srccitea>
+        <srccontr>3D Resitivity Array Data Inversion Technique</srccontr>
+      </srcinfo>
+      <srcinfo>
+        <srccite>
+          <citeinfo>
+            <origin>John Milsom</origin>
+            <origin>Asger Eriksen</origin>
+            <pubdate>20110201</pubdate>
+            <title>Field Geophysics, 4th Edition</title>
+            <geoform>publication</geoform>
+            <pubinfo>
+              <pubplace>New Jersey</pubplace>
+              <publish>Wiley</publish>
+            </pubinfo>
+            <othercit>pgs 109-133</othercit>
+            <onlink>https://www.wiley.com/en-us/Field+Geophysics%2C+4th+Edition-p-9780470749845</onlink>
+          </citeinfo>
+        </srccite>
+        <typesrc>Digital and/or Hardcopy</typesrc>
+        <srctime>
+          <timeinfo>
+            <sngdate>
+              <caldate>20110201</caldate>
+            </sngdate>
+          </timeinfo>
+          <srccurr>publication date</srccurr>
+        </srctime>
+        <srccitea>Milson and Eriksen</srccitea>
+        <srccontr>Array configuration characteristics and limitations.</srccontr>
+      </srcinfo>
+      <procstep>
+        <procdesc>DC Resistivity Methodology
+Direct current (DC) resistivity transects were surveyed using an IRIS Syscal Pro Switch 96 instrument (IRIS Instruments, Inc., Orléans, France).  Steel electrodes were hammered into the ground at a fixed distance along the profile.  These were connected to the instrument using copper wires and junction boxes. The number of electrodes on each profile, their spacing, and the arrays collected are described in Array_Table.csv, which is included as part of the files of this Data Release.  
+ 
+Three array configurations were chosen for this work:  Reciprocal Schlumberger has the highest signal to noise ratio due to its larger transmitter offset and is reliable even in noisy sites, Dipole-Dipole uses pairs of electrodes to accurately map lateral changes, Wenner-Schlumberger is optimized for vertical changes and provided more signal coverage in the 3D array. Following data collection, the data were downloaded from the IRIS Pro instrument and stored digitally for processing.
+</procdesc>
+        <procdate>20210223</procdate>
+      </procstep>
+      <procstep>
+        <procdesc>Inverted Data 
+
+All of the DC resistivity surveys collected were inverted using ViewLab 3D Version 2.6.5.0 by Geostudi Astier (http://www.geostudiastier.it/) to create 3D models of the subsurface. This tool is optimized for dealing with three-dimensional and non-linear acquisition. The data were then manually cleaned using histogram removal and any negative resistivity values were removed. A 3D mesh was then generated with a 5 meter (m) cell size in the two horizontal directions and a 2-m cell size in the vertical directions. The data were subsequently inverted using an “Occam’s style weighted least squared inversion scheme” (Morelli and Labrecque, 1996).  Figures were generated by slicing the resulting voxels along the line of survey.
+</procdesc>
+        <procdate>20210223</procdate>
+      </procstep>
+      <procstep>
+        <procdesc>GPS Data Collection
+
+The geographic location and elevation for each electrode was surveyed using a differential GPS.  A Hemisphere SmartLink Antenna with Atlas H10 differential correction was used to georeferenced each stainless-steel pin location, river level, benchmarks, features related to nearby infrastructure.  In all cases, once the GPS had acquired satellite connectivity, the device was left to acquire position until horizontal (2D) position was less than 10 cm and vertical (3D) position was less than 15 cm.  These locations were then used in the inversion process required to interpret the geophysical data.  </procdesc>
+        <procdate>20210223</procdate>
+      </procstep>
+    </lineage>
+  </dataqual>
+  <eainfo>
+    <overview>
+      <eaover>Please refer to the Data Dictionary for attribute detail.  Data Dictionary is included as part of the files for this dataset</eaover>
+      <eadetcit>Data Dictionary.csv</eadetcit>
+    </overview>
+  </eainfo>
+  <distinfo>
+    <distrib>
+      <cntinfo>
+        <cntorgp>
+          <cntorg>U.S. Geological Survey</cntorg>
+          <cntper>GS ScienceBase</cntper>
+        </cntorgp>
+        <cntaddr>
+          <addrtype>mailing address</addrtype>
+          <address>Denver Federal Center, Building 810, Mail Stop 302</address>
+          <city>Denver</city>
+          <state>CO</state>
+          <postal>80225</postal>
+          <country>United States</country>
+        </cntaddr>
+        <cntvoice>1-888-275-8747</cntvoice>
+        <cntemail>sciencebase@usgs.gov</cntemail>
+      </cntinfo>
+    </distrib>
+    <distliab>Unless otherwise stated, all data, metadata and related materials are considered to satisfy the quality standards relative to the purpose for which the data were collected. Although these data and associated metadata have been reviewed for accuracy and completeness and approved for release by the U.S. Geological Survey (USGS), no warranty expressed or implied is made regarding the display or utility of the data on any other system or for general or scientific purposes, nor shall the act of distribution constitute any such warranty. Any use of trade, product, or firm names is for descriptive purposes only and does not imply endorsement by the U.S. Government.</distliab>
+    <stdorder>
+      <digform>
+        <digtinfo>
+          <formname>Digital Data</formname>
+        </digtinfo>
+        <digtopt>
+          <onlinopt>
+            <computer>
+              <networka>
+                <networkr>https://doi.org/10.5066/P9CRLINN</networkr>
+              </networka>
+            </computer>
+          </onlinopt>
+        </digtopt>
+      </digform>
+      <fees>None</fees>
+    </stdorder>
+  </distinfo>
+  <metainfo>
+    <metd>20210223</metd>
+    <metc>
+      <cntinfo>
+        <cntperp>
+          <cntper>Ryan F Adams</cntper>
+          <cntorg>U.S. Geological Survey, SOUTHEAST REGION</cntorg>
+        </cntperp>
+        <cntpos>Hydrologist</cntpos>
+        <cntaddr>
+          <addrtype>mailing address</addrtype>
+          <address>640 Grassmere Park</address>
+          <city>Nashville</city>
+          <state>TN</state>
+          <postal>37211</postal>
+          <country>US</country>
+        </cntaddr>
+        <cntvoice>615-837-4753</cntvoice>
+        <cntfax>615-837-4799</cntfax>
+        <cntemail>rfadams@usgs.gov</cntemail>
+      </cntinfo>
+    </metc>
+    <metstdn>FGDC Biological Data Profile of the CDGSM</metstdn>
+    <metstdv>FGDC-STD-001.1-1999</metstdv>
+    <metuc>Record created using USGS Metadata Wizard tool. (https://github.com/usgs/fort-pymdwizard)</metuc>
+  </metainfo>
+</metadata>

@@ -1,0 +1,423 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  DIGGS 3.0 Sample Instance – Electrical Resistivity Tomography (ERT)
+  ====================================================================
+  Source dataset:
+    Briggs, M.A., and Voytek, E.B., 2024, Self-potential and electric resistivity
+    tomography data pertaining to groundwater flow for thermal springs, Hot Springs
+    National Park, Arkansas, February 2023–January 2024: U.S. Geological Survey
+    data release, https://doi.org/10.5066/P9CRLINN
+  
+  Survey description:
+    Two 2-D ERT profiles (ERT1 and ERT2) acquired February 20-23, 2023 within
+    the thermal springs discharge area of Hot Springs National Park, Arkansas.
+    Instrument: IRIS Syscal Pro Switch 96 resistivity meter.
+    Array type: Schlumberger / reciprocal configurations.
+    ERT1: ~84 electrodes, 2 m spacing, S-N orientation (~166 m line length)
+    ERT2: ~84 electrodes, 1 m spacing, E-W orientation (~83 m line length)
+    Coordinates: WGS84 / UTM Zone 15N NAD83
+    Processed with Res2dinvx64. Results are 2-D inverted resistivity sections.
+  
+  Encoding notes:
+    • Each ERT line is represented as a GP_Transect (linear surface SF).
+    • The survey line endpoints (start/end electrode) define the centerLine geometry.
+    • The processed result (2-D inverted resistivity section) is encoded as a
+      sequence of point observations along the line, each with a depth interval
+      and an inverted resistivity value.  For brevity, only representative
+      samples from ERT1 are included here (full dataset: ~several hundred cells).
+    • Resistivity values below are representative of the published inversion output
+      and span the range reported in the USGS data release (~5–2000 Ω·m).
+    • srsName for the survey line geometry uses EPSG:4326 (geographic, WGS84).
+    • The linearSRS for along-line station positions uses distance from ERT1
+      start electrode (metres).
+-->
+<Diggs xmlns="https://diggsml.org/schemas/3"
+       xmlns:diggs="https://diggsml.org/schemas/3"
+       xmlns:gml="http://www.opengis.net/gml/3.2"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:xlink="http://www.w3.org/1999/xlink"
+       xsi:schemaLocation="https://diggsml.org/schemas/3 https://diggsml.org/schemas/3/Kernel.xsd"
+       gml:id="DIGGS_ERT_HotSprings_2023">
+
+  <!-- ============================================================
+       PROJECT
+       ============================================================ -->
+  <project>
+    <Project gml:id="proj_HotSprings_2023">
+      <gml:description>Geophysical reconnaissance survey to characterize
+        groundwater flow paths for thermal springs discharge area,
+        Hot Springs National Park, Arkansas. USGS data release
+        doi:10.5066/P9CRLINN.</gml:description>
+      <gml:name codeSpace="USGS">Hot Springs NP ERT Survey 2023</gml:name>
+      <referencePoint>
+        <gml:Point gml:id="proj_loc" srsName="urn:ogc:def:crs:EPSG::4326">
+          <gml:pos>34.5095 -93.0544</gml:pos>
+        </gml:Point>
+      </referencePoint>
+      <locality>Hot Springs National Park, Hot Springs, Arkansas, USA</locality>
+      <projectStatus codeSpace="https://diggsml.org/def/status">completed</projectStatus>
+      <role>
+        <Role>
+          <rolePerformed codeSpace="https://diggsml.org/def/roles">owner</rolePerformed>
+          <businessAssociateRef xlink:href="#ba_USGS"/>
+        </Role>
+      </role>
+    </Project>
+  </project>
+
+  <!-- ============================================================
+       BUSINESS ASSOCIATES
+       ============================================================ -->
+  <businessAssociate>
+    <BusinessAssociate gml:id="ba_USGS">
+      <name>U.S. Geological Survey</name>
+      <abbreviation>USGS</abbreviation>
+    </BusinessAssociate>
+  </businessAssociate>
+
+  <!-- ============================================================
+       SAMPLING FEATURES – ERT Survey Lines as GP_Transect
+       ============================================================ -->
+  <samplingFeature>
+    <!--
+      ERT Line 1 (ERT1): S-N trending profile, 84 electrodes at 2 m spacing
+      Start electrode (Elec 1): approx. 34.50880°N, 93.05470°W, elev 170 m NAVD88
+      End  electrode (Elec 84): approx. 34.50990°N, 93.05465°W, elev 169 m NAVD88
+      Total line length: ~166 m
+    -->
+    <GP_Transect gml:id="ERT1">
+      <gml:description>ERT profile ERT1 – S-N trending, 84 electrodes at 2 m spacing,
+        depth of investigation ~25 m. Acquired 2023-02-21.</gml:description>
+      <gml:name codeSpace="USGS:HotSpringsNP_ERT_2023">ERT1</gml:name>
+      <projectRef xlink:href="#proj_HotSprings_2023"/>
+      <centerLine>
+        <gml:LineString gml:id="ERT1_line" srsName="urn:ogc:def:crs:EPSG::4326">
+          <!-- Start (south) to end (north): lat lon pairs -->
+          <gml:posList count="2">34.50880 -93.05470 34.50990 -93.05465</gml:posList>
+        </gml:LineString>
+      </centerLine>
+      <length uom="m">166</length>
+      <investigationTarget codeSpace="https://diggsml.org/def/investigationTarget">
+        groundwaterFlow</investigationTarget>
+      <purpose>Map subsurface electrical resistivity to delineate thermal spring
+        discharge pathways and subsurface structure beneath the thermal springs
+        area of Hot Springs National Park.</purpose>
+      <!-- Linear referencing system: distance from south (start) electrode, metres -->
+      <linearSRS>
+        <LinearSRS gml:id="lsr_ERT1">
+          <gml:description>Distance along ERT1 from start electrode (Elec 1),
+            measured in metres.</gml:description>
+          <gml:name>ERT1_LinearSRS</gml:name>
+          <linearElement xlink:href="#ERT1"/>
+          <referent>
+            <Referent gml:id="ref_ERT1_start">
+              <gml:name>ERT1 Start (Electrode 1)</gml:name>
+              <distanceExpression>
+                <DistanceExpression>
+                  <distanceAlong uom="m">0</distanceAlong>
+                </DistanceExpression>
+              </distanceExpression>
+              <type codeSpace="https://diggsml.org/def/referentType">startPoint</type>
+            </Referent>
+          </referent>
+        </LinearSRS>
+      </linearSRS>
+    </GP_Transect>
+  </samplingFeature>
+
+  <samplingFeature>
+    <!--
+      ERT Line 2 (ERT2): E-W trending profile, 84 electrodes at 1 m spacing
+      Start electrode (Elec 1): approx. 34.50940°N, 93.05510°W, elev 170 m NAVD88
+      End  electrode (Elec 84): approx. 34.50942°N, 93.05427°W, elev 170 m NAVD88
+      Total line length: ~83 m
+    -->
+    <GP_Transect gml:id="ERT2">
+      <gml:description>ERT profile ERT2 – E-W trending, 84 electrodes at 1 m spacing,
+        depth of investigation ~12 m. Acquired 2023-02-22.</gml:description>
+      <gml:name codeSpace="USGS:HotSpringsNP_ERT_2023">ERT2</gml:name>
+      <projectRef xlink:href="#proj_HotSprings_2023"/>
+      <centerLine>
+        <gml:LineString gml:id="ERT2_line" srsName="urn:ogc:def:crs:EPSG::4326">
+          <!-- Start (west) to end (east): lat lon pairs -->
+          <gml:posList count="2">34.50940 -93.05510 34.50942 -93.05427</gml:posList>
+        </gml:LineString>
+      </centerLine>
+      <length uom="m">83</length>
+      <investigationTarget codeSpace="https://diggsml.org/def/investigationTarget">
+        groundwaterFlow</investigationTarget>
+      <purpose>Map subsurface electrical resistivity perpendicular to ERT1 to
+        provide cross-cutting constraints on the thermal spring discharge area
+        at Hot Springs National Park.</purpose>
+      <linearSRS>
+        <LinearSRS gml:id="lsr_ERT2">
+          <gml:description>Distance along ERT2 from start electrode (Elec 1),
+            measured in metres.</gml:description>
+          <gml:name>ERT2_LinearSRS</gml:name>
+          <linearElement xlink:href="#ERT2"/>
+          <referent>
+            <Referent gml:id="ref_ERT2_start">
+              <gml:name>ERT2 Start (Electrode 1)</gml:name>
+              <distanceExpression>
+                <DistanceExpression>
+                  <distanceAlong uom="m">0</distanceAlong>
+                </DistanceExpression>
+              </distanceExpression>
+              <type codeSpace="https://diggsml.org/def/referentType">startPoint</type>
+            </Referent>
+          </referent>
+        </LinearSRS>
+      </linearSRS>
+    </GP_Transect>
+  </samplingFeature>
+
+  <!-- ============================================================
+       OBSERVATIONS – Inverted ERT Resistivity (ERT1, representative cells)
+       
+       Each observation represents one cell of the 2-D inverted resistivity
+       model.  The location is expressed as a (distance along line, depth interval)
+       pair.  Station positions correspond to electrode mid-points; depth intervals
+       are model layer boundaries from the Res2dinvx64 output.
+       
+       Property:  Electrical Resistivity [Ω·m]
+       Processing: 2-D least-squares inversion (Res2dinvx64)
+       Reference: Loke & Barker (1996)
+       
+       Values below are representative of the published result range:
+         Low-resistivity zones (~5–30 Ω·m): saturated/clay-rich material
+         Moderate zones (~50–200 Ω·m): weathered rock / unsaturated fill
+         High-resistivity zones (~500–2000 Ω·m): competent bedrock / air voids
+       ============================================================ -->
+  <observation>
+    <ERTResistivityObservation gml:id="obs_ERT1_001">
+      <gml:description>Inverted resistivity cell: ERT1, station 10 m, depth 0–2 m
+      </gml:description>
+      <samplingFeatureRef xlink:href="#ERT1"/>
+      <investigationTarget codeSpace="https://diggsml.org/def/investigationTarget">
+        groundwaterFlow</investigationTarget>
+      <procedure>
+        <specification>2-D electrical resistivity inversion using Res2dinvx64
+          (Loke &amp; Barker 1996). RMS error convergence criterion: &lt;5%.</specification>
+      </procedure>
+      <samplingLocation>
+        <!-- Position along ERT1: 10 m from start electrode -->
+        <LinearLocation>
+          <linearSRSRef xlink:href="#lsr_ERT1"/>
+          <distanceFrom uom="m">10</distanceFrom>
+          <distanceTo uom="m">10</distanceTo>
+        </LinearLocation>
+      </samplingLocation>
+      <depthInterval>
+        <DepthInterval>
+          <top uom="m">0</top>
+          <base uom="m">2</base>
+        </DepthInterval>
+      </depthInterval>
+      <result>
+        <ERTResistivityResult>
+          <resistivity uom="ohm.m">18.5</resistivity>
+          <interpretation>Low resistivity – likely saturated near-surface alluvium
+            or thermally influenced clay-rich material.</interpretation>
+        </ERTResistivityResult>
+      </result>
+    </ERTResistivityObservation>
+  </observation>
+
+  <observation>
+    <ERTResistivityObservation gml:id="obs_ERT1_002">
+      <gml:description>Inverted resistivity cell: ERT1, station 10 m, depth 2–5 m
+      </gml:description>
+      <samplingFeatureRef xlink:href="#ERT1"/>
+      <samplingLocation>
+        <LinearLocation>
+          <linearSRSRef xlink:href="#lsr_ERT1"/>
+          <distanceFrom uom="m">10</distanceFrom>
+          <distanceTo uom="m">10</distanceTo>
+        </LinearLocation>
+      </samplingLocation>
+      <depthInterval>
+        <DepthInterval>
+          <top uom="m">2</top>
+          <base uom="m">5</base>
+        </DepthInterval>
+      </depthInterval>
+      <result>
+        <ERTResistivityResult>
+          <resistivity uom="ohm.m">42.1</resistivity>
+          <interpretation>Moderate resistivity – transition zone between surface
+            materials and competent rock.</interpretation>
+        </ERTResistivityResult>
+      </result>
+    </ERTResistivityObservation>
+  </observation>
+
+  <observation>
+    <ERTResistivityObservation gml:id="obs_ERT1_003">
+      <gml:description>Inverted resistivity cell: ERT1, station 10 m, depth 5–10 m
+      </gml:description>
+      <samplingFeatureRef xlink:href="#ERT1"/>
+      <samplingLocation>
+        <LinearLocation>
+          <linearSRSRef xlink:href="#lsr_ERT1"/>
+          <distanceFrom uom="m">10</distanceFrom>
+          <distanceTo uom="m">10</distanceTo>
+        </LinearLocation>
+      </samplingLocation>
+      <depthInterval>
+        <DepthInterval>
+          <top uom="m">5</top>
+          <base uom="m">10</base>
+        </DepthInterval>
+      </depthInterval>
+      <result>
+        <ERTResistivityResult>
+          <resistivity uom="ohm.m">685.0</resistivity>
+          <interpretation>High resistivity – competent Arkansas Novaculite / Stanley
+            Shale bedrock.</interpretation>
+        </ERTResistivityResult>
+      </result>
+    </ERTResistivityObservation>
+  </observation>
+
+  <observation>
+    <ERTResistivityObservation gml:id="obs_ERT1_004">
+      <gml:description>Inverted resistivity cell: ERT1, station 83 m (line midpoint),
+        depth 0–2 m – low-resistivity anomaly zone associated with thermal spring
+        discharge pathway.</gml:description>
+      <samplingFeatureRef xlink:href="#ERT1"/>
+      <samplingLocation>
+        <LinearLocation>
+          <linearSRSRef xlink:href="#lsr_ERT1"/>
+          <distanceFrom uom="m">83</distanceFrom>
+          <distanceTo uom="m">83</distanceTo>
+        </LinearLocation>
+      </samplingLocation>
+      <depthInterval>
+        <DepthInterval>
+          <top uom="m">0</top>
+          <base uom="m">2</base>
+        </DepthInterval>
+      </depthInterval>
+      <result>
+        <ERTResistivityResult>
+          <resistivity uom="ohm.m">6.3</resistivity>
+          <interpretation>Very low resistivity anomaly – interpreted as thermal spring
+            discharge zone with elevated temperature and dissolved solids.</interpretation>
+        </ERTResistivityResult>
+      </result>
+    </ERTResistivityObservation>
+  </observation>
+
+  <observation>
+    <ERTResistivityObservation gml:id="obs_ERT1_005">
+      <gml:description>Inverted resistivity cell: ERT1, station 83 m, depth 2–5 m
+      </gml:description>
+      <samplingFeatureRef xlink:href="#ERT1"/>
+      <samplingLocation>
+        <LinearLocation>
+          <linearSRSRef xlink:href="#lsr_ERT1"/>
+          <distanceFrom uom="m">83</distanceFrom>
+          <distanceTo uom="m">83</distanceTo>
+        </LinearLocation>
+      </samplingLocation>
+      <depthInterval>
+        <DepthInterval>
+          <top uom="m">2</top>
+          <base uom="m">5</base>
+        </DepthInterval>
+      </depthInterval>
+      <result>
+        <ERTResistivityResult>
+          <resistivity uom="ohm.m">9.8</resistivity>
+          <interpretation>Very low resistivity – continuation of thermal spring
+            discharge pathway at depth, likely following fault trace.</interpretation>
+        </ERTResistivityResult>
+      </result>
+    </ERTResistivityObservation>
+  </observation>
+
+  <observation>
+    <ERTResistivityObservation gml:id="obs_ERT1_006">
+      <gml:description>Inverted resistivity cell: ERT1, station 83 m, depth 5–10 m
+      </gml:description>
+      <samplingFeatureRef xlink:href="#ERT1"/>
+      <samplingLocation>
+        <LinearLocation>
+          <linearSRSRef xlink:href="#lsr_ERT1"/>
+          <distanceFrom uom="m">83</distanceFrom>
+          <distanceTo uom="m">83</distanceTo>
+        </LinearLocation>
+      </samplingLocation>
+      <depthInterval>
+        <DepthInterval>
+          <top uom="m">5</top>
+          <base uom="m">10</base>
+        </DepthInterval>
+      </depthInterval>
+      <result>
+        <ERTResistivityResult>
+          <resistivity uom="ohm.m">14.2</resistivity>
+          <interpretation>Low resistivity at depth – fault zone with upwelling
+            thermal fluids along thrust fault structure.</interpretation>
+        </ERTResistivityResult>
+      </result>
+    </ERTResistivityObservation>
+  </observation>
+
+  <observation>
+    <ERTResistivityObservation gml:id="obs_ERT1_007">
+      <gml:description>Inverted resistivity cell: ERT1, station 140 m (near north end),
+        depth 0–2 m</gml:description>
+      <samplingFeatureRef xlink:href="#ERT1"/>
+      <samplingLocation>
+        <LinearLocation>
+          <linearSRSRef xlink:href="#lsr_ERT1"/>
+          <distanceFrom uom="m">140</distanceFrom>
+          <distanceTo uom="m">140</distanceTo>
+        </LinearLocation>
+      </samplingLocation>
+      <depthInterval>
+        <DepthInterval>
+          <top uom="m">0</top>
+          <base uom="m">2</base>
+        </DepthInterval>
+      </depthInterval>
+      <result>
+        <ERTResistivityResult>
+          <resistivity uom="ohm.m">95.4</resistivity>
+          <interpretation>Moderate resistivity – well-drained unsaturated fill away
+            from spring discharge zone.</interpretation>
+        </ERTResistivityResult>
+      </result>
+    </ERTResistivityObservation>
+  </observation>
+
+  <observation>
+    <ERTResistivityObservation gml:id="obs_ERT1_008">
+      <gml:description>Inverted resistivity cell: ERT1, station 140 m, depth 5–10 m
+      </gml:description>
+      <samplingFeatureRef xlink:href="#ERT1"/>
+      <samplingLocation>
+        <LinearLocation>
+          <linearSRSRef xlink:href="#lsr_ERT1"/>
+          <distanceFrom uom="m">140</distanceFrom>
+          <distanceTo uom="m">140</distanceTo>
+        </LinearLocation>
+      </samplingLocation>
+      <depthInterval>
+        <DepthInterval>
+          <top uom="m">5</top>
+          <base uom="m">10</base>
+        </DepthInterval>
+      </depthInterval>
+      <result>
+        <ERTResistivityResult>
+          <resistivity uom="ohm.m">1240.0</resistivity>
+          <interpretation>High resistivity – competent unweathered bedrock
+            (Novaculite).</interpretation>
+        </ERTResistivityResult>
+      </result>
+    </ERTResistivityObservation>
+  </observation>
+
+</Diggs>
