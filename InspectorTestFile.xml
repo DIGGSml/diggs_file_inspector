@@ -22595,7 +22595,7 @@
 							<legendCode codeSpace="https://acme-geotech.com/legend" xlink:href="https://acme-geotech.com/legend/CL.png" mimeType="image/png">CL</legendCode>
 							<matrixType>soil</matrixType>
 							<!-- colorCharacter: describes the multi-color pattern -->
-							<colorCharacter>mottled</colorCharacter>
+							<colorCharacter>banded</colorCharacter>
 							<color>
 								<Color gml:id="DGS1EFE-854-3326-6C4B-6FBF" origin="matrix" rank="1">
 									<colorName>dark brown</colorName>
@@ -22653,6 +22653,7 @@
 											<author xlink:href="#DGS79C-A98-4502-C8B9-272B0"/>
 										</Remark>
 									</remark>
+									
 									<consistency>medium stiff to stiff</consistency>
 									<!-- dipAngle + dipDirection (alternative to beddingOrientation) -->
 									<dipAngle uom="dega" apparent="false">5</dipAngle>

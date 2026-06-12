@@ -871,8 +871,9 @@ html,body{height:100%;font-family:var(--font-ui);background:var(--bg);color:var(
 /* ── SF ASSOC SECTION (badge grid + assoc panel) ─── */
 .sf-assoc-section { padding:12px 16px;border-bottom:1px solid var(--border); }
 .sf-assoc-section-title {
-  font-size:10px;font-weight:600;text-transform:uppercase;
-  letter-spacing:.5px;color:var(--text-muted);margin-bottom:8px;
+  font-size:10px;font-weight:700;text-transform:uppercase;
+  letter-spacing:.06em;color:var(--accent);margin-bottom:8px;
+  padding-bottom:4px;border-bottom:1px solid var(--border);
 }
 .assoc-badge-grid {
   display:grid;grid-template-columns:1fr 1fr;gap:6px;
@@ -1291,6 +1292,11 @@ table.mt-subtable tr.mt-member-selected { background:rgba(232,160,69,.15); }
 /* Measurement table tweaks */
 .meas-table th { white-space:nowrap; text-transform:none; letter-spacing:0; }
 .meas-table td { white-space:nowrap; }
+/* LTP zone table — selected row highlight */
+.sub-table tr.ltp-row-selected td { background:rgba(224,92,0,.18) !important; }
+/* LTP zone map tooltip */
+.ltp-zone-tip { background:rgba(30,30,30,.92);color:#e8e8e8;border:1px solid rgba(255,255,255,.15);
+  border-radius:4px;font-size:12px;padding:5px 9px;box-shadow:0 2px 8px rgba(0,0,0,.5); }
 .col-uom { font-size:10px; color:var(--text-muted); font-weight:400; display:block; text-transform:none; letter-spacing:0; }
 .muted-dash { color:var(--text-dim) !important; text-align:center; }
 
@@ -1633,6 +1639,15 @@ function parseEPSG(srsName) {
     return { horiz: nonVert[0] || null, vert };
   }
 
+  // OGC comma-separated compound: urn:ogc:def:crs,crs:EPSG::9357,crs:EPSG::5773
+  // Identified by having two or more EPSG codes in a comma-joined URN
+  if (s.startsWith('urn:ogc:def:crs,') || (s.includes(',crs:EPSG') && s.startsWith('urn:'))) {
+    const codes = [...s.matchAll(/EPSG[/:](?:\w+\/)?(?::)?(\d+)/gi)].map(m => parseInt(m[1]));
+    const nonVert = codes.filter(c => !VERT_CRS.has(c));
+    const vert    = codes.find(c =>  VERT_CRS.has(c)) || null;
+    return { horiz: nonVert[0] || null, vert };
+  }
+
   // URN: urn:ogc:def:crs:EPSG::4326  or  urn:ogc:def:crs:EPSG:6.6:4326
   let m = s.match(/urn:ogc:def:crs:EPSG:[^:]*:(\d+)/i);
   if (m) return { horiz: parseInt(m[1]), vert: null };
@@ -1710,7 +1725,7 @@ function toWGS84(pos, srsName) {
 
   let def = CRS_DEFS[key];
   if (!def) {
-    result.warning = `EPSG:${horiz} not in embedded table — cannot plot`;
+    result.warning = `EPSG:${horiz} not in embedded table — try loading while connected to the internet`;
     return result;
   }
 
@@ -1731,17 +1746,103 @@ function toWGS84(pos, srsName) {
   return result;
 }
 
-/** Fetch a proj4 definition from epsg.io (online fallback for unknown codes) */
+/** CRS names fetched at runtime from epsg.io — keyed by numeric EPSG code. */
+const FETCHED_CRS_NAMES = {};
+
+/** Fetch a proj4 definition (and CRS name) from epsg.io (online fallback for unknown codes) */
 async function fetchEPSGDef(epsg) {
   try {
-    const r = await fetch(`https://epsg.io/${epsg}.proj4`, { signal: AbortSignal.timeout(4000) });
-    if (!r.ok) return null;
-    const def = (await r.text()).trim();
+    // Fetch proj4 string and JSON metadata in parallel for speed
+    const [proj4Resp, jsonResp] = await Promise.all([
+      fetch(`https://epsg.io/${epsg}.proj4`, { signal: AbortSignal.timeout(4000) }),
+      fetch(`https://epsg.io/${epsg}.json`,  { signal: AbortSignal.timeout(4000) }),
+    ]);
+
+    // Handle proj4 string — this is the critical part
+    if (!proj4Resp.ok) return null;
+    const def = (await proj4Resp.text()).trim();
     if (!def || def.startsWith('<')) return null;  // HTML error page
     proj4.defs(`EPSG:${epsg}`, def);
     CRS_DEFS[`EPSG:${epsg}`] = def;  // cache for this session
+
+    // Handle name from JSON (best-effort — don't fail the whole fetch if this errors)
+    try {
+      if (jsonResp.ok) {
+        const json = await jsonResp.json();
+        // epsg.io JSON top-level has a "name" field
+        if (json && typeof json.name === 'string' && json.name) {
+          FETCHED_CRS_NAMES[epsg] = json.name;
+        }
+      }
+    } catch { /* name fetch failed — silent, proj4 def already saved */ }
+
     return def;
   } catch { return null; }
+}
+
+/**
+ * Scan all parsed SFs for horizontal EPSG codes not in CRS_DEFS and fetch them
+ * in parallel from epsg.io. Returns a Promise that resolves when all fetches
+ * complete (successfully or not). Call this before initMap() so that toWGS84()
+ * has the definitions it needs.
+ */
+async function prefetchUnknownCRS() {
+  const needed = new Set();
+
+  // Collect every horizEPSG from all SF types
+  for (const arr of DIGGS_SF.values()) {
+    for (const sf of arr) {
+      if (sf.horizEPSG && !GEO_CRS.has(sf.horizEPSG)
+          && !VERT_CRS.has(sf.horizEPSG) && !CRS_DEFS[`EPSG:${sf.horizEPSG}`]) {
+        needed.add(sf.horizEPSG);
+      }
+      // Also scan rawSrsName for compound CRS codes not captured by horizEPSG
+      if (sf.rawSrsName) {
+        const { horiz } = parseEPSG(sf.rawSrsName);
+        if (horiz && !GEO_CRS.has(horiz) && !VERT_CRS.has(horiz) && !CRS_DEFS[`EPSG:${horiz}`]) {
+          needed.add(horiz);
+        }
+      }
+    }
+  }
+
+  if (!needed.size) return;
+
+  console.log(`[DIGGS] Fetching ${needed.size} unknown CRS definition(s) from epsg.io:`, [...needed]);
+  const results = await Promise.all([...needed].map(epsg => fetchEPSGDef(epsg)));
+  const fetchedAny = results.some(r => r !== null);
+
+  if (fetchedAny) {
+    // Re-resolve coordinates for SFs that had unknown CRS (lat/lon were left null)
+    for (const arr of DIGGS_SF.values()) {
+      for (const sf of arr) {
+        if (sf.lat !== null || !sf.rawPos || !sf.rawSrsName) continue;
+        const geo = toWGS84(sf.rawPos, sf.rawSrsName);
+        if (geo.lat !== null) {
+          sf.lat = geo.lat;
+          sf.lon = geo.lon;
+          sf.horizEPSG = geo.horizEPSG;
+          sf.vertEPSG  = geo.vertEPSG;
+          sf.crsTransformed = geo.transformed;
+          sf.crsWarning = geo.warning;
+        }
+      }
+    }
+
+    // Re-resolve polygon rings for planar SFs whose featureExtent CRS was unknown
+    for (const arr of DIGGS_SF.values()) {
+      for (const sf of arr) {
+        if (sf.polygonLatLngs !== null) continue;  // already resolved
+        const cfg = SF_TYPE_CONFIG[sf.type];
+        if (!cfg || cfg.mapGeom !== 'polygon') continue;
+        if (!sf.el) continue;
+        const resolved = _resolvePolygonRings(sf.el, sf.rawSrsName, sf.rawSrsDimension);
+        if (resolved) sf.polygonLatLngs = resolved;
+      }
+    }
+  }
+
+  console.log(`[DIGGS] CRS prefetch complete.`);
 }
 
 /** Detect the DIGGS namespace actually used in this document and update NS.diggs */
@@ -2048,6 +2149,17 @@ const SF_TYPE_CONFIG = {
     parentPath: 'diggs:samplingFeatureRef/@xlink:href',
     date: 'diggs:whenInstalled/diggs:TimeInterval/diggs:start',
     marker: null,
+  },
+
+  // ── Load Transfer Platform ────────────────────────────────────────────────
+  LoadTransferPlatform: {
+    tabLabel:  'Load Transfer Platforms',
+    mapGeom:   'polygon',
+    depthPath: 'diggs:totalArea',          // mapped to Depth/Extent column as area
+    depthPathUom: 'attr',                   // uom from element attribute
+    parentPath: null,
+    date: 'diggs:whenConstructed/diggs:TimeInterval/diggs:start',
+    marker: { color: '#e05c00', weight: 2.5, opacity: 1.0, fillColor: '#e05c00', fillOpacity: 0.18 },
   },
 
   // ── Multi-track (no own map marker; rendered via member GP_Tracklines) ─────
@@ -2585,6 +2697,46 @@ const SF_DETAIL_DESCRIPTORS = {
                              ],
                              compositeSeparator: '' },
   ],
+
+  LoadTransferPlatform: [
+
+    { sectionHeader: 'LTP Summary' },
+    { label: 'Constructed',         parentPath: 'diggs:whenConstructed/diggs:TimeInterval',
+                                    rawFormat: 'renderTimeInterval' },
+    { label: 'Working Platform',    parentPath: 'diggs:workingPlatformLevel',
+                                    rawFormat: 'renderElevRef' },
+    { label: 'Avg Existing GL',     parentPath: 'diggs:averageExistingGL',
+                                    rawFormat: 'renderElevRef' },
+    { label: 'Avg Water Table',     parentPath: 'diggs:averageWTLevel',
+                                    rawFormat: 'renderElevRef' },
+
+    { sectionHeader: 'LTP Zones' },
+    { label: '',                    parentPath: '.',
+                                    rawFormat: 'renderLTPZoneTable' },
+
+    { sectionHeader: 'Roles & Parties' },
+    { label: 'Roles',               parentPath: 'diggs:role',
+                                    multi: true, rawFormat: 'renderRole' },
+
+    { sectionHeader: 'Remarks' },
+    { label: 'Remarks',             parentPath: 'diggs:remark',
+                                    multi: true, rawFormat: 'renderRemark' },
+
+    { sectionHeader: 'Associated Files' },
+    { label: 'Files',               parentPath: 'diggs:associatedFile',
+                                    multi: true, rawFormat: 'renderAssociatedFile' },
+
+    { sectionHeader: 'Other Properties' },
+    { label: 'Other',               parentPath: 'diggs:otherSamplingFeatureProperty/diggs:Parameter',
+                                    multi: true,
+                                    composite: [
+                                      { path: 'diggs:parameterName' },
+                                      { path: 'diggs:parameterValue', prefix: ': ' },
+                                      { path: 'diggs:parameterUnits', prefix: '\u00a0' },
+                                    ],
+                                    compositeSeparator: '' },
+  ],
+
 };
 
 // ══════════════════════════════════════════════════════════════
@@ -2864,14 +3016,29 @@ const ENVIRONMENT_FIELDS = [
 // ══════════════════════════════════════════════════════════════
 
 // ── RenderItem factory ────────────────────────────────────────
+// Derive a human-readable label from an XPath expression when no explicit
+// label is provided: strip namespace prefix, then split camelCase into words.
+function _labelFromPath(path) {
+  if (!path || path === '.') return '';
+  // Take last path step, strip namespace prefix and any leading @
+  const step = path.split('/').pop().replace(/^@/, '').replace(/^[a-z]+:/, '');
+  if (!step || step === '.') return '';
+  // Split camelCase: 'lithDescription' → 'Lith Description'
+  return step.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase()).trim();
+}
+
 function makeRenderItem(value, spec, isHtml = false) {
+  // Use explicit label, or derive from path/parentPath if available, or empty
+  const autoLabel = (!spec.label && (spec.path || spec.parentPath))
+    ? _labelFromPath(spec.path || spec.parentPath)
+    : '';
   const item = {
     bold:   spec.bold   || false,
     italic: spec.italic || false,
     meta:   spec.meta   || false,
     indent: spec.indent || false,
     block:  spec.block  !== false,
-    label:  spec.label  || '',
+    label:  spec.label  || autoLabel,
   };
   if (isHtml) item.html = value;
   else        item.text = value;
@@ -2893,11 +3060,19 @@ function itemsToHtml(items) {
       item.meta   ? 'font-size:11px;color:var(--text-muted)' : '',
       item.indent ? 'padding-left:0.5em'                     : '',
     ].filter(Boolean).join(';');
+
+    // If item has a label, render as a two-column kv-row so label and value are
+    // clearly separated — consistent with the main SF detail pane style.
+    if (item.label && !isPlaceholder) {
+      const valStyle = styles ? ` style="${styles}"` : '';
+      return `<div class="kv-row">` +
+        `<div class="kv-key">${escHtml(item.label)}</div>` +
+        `<div class="kv-val"${valStyle}>${content}</div>` +
+        `</div>`;
+    }
+
     const tag = item.block !== false ? 'div' : 'span';
-    const labelHtml = item.label
-      ? `<span style="color:var(--text-muted);font-size:10px;font-weight:600;margin-right:4px;text-transform:uppercase;letter-spacing:.04em">${escHtml(item.label)}</span>`
-      : '';
-    const inner = `${labelHtml}${content}`;
+    const inner = content;
     return styles
       ? `<${tag} style="${styles}">${inner}</${tag}>`
       : `<${tag}>${inner}</${tag}>`;
@@ -3432,6 +3607,148 @@ const FORMAT_FN = {
     const cls    = equipEl.localName;
     return `<span class="kv-equip-link" onclick="showDetailPopup('${escHtml(key)}')">${escHtml(label)} <span style="font-size:10px;opacity:.7">(${escHtml(cls)})</span></span>`;
   },
+
+  // ── LoadTransferPlatform renderers ───────────────────────────────────────
+
+  // Render a simple measure element: value + uom attribute.
+  // Used for totalArea, impliedLTPThickness, etc.
+  renderMeasureAttr(el) {
+    if (!el) return '';
+    const val = nodeText(el);
+    if (!val) return '';
+    const uom = el.getAttribute('uom') || '';
+    return uom ? `${escHtml(val)}\u00a0${escHtml(uom)}` : escHtml(val);
+  },
+
+  // Render an elevation reference element: value + vertical datum label.
+  // Prefers srsName attribute (extract EPSG code from URI → look up VERT_CRS_INFO or FETCHED_CRS_NAMES);
+  // falls back to datumReference attribute text.
+  renderElevRef(el) {
+    if (!el) return '';
+    const val = nodeText(el);
+    if (!val) return '';
+    const uom = el.getAttribute('uom') || '';
+    const srsName = el.getAttribute('srsName') || '';
+    const datumRef = el.getAttribute('datumReference') || '';
+    let datumLabel = '';
+    if (srsName) {
+      // Parse vertical EPSG code from URI
+      const m = srsName.match(/EPSG[/:](?:[\d.]+[/:])?(\d+)/i);
+      const epsg = m ? parseInt(m[1]) : null;
+      if (epsg) {
+        if (VERT_CRS_INFO[epsg]) datumLabel = VERT_CRS_INFO[epsg].name;
+        else if (FETCHED_CRS_NAMES[epsg]) datumLabel = FETCHED_CRS_NAMES[epsg];
+        else datumLabel = `EPSG:${epsg}`;
+      } else {
+        datumLabel = srsName;
+      }
+    } else if (datumRef) {
+      datumLabel = datumRef;
+    }
+    const uomStr  = uom ? `\u00a0${escHtml(uom)}` : '';
+    const datumStr = datumLabel
+      ? `\u00a0<span style="color:var(--text-muted);font-size:10px">(${escHtml(datumLabel)})</span>`
+      : '';
+    return `${escHtml(val)}${uomStr}${datumStr}`;
+  },
+
+  // Render the LTP zone table + inline zone mini-map.
+  // Receives the LoadTransferPlatform element.
+  renderLTPZoneTable(el) {
+    if (!el) return '';
+    const sfId = el.getAttribute('id') || el.getAttributeNS(NS.gml, 'id') || '';
+    const zoneEls = findAllByLocalName(el, 'LTPZone');
+    if (!zoneEls.length) return '';
+
+    // ── Zone table ──────────────────────────────────────────────────────────
+    // Columns: Name | Material (pill) | Elev CMC Cutoff | Elev Top LTP |
+    //          Thickness | Geosynthetic (pill)
+    const palette = LTP_ZONE_PALETTE;
+
+    let thead = `<thead style="position:sticky;top:0;z-index:2;background:var(--surface2)"><tr>
+      <th style="width:26px"></th>
+      <th style="width:150px;min-width:150px;max-width:150px">Zone Name</th>
+      <th style="width:44px;text-align:center">Mat.</th>
+      <th>CMC Cutoff Elev</th>
+      <th>Top of LTP Elev</th>
+      <th>LTP Thickness</th>
+      <th style="width:44px;text-align:center">Geo.</th>
+    </tr></thead>`;
+
+    let tbody = '<tbody>';
+    zoneEls.forEach((zEl, zi) => {
+      const zoneId = zEl.getAttribute('id') || zEl.getAttributeNS(NS.gml, 'id') || `zone-${zi}`;
+      const zoneName = nodeText(zEl.getElementsByTagNameNS(NS.gml, 'name')[0] || {}) || zoneId;
+      const color = palette[zi % palette.length];
+
+      // Material — info-circle icon only
+      const lithoEl = zEl.getElementsByTagNameNS(NS.diggs, 'Lithology')[0] || null;
+      let matCell = '<span style="color:var(--text-dim)">—</span>';
+      if (lithoEl) {
+        const popKey = _registerPopup('Zone Material', [{ els: [lithoEl], fields: LTP_LITHOLOGY_FIELDS }]);
+        matCell = `<span class="col-info-icon" onclick="showDetailPopup('${escHtml(popKey)}')" title="View material details">i</span>`;
+      }
+
+      // Elevation cells — datum on second line
+      const cmcEl  = zEl.getElementsByTagNameNS(NS.diggs, 'elevationCMCCutoff')[0] || null;
+      const topEl  = zEl.getElementsByTagNameNS(NS.diggs, 'elevationTopLTP')[0] || null;
+      const thkEl  = zEl.getElementsByTagNameNS(NS.diggs, 'impliedLTPThickness')[0] || null;
+      const _elevCellHtml = (elevEl) => {
+        if (!elevEl) return '—';
+        const raw = KV_FORMAT.renderElevRef(elevEl);
+        // Put datum on second line: replace nbsp before datum span with <br>
+        return raw.replace(/ (<span[^>]*text-muted[^>]*>)/, '<br>$1');
+      }
+      const cmcStr = _elevCellHtml(cmcEl);
+      const topStr = _elevCellHtml(topEl);
+      const thkStr = thkEl ? KV_FORMAT.renderMeasureAttr(thkEl) : '—';
+
+      // Geosynthetic — info-circle icon only
+      const geoEls = findAllByLocalName(zEl, 'Geosynthetic');
+      let geoCell = '<span style="color:var(--text-dim)">—</span>';
+      if (geoEls.length) {
+        // Multiple geosynthetics: register a combined popup
+        const allGeoSections = geoEls.map((gEl, gi) => ({ els: [gEl], fields: LTP_GEOSYNTHETIC_FIELDS, heading: `Geosynthetic ${gi + 1}` }));
+        const geoPopKey = _registerPopup('Geosynthetics', allGeoSections);
+        geoCell = `<span class="col-info-icon" onclick="showDetailPopup('${escHtml(geoPopKey)}')" title="View geosynthetic details">i</span>`;
+      }
+
+      const rowId = `ltp-zone-row-${escHtml(sfId)}-${zi}`;
+      tbody += `<tr id="${rowId}" data-zone-idx="${zi}"
+          style="cursor:default"
+          onmouseenter="ltpZoneHover('${escHtml(sfId)}',${zi},true)"
+          onmouseleave="ltpZoneHover('${escHtml(sfId)}',${zi},false)">
+        <td style="text-align:center">
+          <span style="display:inline-block;width:12px;height:12px;border-radius:2px;
+            background:${escHtml(color)};border:1px solid rgba(255,255,255,.25);vertical-align:middle"></span>
+        </td>
+        <td style="width:150px;min-width:150px;max-width:150px;white-space:normal;word-wrap:break-word">${escHtml(zoneName)}</td>
+        <td style="text-align:center">${matCell}</td>
+        <td style="white-space:normal;line-height:1.3">${cmcStr}</td>
+        <td style="white-space:normal;line-height:1.3">${topStr}</td>
+        <td>${thkStr}</td>
+        <td style="text-align:center">${geoCell}</td>
+      </tr>`;
+    });
+    tbody += '</tbody>';
+
+    const tableHtml = `<div style="overflow-x:auto;overflow-y:auto;margin-top:4px;max-height:calc(35vh);border:1px solid var(--border);border-radius:3px">
+      <table class="sub-table meas-table" id="ltp-zone-table-${escHtml(sfId)}" style="width:100%">${thead}${tbody}</table>
+    </div>`;
+
+    // ── Zone mini-map placeholder ────────────────────────────────────────────
+    const mapDivId = `ltp-zone-map-${escHtml(sfId)}`;
+    const mapHtml  = `<div id="${mapDivId}"
+        style="width:100%;height:360px;margin-top:10px;border:1px solid var(--border);
+               border-radius:4px;background:var(--surface2);position:relative">
+        <div style="position:absolute;inset:0;display:flex;align-items:center;
+          justify-content:center;color:var(--text-muted);font-size:12px;pointer-events:none">
+          Initialising zone map…
+        </div>
+      </div>`;
+
+    return tableHtml + mapHtml;
+  },
 };
 
 // ── resolvePropertyEl — GML object-property unwrapper ────────
@@ -3451,12 +3768,259 @@ function resolvePropertyEl(propEl, localName) {
   return propEl.ownerDocument.querySelector(`[*|id="${href}"]`) || null;
 }
 
+/**
+ * resolveXlinkEl(wrapperEl)
+ * Returns the content element inside a GML/DIGGS property wrapper, following
+ * xlink:href when the wrapper is an empty reference element rather than having
+ * an inline child.
+ *
+ * Pattern A — inline child:
+ *   <diggs:location>
+ *     <diggs:LinearExtent ...>...</diggs:LinearExtent>
+ *   </diggs:location>
+ *
+ * Pattern B — xlink:href reference:
+ *   <diggs:location xlink:href="#sal-BH-1_1-1"/>
+ *   ...elsewhere...
+ *   <diggs:LinearExtent gml:id="sal-BH-1_1-1" ...>...</diggs:LinearExtent>
+ *
+ * Returns the LinearExtent (or whatever target element) in both cases,
+ * or null if neither an inline child nor a resolvable href is found.
+ */
+function resolveXlinkEl(wrapperEl) {
+  if (!wrapperEl) return null;
+  // Pattern A: inline child element
+  for (const ch of wrapperEl.childNodes) {
+    if (ch.nodeType === 1) return ch;
+  }
+  // Pattern B: xlink:href reference
+  const href = (wrapperEl.getAttributeNS(NS.xlink, 'href')
+    || wrapperEl.getAttribute('xlink:href') || '').replace(/^#/, '');
+  if (!href) return null;
+  return wrapperEl.ownerDocument.querySelector(`[*|id="${href}"]`) || null;
+}
+
 // ── renderNestedKV — wraps itemsToHtml output in a nested-table container ──
 // Used by KV_FORMAT renderers that need to appear as a sub-table inside a cell.
 function renderNestedKV(el, fields) {
   if (!el) return '';
   const html = itemsToHtml(renderFields(el, fields));
   return html ? `<div class="kv-nested">${html}</div>` : '';
+}
+
+// ══════════════════════════════════════════════════════════════
+//  LOAD TRANSFER PLATFORM — supporting constants & functions
+// ══════════════════════════════════════════════════════════════
+
+// 24-colour palette for LTP zone polygons (distinct, dark-theme friendly)
+const LTP_ZONE_PALETTE = [
+  '#e05c00','#0288d1','#2e7d32','#7b1fa2','#f9a825','#00838f',
+  '#c62828','#1565c0','#558b2f','#6a1b9a','#ef6c00','#00695c',
+  '#ad1457','#283593','#827717','#4e342e','#37474f','#bf360c',
+  '#1a237e','#33691e','#880e4f','#0d47a1','#e65100','#004d40',
+];
+
+// Fields for the Lithology popup (zone material)
+const LTP_LITHOLOGY_FIELDS = [
+  { path: 'gml:name',              format: 'gmlNames', bold: true },
+  { path: 'gml:description' },
+  { path: 'diggs:lithDescription' },
+  { path: 'diggs:classificationCode', label: 'Classification Code' },
+  { path: 'diggs:matrixType' },
+  { path: 'diggs:colorCharacter' },
+  { path: 'diggs:remark',           format: 'renderRemarkNested', multi: true, indent: true },
+];
+
+// Fields for the Geosynthetic popup
+const LTP_GEOSYNTHETIC_FIELDS = [
+  { path: 'gml:name',              format: 'gmlNames', bold: true },
+  { path: 'gml:description' },
+  { path: 'diggs:type' },
+  { path: 'diggs:elevation',       format: 'renderLTPElevAttr' },
+  { path: 'diggs:remark',          format: 'renderRemarkNested', multi: true, indent: true },
+];
+
+// Register the Geosynthetic elevation formatter into FORMAT_FN
+FORMAT_FN.renderLTPElevAttr = function(el) {
+  if (!el) return '';
+  const val = nodeText(el);
+  if (!val) return '';
+  const uom     = el.getAttribute('uom') || '';
+  const datumRef = el.getAttribute('datumReference') || '';
+  const srsName  = el.getAttribute('srsName') || '';
+  let datumLabel = '';
+  if (srsName) {
+    const m = srsName.match(/EPSG[/:](?:[\d.]+[/:])?(\d+)/i);
+    const epsg = m ? parseInt(m[1]) : null;
+    if (epsg && VERT_CRS_INFO[epsg]) datumLabel = VERT_CRS_INFO[epsg].name;
+    else if (epsg && FETCHED_CRS_NAMES[epsg]) datumLabel = FETCHED_CRS_NAMES[epsg];
+    else if (epsg) datumLabel = `EPSG:${epsg}`;
+    else datumLabel = srsName;
+  } else if (datumRef) {
+    datumLabel = datumRef;
+  }
+  const uomStr   = uom ? `\u00a0${uom}` : '';
+  const datumStr = datumLabel ? ` (${datumLabel})` : '';
+  return `${val}${uomStr}${datumStr}`;
+};
+
+// ── ltpZoneHover: highlight zone row ↔ map polygon on hover ─────────────────
+// Called from onmouseenter/onmouseleave on table rows.
+const _ltpZoneMaps = new Map(); // sfId → { map, polygons[], zoneEls[] }
+
+function ltpZoneHover(sfId, zoneIdx, entering) {
+  const entry = _ltpZoneMaps.get(sfId);
+  if (!entry) return;
+  const poly = entry.polygons[zoneIdx];
+  if (!poly) return;
+  const palette = LTP_ZONE_PALETTE;
+  const color   = palette[zoneIdx % palette.length];
+  if (entering) {
+    poly.setStyle({ weight: 3, color: '#ffffff', fillOpacity: 0.75 });
+  } else {
+    poly.setStyle({ weight: 1.5, color: '#000000', fillColor: color, fillOpacity: 0.55,
+                    opacity: 0.85 });
+  }
+}
+
+// ── initLTPZoneMap: build Leaflet mini-map for an LTP zone detail view ────────
+// Called after the Section 4 HTML is injected into the DOM.
+function initLTPZoneMap(sf) {
+  const sfId   = sf.id;
+  const el     = sf.el;
+  const mapDivId = `ltp-zone-map-${sfId}`;
+  const mapDiv   = document.getElementById(mapDivId);
+  if (!mapDiv) return;
+
+  // Clean up any previous instance for this SF
+  if (_ltpZoneMaps.has(sfId)) {
+    try { _ltpZoneMaps.get(sfId).map.remove(); } catch(e) {}
+    _ltpZoneMaps.delete(sfId);
+  }
+
+  // Gather all zone polygons
+  const zoneEls = findAllByLocalName(el, 'LTPZone');
+  if (!zoneEls.length) { mapDiv.innerHTML = '<div style="padding:12px;color:var(--text-muted)">No zone geometry found.</div>'; return; }
+
+  // Parse all zone exterior rings (using same logic as featureExtent parser)
+  const palette = LTP_ZONE_PALETTE;
+  const allBounds = [];
+  const polygonData = []; // { latlngs, color, name, thickness }
+
+  // Determine the CRS from the featureExtent or referencePoint — already resolved on sf.
+  // For zone PlanarSurfaces, use the same srsName they carry (same as overall LTP).
+  for (let zi = 0; zi < zoneEls.length; zi++) {
+    const zEl = zoneEls[zi];
+    const name = nodeText(zEl.getElementsByTagNameNS(NS.gml, 'name')[0] || {})
+               || `Zone ${zi + 1}`;
+    const thkEl = zEl.getElementsByTagNameNS(NS.diggs, 'impliedLTPThickness')[0];
+    const thickness = thkEl
+      ? (nodeText(thkEl) + (thkEl.getAttribute('uom') ? '\u00a0' + thkEl.getAttribute('uom') : ''))
+      : '';
+    const color = palette[zi % palette.length];
+
+    // Find the PlanarSurface inside location
+    const locEls = findAllByLocalName(zEl, 'PlanarSurface');
+    for (const surfEl of locEls) {
+      const srsNameSurf = surfEl.getAttribute('srsName')
+        || surfEl.getAttributeNS(null, 'srsName') || sf.rawSrsName || '';
+      const dimSurf = surfEl.getAttribute('srsDimension')
+        || surfEl.getAttributeNS(null, 'srsDimension') || '2';
+
+      const allRings = [];
+      // Extract exterior + any interior rings
+      for (const child of surfEl.childNodes) {
+        if (child.nodeType !== 1) continue;
+        if (child.localName === 'exterior' || child.localName === 'interior') {
+          const lrEl = findByLocalName(child, 'LinearRing');
+          if (!lrEl) continue;
+          let plEl = null;
+          for (const lrChild of lrEl.childNodes) {
+            if (lrChild.nodeType === 1 && lrChild.localName === 'posList') { plEl = lrChild; break; }
+          }
+          if (!plEl) continue;
+          const dim = parseInt(plEl.getAttribute('srsDimension') || dimSurf || '2');
+          const rawPairs = posListToLatLngs(plEl.textContent, dim);
+          if (rawPairs.length < 3) continue;
+          const wgsRing = [];
+          for (const pair of rawPairs) {
+            const geo = toWGS84(pair, srsNameSurf);
+            if (geo.lat !== null && geo.lon !== null && !isNaN(geo.lat)) {
+              wgsRing.push([geo.lat, geo.lon]);
+            }
+          }
+          if (wgsRing.length >= 3) allRings.push(wgsRing);
+        }
+      }
+
+      if (allRings.length) {
+        const latlngs = allRings.length === 1 ? allRings[0] : allRings;
+        polygonData.push({ latlngs, color, name, thickness, zoneIdx: zi });
+        // Accumulate bounds from exterior ring only
+        (Array.isArray(allRings[0][0]) ? allRings[0] : allRings[0]).forEach(ll => allBounds.push(ll));
+      }
+    }
+  }
+
+  if (!polygonData.length) {
+    mapDiv.innerHTML = '<div style="padding:12px;color:var(--text-muted)">Zone polygons could not be projected — check CRS.</div>';
+    return;
+  }
+
+  // Clear the loading placeholder and init Leaflet
+  mapDiv.innerHTML = '';
+
+  const ltpMap = L.map(mapDiv, { zoomControl: true, attributionControl: false });
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 22,
+    errorTileUrl: 'data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs='
+  }).addTo(ltpMap);
+
+  const polygonLayers = new Array(zoneEls.length).fill(null);
+
+  for (const pd of polygonData) {
+    const poly = L.polygon(pd.latlngs, {
+      color: '#000000', weight: 1.5, opacity: 0.85,
+      fillColor: pd.color, fillOpacity: 0.55, interactive: true,
+    }).addTo(ltpMap);
+
+    // Tooltip: zone name + thickness
+    const tipHtml = `<strong>${escHtml(pd.name)}</strong>${pd.thickness ? '<br>Thickness: ' + escHtml(pd.thickness) : ''}`;
+    poly.bindTooltip(tipHtml, { sticky: true, opacity: 0.92, className: 'ltp-zone-tip' });
+
+    // Click: highlight table row
+    poly.on('click', () => {
+      const tbl = document.getElementById(`ltp-zone-table-${sfId}`);
+      if (tbl) {
+        tbl.querySelectorAll('tr.ltp-row-selected').forEach(r => r.classList.remove('ltp-row-selected'));
+        const row = document.getElementById(`ltp-zone-row-${sfId}-${pd.zoneIdx}`);
+        if (row) {
+          row.classList.add('ltp-row-selected');
+          row.scrollIntoView({ block: 'nearest' });
+        }
+      }
+      // Dim all others, brighten selected
+      for (const entry of polygonLayers) {
+        if (!entry) continue;
+        if (entry === poly) {
+          poly.setStyle({ weight: 3, color: '#ffffff', fillOpacity: 0.80 });
+        } else {
+          entry.setStyle({ fillOpacity: 0.20, opacity: 0.4 });
+        }
+      }
+    });
+
+    // Row hover → polygon hover handled via ltpZoneHover
+    polygonLayers[pd.zoneIdx] = poly;
+  }
+
+  // Fit map to all zone bounds with padding
+  if (allBounds.length >= 2) {
+    let bounds = L.latLngBounds(allBounds);
+    ltpMap.fitBounds(bounds, { padding: [20, 20] });
+  }
+
+  _ltpZoneMaps.set(sfId, { map: ltpMap, polygons: polygonLayers, zoneEls });
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -3958,14 +4522,37 @@ function buildIntervalTable(parentEl, config) {
     return `<span class="col-info-icon" onclick="showDetailPopup('${escHtml(key)}')" title="${escHtml(title)}">i</span>`;
   }
 
+  // ── xlink-aware location resolver for interval depth extraction ─────────
+  // locationPath is e.g. 'diggs:location/diggs:LinearExtent'.
+  // When the <location> wrapper carries xlink:href instead of an inline child,
+  // the XPath finds nothing; this helper follows the href to the target element.
+  function _resolveLocationEl(rowEl, locationPath, wrapperPathOverride) {
+    // 1. Try the direct XPath first (inline child case)
+    const direct = evalXPath(rowEl, locationPath);
+    if (direct.length) return direct[0];
+
+    // 2. Derive the wrapper path by stripping the last step from locationPath.
+    //    e.g. 'diggs:location/diggs:LinearExtent' → 'diggs:location'
+    const wrapperPath = wrapperPathOverride
+      || locationPath.split('/').slice(0, -1).join('/');
+    if (!wrapperPath) return null;
+
+    const wrappers = evalXPath(rowEl, wrapperPath);
+    for (const w of wrappers) {
+      const resolved = resolveXlinkEl(w);
+      if (resolved) return resolved;
+    }
+    return null;
+  }
+
   // ── Determine UOM for depth columns ─────────────────────────────────────
   let depthUomStr = '';
   {
     const firstRow = rowEls[0];
     if (config.locationPath) {
-      const les = evalXPath(firstRow, config.locationPath);
-      if (les.length) {
-        const srsName = les[0].getAttribute('srsName') || '';
+      const leEl = _resolveLocationEl(firstRow, config.locationPath, config.locationWrapperPath);
+      if (leEl) {
+        const srsName = leEl.getAttribute('srsName') || '';
         if (srsName && LSR_UOM[srsName]) depthUomStr = LSR_UOM[srsName];
       }
     }
@@ -3980,13 +4567,13 @@ function buildIntervalTable(parentEl, config) {
   for (const rowEl of rowEls) {
     let depthFrom = null, depthTo = null, depthUom = '';
     if (hasInterval) {
-      const les = evalXPath(rowEl, config.locationPath);
-      const d   = les.length ? depthsFromLE(les[0]) : { from: null, to: null, uom: '' };
+      const leEl = _resolveLocationEl(rowEl, config.locationPath, config.locationWrapperPath);
+      const d    = leEl ? depthsFromLE(leEl) : { from: null, to: null, uom: '' };
       depthFrom = d.from; depthTo = d.to; depthUom = d.uom;
     }
     if (depthFrom === null && hasPoint) {
-      const pls = evalXPath(rowEl, config.locationPointPath);
-      const d   = pls.length ? depthFromPL(pls[0]) : { from: null, uom: '' };
+      const plEl = _resolveLocationEl(rowEl, config.locationPointPath);
+      const d    = plEl ? depthFromPL(plEl) : { from: null, uom: '' };
       depthFrom = d.from; depthUom = d.uom;
     }
     tableRows.push({ rowEl, depthFrom, depthTo, depthUom });
@@ -4132,6 +4719,11 @@ const KV_FORMAT = {
   renderRole(el)                { return FORMAT_FN.renderRoleNested(el); },
   renderBusinessAssociate(el)   { return FORMAT_FN.renderBANested(el); },
   renderAssociatedFile(el)      { return FORMAT_FN.renderAssocFileNested(el); },
+
+  // ── LoadTransferPlatform delegates ────────────────────────────────────────
+  renderMeasureAttr(el)   { return FORMAT_FN.renderMeasureAttr(el); },
+  renderElevRef(el)       { return FORMAT_FN.renderElevRef(el); },
+  renderLTPZoneTable(el)  { return FORMAT_FN.renderLTPZoneTable(el); },
 
   renderSoftwareApplication(el) {
     const saEl = resolvePropertyEl(el, 'SoftwareApplication');
@@ -5417,7 +6009,8 @@ function loadDIGGS(doc, filename) {
     let coordTuple = [], axisLabels = [];
 
     if (locEl) {
-      const firstChild = locEl.children[0];
+      // resolveXlinkEl handles both inline child and xlink:href reference patterns
+      const firstChild = resolveXlinkEl(locEl);
       if (firstChild) {
         const lname = firstChild.localName;
         if (lname === 'LinearExtent') {
@@ -5493,8 +6086,8 @@ function loadDIGGS(doc, filename) {
     const placedObservations = placedObsEls.map(poEl => {
       const poLocEl = xFirst(doc, 'diggs:location', poEl);
       let poLocType = 'none', poFrom = '', poTo = '', poSrs = '';
-      if (poLocEl && poLocEl.children[0]) {
-        const poCh = poLocEl.children[0];
+      const poCh = resolveXlinkEl(poLocEl);
+      if (poCh) {
         if (poCh.localName === 'LinearExtent') {
           poLocType = 'LinearExtent';
           poSrs  = poCh.getAttribute('srsName') || '';
@@ -5587,11 +6180,27 @@ function loadDIGGS(doc, filename) {
     const href = xText(doc, 'diggs:samplingFeatureRef/@xlink:href', sa).replace('#','');
     if (!href) continue;
     // Primary: SampleProduced/location — reflects actual recovered sample position
-    // (may differ from sampling interval when recovery is lost or sample expands)
-    let sampLeEl = xFirst(doc, 'diggs:sampleProduced/diggs:SampleProduced/diggs:location/diggs:LinearExtent', sa);
+    // Handles both inline LinearExtent and xlink:href reference patterns.
+    let sampLeEl = null;
+    {
+      // Try inline child first, then follow xlink:href
+      const spLocEl = xFirst(doc, 'diggs:sampleProduced/diggs:SampleProduced/diggs:location', sa);
+      if (spLocEl) sampLeEl = resolveXlinkEl(spLocEl);
+      // Only accept it if it's a LinearExtent with a posList
+      if (sampLeEl && (sampLeEl.localName !== 'LinearExtent'
+          || !xText(doc, 'gml:posList', sampLeEl).trim())) {
+        sampLeEl = null;
+      }
+    }
     // Fallback: samplingLocation — the sampled interval
-    if (!sampLeEl || !xText(doc, 'gml:posList', sampLeEl).trim()) {
-      sampLeEl = xFirst(doc, 'diggs:samplingLocation/diggs:LinearExtent', sa);
+    if (!sampLeEl) {
+      const slLocEl = xFirst(doc, 'diggs:samplingLocation', sa);
+      if (slLocEl) {
+        const candidate = resolveXlinkEl(slLocEl);
+        if (candidate && candidate.localName === 'LinearExtent') sampLeEl = candidate;
+      }
+      // Also try direct inline path for compatibility
+      if (!sampLeEl) sampLeEl = xFirst(doc, 'diggs:samplingLocation/diggs:LinearExtent', sa);
     }
     const posListText = sampLeEl ? xText(doc, 'gml:posList', sampLeEl) : '';
     const tokens = posListText.trim().split(/\s+/);
@@ -6105,8 +6714,13 @@ function loadDIGGS(doc, filename) {
   enrichElevUnits();
   enrichLsrUoms(doc);
 
-  // Wait two animation frames: first for display:flex to apply, second for layout reflow
-  requestAnimationFrame(() => requestAnimationFrame(() => initMap()));
+  // Prefetch any unknown CRS definitions from epsg.io, then init the map.
+  // prefetchUnknownCRS() resolves immediately if nothing is needed, so there is
+  // no delay for files that only use embedded CRS codes.
+  requestAnimationFrame(() => requestAnimationFrame(async () => {
+    await prefetchUnknownCRS();
+    initMap();
+  }));
 }
 
 /** Async post-pass: look up elevation units for features that have a vertEPSG. */
@@ -6304,6 +6918,79 @@ async function enrichLsrUoms(doc) {
     const sf = allSFs.find(s => s.id === window._selectedFeatureId);
     if (sf) showSFDetail(sf);
   }
+}
+
+/**
+ * _resolvePolygonRings(el, rawSrsName, rawSrsDimension)
+ * Standalone polygon ring extractor — called both from parseSamplingFeature
+ * and from prefetchUnknownCRS() when a CRS was unavailable at parse time.
+ * Returns a flat ring or multi-ring array, or null if extraction fails.
+ */
+function _resolvePolygonRings(el, rawSrsName, rawSrsDimension) {
+  const doc2 = el.ownerDocument;
+  const feExtEl = xFirst(doc2, 'diggs:featureExtent', el);
+  if (!feExtEl) return null;
+
+  const extractRing = (wrapperEl, srsNameSurface, dimSurface) => {
+    const lrEl = findByLocalName(wrapperEl, 'LinearRing');
+    if (!lrEl) return null;
+    let plEl = null;
+    for (const child of lrEl.childNodes) {
+      if (child.nodeType === 1 && child.localName === 'posList') { plEl = child; break; }
+    }
+    if (!plEl) return null;
+    const dim = parseInt(plEl.getAttribute('srsDimension') || dimSurface || '2');
+    const rawLls = posListToLatLngs(plEl.textContent, dim);
+    if (rawLls.length < 3) return null;
+    const wgsRing = [];
+    for (const pair of rawLls) {
+      const geo = toWGS84(pair, srsNameSurface);
+      if (geo.lat !== null && geo.lon !== null && !isNaN(geo.lat) && !isNaN(geo.lon)
+          && geo.lat >= -90 && geo.lat <= 90 && geo.lon >= -180 && geo.lon <= 180) {
+        wgsRing.push([geo.lat, geo.lon]);
+      }
+    }
+    return wgsRing.length >= 3 ? wgsRing : null;
+  };
+
+  const allRings = [];
+  const surfaceEls = findAllByLocalName(feExtEl, 'PlanarSurface')
+    .concat(findAllByLocalName(feExtEl, 'MultiPlanarSurface'));
+
+  for (const surfEl of surfaceEls) {
+    const srsNameSurf = surfEl.getAttribute('srsName')
+      || surfEl.getAttributeNS(null, 'srsName')
+      || surfEl.getAttributeNS('', 'srsName')
+      || rawSrsName || '';
+    const dimSurf = surfEl.getAttribute('srsDimension')
+      || surfEl.getAttributeNS(null, 'srsDimension')
+      || surfEl.getAttributeNS('', 'srsDimension')
+      || rawSrsDimension || '2';
+
+    const exteriorEls = findAllByLocalName(surfEl, 'exterior');
+    for (const extEl of exteriorEls) {
+      const patchEl = extEl.parentNode;
+      const srsNamePatch = patchEl.getAttribute('srsName')
+        || patchEl.getAttributeNS(null, 'srsName')
+        || srsNameSurf;
+      const dimPatch = patchEl.getAttribute('srsDimension')
+        || patchEl.getAttributeNS(null, 'srsDimension')
+        || dimSurf;
+      const extRing = extractRing(extEl, srsNamePatch, dimPatch);
+      if (!extRing) continue;
+      allRings.push(extRing);
+      for (const child of patchEl.childNodes) {
+        if (child.nodeType === 1 && child.localName === 'interior') {
+          const holeRing = extractRing(child, srsNamePatch, dimPatch);
+          if (holeRing) allRings.push(holeRing);
+        }
+      }
+    }
+  }
+
+  if (allRings.length === 1) return allRings[0];
+  if (allRings.length > 1)  return allRings;
+  return null;
 }
 
 function parseSamplingFeature(doc, el, type) {
@@ -8075,6 +8762,8 @@ function horizCRSLabel(sf) {
   // Louisiana state planes 3451/3452
   if (epsg === 3451) return 'NAD83 / Louisiana North (ftUS) (EPSG:3451)';
   if (epsg === 3452) return 'NAD83 / Louisiana South (ftUS) (EPSG:3452)';
+  // Name fetched at runtime from epsg.io
+  if (FETCHED_CRS_NAMES[epsg]) return `${FETCHED_CRS_NAMES[epsg]} (EPSG:${epsg})`;
   return `EPSG:${epsg}`;
 }
 
@@ -8411,6 +9100,13 @@ function showSFDetail(sf) {
     }
   }
 
+  // ── Post-render: LTP zone mini-map ──────────────────────────────────────────
+  // initLTPZoneMap needs the map div to be in the DOM; defer two frames so
+  // the detail-content-scroll innerHTML has been painted and measured.
+  if (sf.type === 'LoadTransferPlatform') {
+    requestAnimationFrame(() => requestAnimationFrame(() => initLTPZoneMap(sf)));
+  }
+
   // Clear assoc panel when a new feature is selected (badges take over)
   {
     const ph  = document.getElementById('assoc-placeholder');
@@ -8430,6 +9126,13 @@ function showDetail(html) {
   document.getElementById('detail-placeholder').style.display = 'none';
   const dc = document.getElementById('detail-content');
   dc.style.display = 'flex';
+  // Clean up any LTP zone mini-maps whose divs are about to be destroyed
+  if (typeof _ltpZoneMaps !== 'undefined') {
+    for (const [id, entry] of _ltpZoneMaps) {
+      try { entry.map.remove(); } catch(e) {}
+    }
+    _ltpZoneMaps.clear();
+  }
   // Split into fixed (sections 1–3) and scroll (section 4) containers
   dc.innerHTML = `<div id="detail-content-fixed">${html}</div><div id="detail-content-scroll"></div>`;
 }
