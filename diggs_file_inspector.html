@@ -1091,7 +1091,62 @@ table.mt-subtable td {
 table.mt-subtable tr { cursor:pointer;transition:background .1s; }
 table.mt-subtable tr:last-child td { border-bottom:none; }
 table.mt-subtable tr:hover { background:var(--surface2); }
-table.mt-subtable tr.mt-member-selected { background:rgba(232,160,69,.15); }
+table.mt-subtable tr.mt-member-selected { background:rgba(232,160,69,.32);border-left:3px solid rgba(232,160,69,.7); }
+
+/* ── RIFS three-level accordion ─────────────────── */
+/* Level 0: RIFoundationSystem header row */
+tr.rifs-header { background:var(--surface2) !important; }
+tr.rifs-header td { font-weight:600;color:var(--text); }
+tr.rifs-header:hover { background:var(--surface3) !important; }
+tr.rifs-header.expanded td:first-child::before { content:'▾ ';font-size:10px;color:var(--text-muted); }
+tr.rifs-header:not(.expanded) td:first-child::before { content:'▸ ';font-size:10px;color:var(--text-muted); }
+
+/* Level 1: LTP container row (holds rifs-ltp-table) */
+tr.rifs-ltp-container-row { background:var(--surface) !important;cursor:default; }
+tr.rifs-ltp-container-row:hover { background:var(--surface) !important; }
+tr.rifs-ltp-container-row td { padding:0;border-bottom:2px solid var(--border); }
+table.rifs-ltp-table {
+  width:100%;border-collapse:collapse;font-size:12px;background:#0e1317;
+}
+table.rifs-ltp-table td {
+  padding:6px 16px 6px 28px;border-bottom:1px solid var(--surface2);
+  color:var(--text);white-space:nowrap;
+}
+table.rifs-ltp-table tr { cursor:pointer;transition:background .1s; }
+table.rifs-ltp-table tr:last-child > td { border-bottom:none; }
+table.rifs-ltp-table tr:hover > td { background:var(--surface2); }
+table.rifs-ltp-table tr.rifs-ltp-selected > td {
+  background:rgba(224,92,0,.28) !important;
+  border-left:3px solid rgba(224,92,0,.7);
+}
+table.rifs-ltp-table tr.rifs-ltp-expanded > td:first-child::before { content:'▾ ';font-size:10px;color:var(--text-muted); }
+table.rifs-ltp-table tr:not(.rifs-ltp-expanded) > td:first-child::before { content:'▸ ';font-size:10px;color:var(--text-muted); }
+
+/* Level 2: RI container row (holds rifs-ri-table) */
+tr.rifs-ri-container-row { background:#0a0f13 !important;cursor:default; }
+tr.rifs-ri-container-row td { padding:0;border-bottom:1px solid var(--border); }
+table.rifs-ri-table {
+  width:100%;border-collapse:collapse;font-size:12px;background:#0a0f13;
+}
+table.rifs-ri-table td {
+  padding:6px 16px 6px 44px;border-bottom:1px solid var(--surface2);
+  color:var(--text);white-space:nowrap;
+}
+table.rifs-ri-table tr { cursor:pointer;transition:background .1s; }
+table.rifs-ri-table tr:last-child td { border-bottom:none; }
+table.rifs-ri-table tr:hover td { background:var(--surface2); }
+table.rifs-ri-table tr.rifs-ri-selected td {
+  background:rgba(0,254,252,.28) !important;
+  border-left:3px solid rgba(0,254,252,.5);
+}
+
+/* Boosted row-selected highlights (main table + sub-tables) */
+table.data-table tbody tr.selected {
+  background:rgba(232,160,69,.28) !important;
+  border-left:3px solid rgba(232,160,69,.6);
+}
+.sub-table tr.ltp-row-selected td { background:rgba(224,92,0,.35) !important;border-left:3px solid rgba(224,92,0,.7); }
+.sub-table tr.cmc-row-selected td { background:rgba(0,254,252,.28) !important;border-left:3px solid rgba(0,254,252,.5); }
 
 /* ── DETAIL PANEL ────────────────────────────────── */
 #detail-panel {
@@ -1297,6 +1352,10 @@ table.mt-subtable tr.mt-member-selected { background:rgba(232,160,69,.15); }
 /* LTP zone map tooltip */
 .ltp-zone-tip { background:rgba(30,30,30,.92);color:#e8e8e8;border:1px solid rgba(255,255,255,.15);
   border-radius:4px;font-size:12px;padding:5px 9px;box-shadow:0 2px 8px rgba(0,0,0,.5); }
+/* CMC column table — row states */
+.sub-table tr.cmc-row-selected td { background:rgba(0,254,252,.12) !important; }
+.sub-table tr.cmc-row-mappable:hover td,
+.sub-table tr.cmc-row-data:hover td { background:rgba(255,255,255,.06); cursor:pointer; }
 .col-uom { font-size:10px; color:var(--text-muted); font-weight:400; display:block; text-transform:none; letter-spacing:0; }
 .muted-dash { color:var(--text-dim) !important; text-align:center; }
 
@@ -1806,6 +1865,20 @@ async function prefetchUnknownCRS() {
     }
   }
 
+  // Also collect CRS codes from nested LTPs and RIs
+  for (const rifsSF of DIGGS_SF.get('RIFoundationSystem') || []) {
+    for (const ltpSF of rifsSF.ltps || []) {
+      for (const sf of [ltpSF, ...(ltpSF.ris || [])]) {
+        if (sf.rawSrsName) {
+          const { horiz } = parseEPSG(sf.rawSrsName);
+          if (horiz && !GEO_CRS.has(horiz) && !VERT_CRS.has(horiz) && !CRS_DEFS[`EPSG:${horiz}`]) {
+            needed.add(horiz);
+          }
+        }
+      }
+    }
+  }
+
   if (!needed.size) return;
 
   console.log(`[DIGGS] Fetching ${needed.size} unknown CRS definition(s) from epsg.io:`, [...needed]);
@@ -1816,7 +1889,14 @@ async function prefetchUnknownCRS() {
     // Re-resolve coordinates for SFs that had unknown CRS (lat/lon were left null)
     for (const arr of DIGGS_SF.values()) {
       for (const sf of arr) {
-        if (sf.lat !== null || !sf.rawPos || !sf.rawSrsName) continue;
+        if (sf.lat !== null || !sf.rawPos || !sf.rawSrsName) {
+          // Even if coords are already set, clear any stale "not in embedded table" warning
+          if (sf.crsWarning && sf.rawPos && sf.rawSrsName) {
+            const geo = toWGS84(sf.rawPos, sf.rawSrsName);
+            if (geo.lat !== null) sf.crsWarning = geo.warning;
+          }
+          continue;
+        }
         const geo = toWGS84(sf.rawPos, sf.rawSrsName);
         if (geo.lat !== null) {
           sf.lat = geo.lat;
@@ -1838,6 +1918,44 @@ async function prefetchUnknownCRS() {
         if (!sf.el) continue;
         const resolved = _resolvePolygonRings(sf.el, sf.rawSrsName, sf.rawSrsDimension);
         if (resolved) sf.polygonLatLngs = resolved;
+      }
+    }
+
+    // Re-resolve nested LTP and RI coords/polygons (not in DIGGS_SF top-level)
+    for (const rifsSF of DIGGS_SF.get('RIFoundationSystem') || []) {
+      for (const ltpSF of rifsSF.ltps || []) {
+        // Re-resolve LTP referencePoint coords
+        if (ltpSF.lat === null && ltpSF.rawPos && ltpSF.rawSrsName) {
+          const geo = toWGS84(ltpSF.rawPos, ltpSF.rawSrsName);
+          if (geo.lat !== null) {
+            ltpSF.lat = geo.lat; ltpSF.lon = geo.lon;
+            ltpSF.horizEPSG = geo.horizEPSG; ltpSF.vertEPSG = geo.vertEPSG;
+            ltpSF.crsTransformed = geo.transformed; ltpSF.crsWarning = geo.warning;
+          }
+        } else if (ltpSF.crsWarning) {
+          // Coords were already set but warning may be stale — re-check now CRS is fetched
+          const geo = toWGS84(ltpSF.rawPos, ltpSF.rawSrsName);
+          if (geo.lat !== null) ltpSF.crsWarning = geo.warning;
+        }
+        // Re-resolve LTP polygon
+        if (!ltpSF.polygonLatLngs && ltpSF.el) {
+          const resolved = _resolvePolygonRings(ltpSF.el, ltpSF.rawSrsName, ltpSF.rawSrsDimension);
+          if (resolved) ltpSF.polygonLatLngs = resolved;
+        }
+        // Re-resolve RI referencePoint coords
+        for (const riSF of ltpSF.ris || []) {
+          if (riSF.lat === null && riSF.rawPos && riSF.rawSrsName) {
+            const geo = toWGS84(riSF.rawPos, riSF.rawSrsName);
+            if (geo.lat !== null) {
+              riSF.lat = geo.lat; riSF.lon = geo.lon;
+              riSF.horizEPSG = geo.horizEPSG; riSF.vertEPSG = geo.vertEPSG;
+              riSF.crsTransformed = geo.transformed; riSF.crsWarning = geo.warning;
+            }
+          } else if (riSF.crsWarning && riSF.rawPos && riSF.rawSrsName) {
+            const geo = toWGS84(riSF.rawPos, riSF.rawSrsName);
+            if (geo.lat !== null) riSF.crsWarning = geo.warning;
+          }
+        }
       }
     }
   }
@@ -2151,15 +2269,16 @@ const SF_TYPE_CONFIG = {
     marker: null,
   },
 
-  // ── Load Transfer Platform ────────────────────────────────────────────────
-  LoadTransferPlatform: {
-    tabLabel:  'Load Transfer Platforms',
+  // ── RI Foundation System — top-level container for LTPs and RIs ──────────
+  // Renders as polygon on map. LTPs/RIs are nested and shown via accordion.
+  RIFoundationSystem: {
+    tabLabel:  'RI Foundation Systems',
     mapGeom:   'polygon',
-    depthPath: 'diggs:totalArea',          // mapped to Depth/Extent column as area
-    depthPathUom: 'attr',                   // uom from element attribute
+    depthPath: 'diggs:totalArea',
+    depthPathUom: 'attr',
     parentPath: null,
     date: 'diggs:whenConstructed/diggs:TimeInterval/diggs:start',
-    marker: { color: '#e05c00', weight: 2.5, opacity: 1.0, fillColor: '#e05c00', fillOpacity: 0.18 },
+    marker: { color: '#e05c00', weight: 2.5, opacity: 1.0, fillColor: '#e05c00', fillOpacity: 0.15 },
   },
 
   // ── Multi-track (no own map marker; rendered via member GP_Tracklines) ─────
@@ -2188,6 +2307,12 @@ const DIGGS_DISPLAY_LABELS = {
   PorePressureDissipationTest:'Pore Pressure Dissipation',
   DrivenPenetrationTest:      'Driven Penetration Test (SPT)',
 
+  // ── SF type display names ─────────────────────────────────────────────────
+  LoadTransferPlatform:       'Load Transfer Platform',
+  LTPZone:                    'LTP Zone',
+  RigidInclusion:             'Rigid Inclusion',
+  RIFoundationSystem:         'RI Foundation System',
+
   // ── Top-level element stubs (reserved for future tab/badge labels) ────────
   Observation:          'Observation',
   SamplingActivity:     'Sampling Activity',
@@ -2208,6 +2333,17 @@ function diggsLabel(name) {
 let DIGGS_PROJECTS = [];
 let DIGGS_ACTIVE_PROJECT = null;  // project id string, or null = show all
 let _expandedMultiTrackId = null; // currently expanded GP_MultiTrack row id
+
+// ── RIFS three-level accordion state ──────────────────────────────────────
+let _rifsState = {
+  rifsId:        null,         // id of currently expanded RIFS row
+  ltpPolygons:   new Map(),    // ltpId → L.polygon on main map
+  expandedLtpId: null,         // id of currently expanded LTP row
+  riMarkers:     new Map(),    // riId → L.circleMarker on main map
+};
+
+// Flat lookup for all nested LTP/RI SF objects (populated after parse)
+let _rifsNestedById = new Map();
 // Map of gml:id → name string for all BusinessAssociate elements in the document.
 // Built once in parseProjects(), used by renderKVTable() resolveBA format.
 let DIGGS_BA_MAP = {};
@@ -2271,6 +2407,7 @@ function resetToLoad() {
   // Tear down map, clear state
   if (projectGeomLayer) { projectGeomLayer.remove(); projectGeomLayer = null; }
   if (mapInstance) { mapInstance.remove(); mapInstance = null; }
+  clearCMCMarkers();
   sfMarkers.clear();
   DIGGS_SF = new Map();
   DIGGS_BH = []; DIGGS_CPT = []; DIGGS_WELL = [];
@@ -2698,43 +2835,143 @@ const SF_DETAIL_DESCRIPTORS = {
                              compositeSeparator: '' },
   ],
 
+  // ── RI Foundation System (top-level container) ─────────────────────────────
+  RIFoundationSystem: [
+
+    { sectionHeader: 'System Summary' },
+    { label: 'Constructed',           parentPath: 'diggs:whenConstructed/diggs:TimeInterval',
+                                      rawFormat: 'renderTimeInterval' },
+    { label: 'Total Area',            parentPath: 'diggs:totalArea',
+                                      rawFormat: 'renderMeasureAttr' },
+    { label: 'Working Platform',      parentPath: 'diggs:workingPlatformLevel',
+                                      rawFormat: 'renderElevRef' },
+    { label: 'Avg Existing GL',       parentPath: 'diggs:averageExistingGL',
+                                      rawFormat: 'renderElevRef' },
+    { label: 'Avg Water Table',       parentPath: 'diggs:averageWTLevel',
+                                      rawFormat: 'renderElevRef' },
+
+    { sectionHeader: 'Purpose' },
+    { label: 'Purpose',               parentPath: 'diggs:purpose' },
+
+    { sectionHeader: 'Roles & Parties' },
+    { label: 'Roles',                 parentPath: 'diggs:role',
+                                      multi: true, rawFormat: 'renderRole' },
+
+    { sectionHeader: 'Remarks' },
+    { label: 'Remarks',               parentPath: 'diggs:remark',
+                                      multi: true, rawFormat: 'renderRemark' },
+
+    { sectionHeader: 'Associated Files' },
+    { label: 'Files',                 parentPath: 'diggs:associatedFile',
+                                      multi: true, rawFormat: 'renderAssociatedFile' },
+  ],
+
+  // ── Load Transfer Platform (nested inside RIFoundationSystem) ──────────────
   LoadTransferPlatform: [
 
     { sectionHeader: 'LTP Summary' },
-    { label: 'Constructed',         parentPath: 'diggs:whenConstructed/diggs:TimeInterval',
-                                    rawFormat: 'renderTimeInterval' },
-    { label: 'Working Platform',    parentPath: 'diggs:workingPlatformLevel',
-                                    rawFormat: 'renderElevRef' },
-    { label: 'Avg Existing GL',     parentPath: 'diggs:averageExistingGL',
-                                    rawFormat: 'renderElevRef' },
-    { label: 'Avg Water Table',     parentPath: 'diggs:averageWTLevel',
-                                    rawFormat: 'renderElevRef' },
-
-    { sectionHeader: 'LTP Zones' },
-    { label: '',                    parentPath: '.',
-                                    rawFormat: 'renderLTPZoneTable' },
+    { label: 'Total Area',            parentPath: 'diggs:totalArea',
+                                      rawFormat: 'renderMeasureAttr' },
+    { label: 'Material',              parentPath: 'diggs:materialType/diggs:Lithology',
+                                      rawFormat: 'renderLithologyInline' },
+    { label: 'Top of LTP Elev',       parentPath: 'diggs:elevationTopLTP',
+                                      rawFormat: 'renderElevRef' },
+    { label: 'LTP Thickness',         parentPath: 'diggs:impliedLTPThickness',
+                                      rawFormat: 'renderMeasureAttr' },
+    { label: 'Geosynthetic',          parentPath: 'diggs:geosynthetic',
+                                      multi: true, rawFormat: 'renderGeosyntheticInline' },
 
     { sectionHeader: 'Roles & Parties' },
-    { label: 'Roles',               parentPath: 'diggs:role',
-                                    multi: true, rawFormat: 'renderRole' },
+    { label: 'Roles',                 parentPath: 'diggs:role',
+                                      multi: true, rawFormat: 'renderRole' },
 
     { sectionHeader: 'Remarks' },
-    { label: 'Remarks',             parentPath: 'diggs:remark',
-                                    multi: true, rawFormat: 'renderRemark' },
+    { label: 'Remarks',               parentPath: 'diggs:remark',
+                                      multi: true, rawFormat: 'renderRemark' },
 
     { sectionHeader: 'Associated Files' },
-    { label: 'Files',               parentPath: 'diggs:associatedFile',
-                                    multi: true, rawFormat: 'renderAssociatedFile' },
+    { label: 'Files',                 parentPath: 'diggs:associatedFile',
+                                      multi: true, rawFormat: 'renderAssociatedFile' },
+  ],
 
-    { sectionHeader: 'Other Properties' },
-    { label: 'Other',               parentPath: 'diggs:otherSamplingFeatureProperty/diggs:Parameter',
-                                    multi: true,
-                                    composite: [
-                                      { path: 'diggs:parameterName' },
-                                      { path: 'diggs:parameterValue', prefix: ': ' },
-                                      { path: 'diggs:parameterUnits', prefix: '\u00a0' },
-                                    ],
-                                    compositeSeparator: '' },
+  // ── LTP Zone ─── (kept for any files that still use top-level LTPZone) ─────
+  LTPZone: [
+
+    { sectionHeader: 'Zone Summary' },
+    { label: 'Total Area',            parentPath: 'diggs:totalArea',
+                                      rawFormat: 'renderMeasureAttr' },
+    { label: 'Top of LTP Elev',       parentPath: 'diggs:elevationTopLTP',
+                                      rawFormat: 'renderElevRef' },
+    { label: 'LTP Thickness',         parentPath: 'diggs:impliedLTPThickness',
+                                      rawFormat: 'renderMeasureAttr' },
+    { label: 'Material',              parentPath: 'diggs:materialType/diggs:Lithology',
+                                      rawFormat: 'renderLithologyInline' },
+    { label: 'Geosynthetic',          parentPath: 'diggs:geosynthetic',
+                                      multi: true, rawFormat: 'renderGeosyntheticInline' },
+
+    { sectionHeader: 'CMC Columns' },
+    { label: '',                      parentPath: '.',
+                                      rawFormat: 'renderCMCTable' },
+
+    { sectionHeader: 'Roles & Parties' },
+    { label: 'Roles',                 parentPath: 'diggs:role',
+                                      multi: true, rawFormat: 'renderRole' },
+
+    { sectionHeader: 'Remarks' },
+    { label: 'Remarks',               parentPath: 'diggs:remark',
+                                      multi: true, rawFormat: 'renderRemark' },
+
+    { sectionHeader: 'Associated Files' },
+    { label: 'Files',                 parentPath: 'diggs:associatedFile',
+                                      multi: true, rawFormat: 'renderAssociatedFile' },
+  ],
+
+  // ── Rigid Inclusion ─────────────────────────────────────────────────────────
+  RigidInclusion: [
+
+    { sectionHeader: 'Column Summary' },
+    { label: 'Column Type',           parentPath: 'diggs:columnType' },
+    { label: 'Installation Type',     parentPath: 'diggs:installationType' },
+    { label: 'Status',                parentPath: 'diggs:status' },
+    { label: 'Internal ID',           parentPath: 'diggs:internalIdentifier' },
+    { label: 'Constructed',           parentPath: 'diggs:whenConstructed/diggs:TimeInterval',
+                                      rawFormat: 'renderTimeInterval' },
+    { label: 'Column Length',         parentPath: 'diggs:columnLength',
+                                      rawFormat: 'renderMeasureAttr' },
+    { label: 'Column Diameter',       parentPath: 'diggs:columnDiameter',
+                                      rawFormat: 'renderMeasureAttr' },
+    { label: 'Caphead Present',       parentPath: 'diggs:columnCapheadPresent' },
+    { label: 'Meets Verticality',     parentPath: 'diggs:meetsVerticality' },
+
+    { sectionHeader: 'Grout Volumes' },
+    { label: 'Theoretical Volume',    parentPath: 'diggs:theoreticalGroutVolume',
+                                      rawFormat: 'renderMeasureAttr' },
+    { label: 'Placed Volume',         parentPath: 'diggs:placedGroutVolume',
+                                      rawFormat: 'renderMeasureAttr' },
+
+    { sectionHeader: 'Construction Methods' },
+    { label: 'Method',                parentPath: 'diggs:constructionMethod',
+                                      multi: true, rawFormat: 'renderRIConstructionMethod' },
+
+    { sectionHeader: 'Construction Events' },
+    { label: 'Event',                 parentPath: 'diggs:constructionEvent',
+                                      multi: true, rawFormat: 'renderRIEvent' },
+
+    { sectionHeader: 'Cutoff Method' },
+    { label: 'Cutoff',                parentPath: 'diggs:cutoffMethod/diggs:Specification',
+                                      rawFormat: 'renderSpecificationInline' },
+
+    { sectionHeader: 'Roles & Parties' },
+    { label: 'Roles',                 parentPath: 'diggs:role',
+                                      multi: true, rawFormat: 'renderRole' },
+
+    { sectionHeader: 'Remarks' },
+    { label: 'Remarks',               parentPath: 'diggs:remark',
+                                      multi: true, rawFormat: 'renderRemark' },
+
+    { sectionHeader: 'Associated Files' },
+    { label: 'Files',                 parentPath: 'diggs:associatedFile',
+                                      multi: true, rawFormat: 'renderAssociatedFile' },
   ],
 
 };
@@ -3883,6 +4120,130 @@ function ltpZoneHover(sfId, zoneIdx, entering) {
   }
 }
 
+// ══════════════════════════════════════════════════════════════
+//  CMC COLUMN MAP MARKERS
+// Tiny black dots on the main map representing RigidInclusion
+// column locations. Shown only when an LTPZone detail is open.
+// ══════════════════════════════════════════════════════════════
+
+// _cmcMarkerState: tracks the currently-displayed CMC markers
+// { zoneId: string, markers: Map<cmcId → L.CircleMarker> }
+let _cmcMarkerState = null;
+
+/**
+ * clearCMCMarkers() — remove all CMC dots from the main map.
+ * Called whenever a non-LTPZone SF is selected, or the file is reloaded.
+ */
+function clearCMCMarkers() {
+  if (!_cmcMarkerState || !mapInstance) return;
+  for (const marker of _cmcMarkerState.markers.values()) {
+    try { mapInstance.removeLayer(marker); } catch(e) {}
+  }
+  _cmcMarkerState = null;
+}
+
+/**
+ * showCMCMarkers(zoneId, cmcData)
+ * Add CMC dot markers to the main map for a given LTPZone.
+ * cmcData: array of { id, lat, lon } for each CMC with known coordinates.
+ * Wires up bidirectional highlight between dots and CMC table rows.
+ */
+function showCMCMarkers(zoneId, cmcData) {
+  clearCMCMarkers();
+  if (!mapInstance || !cmcData.length) return;
+
+  const CMC_STYLE_NORMAL = {
+    radius: 3, color: '#111111', weight: 1, fillColor: '#222222',
+    fillOpacity: 0.85, opacity: 1, interactive: true,
+  };
+  const CMC_STYLE_SELECTED = {
+    radius: 5, color: '#00FEFC', weight: 1.5, fillColor: '#00FEFC',
+    fillOpacity: 1, opacity: 1,
+  };
+  const CMC_STYLE_DIM = {
+    radius: 2, color: '#444444', weight: 0.5, fillColor: '#444444',
+    fillOpacity: 0.4, opacity: 0.4,
+  };
+
+  const markers = new Map();
+
+  for (const cmc of cmcData) {
+    const dot = L.circleMarker([cmc.lat, cmc.lon], { ...CMC_STYLE_NORMAL })
+      .addTo(mapInstance);
+
+    dot.bindTooltip(escHtml(cmc.id), { permanent: false, direction: 'top', offset: [0, -4],
+      opacity: 0.9, className: 'ltp-zone-tip' });
+
+    dot.on('click', (e) => {
+      L.DomEvent.stopPropagation(e);
+      _selectCMCRow(zoneId, cmc.id, markers, CMC_STYLE_SELECTED, CMC_STYLE_DIM, CMC_STYLE_NORMAL);
+    });
+
+    markers.set(cmc.id, dot);
+  }
+
+  _cmcMarkerState = { zoneId, markers };
+}
+
+/**
+ * _selectCMCRow(zoneId, cmcId, markers, selStyle, dimStyle, normStyle)
+ * Highlight the selected CMC dot, dim others, and scroll to/highlight the table row.
+ * Also called from CMC table row clicks.
+ */
+function _selectCMCRow(zoneId, cmcId, markers, selStyle, dimStyle, normStyle) {
+  // markers may be null if called from a table row click before dots are ready
+  // or if the CMC has no coordinate data. Always do the table highlight.
+  const activeMarkers = markers || (_cmcMarkerState && _cmcMarkerState.zoneId === zoneId
+    ? _cmcMarkerState.markers : null);
+
+  if (!selStyle) {
+    selStyle = { radius: 5, color: '#00FEFC', weight: 1.5, fillColor: '#00FEFC', fillOpacity: 1, opacity: 1 };
+    dimStyle  = { radius: 2, color: '#444444', weight: 0.5, fillColor: '#444444', fillOpacity: 0.4, opacity: 0.4 };
+    normStyle = { radius: 3, color: '#111111', weight: 1, fillColor: '#222222', fillOpacity: 0.85, opacity: 1 };
+  }
+
+  // Update dot styles (if markers exist)
+  if (activeMarkers) {
+    for (const [mid, dot] of activeMarkers) {
+      dot.setStyle(mid === cmcId ? selStyle : dimStyle);
+      if (mid === cmcId) dot.bringToFront();
+    }
+  }
+
+  // Always: highlight and scroll to table row
+  const tableId = `cmc-table-${zoneId.replace(/[^a-zA-Z0-9_-]/g,'_')}`;
+  const tbl = document.getElementById(tableId);
+  if (tbl) {
+    tbl.querySelectorAll('tr.cmc-row-selected').forEach(r => r.classList.remove('cmc-row-selected'));
+    const rowId = `cmcrow-${zoneId.replace(/[^a-zA-Z0-9_-]/g,'_')}-${cmcId.replace(/[^a-zA-Z0-9_-]/g,'_')}`;
+    const row = document.getElementById(rowId);
+    if (row) {
+      row.classList.add('cmc-row-selected');
+      row.scrollIntoView({ block: 'nearest' });
+    }
+  }
+
+  // Pan map to selected dot if one exists
+  if (activeMarkers) {
+    const dot = activeMarkers.get(cmcId);
+    if (dot && mapInstance) mapInstance.panTo(dot.getLatLng(), { animate: true });
+  }
+}
+
+/**
+ * resetCMCMarkers(zoneId)
+ * Restore all CMC dots to normal style and clear row highlights.
+ */
+function resetCMCMarkers(zoneId) {
+  if (!_cmcMarkerState || _cmcMarkerState.zoneId !== zoneId) return;
+  const normStyle = { radius: 3, color: '#111111', weight: 1, fillColor: '#222222',
+    fillOpacity: 0.85, opacity: 1 };
+  for (const dot of _cmcMarkerState.markers.values()) dot.setStyle(normStyle);
+  const tableId = `cmc-table-${zoneId.replace(/[^a-zA-Z0-9_-]/g,'_')}`;
+  const tbl = document.getElementById(tableId);
+  if (tbl) tbl.querySelectorAll('tr.cmc-row-selected').forEach(r => r.classList.remove('cmc-row-selected'));
+}
+
 // ── initLTPZoneMap: build Leaflet mini-map for an LTP zone detail view ────────
 // Called after the Section 4 HTML is injected into the DOM.
 function initLTPZoneMap(sf) {
@@ -4720,10 +5081,261 @@ const KV_FORMAT = {
   renderBusinessAssociate(el)   { return FORMAT_FN.renderBANested(el); },
   renderAssociatedFile(el)      { return FORMAT_FN.renderAssocFileNested(el); },
 
-  // ── LoadTransferPlatform delegates ────────────────────────────────────────
+  // ── LoadTransferPlatform / LTPZone / RigidInclusion delegates ───────────────
   renderMeasureAttr(el)   { return FORMAT_FN.renderMeasureAttr(el); },
   renderElevRef(el)       { return FORMAT_FN.renderElevRef(el); },
-  renderLTPZoneTable(el)  { return FORMAT_FN.renderLTPZoneTable(el); },
+  renderCMCTable(el)      { return FORMAT_FN.renderCMCTable(el); },
+
+  // ── LTPZone detail renderers ─────────────────────────────────────────────────
+
+  // Inline Lithology description from diggs:materialType/diggs:Lithology
+  renderLithologyInline(el) {
+    if (!el) return '';
+    const desc = nodeText(el.getElementsByTagNameNS(NS.diggs, 'lithDescription')[0] || {});
+    const code = nodeText(el.getElementsByTagNameNS(NS.diggs, 'classificationCode')[0] || {});
+    const parts = [];
+    if (desc) parts.push(escHtml(desc));
+    if (code) parts.push(`<span style="color:var(--text-muted)">[${escHtml(code)}]</span>`);
+    return parts.join(' ') || '—';
+  },
+
+  // Inline Geosynthetic — el is the diggs:geosynthetic wrapper (may be xlink or inline)
+  renderGeosyntheticInline(el) {
+    if (!el) return '';
+    const geoEl = resolveXlinkEl(el);
+    if (!geoEl) return '<span style="color:var(--text-muted)">ref (no inline data)</span>';
+    const type  = nodeText(geoEl.getElementsByTagNameNS(NS.diggs, 'type')[0] || {});
+    const elevEl = geoEl.getElementsByTagNameNS(NS.diggs, 'elevation')[0] || null;
+    let elevStr = '';
+    if (elevEl) {
+      const val  = nodeText(elevEl) || '';
+      const uom  = elevEl.getAttribute('uom') || '';
+      const datum = elevEl.getAttribute('datumReference') || '';
+      elevStr = val ? ` @ ${escHtml(val)}${uom ? '\u00a0' + escHtml(uom) : ''}${datum ? ' <span style="color:var(--text-muted)">(' + escHtml(datum) + ')</span>' : ''}` : '';
+    }
+    return type ? `${escHtml(type)}${elevStr}` : elevStr || '—';
+  },
+
+  // CMC column IDs — el is the diggs:columnIds text node's parent
+  // renderCMCTable(el) — el is the LTPZone element.
+  // Data comes from CMCArray parallel arrays:
+  //   columnIds            — whitespace-separated ID list
+  //   columnTopLocations/MultiPointLocation/gml:posList — srsDimension coords per point, in ID order
+  //   columnLengths        — whitespace-separated values, in ID order, uom attr on element
+  //   placedGroutVolumes   — whitespace-separated values, in ID order, uom attr on element
+  //   columnDiameter       — single scalar repeated for every row, uom attr on element
+  renderCMCTable(el) {
+    if (!el) return '';
+    const sfId = el.getAttribute('id') || el.getAttributeNS(NS.gml, 'id') || '';
+    const safeZoneId = sfId.replace(/[^a-zA-Z0-9_-]/g, '_');
+
+    // ── Find CMCArray ────────────────────────────────────────────
+    const cmcArr = el.getElementsByTagNameNS(NS.diggs, 'CMCArray')[0] || null;
+    if (!cmcArr) return '<span style="color:var(--text-muted)">No CMC column data</span>';
+
+    // ── columnIds ────────────────────────────────────────────────
+    const colIdsEl = cmcArr.getElementsByTagNameNS(NS.diggs, 'columnIds')[0] || null;
+    if (!colIdsEl) return '<span style="color:var(--text-muted)">No column IDs</span>';
+    const allIds = (colIdsEl.textContent || '').trim().split(/\s+/).filter(Boolean);
+    if (!allIds.length) return '<span style="color:var(--text-muted)">No columns listed</span>';
+    const n = allIds.length;
+
+    // ── columnTopLocations: posList → WGS84 lat/lon per column ──
+    // MultiPointLocation carries srsName and srsDimension on itself.
+    const mplEl = cmcArr.getElementsByTagNameNS(NS.diggs, 'MultiPointLocation')[0] || null;
+    let wgsPoints = [];   // array of {lat, lon} | null, indexed by column position
+    if (mplEl) {
+      const posListEl = mplEl.getElementsByTagNameNS(NS.gml, 'posList')[0] || null;
+      if (posListEl) {
+        const srsName = mplEl.getAttribute('srsName') || '';
+        const dim     = parseInt(mplEl.getAttribute('srsDimension') || '3');
+        const tokens  = (posListEl.textContent || '').trim().split(/\s+/).map(Number);
+        for (let i = 0; i < n; i++) {
+          const base = i * dim;
+          if (base + 1 < tokens.length) {
+            const geo = toWGS84([tokens[base], tokens[base + 1]], srsName);
+            wgsPoints.push((geo.lat !== null && !isNaN(geo.lat)) ? { lat: geo.lat, lon: geo.lon } : null);
+          } else {
+            wgsPoints.push(null);
+          }
+        }
+      }
+    }
+    // Pad to n if shorter
+    while (wgsPoints.length < n) wgsPoints.push(null);
+
+    // ── columnLengths ────────────────────────────────────────────
+    const clEl = cmcArr.getElementsByTagNameNS(NS.diggs, 'columnLengths')[0] || null;
+    const lenVals = clEl ? (clEl.textContent || '').trim().split(/\s+/).filter(Boolean) : [];
+    const lenUom  = clEl ? (clEl.getAttribute('uom') || 'm') : 'm';
+
+    // ── placedGroutVolumes ───────────────────────────────────────
+    const pgvEl = cmcArr.getElementsByTagNameNS(NS.diggs, 'placedGroutVolumes')[0] || null;
+    const volVals = pgvEl ? (pgvEl.textContent || '').trim().split(/\s+/).filter(Boolean) : [];
+    const volUom  = pgvEl ? (pgvEl.getAttribute('uom') || 'm3') : 'm3';
+
+    // ── columnDiameter (single value, repeated) ──────────────────
+    const cdEl  = cmcArr.getElementsByTagNameNS(NS.diggs, 'columnDiameter')[0] || null;
+    const diamVal = cdEl ? (cdEl.textContent || '').trim() : '';
+    const diamUom = cdEl ? (cdEl.getAttribute('uom') || 'm') : 'm';
+
+    // ── Build table ──────────────────────────────────────────────
+    const tableId = `cmc-table-${safeZoneId}`;
+    const uomSpan = (u) => `<span style="color:var(--text-muted);font-size:10px">\u00a0${escHtml(u)}</span>`;
+    const dash    = `<span style="color:var(--text-dim)">—</span>`;
+
+    let html = `
+      <div style="margin-bottom:4px;font-size:11.5px;color:var(--text-muted)">
+        <span style="color:var(--accent);font-weight:600">${n}</span> columns
+        ${diamVal ? ` · ∅\u00a0${escHtml(diamVal)}\u00a0${escHtml(diamUom)}` : ''}
+      </div>
+      <div style="overflow-x:auto;overflow-y:auto;max-height:40vh;border:1px solid var(--border);border-radius:3px">
+      <table class="sub-table meas-table" id="${tableId}" style="width:100%;min-width:340px">
+        <thead style="position:sticky;top:0;z-index:2;background:var(--surface2)"><tr>
+          <th style="width:90px;min-width:90px">ID</th>
+          <th style="text-align:right">Length${lenUom ? ` (${escHtml(lenUom)})` : ''}</th>
+          <th style="text-align:right">Diameter${diamUom ? ` (${escHtml(diamUom)})` : ''}</th>
+          <th style="text-align:right">Grout Vol.${volUom ? ` (${escHtml(volUom)})` : ''}</th>
+        </tr></thead>
+        <tbody>`;
+
+    for (let i = 0; i < n; i++) {
+      const cmcId  = allIds[i];
+      const rowId  = `cmcrow-${safeZoneId}-${cmcId.replace(/[^a-zA-Z0-9_-]/g,'_')}`;
+      const hasDot = wgsPoints[i] !== null;
+
+      const lenStr   = lenVals[i]  ? escHtml(lenVals[i])  : '—';
+      const diamStr  = diamVal     ? escHtml(diamVal)      : '—';
+      const groutStr = volVals[i]  ? escHtml(volVals[i])  : '—';
+
+      // All rows are clickable — those with coords also highlight a map dot.
+      const rowClass = hasDot ? 'cmc-row-mappable' : 'cmc-row-data';
+
+      html += `<tr id="${rowId}" class="${rowClass}"
+          onclick="event.stopPropagation();_selectCMCRow('${escHtml(sfId)}','${escHtml(cmcId)}',null,null,null,null)">
+        <td style="font-size:11.5px;font-family:monospace">${escHtml(cmcId)}</td>
+        <td style="text-align:right;font-size:11.5px">${lenStr}</td>
+        <td style="text-align:right;font-size:11.5px">${diamStr}</td>
+        <td style="text-align:right;font-size:11.5px">${groutStr}</td>
+      </tr>`;
+    }
+
+    html += `</tbody></table></div>`;
+    return html;
+  },
+
+  // ── RigidInclusion detail renderers ──────────────────────────────────────────
+
+  // el is an InstallationEvent element
+  renderInstallationEvent(el) {
+    if (!el) return '';
+    const name = nodeText(el.getElementsByTagNameNS(NS.gml, 'name')[0] || {});
+    const tiEl = el.getElementsByTagNameNS(NS.diggs, 'TimeInterval')[0] || null;
+    const timeStr = tiEl ? FORMAT_FN.timeIntervalInline(tiEl) : '';
+    const parts = [];
+    if (name) parts.push(`<strong>${escHtml(name)}</strong>`);
+    if (timeStr) parts.push(timeStr);
+    return parts.join('<br>') || '—';
+  },
+
+  // el is the diggs:installationEquipment wrapper (inline or xlink child)
+  renderInstallationEquipment(el) {
+    if (!el) return '';
+    // installationEquipment can wrap DrillRig, GroutPump, etc.
+    let equipEl = null;
+    for (const ch of el.childNodes) {
+      if (ch.nodeType === 1) { equipEl = ch; break; }
+    }
+    // xlink fallback
+    if (!equipEl) {
+      const href = (el.getAttributeNS(NS.xlink, 'href') || el.getAttribute('xlink:href') || '').replace(/^#/, '');
+      if (href) equipEl = el.ownerDocument.querySelector(`[*|id="${href}"]`);
+    }
+    if (!equipEl) return '—';
+    return KV_FORMAT.renderEquipmentInline(equipEl);
+  },
+
+  // el is an Equipment / DrillRig / GroutPump element
+  renderEquipmentInline(el) {
+    if (!el) return '';
+    const tag   = el.localName || '';
+    const name  = nodeText(el.getElementsByTagNameNS(NS.gml, 'name')[0] || {});
+    const make  = nodeText(el.getElementsByTagNameNS(NS.diggs, 'make')[0] || {});
+    const model = nodeText(el.getElementsByTagNameNS(NS.diggs, 'modelNumber')[0] || {});
+    const parts = [];
+    if (tag && tag !== 'Equipment') parts.push(`<span style="color:var(--text-muted);font-size:11px">${escHtml(tag)}</span>`);
+    if (name)  parts.push(`<strong>${escHtml(name)}</strong>`);
+    if (make)  parts.push(escHtml(make));
+    if (model) parts.push(`<span style="color:var(--text-muted)">${escHtml(model)}</span>`);
+    return parts.join(' ') || '—';
+  },
+
+  // el is a Specification element
+  renderSpecificationInline(el) {
+    if (!el) return '';
+    const name = nodeText(el.getElementsByTagNameNS(NS.gml, 'name')[0] || {});
+    const desc = nodeText(el.getElementsByTagNameNS(NS.gml, 'description')[0] || {});
+    const parts = [];
+    if (name) parts.push(`<strong>${escHtml(name)}</strong>`);
+    if (desc) parts.push(`<span style="color:var(--text-dim);font-size:12px">${escHtml(desc)}</span>`);
+    return parts.join('<br>') || '—';
+  },
+
+  // ── RIConstructionMethod — el is the diggs:constructionMethod property wrapper
+  // Resolves inline or xlink:href RIConstructionMethod; shows name + equipment list.
+  renderRIConstructionMethod(el) {
+    if (!el) return '';
+    // Resolve inline or xlink child
+    let cmEl = null;
+    for (const child of el.childNodes) {
+      if (child.nodeType === 1) { cmEl = child; break; }
+    }
+    if (!cmEl) {
+      const href = el.getAttributeNS(NS.xlink, 'href') || el.getAttribute('xlink:href');
+      if (href) cmEl = resolveXlinkEl(el);
+    }
+    if (!cmEl) return '—';
+    const name  = nodeText(cmEl.getElementsByTagNameNS(NS.gml, 'name')[0] || {});
+    const desc  = nodeText(cmEl.getElementsByTagNameNS(NS.gml, 'description')[0] || {});
+    const parts = [];
+    if (name) parts.push(`<strong>${escHtml(name)}</strong>`);
+    if (desc) parts.push(`<span style="color:var(--text-dim);font-size:12px">${escHtml(desc)}</span>`);
+    // Equipment list
+    const equipEls = [...cmEl.childNodes].filter(n => n.nodeType === 1
+      && ['equipment', 'cuttingEquipment', 'drillRig', 'groutPump'].includes(n.localName));
+    for (const eWrapper of equipEls) {
+      const eEl = [...eWrapper.childNodes].find(n => n.nodeType === 1) || eWrapper;
+      parts.push(KV_FORMAT.renderEquipmentInline(eEl));
+    }
+    // Cutting tool info
+    const cuttingToolEl = cmEl.getElementsByTagNameNS(NS.diggs, 'cuttingTool')[0];
+    if (cuttingToolEl) {
+      const ct = cuttingToolEl.textContent.trim();
+      if (ct) parts.push(`<span style="color:var(--text-muted);font-size:11px">Cutting: ${escHtml(ct)}</span>`);
+    }
+    return parts.join('<br>') || '—';
+  },
+
+  // ── RIEvent — el is the diggs:constructionEvent property wrapper
+  // Shows event name + time interval inline.
+  renderRIEvent(el) {
+    if (!el) return '';
+    let evEl = null;
+    for (const child of el.childNodes) {
+      if (child.nodeType === 1) { evEl = child; break; }
+    }
+    if (!evEl) return '—';
+    const name  = nodeText(evEl.getElementsByTagNameNS(NS.gml, 'name')[0] || {});
+    const tiEl  = evEl.getElementsByTagNameNS(NS.diggs, 'TimeInterval')[0]
+               || evEl.getElementsByTagNameNS(NS.diggs, 'timeInterval')[0];
+    const parts = [];
+    if (name) parts.push(`<strong>${escHtml(name)}</strong>`);
+    if (tiEl) {
+      const ti = KV_FORMAT.renderTimeInterval(tiEl);
+      if (ti) parts.push(ti);
+    }
+    return parts.join('<br>') || '—';
+  },
 
   renderSoftwareApplication(el) {
     const saEl = resolvePropertyEl(el, 'SoftwareApplication');
@@ -5417,7 +6029,9 @@ function renderKVTable(element, descriptor) {
             const fn = KV_FORMAT[entry.rawFormat];
             itemHtml = fn ? fn(pn) : '';
           } else {
-            const val = assembleComposite(pn, entry.composite, entry.compositeSeparator);
+            const val = entry.composite
+              ? assembleComposite(pn, entry.composite, entry.compositeSeparator)
+              : nodeText(pn);
             if (!val && !entry.children) continue;
             itemHtml = val ? escHtml(val) : '';
             if (entry.children) {
@@ -5628,6 +6242,7 @@ function filterByProject(skipGeom) {
     if (prevSub) prevSub.remove();
     _expandedMultiTrackId = null;
   }
+  if (_rifsState.rifsId) clearRIFSState();
 
   // ── Map markers ─────────────────────────────────────────────
   sfMarkers.forEach(({ mapObj }, sfId) => {
@@ -6364,14 +6979,36 @@ function loadDIGGS(doc, filename) {
         const cs = dvEl ? (dvEl.getAttribute('cs') || ',') : ',';
         const ts = dvEl ? (dvEl.getAttribute('ts') || ' ') : ' ';
         const rawText = dvEl ? dvEl.textContent.trim() : '';
+        // Helper: CSV-aware split of a dataValues row by cs.
+        // Respects double-quoted fields so that a delimiter inside quotes (e.g.
+        // "loose, fine gravel") is not treated as a field boundary.
+        // Surrounding quotes are removed from the resulting token.
+        const _splitDvRow = (str) => {
+          const tokens = [];
+          let cur = '', inQ = false;
+          for (let i = 0; i < str.length; i++) {
+            const ch = str[i];
+            if (ch === '"') {
+              inQ = !inQ;            // toggle; quotes are consumed, not added to token
+            } else if (ch === cs && !inQ) {
+              tokens.push(cur.trim());
+              cur = '';
+            } else {
+              cur += ch;
+            }
+          }
+          tokens.push(cur.trim());
+          return tokens;
+        };
+
         let rowValues;
         if (!rawText) {
           rowValues = [[]];
         } else if (ts !== ' ' && ts !== '') {
-          rowValues = rawText.split(ts).map(r => r.split(cs));
+          rowValues = rawText.split(ts).map(r => _splitDvRow(r));
         } else {
           // ts is space — treat whole text content as one row (don't split on spaces)
-          rowValues = [rawText.split(cs)];
+          rowValues = [_splitDvRow(rawText)];
         }
 
         // ── PPD TemporalResult (dissipation time-series) ──────────────────
@@ -6638,9 +7275,81 @@ function loadDIGGS(doc, filename) {
         }
       }
     }
+
+    // RIFoundationSystem: parse nested LTPs and their RIs.
+    // Neither LoadTransferPlatform nor RigidInclusion appear as top-level
+    // samplingFeature wrappers — they live inside RIFoundationSystem.
+    if (sfType === 'RIFoundationSystem') {
+      parsedSF.ltps = [];
+      let ltpColorIdx = 0;
+      for (const ltpWrap of sfEl.childNodes) {
+        if (ltpWrap.nodeType !== 1 || ltpWrap.localName !== 'loadTransferPlatforms') continue;
+        for (const ltpEl of ltpWrap.childNodes) {
+          if (ltpEl.nodeType !== 1 || ltpEl.localName !== 'LoadTransferPlatform') continue;
+          const ltpSF = parseSamplingFeature(doc, ltpEl, 'LoadTransferPlatform');
+          ltpSF.rifsParentId = parsedSF.id;
+          ltpSF.zoneColor    = LTP_ZONE_PALETTE[ltpColorIdx % LTP_ZONE_PALETTE.length];
+          ltpColorIdx++;
+
+          // parseSamplingFeature uses depthPath from SF_TYPE_CONFIG['LoadTransferPlatform']
+          // which doesn't exist — manually set depth from totalArea
+          if (ltpSF.depth === null || isNaN(ltpSF.depth)) {
+            const taEl = ltpEl.getElementsByTagNameNS(NS.diggs, 'totalArea')[0];
+            if (taEl) {
+              const v = parseFloat(taEl.textContent);
+              if (!isNaN(v)) { ltpSF.depth = v; ltpSF.depthUom = taEl.getAttribute('uom') || ''; }
+            }
+          }
+
+          // Ensure rawSrsName is set so prefetchUnknownCRS can re-resolve polygon rings.
+          // parseSamplingFeature sets rawSrsName from referencePoint; copy it so the
+          // polygon featureExtent (same CRS) can also be re-resolved if CRS was unknown.
+          if (!ltpSF.rawSrsName) {
+            // Derive from the featureExtent PlanarSurface srsName directly
+            const psEl = ltpEl.getElementsByTagNameNS(NS.diggs, 'PlanarSurface')[0]
+                      || ltpEl.getElementsByTagNameNS(NS.diggs, 'MultiPlanarSurface')[0];
+            if (psEl) ltpSF.rawSrsName = psEl.getAttribute('srsName') || '';
+          }
+
+          ltpSF.ris = [];
+          for (const riWrap of ltpEl.childNodes) {
+            if (riWrap.nodeType !== 1 || riWrap.localName !== 'rigidInclusions') continue;
+            for (const riEl of riWrap.childNodes) {
+              if (riEl.nodeType !== 1 || riEl.localName !== 'RigidInclusion') continue;
+              const riSF = parseSamplingFeature(doc, riEl, 'RigidInclusion');
+              riSF.ltpParentId  = ltpSF.id;
+              riSF.rifsParentId = parsedSF.id;
+
+              // Depth fallback: centerLine z-delta if columnLength absent
+              if ((riSF.depth === null || isNaN(riSF.depth)) && riEl) {
+                const clEl = riEl.getElementsByTagNameNS(NS.diggs, 'centerLine')[0]
+                          || riEl.getElementsByTagNameNS(NS.diggs, 'LinearExtent')[0];
+                if (clEl) {
+                  const plText = clEl.textContent || '';
+                  const nums = plText.trim().split(/\s+/).map(Number).filter(v => !isNaN(v));
+                  if (nums.length >= 6) {
+                    riSF.depth    = Math.abs(nums[nums.length - 1] - nums[2]);
+                    riSF.depthUom = clEl.getAttribute('uom') || 'm';
+                  }
+                }
+              }
+
+              // Date from whenConstructed if not already set by parseSamplingFeature
+              if (!riSF.dateEl) {
+                const wcEl = riEl.getElementsByTagNameNS(NS.diggs, 'whenConstructed')[0];
+                if (wcEl) riSF.dateEl = wcEl.getElementsByTagNameNS(NS.diggs, 'TimeInterval')[0] || null;
+              }
+
+              ltpSF.ris.push(riSF);
+            }
+          }
+          parsedSF.ltps.push(ltpSF);
+        }
+      }
+    }
   }
 
-  // Back-fill legacy aliases so existing code keeps working.
+
   DIGGS_BH   = DIGGS_SF.get('Borehole') ?? [];
   DIGGS_CPT  = DIGGS_SF.get('Sounding') ?? [];
   DIGGS_WELL = DIGGS_SF.get('Well')     ?? [];
@@ -6670,6 +7379,32 @@ function loadDIGGS(doc, filename) {
             }
           }
         }
+      }
+    }
+
+    // ── LTPZone palette color assignment ──────────────────────────────────
+    // Assign a distinct color to each LTPZone, grouped by parent LTP in
+    // document order. Color is stored on sf.zoneColor for use by both the
+    // map renderer (makeSFPoly) and the SF table color swatch.
+    {
+      const zoneCountByLTP = new Map(); // ltpId → running index
+      const zones = DIGGS_SF.get('LTPZone') || [];
+      for (const sf of zones) {
+        const ltpId = sf.parentRef || '';
+        const idx = zoneCountByLTP.get(ltpId) || 0;
+        sf.zoneColor = LTP_ZONE_PALETTE[idx % LTP_ZONE_PALETTE.length];
+        zoneCountByLTP.set(ltpId, idx + 1);
+      }
+    }
+  }
+
+  // ── Build flat lookup for all nested RIFS objects (LTP + RI) ──────────────
+  _rifsNestedById = new Map();
+  for (const rifsSF of DIGGS_SF.get('RIFoundationSystem') || []) {
+    for (const ltpSF of rifsSF.ltps || []) {
+      _rifsNestedById.set(ltpSF.id, ltpSF);
+      for (const riSF of ltpSF.ris || []) {
+        _rifsNestedById.set(riSF.id, riSF);
       }
     }
   }
@@ -7048,8 +7783,29 @@ function parseSamplingFeature(doc, el, type) {
   const _depthPath = (SF_TYPE_CONFIG[type] && SF_TYPE_CONFIG[type].depthPath)
     ? SF_TYPE_CONFIG[type].depthPath : 'diggs:totalMeasuredDepth';
   const depthEl  = xFirst(doc, _depthPath, el);
-  const depth    = depthEl ? parseFloat(depthEl.textContent) : null;
-  const depthUom = depthEl ? (depthEl.getAttribute('uom') || '') : '';
+  let depth    = depthEl ? parseFloat(depthEl.textContent) : null;
+  let depthUom = depthEl ? (depthEl.getAttribute('uom') || '') : '';
+
+  // ── RigidInclusion: fall back to centerLine z-delta if columnLength absent ──
+  if (type === 'RigidInclusion' && (depth === null || isNaN(depth))) {
+    const clEl = xFirst(doc, 'diggs:centerLine/diggs:LinearExtent', el);
+    if (clEl) {
+      const posListText = xText(doc, 'gml:posList', clEl);
+      const dim = parseInt(clEl.getAttribute('srsDimension') || '3');
+      if (posListText.trim() && dim >= 3) {
+        const tokens = posListText.trim().split(/\s+/).map(Number);
+        // First point z is index 2, last point z is at tokens[tokens.length - (dim - 2)]
+        const topZ    = tokens[2];
+        const botZ    = tokens[tokens.length - (dim - 2)];
+        if (!isNaN(topZ) && !isNaN(botZ)) {
+          depth    = Math.abs(topZ - botZ);
+          depthUom = clEl.getAttribute('uomLabels')
+            ? (clEl.getAttribute('uomLabels').trim().split(/\s+/)[2] || 'm') : 'm';
+        }
+      }
+    }
+  }
+
   const bhType   = type === 'Borehole' ? xText(doc, 'diggs:boreholeType', el) : '';
 
   // ── Water strike (Borehole only) ─────────────────────────────────────────
@@ -7477,6 +8233,30 @@ function buildSFTable(type, sfArray, sfById) {
       return;
     }
 
+    // ── RIFoundationSystem: header row with three-level accordion ───
+    if (type === 'RIFoundationSystem') {
+      tr.classList.add('rifs-header');
+      const namePrimary = esc(sf.name || sf.id);
+      const nameCode = sf.codeSpace ? `<div class="sf-name-code">${esc(sf.codeSpace)}</div>` : '';
+      const ltpCount = (sf.ltps || []).length;
+      const riCount  = (sf.ltps || []).reduce((n, l) => n + (l.ris || []).length, 0);
+      const depthStr = sf.depth != null ? `${sf.depth}${sf.depthUom ? '\u00a0' + esc(sf.depthUom) : ''}` : '—';
+      const dateStr  = (typeof FORMAT_FN !== 'undefined' && sf.dateEl)
+        ? FORMAT_FN.timeIntervalInline(sf.dateEl) : '—';
+      tr.innerHTML = `
+        <td style="white-space:normal;max-width:160px">
+          <div class="sf-name-primary">${namePrimary}</div>${nameCode}
+        </td>
+        <td class="depth-val">${depthStr}</td>
+        <td style="white-space:nowrap;font-size:11.5px">${dateStr}</td>
+        <td>—</td>
+        <td style="font-size:11.5px;color:var(--text-muted)">${ltpCount} LTP${ltpCount !== 1 ? 's' : ''}, ${riCount} RI${riCount !== 1 ? 's' : ''}</td>
+        <td style="white-space:normal;max-width:140px;color:var(--text-muted);font-size:11.5px">${sf.purpose ? esc(sf.purpose) : '—'}</td>`;
+      tr.addEventListener('click', () => toggleRIFS(sf.id, tr, tbody));
+      tbody.appendChild(tr);
+      return;
+    }
+
     // ── Name cell ───────────────────────────────────────────────
     const namePrimary = esc(sf.name || sf.id);
     const nameCode = sf.codeSpace ? `<div class="sf-name-code">${esc(sf.codeSpace)}</div>` : '';
@@ -7503,7 +8283,9 @@ function buildSFTable(type, sfArray, sfById) {
     if (sf.parentRef) {
       const parentSF = sfById.get(sf.parentRef);
       if (parentSF) {
-        parentCell = `<span class="sf-link" onclick="event.stopPropagation();selectSF('${esc(parentSF.type)}','${esc(parentSF.id)}')">${esc(parentSF.name || parentSF.id)}</span>`;
+        const safeType = (parentSF.type || '').replace(/'/g, '&#39;');
+        const safeId   = (parentSF.id   || '').replace(/'/g, '&#39;');
+        parentCell = `<span class="sf-link" data-sf-type="${safeType}" data-sf-id="${safeId}">${esc(parentSF.name || parentSF.id)}</span>`;
       } else {
         parentCell = esc(sf.parentRef);
       }
@@ -7513,16 +8295,37 @@ function buildSFTable(type, sfArray, sfById) {
     let installCell = '—';
     if (sf.childRefs && sf.childRefs.length) {
       const children = sf.childRefs.map(cid => sfById.get(cid)).filter(Boolean);
-      const SHOW_ALWAYS = 3;
+      // Use a higher initial threshold for polygon-type installations (e.g. LTPZones)
+      // so zone names are visible without expanding; keep 3 for point installations.
+      const firstChildType = children.length ? children[0].type : '';
+      const firstChildGeom = SF_TYPE_CONFIG[firstChildType]
+        ? SF_TYPE_CONFIG[firstChildType].mapGeom : 'installation';
+      const SHOW_ALWAYS = (firstChildGeom === 'polygon') ? 5 : 3;
       const showAll = children.length <= SHOW_ALWAYS + 1;
       const visible = showAll ? children : children.slice(0, SHOW_ALWAYS);
       const hidden  = showAll ? [] : children.slice(SHOW_ALWAYS);
-      const makeLink = c => `<span class="sf-link" onclick="event.stopPropagation();selectSF('${esc(c.type)}','${esc(c.id)}')">${esc(c.name || c.id)}</span>`;
+
+      // Build each link using a data attribute + DOM event listener to avoid
+      // single-quote escaping issues with zone names in inline onclick strings.
+      const makeLink = c => {
+        const safeType = (c.type || '').replace(/'/g, '&#39;');
+        const safeId   = (c.id   || '').replace(/'/g, '&#39;');
+        return `<span class="sf-link" data-sf-type="${safeType}" data-sf-id="${safeId}">${esc(c.name || c.id)}</span>`;
+      };
+
       let html = visible.map(makeLink).join('<br>');
+
       if (hidden.length) {
-        const moreId = `sf-more-${sf.id}`;
-        const moreHtml = hidden.map(makeLink).join('<br>');
-        html += `<br><span class="sf-install-more" id="${moreId}" onclick="event.stopPropagation();document.getElementById('${moreId}').outerHTML='${moreHtml.replace(/'/g,"\\'")}'">…and ${hidden.length} more</span>`;
+        // Store hidden child data on a wrapper div; click handler reads from it.
+        const moreId = `sf-more-${sf.id.replace(/[^a-zA-Z0-9_-]/g,'_')}`;
+        // Encode hidden children as JSON in a data attribute to avoid escaping issues.
+        const hiddenData = JSON.stringify(hidden.map(c => ({ type: c.type, id: c.id, name: c.name || c.id })));
+        html += `<br><span class="sf-install-more" id="${moreId}" data-hidden="${esc(hiddenData)}"
+          onclick="event.stopPropagation();(function(el){
+            var data=JSON.parse(el.getAttribute('data-hidden'));
+            var links=data.map(function(c){return '<span class=\\'sf-link\\' data-sf-type=\\''+c.type+'\\' data-sf-id=\\''+c.id+'\\'>'+c.name+'</span>';}).join('<br>');
+            el.outerHTML=links;
+          })(this)">…and ${hidden.length} more</span>`;
       }
       installCell = html;
     }
@@ -7535,9 +8338,17 @@ function buildSFTable(type, sfArray, sfById) {
       <td class="depth-val">${depthCell}</td>
       <td style="white-space:nowrap;font-size:11.5px">${dateCell}</td>
       <td>${parentCell}</td>
-      <td style="white-space:normal;max-width:140px">${installCell}</td>
+      <td style="white-space:normal;max-width:160px;line-height:1.6">${installCell}</td>
       <td style="white-space:normal;max-width:140px;color:var(--text-muted);font-size:11.5px">${purposeCell}</td>`;
-    tr.addEventListener('click', () => selectSF(type, sf.id));
+
+    // Delegate sf-link clicks so dynamically-expanded links also work.
+    // The row click handler falls through to selectSF for non-link clicks.
+    tr.addEventListener('click', e => {
+      const lk = e.target.closest('.sf-link[data-sf-type]');
+      if (lk) { e.stopPropagation(); selectSF(lk.dataset.sfType, lk.dataset.sfId); return; }
+      // Clicking anywhere else on the row selects this SF
+      if (!e.target.closest('.sf-install-more')) selectSF(type, sf.id);
+    });
     tbody.appendChild(tr);
   });
 }
@@ -7713,8 +8524,369 @@ function selectMultiTrackMember(multiTrackId, memberId) {
 }
 
 // ══════════════════════════════════════════════════════════════
-//  MAP
+//  RIFS THREE-LEVEL ACCORDION
 // ══════════════════════════════════════════════════════════════
+
+/**
+ * clearRIFSState() — remove all RIFS accordion UI and map objects.
+ * Safe to call when nothing is expanded.
+ */
+function clearRIFSState() {
+  // Remove LTP polygons from map
+  _rifsState.ltpPolygons.forEach(poly => {
+    try { if (mapInstance && mapInstance.hasLayer(poly)) mapInstance.removeLayer(poly); } catch(e) {}
+  });
+  _rifsState.ltpPolygons.clear();
+  // Remove RI dot markers from map
+  _rifsState.riMarkers.forEach(m => {
+    try { if (mapInstance && mapInstance.hasLayer(m)) mapInstance.removeLayer(m); } catch(e) {}
+  });
+  _rifsState.riMarkers.clear();
+  // Collapse the RIFS header row
+  if (_rifsState.rifsId) {
+    const hdr = document.getElementById(`sfrow-${_rifsState.rifsId}`);
+    if (hdr) hdr.classList.remove('expanded');
+    const ltpCont = document.getElementById(`rifs-ltp-${_rifsState.rifsId}`);
+    if (ltpCont) ltpCont.remove();
+  }
+  _rifsState.rifsId = null;
+  _rifsState.expandedLtpId = null;
+}
+
+/**
+ * toggleRIFS(rifsId, headerTr, tbody)
+ * Expand or collapse the Level-1 LTP sub-table for a RIFS header row.
+ */
+function toggleRIFS(rifsId, headerTr, tbody) {
+  // Collapse any other expanded RIFS
+  if (_rifsState.rifsId && _rifsState.rifsId !== rifsId) {
+    clearRIFSState();
+  }
+
+  // If already expanded, collapse
+  if (headerTr.classList.contains('expanded')) {
+    clearRIFSState();
+    return;
+  }
+
+  // Find the RIFS SF object
+  const rifsSFs = DIGGS_SF.get('RIFoundationSystem') || [];
+  const rifsSF = rifsSFs.find(s => s.id === rifsId);
+  if (!rifsSF) return;
+
+  // Mark the header row as selected + expanded
+  headerTr.classList.add('selected', 'expanded');
+
+  // Highlight the RIFS polygon on map
+  const rifsEntry = sfMarkers.get(rifsId);
+  if (rifsEntry && mapInstance && typeof rifsEntry.mapObj.setStyle === 'function') {
+    const cfg = SF_TYPE_CONFIG['RIFoundationSystem'] || {};
+    const mc = cfg.marker || {};
+    rifsEntry.mapObj.setStyle({
+      color: '#00FEFC', weight: (mc.weight || 2) + 1.5,
+      fillColor: mc.fillColor || '#e05c00', fillOpacity: 0.25,
+    });
+  }
+
+  // Show RIFS detail
+  showSFDetail(rifsSF);
+
+  // Build LTP container row
+  const ltpContTr = document.createElement('tr');
+  ltpContTr.id = `rifs-ltp-${rifsId}`;
+  ltpContTr.className = 'rifs-ltp-container-row';
+
+  const ltps = rifsSF.ltps || [];
+
+  if (!ltps.length) {
+    ltpContTr.innerHTML = `<td colspan="6"><table class="rifs-ltp-table">
+      <tr><td colspan="5" style="color:var(--text-muted);font-style:italic;padding:8px 28px">No load transfer platforms found</td></tr>
+    </table></td>`;
+  } else {
+    const thStyle = 'padding:5px 16px 5px 28px;font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);background:var(--surface2)';
+    const thStyleN = 'padding:5px 12px;font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);background:var(--surface2)';
+
+    const rowsHtml = ltps.map(ltpSF => {
+      const swatch = `<span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${ltpSF.zoneColor};margin-right:6px;vertical-align:middle"></span>`;
+      const name   = esc(ltpSF.name || ltpSF.id);
+      const area   = (ltpSF.depth != null) ? `${ltpSF.depth}${ltpSF.depthUom ? '\u00a0' + esc(ltpSF.depthUom) : ''}` : '—';
+      const dateStr = (typeof FORMAT_FN !== 'undefined' && ltpSF.dateEl)
+        ? FORMAT_FN.timeIntervalInline(ltpSF.dateEl) : '—';
+      const riCount = (ltpSF.ris || []).length;
+      return `<tr data-ltp-id="${esc(ltpSF.id)}" data-rifs-id="${esc(rifsId)}">
+        <td style="max-width:160px;white-space:normal">${swatch}<span class="sf-name-primary" style="display:inline">${name}</span></td>
+        <td class="depth-val">${area}</td>
+        <td style="white-space:nowrap;font-size:11.5px">${dateStr}</td>
+        <td style="font-size:11.5px;color:var(--text-muted)">${riCount} RI${riCount !== 1 ? 's' : ''}</td>
+        <td></td>
+      </tr>`;
+    }).join('');
+
+    ltpContTr.innerHTML = `<td colspan="6"><table class="rifs-ltp-table">
+      <thead><tr>
+        <th style="${thStyle}">Load Transfer Platform</th>
+        <th style="${thStyleN}">Area</th>
+        <th style="${thStyleN}">Date</th>
+        <th style="${thStyleN}">Rigid Inclusions</th>
+        <th style="${thStyleN}"></th>
+      </tr></thead>
+      <tbody>${rowsHtml}</tbody>
+    </table></td>`;
+  }
+
+  // Wire up LTP row click handlers after insertion
+  headerTr.insertAdjacentElement('afterend', ltpContTr);
+  headerTr.classList.add('expanded');
+  _rifsState.rifsId = rifsId;
+
+  // Attach click handlers to each LTP row
+  const ltpTbody = ltpContTr.querySelector('table.rifs-ltp-table tbody');
+  if (ltpTbody) {
+    ltpTbody.querySelectorAll('tr[data-ltp-id]').forEach(tr => {
+      tr.addEventListener('click', () => selectLTP(rifsId, tr.dataset.ltpId));
+    });
+  }
+
+  // Add LTP polygons to map + collect bounds
+  const allBounds = [];
+  const rifsMapEntry = sfMarkers.get(rifsId);
+  if (rifsMapEntry && typeof rifsMapEntry.mapObj.getBounds === 'function') {
+    const b = rifsMapEntry.mapObj.getBounds();
+    if (b.isValid()) allBounds.push(b);
+  }
+
+  for (const ltpSF of ltps) {
+    if (!ltpSF.polygonLatLngs || !ltpSF.polygonLatLngs.length) continue;
+    try {
+      const poly = L.polygon(ltpSF.polygonLatLngs, {
+        color: ltpSF.zoneColor, weight: 1.8, opacity: 0.9,
+        fillColor: ltpSF.zoneColor, fillOpacity: 0.28,
+      });
+      poly.addTo(mapInstance);
+      poly.bindPopup(() => buildSFPopupHTML(ltpSF, 'LoadTransferPlatform', null), { maxWidth: 260 });
+      poly.on('click', (e) => { L.DomEvent.stopPropagation(e); selectLTP(rifsId, ltpSF.id); });
+      _rifsState.ltpPolygons.set(ltpSF.id, poly);
+      const b = poly.getBounds();
+      if (b.isValid()) allBounds.push(b);
+    } catch(e) {}
+  }
+
+  if (allBounds.length && mapInstance) {
+    let combined = allBounds[0];
+    for (let i = 1; i < allBounds.length; i++) combined = combined.extend(allBounds[i]);
+    if (combined.isValid()) mapInstance.fitBounds(combined, { padding: [40, 40], animate: true });
+  }
+
+  headerTr.scrollIntoView({ block: 'nearest' });
+}
+
+/**
+ * selectLTP(rifsId, ltpId)
+ * Highlight an LTP row and expand its RI sub-sub-table.
+ */
+function selectLTP(rifsId, ltpId) {
+  // Find SF objects
+  const rifsSFs = DIGGS_SF.get('RIFoundationSystem') || [];
+  const rifsSF  = rifsSFs.find(s => s.id === rifsId);
+  if (!rifsSF) return;
+  const ltpSF = (rifsSF.ltps || []).find(l => l.id === ltpId);
+  if (!ltpSF) return;
+
+  // If this LTP is already expanded: first click shows its detail, second click collapses
+  if (_rifsState.expandedLtpId === ltpId) {
+    // Check if the LTP row is already selected (highlighted) — if so, collapse
+    const ltpContTrCheck = document.getElementById(`rifs-ltp-${rifsId}`);
+    const ltpRowCheck = ltpContTrCheck ? ltpContTrCheck.querySelector(`tr[data-ltp-id="${ltpId}"]`) : null;
+    const alreadySelected = ltpRowCheck && ltpRowCheck.classList.contains('rifs-ltp-selected');
+    if (alreadySelected) {
+      // Second click on already-selected expanded LTP → collapse
+      const riCont = document.getElementById(`rifs-ri-${ltpId}`);
+      if (riCont) riCont.remove();
+      _rifsState.riMarkers.forEach(m => {
+        try { if (mapInstance && mapInstance.hasLayer(m)) mapInstance.removeLayer(m); } catch(e) {}
+      });
+      _rifsState.riMarkers.clear();
+      _rifsState.expandedLtpId = null;
+      if (ltpContTrCheck) ltpContTrCheck.querySelectorAll('tr.rifs-ltp-selected')
+        .forEach(r => r.classList.remove('rifs-ltp-selected', 'rifs-ltp-expanded'));
+      _rifsState.ltpPolygons.forEach((poly, pid) => {
+        const ltp2 = (rifsSF.ltps || []).find(l => l.id === pid);
+        const zc = ltp2 ? ltp2.zoneColor : '#888';
+        try { poly.setStyle({ color: zc, weight: 1.8, fillOpacity: 0.28 }); } catch(e) {}
+      });
+      return;
+    }
+    // First click while RI is selected → just show LTP detail and highlight row
+    // (fall through to normal highlight + showSFDetail below)
+  }
+
+  // Highlight LTP row in the sub-table
+  const ltpContTr = document.getElementById(`rifs-ltp-${rifsId}`);
+  if (ltpContTr) {
+    ltpContTr.querySelectorAll('tr.rifs-ltp-selected').forEach(r => r.classList.remove('rifs-ltp-selected', 'rifs-ltp-expanded'));
+    const ltpRow = ltpContTr.querySelector(`tr[data-ltp-id="${ltpId}"]`);
+    if (ltpRow) {
+      ltpRow.classList.add('rifs-ltp-selected', 'rifs-ltp-expanded');
+      ltpRow.scrollIntoView({ block: 'nearest' });
+    }
+  }
+
+  // Highlight LTP polygon; dim others
+  _rifsState.ltpPolygons.forEach((poly, pid) => {
+    if (pid === ltpId) {
+      poly.setStyle({ color: '#00FEFC', weight: 2.5, fillOpacity: 0.45 });
+      poly.bringToFront();
+    } else {
+      const ltpSF2 = (rifsSF.ltps || []).find(l => l.id === pid);
+      const zc = ltpSF2 ? ltpSF2.zoneColor : '#888';
+      poly.setStyle({ color: zc, weight: 1.8, fillOpacity: 0.20 });
+    }
+  });
+
+  // Collapse any previously expanded RI accordion
+  if (_rifsState.expandedLtpId && _rifsState.expandedLtpId !== ltpId) {
+    const prevRiCont = document.getElementById(`rifs-ri-${_rifsState.expandedLtpId}`);
+    if (prevRiCont) prevRiCont.remove();
+    _rifsState.riMarkers.forEach(m => {
+      try { if (mapInstance && mapInstance.hasLayer(m)) mapInstance.removeLayer(m); } catch(e) {}
+    });
+    _rifsState.riMarkers.clear();
+  }
+
+  // Show LTP detail
+  showSFDetail(ltpSF);
+  _rifsState.expandedLtpId = ltpId;
+
+  // Build RI sub-sub-table if there are RIs
+  const ris = ltpSF.ris || [];
+  if (!ris.length) return;
+
+  // Find the LTP <tr> to insert after
+  const ltpContainerTr = document.getElementById(`rifs-ltp-${rifsId}`);
+  if (!ltpContainerTr) return;
+  const ltpTable = ltpContainerTr.querySelector('table.rifs-ltp-table tbody');
+  if (!ltpTable) return;
+  const ltpRow = ltpTable.querySelector(`tr[data-ltp-id="${ltpId}"]`);
+  if (!ltpRow) return;
+
+  // Remove existing RI container if present
+  const existingRiCont = document.getElementById(`rifs-ri-${ltpId}`);
+  if (existingRiCont) existingRiCont.remove();
+
+  // Build the RI container row
+  const riContTr = document.createElement('tr');
+  riContTr.id = `rifs-ri-${ltpId}`;
+  riContTr.className = 'rifs-ri-container-row';
+
+  const riRowsHtml = ris.map(riSF => {
+    const name     = esc(riSF.name || riSF.id);
+    const lenStr   = (riSF.depth != null) ? `${riSF.depth}${riSF.depthUom ? '\u00a0' + esc(riSF.depthUom) : ''}` : '—';
+    const dateStr  = (typeof FORMAT_FN !== 'undefined' && riSF.dateEl)
+      ? FORMAT_FN.timeIntervalInline(riSF.dateEl) : '—';
+    // Diameter from columnDiameter element
+    let diaStr = '—';
+    if (riSF.el) {
+      const diaEl = riSF.el.getElementsByTagNameNS(NS.diggs, 'columnDiameter')[0];
+      if (diaEl) {
+        const dv  = parseFloat(diaEl.textContent);
+        const uom = diaEl.getAttribute('uom') || '';
+        if (!isNaN(dv)) diaStr = `${dv}${uom ? '\u00a0' + esc(uom) : ''}`;
+      }
+    }
+    const hasLoc = (riSF.lat !== null && riSF.lat !== undefined && !isNaN(riSF.lat));
+    const locIcon = hasLoc ? '<span style="color:var(--accent3);font-size:10px;margin-right:4px">⬤</span>' : '';
+    return `<tr data-ri-id="${esc(riSF.id)}" data-ltp-id="${esc(ltpId)}" data-rifs-id="${esc(rifsId)}">
+      <td style="max-width:160px;white-space:normal">${locIcon}${name}</td>
+      <td class="depth-val">${lenStr}</td>
+      <td style="font-family:var(--font-mono);font-size:12px">${diaStr}</td>
+      <td style="white-space:nowrap;font-size:12px">${dateStr}</td>
+      <td></td>
+    </tr>`;
+  }).join('');
+
+  const thStyle = 'padding:5px 16px 5px 44px;font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);background:var(--surface2)';
+  const thStyleN = 'padding:5px 12px;font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);background:var(--surface2)';
+  riContTr.innerHTML = `<td colspan="5"><table class="rifs-ri-table">
+    <thead><tr>
+      <th style="${thStyle}">Rigid Inclusion</th>
+      <th style="${thStyleN}">Length</th>
+      <th style="${thStyleN}">Diameter</th>
+      <th style="${thStyleN}">Date</th>
+      <th style="${thStyleN}"></th>
+    </tr></thead>
+    <tbody>${riRowsHtml}</tbody>
+  </table></td>`;
+
+  ltpRow.insertAdjacentElement('afterend', riContTr);
+
+  // Wire up RI row click handlers
+  riContTr.querySelectorAll('tr[data-ri-id]').forEach(tr => {
+    tr.addEventListener('click', () => selectRI(rifsId, ltpId, tr.dataset.riId));
+  });
+
+  // Add RI dot markers to map
+  for (const riSF of ris) {
+    if (riSF.lat === null || riSF.lat === undefined || isNaN(riSF.lat)) continue;
+    try {
+      const dot = L.circleMarker([riSF.lat, riSF.lon], {
+        radius: 3, color: '#111', weight: 1,
+        fillColor: '#333', fillOpacity: 0.85,
+      });
+      dot.addTo(mapInstance);
+      dot.bindPopup(() => buildSFPopupHTML(riSF, 'RigidInclusion', [riSF.lat, riSF.lon]), { maxWidth: 260 });
+      dot.on('click', (e) => { L.DomEvent.stopPropagation(e); selectRI(rifsId, ltpId, riSF.id); });
+      _rifsState.riMarkers.set(riSF.id, dot);
+    } catch(e) {}
+  }
+
+  // Fit map to LTP polygon
+  const ltpPoly = _rifsState.ltpPolygons.get(ltpId);
+  if (ltpPoly && mapInstance) {
+    const b = ltpPoly.getBounds();
+    if (b.isValid()) mapInstance.fitBounds(b, { padding: [30, 30], animate: true });
+  }
+}
+
+/**
+ * selectRI(rifsId, ltpId, riId)
+ * Highlight a single RI row and its map dot; show detail panel.
+ */
+function selectRI(rifsId, ltpId, riId) {
+  // Find SF objects
+  const rifsSFs = DIGGS_SF.get('RIFoundationSystem') || [];
+  const rifsSF  = rifsSFs.find(s => s.id === rifsId);
+  if (!rifsSF) return;
+  const ltpSF = (rifsSF.ltps || []).find(l => l.id === ltpId);
+  if (!ltpSF) return;
+  const riSF = (ltpSF.ris || []).find(r => r.id === riId);
+  if (!riSF) return;
+
+  // Highlight RI table row
+  const riContTr = document.getElementById(`rifs-ri-${ltpId}`);
+  if (riContTr) {
+    riContTr.querySelectorAll('tr.rifs-ri-selected').forEach(r => r.classList.remove('rifs-ri-selected'));
+    const riRow = riContTr.querySelector(`tr[data-ri-id="${riId}"]`);
+    if (riRow) { riRow.classList.add('rifs-ri-selected'); riRow.scrollIntoView({ block: 'nearest' }); }
+  }
+
+  // Highlight RI dot on map; dim others
+  _rifsState.riMarkers.forEach((dot, did) => {
+    if (did === riId) {
+      dot.setStyle({ fillColor: '#00FEFC', fillOpacity: 1, color: '#fff', weight: 1.5 });
+      dot.setRadius(5);
+      dot.bringToFront();
+      if (mapInstance) mapInstance.panTo(dot.getLatLng());
+    } else {
+      dot.setStyle({ fillColor: '#555', fillOpacity: 0.7, color: '#222', weight: 1 });
+      dot.setRadius(3);
+    }
+  });
+
+  // Show RI detail
+  showSFDetail(riSF);
+}
+
+
 
 // Parse a gml:posList string into Leaflet [lat,lon] pairs.
 // Coordinates are stored as lat lon pairs (EPSG:4326 axis order).
@@ -7930,7 +9102,8 @@ function initMap() {
   // Street tile layer (default basemap) with offline fallback: if tiles fail to load,
   // the map still works with markers on a plain background — no error, no blank crash
   let currentTileLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    maxZoom: 19,
+    maxZoom: 22,
+    maxNativeZoom: 19,
     attribution: '© OpenStreetMap contributors',
     errorTileUrl: 'data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs='  // 1px transparent
   }).addTo(mapInstance);
@@ -7966,12 +9139,18 @@ function initMap() {
         const _isMultiRing = Array.isArray(sf.polygonLatLngs[0]) && Array.isArray(sf.polygonLatLngs[0][0]);
         const _ringLen = _isMultiRing ? sf.polygonLatLngs[0].length : sf.polygonLatLngs.length;
         if (_ringLen >= 3) {
-          const pg = makeSFPolygon(sf, false).addTo(mapInstance);
+          const pg = makeSFPolygon(sf, false);
+          // LTPZone polygons are only shown when the LTPZone tab is active;
+          // do not add to map on initial load (switchTab will reveal them).
+          if (type !== 'LTPZone') pg.addTo(mapInstance);
           pg.on('click', () => selectSF(type, sf.id));
           pg.bindPopup(() => buildSFPopupHTML(sf, type, null), { maxWidth: 260 });
           sfMarkers.set(sf.id, { mapObj: pg, type });
           const pgBounds = pg.getBounds();
-          if (pgBounds.isValid()) allLL.push(pgBounds.getSouthWest(), pgBounds.getNorthEast());
+          // Include LTPZone bounds in allLL only when LTPZone tab is initially active;
+          // otherwise skip so LTP extents dominate initial fit.
+          if (type !== 'LTPZone' && pgBounds.isValid()) allLL.push(pgBounds.getSouthWest(), pgBounds.getNorthEast());
+          else if (type !== 'LTPZone' && pgBounds.isValid()) allLL.push(pgBounds.getSouthWest(), pgBounds.getNorthEast());
         }
       } else if (geom === 'polygon' && sf.lat !== null && sf.lon !== null && !isNaN(sf.lat)) {
         // Polygon SF but featureExtent CRS unresolvable (e.g. local Cartesian) —
@@ -8058,14 +9237,16 @@ function initMap() {
       label: 'Street',
       url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
       attribution: '© OpenStreetMap contributors',
-      maxZoom: 19          // OSM native max; tiles stop at 19
+      maxZoom: 22,
+      maxNativeZoom: 19    // OSM serves native tiles to 19; Leaflet upscales beyond that
     },
     {
       id: 'dark',
       label: 'Dark',
       url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
       attribution: '© OpenStreetMap contributors © CARTO',
-      maxZoom: 19,         // CartoDB native max
+      maxZoom: 22,
+      maxNativeZoom: 19,   // CartoDB native max is 19; Leaflet upscales beyond that
       subdomains: 'abcd'
     },
     {
@@ -8538,17 +9719,21 @@ function makeSFPolyline(sf, selected) {
  */
 function makeSFPolygon(sf, selected) {
   const cfg = (SF_TYPE_CONFIG[sf.type] && SF_TYPE_CONFIG[sf.type].marker) || {};
-  const baseColor    = cfg.color       || '#A78BFA';
+  // LTPZone uses per-zone palette color assigned at parse time
+  const baseColor    = (sf.type === 'LTPZone' && sf.zoneColor) ? sf.zoneColor
+                     : (cfg.color       || '#A78BFA');
   const baseWeight   = cfg.weight      || 2;
-  const baseFill     = cfg.fillColor   || '#A78BFA';
-  const baseFillOp   = cfg.fillOpacity !== undefined ? cfg.fillOpacity : 0.15;
+  const baseFill     = (sf.type === 'LTPZone' && sf.zoneColor) ? sf.zoneColor
+                     : (cfg.fillColor   || '#A78BFA');
+  const baseFillOp   = (sf.type === 'LTPZone') ? 0.35
+                     : (cfg.fillOpacity !== undefined ? cfg.fillOpacity : 0.15);
   const baseOpacity  = cfg.opacity     !== undefined ? cfg.opacity : 0.9;
 
   const color       = selected ? '#00FEFC' : baseColor;
   const weight      = selected ? baseWeight + 1 : baseWeight;
   const opacity     = selected ? 1.0 : baseOpacity;
   const fillColor   = selected ? '#00FEFC' : baseFill;
-  const fillOpacity = selected ? 0.30 : baseFillOp;
+  const fillOpacity = selected ? 0.55 : baseFillOp;
 
   return L.polygon(sf.polygonLatLngs, {
     color, weight, opacity, fillColor, fillOpacity,
@@ -8560,7 +9745,10 @@ function makeSFPolygon(sf, selected) {
 // ══════════════════════════════════════════════════════════════
 function clearSelections() {
   document.querySelectorAll('table.data-table tr.selected').forEach(r => r.classList.remove('selected'));
-  sfMarkers.forEach(({ mapObj, type }) => {
+  // Also clear RIFS accordion if active (clearSelections is called on every selection change)
+  if (_rifsState.rifsId) clearRIFSState();
+  const allSFs = [...DIGGS_SF.values()].flat();
+  sfMarkers.forEach(({ mapObj, type }, sfId) => {
     const geom = SF_TYPE_CONFIG[type] ? SF_TYPE_CONFIG[type].mapGeom : 'point';
     if (geom === 'line') {
       const cfg = (SF_TYPE_CONFIG[type] && SF_TYPE_CONFIG[type].marker) || {};
@@ -8568,8 +9756,16 @@ function clearSelections() {
     } else if (geom === 'polygon') {
       if (typeof mapObj.setStyle === 'function') {
         const cfg = (SF_TYPE_CONFIG[type] && SF_TYPE_CONFIG[type].marker) || {};
-        mapObj.setStyle({ color: cfg.color || '#A78BFA', weight: cfg.weight || 2, opacity: cfg.opacity !== undefined ? cfg.opacity : 0.9,
-          fillColor: cfg.fillColor || '#A78BFA', fillOpacity: cfg.fillOpacity !== undefined ? cfg.fillOpacity : 0.15 });
+        // LTPZone: restore per-zone palette color from sf.zoneColor
+        if (type === 'LTPZone') {
+          const sf = allSFs.find(s => s.id === sfId);
+          const zc = (sf && sf.zoneColor) ? sf.zoneColor : (cfg.color || '#888888');
+          mapObj.setStyle({ color: zc, weight: cfg.weight || 1.5, opacity: cfg.opacity !== undefined ? cfg.opacity : 0.9,
+            fillColor: zc, fillOpacity: 0.35 });
+        } else {
+          mapObj.setStyle({ color: cfg.color || '#A78BFA', weight: cfg.weight || 2, opacity: cfg.opacity !== undefined ? cfg.opacity : 0.9,
+            fillColor: cfg.fillColor || '#A78BFA', fillOpacity: cfg.fillOpacity !== undefined ? cfg.fillOpacity : 0.15 });
+        }
       } else {
         mapObj.setIcon(makeSFIcon(type, false));  // point fallback
       }
@@ -8598,6 +9794,8 @@ function fitToActiveProject() {
   const lls = [];
   sfMarkers.forEach(({ mapObj, type }, sfId) => {
     if (!ids || ids.has(sfId)) {
+      // Skip LTPZone polygons when they're hidden (not on the map)
+      if (type === 'LTPZone' && !mapInstance.hasLayer(mapObj)) return;
       const geom = SF_TYPE_CONFIG[type] ? SF_TYPE_CONFIG[type].mapGeom : 'point';
       if ((geom === 'line' || geom === 'polygon') && typeof mapObj.getBounds === 'function') {
         const b = mapObj.getBounds();
@@ -8647,6 +9845,8 @@ function switchTab(key) {
       if (prevSub) prevSub.remove();
       _expandedMultiTrackId = null;
     }
+    // Collapse any expanded RIFS accordion when switching tabs
+    if (_rifsState.rifsId) clearRIFSState();
     // Fit map to active project bounds whenever the user switches tabs
     fitToActiveProject();
   }
@@ -8656,6 +9856,21 @@ function switchTab(key) {
   document.querySelectorAll('.sf-tab-panel').forEach(panel => {
     panel.classList.toggle('active', panel.id === `tab-${key}-content`);
   });
+
+  // ── LTPZone polygon visibility gating (legacy — only for files with top-level LTPZone) ──
+  if (mapInstance) {
+    const ltpZoneKey = sfTabKey('LTPZone');
+    const showingZones = (key === ltpZoneKey);
+    sfMarkers.forEach(({ mapObj, type }) => {
+      if (type !== 'LTPZone') return;
+      if (showingZones) {
+        if (!mapInstance.hasLayer(mapObj)) mapObj.addTo(mapInstance);
+      } else {
+        if (mapInstance.hasLayer(mapObj)) mapInstance.removeLayer(mapObj);
+      }
+    });
+    if (!showingZones) clearCMCMarkers();
+  }
 }
 
 /**
@@ -8664,6 +9879,37 @@ function switchTab(key) {
  * for all SF types including the legacy Borehole/Sounding/Well types.
  */
 function selectSF(type, id) {
+  // RIFoundationSystem uses the accordion — delegate entirely to toggleRIFS
+  if (type === 'RIFoundationSystem') {
+    window._selectedFeatureId = id;
+    clearSelections();
+    switchTab(sfTabKey(type));
+    const headerTr = document.getElementById(`sfrow-${id}`);
+    const tbody    = headerTr ? headerTr.closest('tbody') : null;
+    if (headerTr && tbody) {
+      // If already expanded, leave it; otherwise expand it
+      if (!headerTr.classList.contains('expanded')) {
+        toggleRIFS(id, headerTr, tbody);
+      } else {
+        headerTr.classList.add('selected');
+        headerTr.scrollIntoView({ block: 'nearest' });
+        // Re-highlight map polygon
+        const entry = sfMarkers.get(id);
+        if (entry && mapInstance && typeof entry.mapObj.setStyle === 'function') {
+          const cfg = SF_TYPE_CONFIG['RIFoundationSystem'] || {};
+          const mc = cfg.marker || {};
+          entry.mapObj.setStyle({ color: '#00FEFC', weight: (mc.weight || 2) + 1.5,
+            fillColor: mc.fillColor || '#e05c00', fillOpacity: 0.25 });
+        }
+        // Show RIFS detail (user may be coming from an RI or LTP selection)
+        const rifsSFs = DIGGS_SF.get('RIFoundationSystem') || [];
+        const rifsSF = rifsSFs.find(s => s.id === id);
+        if (rifsSF) showSFDetail(rifsSF);
+      }
+    }
+    return;
+  }
+
   window._selectedFeatureId = id;
   clearSelections();
   switchTab(sfTabKey(type));
@@ -8675,16 +9921,28 @@ function selectSF(type, id) {
   const sf = allSFs.find(s => s.id === id);
   if (!sf) return;
 
-  // For installations (Wells etc.) also highlight the parent SF row + marker
+  // For installations and LTPZones, also highlight the parent SF row + marker
   if (sf.parentRef) {
     const parentRow = document.getElementById(`sfrow-${sf.parentRef}`);
     if (parentRow) parentRow.classList.add('selected');
     const parentEntry = sfMarkers.get(sf.parentRef);
-    if (parentEntry) parentEntry.mapObj.setIcon(makeSFIcon(parentEntry.type, true));
-    // Pan to parent's location (installations share parent coordinates)
-    const parentSF = allSFs.find(s => s.id === sf.parentRef);
-    if (parentSF && parentSF.lat && parentSF.lon && mapInstance) {
-      mapInstance.panTo([parentSF.lat, parentSF.lon]);
+    if (parentEntry) {
+      const parentGeom = SF_TYPE_CONFIG[parentEntry.type]
+        ? SF_TYPE_CONFIG[parentEntry.type].mapGeom : 'point';
+      if (parentGeom === 'polygon' && typeof parentEntry.mapObj.setStyle === 'function') {
+        // Brighten the parent polygon border to indicate association
+        parentEntry.mapObj.setStyle({ color: '#ffcc00', weight: 3, opacity: 1.0 });
+      } else if (parentGeom === 'point' || parentGeom === 'installation') {
+        parentEntry.mapObj.setIcon(makeSFIcon(parentEntry.type, true));
+      }
+    }
+    // For RigidInclusion (installation), pan to parent borehole; for LTPZone
+    // we fit to the zone polygon itself below, so skip panning to parent here.
+    if (SF_TYPE_CONFIG[type] && SF_TYPE_CONFIG[type].mapGeom === 'installation') {
+      const parentSF = allSFs.find(s => s.id === sf.parentRef);
+      if (parentSF && parentSF.lat && parentSF.lon && mapInstance) {
+        mapInstance.panTo([parentSF.lat, parentSF.lon]);
+      }
     }
   }
 
@@ -9100,11 +10358,49 @@ function showSFDetail(sf) {
     }
   }
 
-  // ── Post-render: LTP zone mini-map ──────────────────────────────────────────
-  // initLTPZoneMap needs the map div to be in the DOM; defer two frames so
-  // the detail-content-scroll innerHTML has been painted and measured.
-  if (sf.type === 'LoadTransferPlatform') {
-    requestAnimationFrame(() => requestAnimationFrame(() => initLTPZoneMap(sf)));
+  // ── Post-render: LTPZone CMC dot markers ──────────────────────────────────
+  // Parse columnTopLocations posList to get WGS84 coords for every CMC column,
+  // then place tiny dot markers on the main map. The table rows (already in DOM)
+  // wire up bidirectional highlight via _selectCMCRow.
+  if (sf.type === 'LTPZone') {
+    requestAnimationFrame(() => {
+      const el = sf.el;
+
+      // ── Get parallel arrays from CMCArray ──────────────────────
+      const cmcArrEl = el.getElementsByTagNameNS(NS.diggs, 'CMCArray')[0] || null;
+      if (!cmcArrEl) return;
+
+      const colIdsEl = cmcArrEl.getElementsByTagNameNS(NS.diggs, 'columnIds')[0] || null;
+      const allIds   = colIdsEl
+        ? (colIdsEl.textContent || '').trim().split(/\s+/).filter(Boolean) : [];
+      if (!allIds.length) return;
+
+      // columnTopLocations/MultiPointLocation/gml:posList
+      const mplEl    = cmcArrEl.getElementsByTagNameNS(NS.diggs, 'MultiPointLocation')[0] || null;
+      if (!mplEl) return;
+      const posListEl = mplEl.getElementsByTagNameNS(NS.gml, 'posList')[0] || null;
+      if (!posListEl) return;
+
+      const srsName = mplEl.getAttribute('srsName') || '';
+      const dim     = parseInt(mplEl.getAttribute('srsDimension') || '3');
+      const tokens  = (posListEl.textContent || '').trim().split(/\s+/).map(Number);
+
+      // Build cmcData: {id, lat, lon} for each column that projects successfully
+      const cmcData = [];
+      for (let i = 0; i < allIds.length; i++) {
+        const base = i * dim;
+        if (base + 1 >= tokens.length) break;
+        const geo = toWGS84([tokens[base], tokens[base + 1]], srsName);
+        if (geo.lat !== null && !isNaN(geo.lat)) {
+          cmcData.push({ id: allIds[i], lat: geo.lat, lon: geo.lon });
+        }
+      }
+
+      showCMCMarkers(sf.id, cmcData);
+    });
+  } else {
+    // Selecting any non-LTPZone SF clears CMC dots
+    clearCMCMarkers();
   }
 
   // Clear assoc panel when a new feature is selected (badges take over)
@@ -9126,13 +10422,6 @@ function showDetail(html) {
   document.getElementById('detail-placeholder').style.display = 'none';
   const dc = document.getElementById('detail-content');
   dc.style.display = 'flex';
-  // Clean up any LTP zone mini-maps whose divs are about to be destroyed
-  if (typeof _ltpZoneMaps !== 'undefined') {
-    for (const [id, entry] of _ltpZoneMaps) {
-      try { entry.map.remove(); } catch(e) {}
-    }
-    _ltpZoneMaps.clear();
-  }
   // Split into fixed (sections 1–3) and scroll (section 4) containers
   dc.innerHTML = `<div id="detail-content-fixed">${html}</div><div id="detail-content-scroll"></div>`;
 }
@@ -9274,7 +10563,12 @@ function buildMeasTable(procType, procObj, rows, depthUom) {
     const rowData = (r.rowValues && r.rowValues[0]) || [];
     const localPropNames = r.props.map(p => p.name);
     const valByName = new Map();
-    localPropNames.forEach((n, i) => valByName.set(n, (rowData[i] || '').trim()));
+    localPropNames.forEach((n, i) => {
+      let v = (rowData[i] || '').trim();
+      // Strip surrounding double-quotes from quoted text values (e.g. "Loose Sand" → Loose Sand)
+      if (v.length >= 2 && v.startsWith('"') && v.endsWith('"')) v = v.slice(1, -1).trim();
+      valByName.set(n, v);
+    });
 
     for (const [colName] of resultCols) {
       const val = valByName.has(colName) ? valByName.get(colName) : '';
