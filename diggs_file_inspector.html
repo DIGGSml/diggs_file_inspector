@@ -1929,7 +1929,9 @@ async function prefetchUnknownCRS() {
           const geo = toWGS84(ltpSF.rawPos, ltpSF.rawSrsName);
           if (geo.lat !== null) {
             ltpSF.lat = geo.lat; ltpSF.lon = geo.lon;
-            ltpSF.horizEPSG = geo.horizEPSG; ltpSF.vertEPSG = geo.vertEPSG;
+            if (geo.elev !== null) ltpSF.elev = geo.elev;  // don't overwrite fallback elev
+            ltpSF.horizEPSG = geo.horizEPSG;
+            if (geo.vertEPSG) ltpSF.vertEPSG = geo.vertEPSG; // don't clear fallback vertEPSG
             ltpSF.crsTransformed = geo.transformed; ltpSF.crsWarning = geo.warning;
           }
         } else if (ltpSF.crsWarning) {
@@ -1947,7 +1949,7 @@ async function prefetchUnknownCRS() {
           if (riSF.lat === null && riSF.rawPos && riSF.rawSrsName) {
             const geo = toWGS84(riSF.rawPos, riSF.rawSrsName);
             if (geo.lat !== null) {
-              riSF.lat = geo.lat; riSF.lon = geo.lon;
+              riSF.lat = geo.lat; riSF.lon = geo.lon; riSF.elev = geo.elev;
               riSF.horizEPSG = geo.horizEPSG; riSF.vertEPSG = geo.vertEPSG;
               riSF.crsTransformed = geo.transformed; riSF.crsWarning = geo.warning;
             }
@@ -2339,6 +2341,7 @@ let _rifsState = {
   rifsId:        null,         // id of currently expanded RIFS row
   ltpPolygons:   new Map(),    // ltpId → L.polygon on main map
   expandedLtpId: null,         // id of currently expanded LTP row
+  selectedRiId:  null,         // id of currently selected RI row (null if none)
   riMarkers:     new Map(),    // riId → L.circleMarker on main map
 };
 
@@ -6255,23 +6258,7 @@ function filterByProject(skipGeom) {
   if (!skipGeom) renderProjectGeometry();
 
   // ── Fit map to visible markers ────────────────────────────────
-  if (!skipGeom) {
-    const visibleLatLngs = [];
-    sfMarkers.forEach(({ mapObj, type }, sfId) => {
-      if (!ids || ids.has(sfId)) {
-        const geom = SF_TYPE_CONFIG[type] ? SF_TYPE_CONFIG[type].mapGeom : 'point';
-        if ((geom === 'line' || geom === 'polygon') && typeof mapObj.getBounds === 'function') {
-          const b = mapObj.getBounds();
-          if (b.isValid()) { visibleLatLngs.push(b.getSouthWest(), b.getNorthEast()); }
-        } else if (typeof mapObj.getLatLng === 'function') {
-          visibleLatLngs.push(mapObj.getLatLng());
-        }
-      }
-    });
-    if (visibleLatLngs.length > 0 && mapInstance) {
-      mapInstance.fitBounds(L.latLngBounds(visibleLatLngs), { padding: [40, 40], animate: true });
-    }
-  }
+  if (!skipGeom) fitToActiveProject();
 
   // Rebuild legend to reflect only types visible under the current project filter
   updateMapLegend(ids);
@@ -7301,6 +7288,30 @@ function loadDIGGS(doc, filename) {
             }
           }
 
+          // Elevation fallback: if referencePoint has no Z coordinate,
+          // use elevationTopLTP (with its srsName to derive the vertical CRS).
+          if ((ltpSF.elev === null || ltpSF.elev === undefined) && !ltpSF.vertEPSG) {
+            const etEl = ltpEl.getElementsByTagNameNS(NS.diggs, 'elevationTopLTP')[0];
+            if (etEl) {
+              const v = parseFloat(etEl.textContent);
+              if (!isNaN(v)) {
+                ltpSF.elev = v;
+                // elevUom from element uom attribute
+                ltpSF.elevUom = etEl.getAttribute('uom') || '';
+                // Derive vertEPSG from srsName on the elevationTopLTP element.
+                // The srsName may point directly to a vertical CRS (e.g. EPSG:5773),
+                // which parseEPSG returns as 'horiz' since it's a single-CRS URI.
+                // Check if the extracted code is in VERT_CRS to handle this correctly.
+                const srsName = etEl.getAttribute('srsName') || '';
+                if (srsName) {
+                  const { horiz, vert } = parseEPSG(srsName);
+                  const vertCode = vert || (horiz && VERT_CRS.has(horiz) ? horiz : null);
+                  if (vertCode) ltpSF.vertEPSG = vertCode;
+                }
+              }
+            }
+          }
+
           // Ensure rawSrsName is set so prefetchUnknownCRS can re-resolve polygon rings.
           // parseSamplingFeature sets rawSrsName from referencePoint; copy it so the
           // polygon featureExtent (same CRS) can also be re-resolved if CRS was unknown.
@@ -7444,17 +7455,16 @@ function loadDIGGS(doc, filename) {
   document.getElementById('load-screen').style.display  = 'none';
   document.getElementById('app-shell').style.display    = 'flex';
 
-  // Asynchronously enrich elevation units and water strike depth UOMs.
-  // Both run in background — UI is not blocked; cells update when ready.
-  enrichElevUnits();
+  // Asynchronously enrich water strike depth UOMs (independent of CRS).
   enrichLsrUoms(doc);
 
   // Prefetch any unknown CRS definitions from epsg.io, then init the map.
-  // prefetchUnknownCRS() resolves immediately if nothing is needed, so there is
-  // no delay for files that only use embedded CRS codes.
+  // enrichElevUnits runs AFTER prefetchUnknownCRS so that vertEPSG is correctly
+  // populated for features whose CRS had to be fetched (e.g. EPSG:9357 compound CRS).
   requestAnimationFrame(() => requestAnimationFrame(async () => {
     await prefetchUnknownCRS();
     initMap();
+    enrichElevUnits();   // runs after CRS fetch so vertEPSG is set on all nested SFs
   }));
 }
 
@@ -7463,6 +7473,14 @@ async function enrichElevUnits() {
   // Collect all SF objects from the unified registry.
   const allFeatures = [];
   for (const arr of DIGGS_SF.values()) allFeatures.push(...arr);
+
+  // Also add nested LTPs and RIs
+  for (const rifsSF of DIGGS_SF.get('RIFoundationSystem') || []) {
+    for (const ltpSF of rifsSF.ltps || []) {
+      allFeatures.push(ltpSF);
+      for (const riSF of ltpSF.ris || []) allFeatures.push(riSF);
+    }
+  }
 
   // Collect unique vertical CRS codes that need lookup
   const codes = [...new Set(allFeatures
@@ -8551,6 +8569,7 @@ function clearRIFSState() {
   }
   _rifsState.rifsId = null;
   _rifsState.expandedLtpId = null;
+  _rifsState.selectedRiId = null;
 }
 
 /**
@@ -8563,9 +8582,31 @@ function toggleRIFS(rifsId, headerTr, tbody) {
     clearRIFSState();
   }
 
-  // If already expanded, collapse
+  // If already expanded:
+  //   - If an LTP is currently selected → collapse all child tables, show RIFS detail
+  //   - If no LTP selected (RIFS is the active level) → collapse entire accordion
   if (headerTr.classList.contains('expanded')) {
-    clearRIFSState();
+    if (!_rifsState.expandedLtpId) {
+      clearRIFSState();
+      return;
+    }
+    // LTP (or RI) is active — collapse ALL child tables and show RIFS detail.
+    // Use clearRIFSState() to do full cleanup (removes LTP container, LTP polygons,
+    // RI markers, expanded class, resets all state), then re-select the row and
+    // show detail so the next click will cleanly re-expand.
+    const rifsSF3 = (DIGGS_SF.get('RIFoundationSystem') || []).find(s => s.id === rifsId);
+    clearRIFSState();   // removes expanded class, removes LTP table, clears all map layers
+    // Re-highlight RIFS row as selected (without expanded)
+    headerTr.classList.add('selected');
+    // Re-highlight RIFS polygon
+    const rifsEntry = sfMarkers.get(rifsId);
+    if (rifsEntry && mapInstance && typeof rifsEntry.mapObj.setStyle === 'function') {
+      const cfg = SF_TYPE_CONFIG['RIFoundationSystem'] || {};
+      const mc  = cfg.marker || {};
+      rifsEntry.mapObj.setStyle({ color: '#00FEFC', weight: (mc.weight || 2) + 1.5,
+        fillColor: mc.fillColor || '#e05c00', fillOpacity: 0.25 });
+    }
+    if (rifsSF3) showSFDetail(rifsSF3);
     return;
   }
 
@@ -8692,32 +8733,50 @@ function selectLTP(rifsId, ltpId) {
   const ltpSF = (rifsSF.ltps || []).find(l => l.id === ltpId);
   if (!ltpSF) return;
 
-  // If this LTP is already expanded: first click shows its detail, second click collapses
+  // If this LTP is already expanded:
   if (_rifsState.expandedLtpId === ltpId) {
-    // Check if the LTP row is already selected (highlighted) — if so, collapse
-    const ltpContTrCheck = document.getElementById(`rifs-ltp-${rifsId}`);
-    const ltpRowCheck = ltpContTrCheck ? ltpContTrCheck.querySelector(`tr[data-ltp-id="${ltpId}"]`) : null;
-    const alreadySelected = ltpRowCheck && ltpRowCheck.classList.contains('rifs-ltp-selected');
-    if (alreadySelected) {
-      // Second click on already-selected expanded LTP → collapse
+    if (_rifsState.selectedRiId) {
+      // RI is active → first click: collapse RI table and show LTP detail
       const riCont = document.getElementById(`rifs-ri-${ltpId}`);
       if (riCont) riCont.remove();
       _rifsState.riMarkers.forEach(m => {
         try { if (mapInstance && mapInstance.hasLayer(m)) mapInstance.removeLayer(m); } catch(e) {}
       });
       _rifsState.riMarkers.clear();
+      _rifsState.selectedRiId = null;
+      // Restore LTP row highlight
+      const ltpContTrA = document.getElementById(`rifs-ltp-${rifsId}`);
+      if (ltpContTrA) {
+        ltpContTrA.querySelectorAll('tr.rifs-ltp-selected').forEach(r => r.classList.remove('rifs-ltp-selected', 'rifs-ltp-expanded'));
+        const ltpRowA = ltpContTrA.querySelector(`tr[data-ltp-id="${ltpId}"]`);
+        if (ltpRowA) { ltpRowA.classList.add('rifs-ltp-selected', 'rifs-ltp-expanded'); ltpRowA.scrollIntoView({ block: 'nearest' }); }
+      }
+      // Restore LTP polygon highlight
+      _rifsState.ltpPolygons.forEach((poly, pid) => {
+        if (pid === ltpId) { poly.setStyle({ color: '#00FEFC', weight: 2.5, fillOpacity: 0.45 }); poly.bringToFront(); }
+        else { const ltp2 = (rifsSF.ltps || []).find(l => l.id === pid); poly.setStyle({ color: ltp2 ? ltp2.zoneColor : '#888', weight: 1.8, fillOpacity: 0.20 }); }
+      });
+      showSFDetail(ltpSF);
+      return;
+    } else {
+      // LTP is the active level → collapse LTP accordion
+      const riCont2 = document.getElementById(`rifs-ri-${ltpId}`);
+      if (riCont2) riCont2.remove();
+      _rifsState.riMarkers.forEach(m => {
+        try { if (mapInstance && mapInstance.hasLayer(m)) mapInstance.removeLayer(m); } catch(e) {}
+      });
+      _rifsState.riMarkers.clear();
       _rifsState.expandedLtpId = null;
-      if (ltpContTrCheck) ltpContTrCheck.querySelectorAll('tr.rifs-ltp-selected')
+      _rifsState.selectedRiId = null;
+      const ltpContTrB = document.getElementById(`rifs-ltp-${rifsId}`);
+      if (ltpContTrB) ltpContTrB.querySelectorAll('tr.rifs-ltp-selected')
         .forEach(r => r.classList.remove('rifs-ltp-selected', 'rifs-ltp-expanded'));
       _rifsState.ltpPolygons.forEach((poly, pid) => {
         const ltp2 = (rifsSF.ltps || []).find(l => l.id === pid);
-        const zc = ltp2 ? ltp2.zoneColor : '#888';
-        try { poly.setStyle({ color: zc, weight: 1.8, fillOpacity: 0.28 }); } catch(e) {}
+        try { poly.setStyle({ color: ltp2 ? ltp2.zoneColor : '#888', weight: 1.8, fillOpacity: 0.28 }); } catch(e) {}
       });
       return;
     }
-    // First click while RI is selected → just show LTP detail and highlight row
-    // (fall through to normal highlight + showSFDetail below)
   }
 
   // Highlight LTP row in the sub-table
@@ -8751,6 +8810,7 @@ function selectLTP(rifsId, ltpId) {
       try { if (mapInstance && mapInstance.hasLayer(m)) mapInstance.removeLayer(m); } catch(e) {}
     });
     _rifsState.riMarkers.clear();
+    _rifsState.selectedRiId = null;
   }
 
   // Show LTP detail
@@ -8868,6 +8928,7 @@ function selectRI(rifsId, ltpId, riId) {
     const riRow = riContTr.querySelector(`tr[data-ri-id="${riId}"]`);
     if (riRow) { riRow.classList.add('rifs-ri-selected'); riRow.scrollIntoView({ block: 'nearest' }); }
   }
+  _rifsState.selectedRiId = riId;
 
   // Highlight RI dot on map; dim others
   _rifsState.riMarkers.forEach((dot, did) => {
@@ -9229,6 +9290,7 @@ function initMap() {
   // Apply project filter to both table rows and map markers now that both exist
   // Pass true to skip geometry re-render (already done above)
   filterByProject(true);
+  // fitToActiveProject() is deferred to after invalidateSize (see setTimeout below)
 
     // ── Basemap switcher control (3 layers: Street, Dark, Satellite) ──
   const BASEMAPS = [
@@ -9402,44 +9464,14 @@ function initMap() {
   });
   new BasemapControl().addTo(mapInstance);
 
-  if (allLL.length > 0) {
-    let initialBounds = L.latLngBounds(allLL);
-    // Single point (or very tight cluster): pad bounds to guarantee non-zero area
-    // so tiles load correctly and the view is at a useful zoom level.
-    const sw = initialBounds.getSouthWest(), ne = initialBounds.getNorthEast();
-    const latSpan = ne.lat - sw.lat, lngSpan = ne.lng - sw.lng;
-    if (latSpan < 0.005 || lngSpan < 0.005) {
-      const pad = 0.008;  // ~0.9 km — sensible default for a single site
-      initialBounds = L.latLngBounds(
-        [sw.lat - pad, sw.lng - pad],
-        [ne.lat + pad, ne.lng + pad]
-      );
-    }
-    // Fit to active project's markers; fall back to all markers if none visible
-    {
-      const _proj = DIGGS_PROJECTS.find(p => p.id === DIGGS_ACTIVE_PROJECT);
-      const _ids  = (_proj && _proj.featureIds) ? _proj.featureIds : null;
-      const _pLL  = [];
-      sfMarkers.forEach(({ mapObj, type }, sfId) => {
-        if (!_ids || _ids.has(sfId)) {
-          const geom = SF_TYPE_CONFIG[type] ? SF_TYPE_CONFIG[type].mapGeom : 'point';
-          if ((geom === 'line' || geom === 'polygon') && typeof mapObj.getBounds === 'function') {
-            const b = mapObj.getBounds();
-            if (b.isValid()) { _pLL.push(b.getSouthWest(), b.getNorthEast()); }
-          } else if (typeof mapObj.getLatLng === 'function') {
-            _pLL.push(mapObj.getLatLng());
-          }
-        }
-      });
-      let _fitBounds = _pLL.length > 0 ? L.latLngBounds(_pLL) : initialBounds;
-      // Apply minimum-span pad so a single point or tight cluster loads tiles at a useful zoom
-      const _sw = _fitBounds.getSouthWest(), _ne = _fitBounds.getNorthEast();
-      if ((_ne.lat - _sw.lat) < 0.005 || (_ne.lng - _sw.lng) < 0.005) {
-        const _pad = 0.008;
-        _fitBounds = L.latLngBounds([_sw.lat - _pad, _sw.lng - _pad], [_ne.lat + _pad, _ne.lng + _pad]);
-      }
-      mapInstance.fitBounds(_fitBounds, { padding: [30, 30] });
-    }
+  // Scale bar — bottom-left, dual metric/imperial
+  L.control.scale({ position: 'bottomleft', maxWidth: 150, metric: true, imperial: true })
+    .addTo(mapInstance);
+
+
+  // fitToActiveProject() called above handles the initial fit.
+  // If no markers exist at all, show a neutral world view.
+  if (allLL.length === 0) mapInstance.setView([0, 0], 2);
 
     // ── Home-extent control ───────────────────────────
     const HomeControl = L.Control.extend({
@@ -9493,15 +9525,13 @@ function initMap() {
     });
     window._axisWarnCtrl = new AxisWarnControl().addTo(mapInstance);
 
-  } else {
-    mapInstance.setView([0, 0], 2);
-    new BasemapControl().addTo(mapInstance);
-  }
-
   // Force Leaflet to remeasure the container after the grid has fully settled.
   // This is the key fix for tiles only loading in segments on first open.
+  // Also call fitToActiveProject AFTER invalidateSize so the map has correct
+  // dimensions before computing bounds — otherwise fitBounds uses wrong pixel size.
   setTimeout(() => {
     mapInstance && mapInstance.invalidateSize({ animate: false });
+    fitToActiveProject();
   }, 100);
 
   // Show axis-swap warning if any mapped feature had coordinates auto-corrected
@@ -9808,10 +9838,11 @@ function fitToActiveProject() {
 
   if (!lls.length) return;
   let bounds = L.latLngBounds(lls);
-  // Ensure minimum span so a single point or tight cluster loads at a useful zoom
+  // Ensure minimum span so a single point or very tight cluster gets a useful zoom.
+  // 0.0005° ≈ 55 m — if the site fits within that, pad to 0.001° (~110 m) each side.
   const sw = bounds.getSouthWest(), ne = bounds.getNorthEast();
-  if ((ne.lat - sw.lat) < 0.005 || (ne.lng - sw.lng) < 0.005) {
-    const pad = 0.008;
+  if ((ne.lat - sw.lat) < 0.0005 || (ne.lng - sw.lng) < 0.0005) {
+    const pad = 0.001;
     bounds = L.latLngBounds([sw.lat - pad, sw.lng - pad], [ne.lat + pad, ne.lng + pad]);
   }
   mapInstance.fitBounds(bounds, { padding: [30, 30], animate: true });
