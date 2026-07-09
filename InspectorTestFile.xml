@@ -761,14 +761,14 @@
 			<referencePoint>
 				<PointLocation srsDimension="3"
 					srsName="https://www.opengis.net/def/crs-compound?1=http://www.opengis.net/def/crs/EPSG/0/4326%262=http://www.opengis.net/def/crs/EPSG/0/6360"
-					uomLabels="dega dega ft" gml:id="tnz_5m2_s3c">
+					uomLabels="dega dega ftUS" gml:id="tnz_5m2_s3c">
 					<gml:pos>33.434467 -84.247361 318.00</gml:pos>
 				</PointLocation>
 			</referencePoint>
 			<centerLine>
 				<LinearExtent gml:id="cl-BH-33" srsDimension="3"
 					srsName="https://www.opengis.net/def/crs-compound?1=http://www.opengis.net/def/crs/EPSG/0/4326%262=http://www.opengis.net/def/crs/EPSG/0/6360"
-					uomLabels="dega dega ft">
+					uomLabels="dega dega ftUS">
 					<gml:posList>33.434467 -84.247361 318.00 33.434467 -84.247361 278</gml:posList>
 				</LinearExtent>
 			</centerLine>
@@ -1386,7 +1386,7 @@
 			<referencePoint>
 				<PointLocation srsDimension="3"
 					srsName="https://www.opengis.net/def/crs-compound?1=http://www.opengis.net/def/crs/EPSG/0/4326%262=http://www.opengis.net/def/crs/EPSG/0/6360"
-					uomLabels="dega dega ft" gml:id="gpz_5m2_s3c">
+					uomLabels="dega dega ftUS" gml:id="gpz_5m2_s3c">
 					<gml:pos>33.854711 -84.247407 320.00</gml:pos>
 				</PointLocation>
 			</referencePoint>
@@ -1395,7 +1395,7 @@
 			<centerLine>
 				<LinearExtent gml:id="cl-BH-34" srsDimension="3"
 					srsName="https://www.opengis.net/def/crs-compound?1=http://www.opengis.net/def/crs/EPSG/0/4326%262=http://www.opengis.net/def/crs/EPSG/0/6360"
-					uomLabels="dega dega ft">
+					uomLabels="dega dega ftUS">
 					<gml:posList>33.854711 -84.247407 320.00 33.854711 -84.247407 280</gml:posList>
 				</LinearExtent>
 			</centerLine>
@@ -1507,14 +1507,14 @@
 			<referencePoint>
 				<PointLocation srsDimension="3"
 					srsName="https://www.opengis.net/def/crs-compound?1=http://www.opengis.net/def/crs/EPSG/0/4326%262=http://www.opengis.net/def/crs/EPSG/0/6360"
-					uomLabels="dega dega ft" gml:id="jpz_5m2_s3c">
+					uomLabels="dega dega ftUS" gml:id="jpz_5m2_s3c">
 					<gml:pos>33.854467 -84.247361 319.00</gml:pos>
 				</PointLocation>
 			</referencePoint>
 			<centerLine>
 				<LinearExtent gml:id="cl-BH-33A" srsDimension="3"
 					srsName="https://www.opengis.net/def/crs-compound?1=http://www.opengis.net/def/crs/EPSG/0/4326%262=http://www.opengis.net/def/crs/EPSG/0/6360"
-					uomLabels="dega dega ft">
+					uomLabels="dega dega ftUS">
 					<gml:posList>33.854467 -84.247361 319.00 33.854467 -84.247361 294</gml:posList>
 				</LinearExtent>
 			</centerLine>
@@ -1525,7 +1525,7 @@
 					<referencePoint>
 						<PointLocation srsDimension="3"
 							srsName="https://www.opengis.net/def/crs-compound?1=http://www.opengis.net/def/crs/EPSG/0/4326%262=http://www.opengis.net/def/crs/EPSG/0/6360"
-							uomLabels="dega dega ft" gml:id="kpz_5m2_s3c">
+							uomLabels="dega dega ftUS" gml:id="kpz_5m2_s3c">
 							<gml:pos>33.854467 -84.247361 319.00</gml:pos>
 						</PointLocation>
 					</referencePoint>
@@ -1609,14 +1609,14 @@
 			<referencePoint>
 				<PointLocation srsDimension="3"
 					srsName="https://www.opengis.net/def/crs-compound?1=http://www.opengis.net/def/crs/EPSG/0/4326%262=http://www.opengis.net/def/crs/EPSG/0/6360"
-					uomLabels="dega dega ft" gml:id="qpz_5m2_s3c">
+					uomLabels="dega dega ftUS" gml:id="qpz_5m2_s3c">
 					<gml:pos>33.854467 -84.247361 318.50</gml:pos>
 				</PointLocation>
 			</referencePoint>
 			<centerLine>
 				<LinearExtent gml:id="cl-BH-33B" srsDimension="3"
 					srsName="https://www.opengis.net/def/crs-compound?1=http://www.opengis.net/def/crs/EPSG/0/4326%262=http://www.opengis.net/def/crs/EPSG/0/6360"
-					uomLabels="dega dega ft">
+					uomLabels="dega dega ftUS">
 					<gml:posList>33.854467 -84.247361 318.50 33.854467 -84.247361
 						283.5</gml:posList>
 				</LinearExtent>
@@ -1628,7 +1628,7 @@
 					<referencePoint>
 						<PointLocation srsDimension="3"
 							srsName="https://www.opengis.net/def/crs-compound?1=http://www.opengis.net/def/crs/EPSG/0/4326%262=http://www.opengis.net/def/crs/EPSG/0/6360"
-							uomLabels="dega dega ft" gml:id="rpz_5m2_s3c">
+							uomLabels="dega dega ftUS" gml:id="rpz_5m2_s3c">
 							<gml:pos>33.854467 -84.247361 318.50</gml:pos>
 						</PointLocation>
 					</referencePoint>
@@ -2303,14 +2303,14 @@
 			<referencePoint>
 				<PointLocation srsDimension="3"
 					srsName="https://www.opengis.net/def/crs-compound?1=http://www.opengis.net/def/crs/EPSG/0/4326%262=http://www.opengis.net/def/crs/EPSG/0/6360"
-					uomLabels="dega dega ft" gml:id="vpz_5m2_s3c">
+					uomLabels="dega dega ftUS" gml:id="vpz_5m2_s3c">
 					<gml:pos>30.429139 -91.212861 19.00</gml:pos>
 				</PointLocation>
 			</referencePoint>
 			<centerLine>
 				<LinearExtent gml:id="cl-B-01" srsDimension="3"
 					srsName="https://www.opengis.net/def/crs-compound?1=http://www.opengis.net/def/crs/EPSG/0/4326%262=http://www.opengis.net/def/crs/EPSG/0/6360"
-					uomLabels="dega dega ft">
+					uomLabels="dega dega ftUS">
 					<gml:posList>30.429139 -91.212861 19.00 30.429139 -91.212861 -141</gml:posList>
 				</LinearExtent>
 			</centerLine>
@@ -2436,14 +2436,14 @@
 			<referencePoint>
 				<PointLocation srsDimension="3"
 					srsName="https://www.opengis.net/def/crs-compound?1=http://www.opengis.net/def/crs/EPSG/0/4326%262=http://www.opengis.net/def/crs/EPSG/0/6360"
-					uomLabels="dega dega ft" gml:id="cqz_5m2_s3c">
+					uomLabels="dega dega ftUS" gml:id="cqz_5m2_s3c">
 					<gml:pos>30.429611 -91.212972 19.00</gml:pos>
 				</PointLocation>
 			</referencePoint>
 			<centerLine>
 				<LinearExtent gml:id="cl-B-02" srsDimension="3"
 					srsName="https://www.opengis.net/def/crs-compound?1=http://www.opengis.net/def/crs/EPSG/0/4326%262=http://www.opengis.net/def/crs/EPSG/0/6360"
-					uomLabels="dega dega ft">
+					uomLabels="dega dega ftUS">
 					<gml:posList>30.429611 -91.212972 19.00 30.429611 -91.212972 -141</gml:posList>
 				</LinearExtent>
 			</centerLine>
@@ -2569,14 +2569,14 @@
 			<referencePoint>
 				<PointLocation srsDimension="3"
 					srsName="https://www.opengis.net/def/crs-compound?1=http://www.opengis.net/def/crs/EPSG/0/4326%262=http://www.opengis.net/def/crs/EPSG/0/6360"
-					uomLabels="dega dega ft" gml:id="gqz_5m2_s3c">
+					uomLabels="dega dega ftUS" gml:id="gqz_5m2_s3c">
 					<gml:pos>30.429806 -91.212583 20.00</gml:pos>
 				</PointLocation>
 			</referencePoint>
 			<centerLine>
 				<LinearExtent gml:id="cl-B-03" srsDimension="3"
 					srsName="https://www.opengis.net/def/crs-compound?1=http://www.opengis.net/def/crs/EPSG/0/4326%262=http://www.opengis.net/def/crs/EPSG/0/6360"
-					uomLabels="dega dega ft">
+					uomLabels="dega dega ftUS">
 					<gml:posList>30.429806 -91.212583 20.00 30.429806 -91.212583 -140</gml:posList>
 				</LinearExtent>
 			</centerLine>
@@ -2702,14 +2702,14 @@
 			<referencePoint>
 				<PointLocation srsDimension="3"
 					srsName="https://www.opengis.net/def/crs-compound?1=http://www.opengis.net/def/crs/EPSG/0/4326%262=http://www.opengis.net/def/crs/EPSG/0/6360"
-					uomLabels="dega dega ft" gml:id="oqz_5m2_s3c">
+					uomLabels="dega dega ftUS" gml:id="oqz_5m2_s3c">
 					<gml:pos>30.430389 -91.212361 23.00</gml:pos>
 				</PointLocation>
 			</referencePoint>
 			<centerLine>
 				<LinearExtent gml:id="cl-B-04" srsDimension="3"
 					srsName="https://www.opengis.net/def/crs-compound?1=http://www.opengis.net/def/crs/EPSG/0/4326%262=http://www.opengis.net/def/crs/EPSG/0/6360"
-					uomLabels="dega dega ft">
+					uomLabels="dega dega ftUS">
 					<gml:posList>30.430389 -91.212361 23.00 30.430389 -91.212361 -137</gml:posList>
 				</LinearExtent>
 			</centerLine>
@@ -2835,14 +2835,14 @@
 			<referencePoint>
 				<PointLocation srsDimension="3"
 					srsName="https://www.opengis.net/def/crs-compound?1=http://www.opengis.net/def/crs/EPSG/0/4326%262=http://www.opengis.net/def/crs/EPSG/0/6360"
-					uomLabels="dega dega ft" gml:id="tqz_5m2_s3c">
+					uomLabels="dega dega ftUS" gml:id="tqz_5m2_s3c">
 					<gml:pos>30.430842 -91.211881 27.00</gml:pos>
 				</PointLocation>
 			</referencePoint>
 			<centerLine>
 				<LinearExtent gml:id="cl-B-05" srsDimension="3"
 					srsName="https://www.opengis.net/def/crs-compound?1=http://www.opengis.net/def/crs/EPSG/0/4326%262=http://www.opengis.net/def/crs/EPSG/0/6360"
-					uomLabels="dega dega ft">
+					uomLabels="dega dega ftUS">
 					<gml:posList>30.430842 -91.211881 27.00 30.430842 -91.211881 -133</gml:posList>
 				</LinearExtent>
 			</centerLine>
@@ -2968,14 +2968,14 @@
 			<referencePoint>
 				<PointLocation srsDimension="3"
 					srsName="https://www.opengis.net/def/crs-compound?1=http://www.opengis.net/def/crs/EPSG/0/4326%262=http://www.opengis.net/def/crs/EPSG/0/6360"
-					uomLabels="dega dega ft" gml:id="yqz_5m2_s3c">
+					uomLabels="dega dega ftUS" gml:id="yqz_5m2_s3c">
 					<gml:pos>30.430972 -91.211750 26.00</gml:pos>
 				</PointLocation>
 			</referencePoint>
 			<centerLine>
 				<LinearExtent gml:id="cl-B-06" srsDimension="3"
 					srsName="https://www.opengis.net/def/crs-compound?1=http://www.opengis.net/def/crs/EPSG/0/4326%262=http://www.opengis.net/def/crs/EPSG/0/6360"
-					uomLabels="dega dega ft">
+					uomLabels="dega dega ftUS">
 					<gml:posList>30.430972 -91.211750 26.00 30.430972 -91.211750 -134</gml:posList>
 				</LinearExtent>
 			</centerLine>
@@ -3096,14 +3096,14 @@
 			<referencePoint>
 				<PointLocation srsDimension="3"
 					srsName="https://www.opengis.net/def/crs-compound?1=http://www.opengis.net/def/crs/EPSG/0/4326%262=http://www.opengis.net/def/crs/EPSG/0/6360"
-					uomLabels="dega dega ft" gml:id="brz_5m2_s3c">
+					uomLabels="dega dega ftUS" gml:id="brz_5m2_s3c">
 					<gml:pos>30.431667 -91.211222 27.00</gml:pos>
 				</PointLocation>
 			</referencePoint>
 			<centerLine>
 				<LinearExtent gml:id="cl-B-07" srsDimension="3"
 					srsName="https://www.opengis.net/def/crs-compound?1=http://www.opengis.net/def/crs/EPSG/0/4326%262=http://www.opengis.net/def/crs/EPSG/0/6360"
-					uomLabels="dega dega ft">
+					uomLabels="dega dega ftUS">
 					<gml:posList>30.431667 -91.211222 27.00 30.431667 -91.211222 -133</gml:posList>
 				</LinearExtent>
 			</centerLine>
@@ -3229,14 +3229,14 @@
 			<referencePoint>
 				<PointLocation srsDimension="3"
 					srsName="https://www.opengis.net/def/crs-compound?1=http://www.opengis.net/def/crs/EPSG/0/4326%262=http://www.opengis.net/def/crs/EPSG/0/6360"
-					uomLabels="dega dega ft" gml:id="erz_5m2_s3c">
+					uomLabels="dega dega ftUS" gml:id="erz_5m2_s3c">
 					<gml:pos>30.432778 -91.210278 18.00</gml:pos>
 				</PointLocation>
 			</referencePoint>
 			<centerLine>
 				<LinearExtent gml:id="cl-B-08" srsDimension="3"
 					srsName="https://www.opengis.net/def/crs-compound?1=http://www.opengis.net/def/crs/EPSG/0/4326%262=http://www.opengis.net/def/crs/EPSG/0/6360"
-					uomLabels="dega dega ft">
+					uomLabels="dega dega ftUS">
 					<gml:posList>30.432778 -91.210278 18.00 30.432778 -91.210278 -142</gml:posList>
 				</LinearExtent>
 			</centerLine>
@@ -3362,14 +3362,14 @@
 			<referencePoint>
 				<PointLocation srsDimension="3"
 					srsName="https://www.opengis.net/def/crs-compound?1=http://www.opengis.net/def/crs/EPSG/0/4326%262=http://www.opengis.net/def/crs/EPSG/0/6360"
-					uomLabels="dega dega ft" gml:id="jrz_5m2_s3c">
+					uomLabels="dega dega ftUS" gml:id="jrz_5m2_s3c">
 					<gml:pos>30.433361 -91.210139 28.00</gml:pos>
 				</PointLocation>
 			</referencePoint>
 			<centerLine>
 				<LinearExtent gml:id="cl-B-09" srsDimension="3"
 					srsName="https://www.opengis.net/def/crs-compound?1=http://www.opengis.net/def/crs/EPSG/0/4326%262=http://www.opengis.net/def/crs/EPSG/0/6360"
-					uomLabels="dega dega ft">
+					uomLabels="dega dega ftUS">
 					<gml:posList>30.433361 -91.210139 28.00 30.433361 -91.210139 -132</gml:posList>
 				</LinearExtent>
 			</centerLine>
@@ -3495,14 +3495,14 @@
 			<referencePoint>
 				<PointLocation srsDimension="3"
 					srsName="https://www.opengis.net/def/crs-compound?1=http://www.opengis.net/def/crs/EPSG/0/4326%262=http://www.opengis.net/def/crs/EPSG/0/6360"
-					uomLabels="dega dega ft" gml:id="nrz_5m2_s3c">
+					uomLabels="dega dega ftUS" gml:id="nrz_5m2_s3c">
 					<gml:pos>30.434400 -91.209600 26.00</gml:pos>
 				</PointLocation>
 			</referencePoint>
 			<centerLine>
 				<LinearExtent gml:id="cl-B-10" srsDimension="3"
 					srsName="https://www.opengis.net/def/crs-compound?1=http://www.opengis.net/def/crs/EPSG/0/4326%262=http://www.opengis.net/def/crs/EPSG/0/6360"
-					uomLabels="dega dega ft">
+					uomLabels="dega dega ftUS">
 					<gml:posList>30.434400 -91.209600 26.00 30.434400 -91.209600 -134</gml:posList>
 				</LinearExtent>
 			</centerLine>
@@ -3713,14 +3713,14 @@
 			<referencePoint>
 				<PointLocation srsDimension="3"
 					srsName="https://www.opengis.net/def/crs-compound?1=http://www.opengis.net/def/crs/EPSG/0/4326%262=http://www.opengis.net/def/crs/EPSG/0/6360"
-					uomLabels="dega dega ft" gml:id="rrz_5m2_s3c">
+					uomLabels="dega dega ftUS" gml:id="rrz_5m2_s3c">
 					<gml:pos>30.431508 -91.211969 24.30</gml:pos>
 				</PointLocation>
 			</referencePoint>
 			<centerLine>
 				<LinearExtent gml:id="cl-BENT_9_MIDDLE_A" srsDimension="3"
 					srsName="https://www.opengis.net/def/crs-compound?1=http://www.opengis.net/def/crs/EPSG/0/4326%262=http://www.opengis.net/def/crs/EPSG/0/6360"
-					uomLabels="dega dega ft">
+					uomLabels="dega dega ftUS">
 					<gml:posList>30.431508 -91.211969 24.30 30.431508 -91.211969
 						-85.71</gml:posList>
 				</LinearExtent>
@@ -3780,14 +3780,14 @@
 			<referencePoint>
 				<PointLocation srsDimension="3"
 					srsName="https://www.opengis.net/def/crs-compound?1=http://www.opengis.net/def/crs/EPSG/0/4326%262=http://www.opengis.net/def/crs/EPSG/0/6360"
-					uomLabels="dega dega ft" gml:id="zrz_5m2_s3c">
+					uomLabels="dega dega ftUS" gml:id="zrz_5m2_s3c">
 					<gml:pos>30.428420 -91.213470 20.00</gml:pos>
 				</PointLocation>
 			</referencePoint>
 			<centerLine>
 				<LinearExtent gml:id="cl-CPT-01" srsDimension="3"
 					srsName="https://www.opengis.net/def/crs-compound?1=http://www.opengis.net/def/crs/EPSG/0/4326%262=http://www.opengis.net/def/crs/EPSG/0/6360"
-					uomLabels="dega dega ft">
+					uomLabels="dega dega ftUS">
 					<gml:posList>30.428420 -91.213470 20.00 30.428420 -91.213470
 						-84.99</gml:posList>
 				</LinearExtent>
@@ -3837,14 +3837,14 @@
 			<referencePoint>
 				<PointLocation srsDimension="3"
 					srsName="https://www.opengis.net/def/crs-compound?1=http://www.opengis.net/def/crs/EPSG/0/4326%262=http://www.opengis.net/def/crs/EPSG/0/6360"
-					uomLabels="dega dega ft" gml:id="hsz_5m2_s3c">
+					uomLabels="dega dega ftUS" gml:id="hsz_5m2_s3c">
 					<gml:pos>30.429060 -91.212940 24.00</gml:pos>
 				</PointLocation>
 			</referencePoint>
 			<centerLine>
 				<LinearExtent gml:id="cl-CPT-02" srsDimension="3"
 					srsName="https://www.opengis.net/def/crs-compound?1=http://www.opengis.net/def/crs/EPSG/0/4326%262=http://www.opengis.net/def/crs/EPSG/0/6360"
-					uomLabels="dega dega ft">
+					uomLabels="dega dega ftUS">
 					<gml:posList>30.429060 -91.212940 24.00 30.429060 -91.212940 -86.1</gml:posList>
 				</LinearExtent>
 			</centerLine>
@@ -3893,14 +3893,14 @@
 			<referencePoint>
 				<PointLocation srsDimension="3"
 					srsName="https://www.opengis.net/def/crs-compound?1=http://www.opengis.net/def/crs/EPSG/0/4326%262=http://www.opengis.net/def/crs/EPSG/0/6360"
-					uomLabels="dega dega ft" gml:id="lsz_5m2_s3c">
+					uomLabels="dega dega ftUS" gml:id="lsz_5m2_s3c">
 					<gml:pos>30.429270 -91.213700 23.35</gml:pos>
 				</PointLocation>
 			</referencePoint>
 			<centerLine>
 				<LinearExtent gml:id="cl-CPT-02A" srsDimension="3"
 					srsName="https://www.opengis.net/def/crs-compound?1=http://www.opengis.net/def/crs/EPSG/0/4326%262=http://www.opengis.net/def/crs/EPSG/0/6360"
-					uomLabels="dega dega ft">
+					uomLabels="dega dega ftUS">
 					<gml:posList>30.429270 -91.213700 23.35 30.429270 -91.213700
 						-78.56</gml:posList>
 				</LinearExtent>
@@ -3944,14 +3944,14 @@
 			<referencePoint>
 				<PointLocation srsDimension="3"
 					srsName="https://www.opengis.net/def/crs-compound?1=http://www.opengis.net/def/crs/EPSG/0/4326%262=http://www.opengis.net/def/crs/EPSG/0/6360"
-					uomLabels="dega dega ft" gml:id="psz_5m2_s3c">
+					uomLabels="dega dega ftUS" gml:id="psz_5m2_s3c">
 					<gml:pos>30.429480 -91.212680 23.00</gml:pos>
 				</PointLocation>
 			</referencePoint>
 			<centerLine>
 				<LinearExtent gml:id="cl-CPT-03" srsDimension="3"
 					srsName="https://www.opengis.net/def/crs-compound?1=http://www.opengis.net/def/crs/EPSG/0/4326%262=http://www.opengis.net/def/crs/EPSG/0/6360"
-					uomLabels="dega dega ft">
+					uomLabels="dega dega ftUS">
 					<gml:posList>30.429480 -91.212680 23.00 30.429480 -91.212680
 						-79.43</gml:posList>
 				</LinearExtent>
@@ -4001,14 +4001,14 @@
 			<referencePoint>
 				<PointLocation srsDimension="3"
 					srsName="https://www.opengis.net/def/crs-compound?1=http://www.opengis.net/def/crs/EPSG/0/4326%262=http://www.opengis.net/def/crs/EPSG/0/6360"
-					uomLabels="dega dega ft" gml:id="usz_5m2_s3c">
+					uomLabels="dega dega ftUS" gml:id="usz_5m2_s3c">
 					<gml:pos>30.429560 -91.213500 23.57</gml:pos>
 				</PointLocation>
 			</referencePoint>
 			<centerLine>
 				<LinearExtent gml:id="cl-CPT-03A" srsDimension="3"
 					srsName="https://www.opengis.net/def/crs-compound?1=http://www.opengis.net/def/crs/EPSG/0/4326%262=http://www.opengis.net/def/crs/EPSG/0/6360"
-					uomLabels="dega dega ft">
+					uomLabels="dega dega ftUS">
 					<gml:posList>30.429560 -91.213500 23.57 30.429560 -91.213500
 						-74.74</gml:posList>
 				</LinearExtent>
@@ -4052,14 +4052,14 @@
 			<referencePoint>
 				<PointLocation srsDimension="3"
 					srsName="https://www.opengis.net/def/crs-compound?1=http://www.opengis.net/def/crs/EPSG/0/4326%262=http://www.opengis.net/def/crs/EPSG/0/6360"
-					uomLabels="dega dega ft" gml:id="ysz_5m2_s3c">
+					uomLabels="dega dega ftUS" gml:id="ysz_5m2_s3c">
 					<gml:pos>30.430290 -91.212470 24.00</gml:pos>
 				</PointLocation>
 			</referencePoint>
 			<centerLine>
 				<LinearExtent gml:id="cl-CPT-04" srsDimension="3"
 					srsName="https://www.opengis.net/def/crs-compound?1=http://www.opengis.net/def/crs/EPSG/0/4326%262=http://www.opengis.net/def/crs/EPSG/0/6360"
-					uomLabels="dega dega ft">
+					uomLabels="dega dega ftUS">
 					<gml:posList>30.430290 -91.212470 24.00 30.430290 -91.212470
 						-82.17</gml:posList>
 				</LinearExtent>
@@ -4109,14 +4109,14 @@
 			<referencePoint>
 				<PointLocation srsDimension="3"
 					srsName="https://www.opengis.net/def/crs-compound?1=http://www.opengis.net/def/crs/EPSG/0/4326%262=http://www.opengis.net/def/crs/EPSG/0/6360"
-					uomLabels="dega dega ft" gml:id="btz_5m2_s3c">
+					uomLabels="dega dega ftUS" gml:id="btz_5m2_s3c">
 					<gml:pos>30.429810 -91.213200 23.70</gml:pos>
 				</PointLocation>
 			</referencePoint>
 			<centerLine>
 				<LinearExtent gml:id="cl-CPT-04A" srsDimension="3"
 					srsName="https://www.opengis.net/def/crs-compound?1=http://www.opengis.net/def/crs/EPSG/0/4326%262=http://www.opengis.net/def/crs/EPSG/0/6360"
-					uomLabels="dega dega ft">
+					uomLabels="dega dega ftUS">
 					<gml:posList>30.429810 -91.213200 23.70 30.429810 -91.213200
 						-78.81</gml:posList>
 				</LinearExtent>
@@ -4160,14 +4160,14 @@
 			<referencePoint>
 				<PointLocation srsDimension="3"
 					srsName="https://www.opengis.net/def/crs-compound?1=http://www.opengis.net/def/crs/EPSG/0/4326%262=http://www.opengis.net/def/crs/EPSG/0/6360"
-					uomLabels="dega dega ft" gml:id="etz_5m2_s3c">
+					uomLabels="dega dega ftUS" gml:id="etz_5m2_s3c">
 					<gml:pos>30.430580 -91.212060 24.00</gml:pos>
 				</PointLocation>
 			</referencePoint>
 			<centerLine>
 				<LinearExtent gml:id="cl-CPT-05" srsDimension="3"
 					srsName="https://www.opengis.net/def/crs-compound?1=http://www.opengis.net/def/crs/EPSG/0/4326%262=http://www.opengis.net/def/crs/EPSG/0/6360"
-					uomLabels="dega dega ft">
+					uomLabels="dega dega ftUS">
 					<gml:posList>30.430580 -91.212060 24.00 30.430580 -91.212060
 						-85.51</gml:posList>
 				</LinearExtent>
@@ -4217,14 +4217,14 @@
 			<referencePoint>
 				<PointLocation srsDimension="3"
 					srsName="https://www.opengis.net/def/crs-compound?1=http://www.opengis.net/def/crs/EPSG/0/4326%262=http://www.opengis.net/def/crs/EPSG/0/6360"
-					uomLabels="dega dega ft" gml:id="htz_5m2_s3c">
+					uomLabels="dega dega ftUS" gml:id="htz_5m2_s3c">
 					<gml:pos>30.430000 -91.213000 23.99</gml:pos>
 				</PointLocation>
 			</referencePoint>
 			<centerLine>
 				<LinearExtent gml:id="cl-CPT-05A" srsDimension="3"
 					srsName="https://www.opengis.net/def/crs-compound?1=http://www.opengis.net/def/crs/EPSG/0/4326%262=http://www.opengis.net/def/crs/EPSG/0/6360"
-					uomLabels="dega dega ft">
+					uomLabels="dega dega ftUS">
 					<gml:posList>30.430000 -91.213000 23.99 30.430000 -91.213000
 						-79.22</gml:posList>
 				</LinearExtent>
@@ -4268,14 +4268,14 @@
 			<referencePoint>
 				<PointLocation srsDimension="3"
 					srsName="https://www.opengis.net/def/crs-compound?1=http://www.opengis.net/def/crs/EPSG/0/4326%262=http://www.opengis.net/def/crs/EPSG/0/6360"
-					uomLabels="dega dega ft" gml:id="ktz_5m2_s3c">
+					uomLabels="dega dega ftUS" gml:id="ktz_5m2_s3c">
 					<gml:pos>30.431080 -91.211670 24.00</gml:pos>
 				</PointLocation>
 			</referencePoint>
 			<centerLine>
 				<LinearExtent gml:id="cl-CPT-06" srsDimension="3"
 					srsName="https://www.opengis.net/def/crs-compound?1=http://www.opengis.net/def/crs/EPSG/0/4326%262=http://www.opengis.net/def/crs/EPSG/0/6360"
-					uomLabels="dega dega ft">
+					uomLabels="dega dega ftUS">
 					<gml:posList>30.431080 -91.211670 24.00 30.431080 -91.211670 -86.1</gml:posList>
 				</LinearExtent>
 			</centerLine>
@@ -4324,14 +4324,14 @@
 			<referencePoint>
 				<PointLocation srsDimension="3"
 					srsName="https://www.opengis.net/def/crs-compound?1=http://www.opengis.net/def/crs/EPSG/0/4326%262=http://www.opengis.net/def/crs/EPSG/0/6360"
-					uomLabels="dega dega ft" gml:id="ntz_5m2_s3c">
+					uomLabels="dega dega ftUS" gml:id="ntz_5m2_s3c">
 					<gml:pos>30.430300 -91.212700 23.80</gml:pos>
 				</PointLocation>
 			</referencePoint>
 			<centerLine>
 				<LinearExtent gml:id="cl-CPT-06A" srsDimension="3"
 					srsName="https://www.opengis.net/def/crs-compound?1=http://www.opengis.net/def/crs/EPSG/0/4326%262=http://www.opengis.net/def/crs/EPSG/0/6360"
-					uomLabels="dega dega ft">
+					uomLabels="dega dega ftUS">
 					<gml:posList>30.430300 -91.212700 23.80 30.430300 -91.212700
 						-80.11</gml:posList>
 				</LinearExtent>
@@ -4369,7 +4369,7 @@
 				<LinearExtent gml:id="Boring_1_cl" srsDimension="3"
 					srsName="https://www.opengis.net/def/crs-compound?1=http://www.opengis.net/def/crs/EPSG/0/4326%262=http://www.opengis.net/def/crs/EPSG/0/5702"
 					uomLabels="dega dega ftUS" axisLabels="latitude longitude height">
-					<gml:posList>38.01979089 -83.84532853 0 38.01979089 -83.84532853
+					<gml:posList>38.01979089 -83.84532853 797.753584 38.01979089 -83.84532853
 						737.753584</gml:posList>
 				</LinearExtent>
 			</centerLine>
@@ -4380,7 +4380,7 @@
 					<lrm xlink:href="https://diggsml.org/def/crs/DIGGS/0.1/lrm.xml#md_ft"/>
 				</LinearSpatialReferenceSystem>
 			</linearReferencing>
-			<totalMeasuredDepth uom="ft">60</totalMeasuredDepth>
+			<totalMeasuredDepth uom="ftUS">60</totalMeasuredDepth>
 		</Borehole>
 	</samplingFeature>
 	<samplingFeature>

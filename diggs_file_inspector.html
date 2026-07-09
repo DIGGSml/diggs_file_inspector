@@ -868,15 +868,23 @@ html,body{height:100%;font-family:var(--font-ui);background:var(--bg);color:var(
 #assoc-content {
   display:none;flex:1;overflow-y:auto;overflow-x:auto;padding:12px 16px;
 }
-/* ── SF ASSOC SECTION (badge grid + assoc panel) ─── */
-.sf-assoc-section { padding:12px 16px;border-bottom:1px solid var(--border); }
+/* ── SF ASSOC SECTION (badge grid + assoc panel) ───
+   Title rule mirrors .kv-section-header exactly (border-top+margin-top),
+   so each category grid gets a divider line above it, matching the
+   type-specific metadata sections. No bottom padding/border on the
+   section wrapper — the next section's own top rule provides separation,
+   so there's no extra whitespace gap below a grid. */
+.sf-assoc-section { padding:0 16px; }
 .sf-assoc-section-title {
   font-size:10px;font-weight:700;text-transform:uppercase;
-  letter-spacing:.06em;color:var(--accent);margin-bottom:8px;
-  padding-bottom:4px;border-bottom:1px solid var(--border);
+  letter-spacing:.06em;color:var(--accent);
+  padding:8px 0 4px;border-top:1px solid #6b7280;margin-top:6px;
+  cursor:pointer;user-select:none;display:flex;align-items:center;gap:6px;
 }
+.sf-assoc-section-title:hover { color:var(--text); }
+.sf-assoc-section-title:hover .kv-tri { color:var(--accent); }
 .assoc-badge-grid {
-  display:grid;grid-template-columns:1fr 1fr;gap:6px;
+  display:grid;grid-template-columns:1fr 1fr;gap:6px;padding-top:2px;
 }
 .assoc-badge {
   display:flex;align-items:center;justify-content:space-between;
@@ -994,9 +1002,23 @@ html,body{height:100%;font-family:var(--font-ui);background:var(--bg);color:var(
 .kv-val { color:var(--text);word-break:break-word;flex:1; }
 .kv-section-header {
   font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;
-  color:var(--accent);padding:8px 0 2px;border-bottom:1px solid var(--border);margin-bottom:2px;
+  color:var(--accent);padding:8px 0 4px;border-top:1px solid #6b7280;margin-top:6px;
+  cursor:pointer;user-select:none;display:flex;align-items:center;gap:6px;
 }
-.kv-section-header:first-child { padding-top:2px; }
+.kv-section-header:hover { color:var(--text); }
+.kv-tri {
+  display:inline-block;font-size:9px;line-height:1;color:var(--text-muted);
+  transition:color .15s ease;flex-shrink:0;
+}
+.kv-section-header:hover .kv-tri { color:var(--accent); }
+.kv-section-body { padding-top:2px; }
+/* codeSpace annotation next to a coded value: short link icon for URLs,
+   small muted parenthetical text for plain (e.g. organization-name) codeSpaces */
+.cs-tag { color:var(--text-muted);font-size:9.5px;word-break:break-all; }
+.cs-link {
+  text-decoration:none;font-size:11px;opacity:.6;margin-left:2px;display:inline-block;
+}
+.cs-link:hover { opacity:1; }
 /* Nested KV table rendered inside a kv-val cell */
 .kv-nested {
   border-left:2px solid var(--border);padding-left:8px;margin-top:2px;width:100%;
@@ -1163,7 +1185,7 @@ table.data-table tbody tr.selected {
 #detail-placeholder .ph-icon { font-size:48px;opacity:.3; }
 #detail-placeholder p { font-size:13px;text-align:center;max-width:200px; }
 #detail-content { flex:1;overflow:hidden;display:flex;flex-direction:column;min-height:0; }
-#detail-content-fixed { flex-shrink:0;overflow-y:auto;max-height:55%; }
+#detail-content-fixed { flex-shrink:0;overflow-y:auto;max-height:50%; }
 #detail-content-scroll { flex:1;overflow-y:auto;min-height:0; }
 .detail-header {
   padding:16px 20px 14px;border-bottom:1px solid var(--border);
@@ -1187,7 +1209,7 @@ table.data-table tbody tr.selected {
   letter-spacing:.5px;color:#8b96a8;margin-bottom:2px;
 }
 .meta-cell .meta-value {
-  font-family:var(--font-mono);font-size:13px;color:var(--accent);font-weight:500;
+  font-family:var(--font-mono);font-size:13px;color:var(--text);font-weight:500;
 }
 .detail-section { padding:14px 16px;border-bottom:1px solid var(--border); }
 .section-title {
@@ -1602,6 +1624,52 @@ const NS = {
   glr: 'http://www.opengis.net/gml/3.3/lr'
 };
 
+/**
+ * numTokens(text, keepNaN) — parse a whitespace-separated numeric list
+ * (gml:posList, DIGGS parallel arrays, etc.) into an array of Numbers.
+ * By default NaN entries are dropped; pass keepNaN=true for parallel-array
+ * parsing where positional alignment with a sibling list must be preserved.
+ */
+function numTokens(text, keepNaN) {
+  const arr = String(text == null ? '' : text).trim().split(/\s+/).map(Number);
+  return keepNaN ? arr : arr.filter(n => !isNaN(n));
+}
+
+/**
+ * getIdIndex(doc) — lazily-built Map of gml:id/id → element for a document.
+ * DOMParser XML has no DTD-declared IDs, so getElementById doesn't work and
+ * `querySelector('[*|id="…"]')` walks the whole document on every call —
+ * O(N) per lookup, hit per-measurement during parse and per-row in interval
+ * tables. One O(N) pass here makes every subsequent lookup O(1). Keyed by
+ * Document in a WeakMap so dictionary/remote docs get their own index and
+ * everything self-invalidates when a new file is loaded. First element in
+ * document order wins on duplicate ids (matching querySelector semantics).
+ */
+const _ID_INDEX_CACHE = new WeakMap();
+function getIdIndex(doc) {
+  let idx = _ID_INDEX_CACHE.get(doc);
+  if (idx) return idx;
+  idx = new Map();
+  for (const el of doc.getElementsByTagName('*')) {
+    const id = el.getAttributeNS(NS.gml, 'id') || el.getAttribute('id');
+    if (id && !idx.has(id)) idx.set(id, el);
+  }
+  _ID_INDEX_CACHE.set(doc, idx);
+  return idx;
+}
+
+/**
+ * resolveHref(el) — follow an xlink:href fragment reference on a property
+ * wrapper to its target element in the same document (via getIdIndex).
+ * Returns null when there is no href or no matching id.
+ */
+function resolveHref(el) {
+  const href = (el.getAttributeNS(NS.xlink, 'href')
+    || el.getAttribute('xlink:href') || '').replace(/^#/, '');
+  if (!href) return null;
+  return getIdIndex(el.ownerDocument).get(href) || null;
+}
+
 // ══════════════════════════════════════════════════════════════
 //  CRS / PROJECTION SUPPORT  (proj4js)
 // ══════════════════════════════════════════════════════════════
@@ -1618,7 +1686,7 @@ const VERT_CRS_INFO = {
   5703: { name:'NAVD88',       unit:'m'    },
   8228: { name:'NAVD88',       unit:'ft'   },
   6360: { name:'NAVD88',       unit:'ftUS' },
-  5702: { name:'NGVD29',       unit:'ft'   },
+  5702: { name:'NGVD29',       unit:'ftUS' },
   5714: { name:'MSL',          unit:'m'    },
   5715: { name:'MSL depth',    unit:'m'    },
   5773: { name:'EGM96',        unit:'m'    },
@@ -1671,7 +1739,7 @@ async function getVertCRSInfo(vertEPSG) {
 }
 
 // Embedded proj4 definitions for 235 common CRS codes
-const CRS_DEFS = {"EPSG:32601":"+proj=utm +zone=1 +datum=WGS84 +units=m +no_defs","EPSG:32701":"+proj=utm +zone=1 +south +datum=WGS84 +units=m +no_defs","EPSG:32602":"+proj=utm +zone=2 +datum=WGS84 +units=m +no_defs","EPSG:32702":"+proj=utm +zone=2 +south +datum=WGS84 +units=m +no_defs","EPSG:32603":"+proj=utm +zone=3 +datum=WGS84 +units=m +no_defs","EPSG:32703":"+proj=utm +zone=3 +south +datum=WGS84 +units=m +no_defs","EPSG:32604":"+proj=utm +zone=4 +datum=WGS84 +units=m +no_defs","EPSG:32704":"+proj=utm +zone=4 +south +datum=WGS84 +units=m +no_defs","EPSG:32605":"+proj=utm +zone=5 +datum=WGS84 +units=m +no_defs","EPSG:32705":"+proj=utm +zone=5 +south +datum=WGS84 +units=m +no_defs","EPSG:32606":"+proj=utm +zone=6 +datum=WGS84 +units=m +no_defs","EPSG:32706":"+proj=utm +zone=6 +south +datum=WGS84 +units=m +no_defs","EPSG:32607":"+proj=utm +zone=7 +datum=WGS84 +units=m +no_defs","EPSG:32707":"+proj=utm +zone=7 +south +datum=WGS84 +units=m +no_defs","EPSG:32608":"+proj=utm +zone=8 +datum=WGS84 +units=m +no_defs","EPSG:32708":"+proj=utm +zone=8 +south +datum=WGS84 +units=m +no_defs","EPSG:32609":"+proj=utm +zone=9 +datum=WGS84 +units=m +no_defs","EPSG:32709":"+proj=utm +zone=9 +south +datum=WGS84 +units=m +no_defs","EPSG:32610":"+proj=utm +zone=10 +datum=WGS84 +units=m +no_defs","EPSG:32710":"+proj=utm +zone=10 +south +datum=WGS84 +units=m +no_defs","EPSG:32611":"+proj=utm +zone=11 +datum=WGS84 +units=m +no_defs","EPSG:32711":"+proj=utm +zone=11 +south +datum=WGS84 +units=m +no_defs","EPSG:32612":"+proj=utm +zone=12 +datum=WGS84 +units=m +no_defs","EPSG:32712":"+proj=utm +zone=12 +south +datum=WGS84 +units=m +no_defs","EPSG:32613":"+proj=utm +zone=13 +datum=WGS84 +units=m +no_defs","EPSG:32713":"+proj=utm +zone=13 +south +datum=WGS84 +units=m +no_defs","EPSG:32614":"+proj=utm +zone=14 +datum=WGS84 +units=m +no_defs","EPSG:32714":"+proj=utm +zone=14 +south +datum=WGS84 +units=m +no_defs","EPSG:32615":"+proj=utm +zone=15 +datum=WGS84 +units=m +no_defs","EPSG:32715":"+proj=utm +zone=15 +south +datum=WGS84 +units=m +no_defs","EPSG:32616":"+proj=utm +zone=16 +datum=WGS84 +units=m +no_defs","EPSG:32716":"+proj=utm +zone=16 +south +datum=WGS84 +units=m +no_defs","EPSG:32617":"+proj=utm +zone=17 +datum=WGS84 +units=m +no_defs","EPSG:32717":"+proj=utm +zone=17 +south +datum=WGS84 +units=m +no_defs","EPSG:32618":"+proj=utm +zone=18 +datum=WGS84 +units=m +no_defs","EPSG:32718":"+proj=utm +zone=18 +south +datum=WGS84 +units=m +no_defs","EPSG:32619":"+proj=utm +zone=19 +datum=WGS84 +units=m +no_defs","EPSG:32719":"+proj=utm +zone=19 +south +datum=WGS84 +units=m +no_defs","EPSG:32620":"+proj=utm +zone=20 +datum=WGS84 +units=m +no_defs","EPSG:32720":"+proj=utm +zone=20 +south +datum=WGS84 +units=m +no_defs","EPSG:32621":"+proj=utm +zone=21 +datum=WGS84 +units=m +no_defs","EPSG:32721":"+proj=utm +zone=21 +south +datum=WGS84 +units=m +no_defs","EPSG:32622":"+proj=utm +zone=22 +datum=WGS84 +units=m +no_defs","EPSG:32722":"+proj=utm +zone=22 +south +datum=WGS84 +units=m +no_defs","EPSG:32623":"+proj=utm +zone=23 +datum=WGS84 +units=m +no_defs","EPSG:32723":"+proj=utm +zone=23 +south +datum=WGS84 +units=m +no_defs","EPSG:32624":"+proj=utm +zone=24 +datum=WGS84 +units=m +no_defs","EPSG:32724":"+proj=utm +zone=24 +south +datum=WGS84 +units=m +no_defs","EPSG:32625":"+proj=utm +zone=25 +datum=WGS84 +units=m +no_defs","EPSG:32725":"+proj=utm +zone=25 +south +datum=WGS84 +units=m +no_defs","EPSG:32626":"+proj=utm +zone=26 +datum=WGS84 +units=m +no_defs","EPSG:32726":"+proj=utm +zone=26 +south +datum=WGS84 +units=m +no_defs","EPSG:32627":"+proj=utm +zone=27 +datum=WGS84 +units=m +no_defs","EPSG:32727":"+proj=utm +zone=27 +south +datum=WGS84 +units=m +no_defs","EPSG:32628":"+proj=utm +zone=28 +datum=WGS84 +units=m +no_defs","EPSG:32728":"+proj=utm +zone=28 +south +datum=WGS84 +units=m +no_defs","EPSG:32629":"+proj=utm +zone=29 +datum=WGS84 +units=m +no_defs","EPSG:32729":"+proj=utm +zone=29 +south +datum=WGS84 +units=m +no_defs","EPSG:32630":"+proj=utm +zone=30 +datum=WGS84 +units=m +no_defs","EPSG:32730":"+proj=utm +zone=30 +south +datum=WGS84 +units=m +no_defs","EPSG:32631":"+proj=utm +zone=31 +datum=WGS84 +units=m +no_defs","EPSG:32731":"+proj=utm +zone=31 +south +datum=WGS84 +units=m +no_defs","EPSG:32632":"+proj=utm +zone=32 +datum=WGS84 +units=m +no_defs","EPSG:32732":"+proj=utm +zone=32 +south +datum=WGS84 +units=m +no_defs","EPSG:32633":"+proj=utm +zone=33 +datum=WGS84 +units=m +no_defs","EPSG:32733":"+proj=utm +zone=33 +south +datum=WGS84 +units=m +no_defs","EPSG:32634":"+proj=utm +zone=34 +datum=WGS84 +units=m +no_defs","EPSG:32734":"+proj=utm +zone=34 +south +datum=WGS84 +units=m +no_defs","EPSG:32635":"+proj=utm +zone=35 +datum=WGS84 +units=m +no_defs","EPSG:32735":"+proj=utm +zone=35 +south +datum=WGS84 +units=m +no_defs","EPSG:32636":"+proj=utm +zone=36 +datum=WGS84 +units=m +no_defs","EPSG:32736":"+proj=utm +zone=36 +south +datum=WGS84 +units=m +no_defs","EPSG:32637":"+proj=utm +zone=37 +datum=WGS84 +units=m +no_defs","EPSG:32737":"+proj=utm +zone=37 +south +datum=WGS84 +units=m +no_defs","EPSG:32638":"+proj=utm +zone=38 +datum=WGS84 +units=m +no_defs","EPSG:32738":"+proj=utm +zone=38 +south +datum=WGS84 +units=m +no_defs","EPSG:32639":"+proj=utm +zone=39 +datum=WGS84 +units=m +no_defs","EPSG:32739":"+proj=utm +zone=39 +south +datum=WGS84 +units=m +no_defs","EPSG:32640":"+proj=utm +zone=40 +datum=WGS84 +units=m +no_defs","EPSG:32740":"+proj=utm +zone=40 +south +datum=WGS84 +units=m +no_defs","EPSG:32641":"+proj=utm +zone=41 +datum=WGS84 +units=m +no_defs","EPSG:32741":"+proj=utm +zone=41 +south +datum=WGS84 +units=m +no_defs","EPSG:32642":"+proj=utm +zone=42 +datum=WGS84 +units=m +no_defs","EPSG:32742":"+proj=utm +zone=42 +south +datum=WGS84 +units=m +no_defs","EPSG:32643":"+proj=utm +zone=43 +datum=WGS84 +units=m +no_defs","EPSG:32743":"+proj=utm +zone=43 +south +datum=WGS84 +units=m +no_defs","EPSG:32644":"+proj=utm +zone=44 +datum=WGS84 +units=m +no_defs","EPSG:32744":"+proj=utm +zone=44 +south +datum=WGS84 +units=m +no_defs","EPSG:32645":"+proj=utm +zone=45 +datum=WGS84 +units=m +no_defs","EPSG:32745":"+proj=utm +zone=45 +south +datum=WGS84 +units=m +no_defs","EPSG:32646":"+proj=utm +zone=46 +datum=WGS84 +units=m +no_defs","EPSG:32746":"+proj=utm +zone=46 +south +datum=WGS84 +units=m +no_defs","EPSG:32647":"+proj=utm +zone=47 +datum=WGS84 +units=m +no_defs","EPSG:32747":"+proj=utm +zone=47 +south +datum=WGS84 +units=m +no_defs","EPSG:32648":"+proj=utm +zone=48 +datum=WGS84 +units=m +no_defs","EPSG:32748":"+proj=utm +zone=48 +south +datum=WGS84 +units=m +no_defs","EPSG:32649":"+proj=utm +zone=49 +datum=WGS84 +units=m +no_defs","EPSG:32749":"+proj=utm +zone=49 +south +datum=WGS84 +units=m +no_defs","EPSG:32650":"+proj=utm +zone=50 +datum=WGS84 +units=m +no_defs","EPSG:32750":"+proj=utm +zone=50 +south +datum=WGS84 +units=m +no_defs","EPSG:32651":"+proj=utm +zone=51 +datum=WGS84 +units=m +no_defs","EPSG:32751":"+proj=utm +zone=51 +south +datum=WGS84 +units=m +no_defs","EPSG:32652":"+proj=utm +zone=52 +datum=WGS84 +units=m +no_defs","EPSG:32752":"+proj=utm +zone=52 +south +datum=WGS84 +units=m +no_defs","EPSG:32653":"+proj=utm +zone=53 +datum=WGS84 +units=m +no_defs","EPSG:32753":"+proj=utm +zone=53 +south +datum=WGS84 +units=m +no_defs","EPSG:32654":"+proj=utm +zone=54 +datum=WGS84 +units=m +no_defs","EPSG:32754":"+proj=utm +zone=54 +south +datum=WGS84 +units=m +no_defs","EPSG:32655":"+proj=utm +zone=55 +datum=WGS84 +units=m +no_defs","EPSG:32755":"+proj=utm +zone=55 +south +datum=WGS84 +units=m +no_defs","EPSG:32656":"+proj=utm +zone=56 +datum=WGS84 +units=m +no_defs","EPSG:32756":"+proj=utm +zone=56 +south +datum=WGS84 +units=m +no_defs","EPSG:32657":"+proj=utm +zone=57 +datum=WGS84 +units=m +no_defs","EPSG:32757":"+proj=utm +zone=57 +south +datum=WGS84 +units=m +no_defs","EPSG:32658":"+proj=utm +zone=58 +datum=WGS84 +units=m +no_defs","EPSG:32758":"+proj=utm +zone=58 +south +datum=WGS84 +units=m +no_defs","EPSG:32659":"+proj=utm +zone=59 +datum=WGS84 +units=m +no_defs","EPSG:32759":"+proj=utm +zone=59 +south +datum=WGS84 +units=m +no_defs","EPSG:32660":"+proj=utm +zone=60 +datum=WGS84 +units=m +no_defs","EPSG:32760":"+proj=utm +zone=60 +south +datum=WGS84 +units=m +no_defs","EPSG:26901":"+proj=utm +zone=1 +datum=NAD83 +units=m +no_defs","EPSG:26902":"+proj=utm +zone=2 +datum=NAD83 +units=m +no_defs","EPSG:26903":"+proj=utm +zone=3 +datum=NAD83 +units=m +no_defs","EPSG:26904":"+proj=utm +zone=4 +datum=NAD83 +units=m +no_defs","EPSG:26905":"+proj=utm +zone=5 +datum=NAD83 +units=m +no_defs","EPSG:26906":"+proj=utm +zone=6 +datum=NAD83 +units=m +no_defs","EPSG:26907":"+proj=utm +zone=7 +datum=NAD83 +units=m +no_defs","EPSG:26908":"+proj=utm +zone=8 +datum=NAD83 +units=m +no_defs","EPSG:26909":"+proj=utm +zone=9 +datum=NAD83 +units=m +no_defs","EPSG:26910":"+proj=utm +zone=10 +datum=NAD83 +units=m +no_defs","EPSG:26911":"+proj=utm +zone=11 +datum=NAD83 +units=m +no_defs","EPSG:26912":"+proj=utm +zone=12 +datum=NAD83 +units=m +no_defs","EPSG:26913":"+proj=utm +zone=13 +datum=NAD83 +units=m +no_defs","EPSG:26914":"+proj=utm +zone=14 +datum=NAD83 +units=m +no_defs","EPSG:26915":"+proj=utm +zone=15 +datum=NAD83 +units=m +no_defs","EPSG:26916":"+proj=utm +zone=16 +datum=NAD83 +units=m +no_defs","EPSG:26917":"+proj=utm +zone=17 +datum=NAD83 +units=m +no_defs","EPSG:26918":"+proj=utm +zone=18 +datum=NAD83 +units=m +no_defs","EPSG:26919":"+proj=utm +zone=19 +datum=NAD83 +units=m +no_defs","EPSG:26920":"+proj=utm +zone=20 +datum=NAD83 +units=m +no_defs","EPSG:26921":"+proj=utm +zone=21 +datum=NAD83 +units=m +no_defs","EPSG:26922":"+proj=utm +zone=22 +datum=NAD83 +units=m +no_defs","EPSG:26923":"+proj=utm +zone=23 +datum=NAD83 +units=m +no_defs","EPSG:26701":"+proj=utm +zone=1 +datum=NAD27 +units=m +no_defs","EPSG:26702":"+proj=utm +zone=2 +datum=NAD27 +units=m +no_defs","EPSG:26703":"+proj=utm +zone=3 +datum=NAD27 +units=m +no_defs","EPSG:26704":"+proj=utm +zone=4 +datum=NAD27 +units=m +no_defs","EPSG:26705":"+proj=utm +zone=5 +datum=NAD27 +units=m +no_defs","EPSG:26706":"+proj=utm +zone=6 +datum=NAD27 +units=m +no_defs","EPSG:26707":"+proj=utm +zone=7 +datum=NAD27 +units=m +no_defs","EPSG:26708":"+proj=utm +zone=8 +datum=NAD27 +units=m +no_defs","EPSG:26709":"+proj=utm +zone=9 +datum=NAD27 +units=m +no_defs","EPSG:26710":"+proj=utm +zone=10 +datum=NAD27 +units=m +no_defs","EPSG:26711":"+proj=utm +zone=11 +datum=NAD27 +units=m +no_defs","EPSG:26712":"+proj=utm +zone=12 +datum=NAD27 +units=m +no_defs","EPSG:26713":"+proj=utm +zone=13 +datum=NAD27 +units=m +no_defs","EPSG:26714":"+proj=utm +zone=14 +datum=NAD27 +units=m +no_defs","EPSG:26715":"+proj=utm +zone=15 +datum=NAD27 +units=m +no_defs","EPSG:26716":"+proj=utm +zone=16 +datum=NAD27 +units=m +no_defs","EPSG:26717":"+proj=utm +zone=17 +datum=NAD27 +units=m +no_defs","EPSG:26718":"+proj=utm +zone=18 +datum=NAD27 +units=m +no_defs","EPSG:26719":"+proj=utm +zone=19 +datum=NAD27 +units=m +no_defs","EPSG:26720":"+proj=utm +zone=20 +datum=NAD27 +units=m +no_defs","EPSG:26721":"+proj=utm +zone=21 +datum=NAD27 +units=m +no_defs","EPSG:26722":"+proj=utm +zone=22 +datum=NAD27 +units=m +no_defs","EPSG:4326":"+proj=longlat +datum=WGS84 +no_defs","EPSG:4979":"+proj=longlat +datum=WGS84 +no_defs","EPSG:4269":"+proj=longlat +datum=NAD83 +no_defs","EPSG:4267":"+proj=longlat +datum=NAD27 +no_defs","EPSG:4258":"+proj=longlat +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +no_defs","EPSG:4230":"+proj=longlat +ellps=intl +towgs84=-87,-98,-121 +no_defs","EPSG:4277":"+proj=longlat +ellps=airy +datum=OSGB36 +no_defs","EPSG:4283":"+proj=longlat +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +no_defs","EPSG:7844":"+proj=longlat +ellps=GRS80 +no_defs","EPSG:3857":"+proj=merc +a=6378137 +b=6378137 +lat_ts=0 +lon_0=0 +x_0=0 +y_0=0 +units=m +no_defs","EPSG:900913":"+proj=merc +a=6378137 +b=6378137 +lat_ts=0 +lon_0=0 +x_0=0 +y_0=0 +units=m +no_defs","EPSG:27700":"+proj=tmerc +lat_0=49 +lon_0=-2 +k=0.9996012717 +x_0=400000 +y_0=-100000 +ellps=airy +datum=OSGB36 +units=m +no_defs","EPSG:29902":"+proj=tmerc +lat_0=53.5 +lon_0=-8 +k=1.000035 +x_0=200000 +y_0=250000 +ellps=mod_airy +towgs84=482.5,-130.6,564.6,-1.042,-0.214,-0.631,8.15 +units=m +no_defs","EPSG:28992":"+proj=sterea +lat_0=52.15616055555555 +lon_0=5.38763888888889 +k=0.9999079 +x_0=155000 +y_0=463000 +ellps=bessel +towgs84=565.417,50.3319,465.552,-0.398957,0.343988,-1.8774,4.0725 +units=m +no_defs","EPSG:4289":"+proj=longlat +ellps=bessel +towgs84=565.417,50.3319,465.552,-0.398957,0.343988,-1.8774,4.0725 +no_defs","EPSG:3006":"+proj=utm +zone=33 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs","EPSG:25828":"+proj=utm +zone=28 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs","EPSG:25829":"+proj=utm +zone=29 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs","EPSG:25830":"+proj=utm +zone=30 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs","EPSG:25831":"+proj=utm +zone=31 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs","EPSG:25832":"+proj=utm +zone=32 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs","EPSG:25833":"+proj=utm +zone=33 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs","EPSG:25834":"+proj=utm +zone=34 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs","EPSG:25835":"+proj=utm +zone=35 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs","EPSG:25836":"+proj=utm +zone=36 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs","EPSG:25837":"+proj=utm +zone=37 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs","EPSG:28348":"+proj=utm +zone=48 +south +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs","EPSG:28349":"+proj=utm +zone=49 +south +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs","EPSG:28350":"+proj=utm +zone=50 +south +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs","EPSG:28351":"+proj=utm +zone=51 +south +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs","EPSG:28352":"+proj=utm +zone=52 +south +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs","EPSG:28353":"+proj=utm +zone=53 +south +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs","EPSG:28354":"+proj=utm +zone=54 +south +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs","EPSG:28355":"+proj=utm +zone=55 +south +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs","EPSG:28356":"+proj=utm +zone=56 +south +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs","EPSG:7850":"+proj=utm +zone=50 +south +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs","EPSG:7851":"+proj=utm +zone=51 +south +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs","EPSG:7852":"+proj=utm +zone=52 +south +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs","EPSG:7853":"+proj=utm +zone=53 +south +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs","EPSG:7854":"+proj=utm +zone=54 +south +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs","EPSG:7855":"+proj=utm +zone=55 +south +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs","EPSG:7856":"+proj=utm +zone=56 +south +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs","EPSG:2225":"+proj=lcc +lat_1=41.66666666666666 +lat_2=40 +lat_0=39.33333333333334 +lon_0=-122 +x_0=2000000.0001016 +y_0=500000.0001016001 +datum=NAD83 +units=us-ft +no_defs","EPSG:2226":"+proj=lcc +lat_1=39.83333333333334 +lat_2=38.33333333333334 +lat_0=37.66666666666666 +lon_0=-122 +x_0=2000000.0001016 +y_0=500000.0001016001 +datum=NAD83 +units=us-ft +no_defs","EPSG:2227":"+proj=lcc +lat_1=38.43333333333333 +lat_2=37.06666666666667 +lat_0=36.5 +lon_0=-120.5 +x_0=2000000.0001016 +y_0=500000.0001016001 +datum=NAD83 +units=us-ft +no_defs","EPSG:2228":"+proj=lcc +lat_1=37.25 +lat_2=36 +lat_0=35.33333333333334 +lon_0=-119 +x_0=2000000.0001016 +y_0=500000.0001016001 +datum=NAD83 +units=us-ft +no_defs","EPSG:2229":"+proj=lcc +lat_1=35.46666666666667 +lat_2=34.03333333333333 +lat_0=33.5 +lon_0=-118 +x_0=2000000.0001016 +y_0=500000.0001016001 +datum=NAD83 +units=us-ft +no_defs","EPSG:2230":"+proj=lcc +lat_1=33.88333333333333 +lat_2=32.78333333333333 +lat_0=32.16666666666666 +lon_0=-116.25 +x_0=2000000.0001016 +y_0=500000.0001016001 +datum=NAD83 +units=us-ft +no_defs","EPSG:2275":"+proj=lcc +lat_1=36.18333333333333 +lat_2=34.65 +lat_0=34 +lon_0=-101.5 +x_0=200000 +y_0=1000000 +datum=NAD83 +units=us-ft +no_defs","EPSG:2276":"+proj=lcc +lat_1=33.96666666666667 +lat_2=32.13333333333333 +lat_0=31.66666666666667 +lon_0=-98.5 +x_0=600000 +y_0=2000000 +datum=NAD83 +units=us-ft +no_defs","EPSG:2277":"+proj=lcc +lat_1=31.88333333333333 +lat_2=30.11666666666667 +lat_0=29.66666666666667 +lon_0=-100.3333333333333 +x_0=700000 +y_0=3000000 +datum=NAD83 +units=us-ft +no_defs","EPSG:2278":"+proj=lcc +lat_1=30.28333333333333 +lat_2=28.38333333333333 +lat_0=27.83333333333333 +lon_0=-99 +x_0=600000 +y_0=4000000 +datum=NAD83 +units=us-ft +no_defs","EPSG:2279":"+proj=lcc +lat_1=27.83333333333333 +lat_2=26.16666666666667 +lat_0=25.66666666666667 +lon_0=-98.5 +x_0=300000 +y_0=5000000 +datum=NAD83 +units=us-ft +no_defs","EPSG:2236":"+proj=tmerc +lat_0=24.33333333333333 +lon_0=-81 +k=0.999941177 +x_0=200000.0001016002 +y_0=0 +datum=NAD83 +units=us-ft +no_defs","EPSG:2237":"+proj=tmerc +lat_0=24.33333333333333 +lon_0=-82 +k=0.999941177 +x_0=200000.0001016002 +y_0=0 +datum=NAD83 +units=us-ft +no_defs","EPSG:2238":"+proj=lcc +lat_1=30.75 +lat_2=29.58333333333333 +lat_0=29 +lon_0=-84.5 +x_0=600000 +y_0=0 +datum=NAD83 +units=us-ft +no_defs","EPSG:2260":"+proj=tmerc +lat_0=38.83333333333334 +lon_0=-74.5 +k=0.9999 +x_0=150000 +y_0=0 +datum=NAD83 +units=us-ft +no_defs","EPSG:2261":"+proj=tmerc +lat_0=40 +lon_0=-76.58333333333333 +k=0.9999375 +x_0=250000 +y_0=0 +datum=NAD83 +units=us-ft +no_defs","EPSG:2262":"+proj=tmerc +lat_0=40 +lon_0=-78.58333333333333 +k=0.9999375 +x_0=350000 +y_0=0 +datum=NAD83 +units=us-ft +no_defs","EPSG:2263":"+proj=lcc +lat_1=41.03333333333333 +lat_2=40.66666666666666 +lat_0=40.16666666666666 +lon_0=-74 +x_0=300000 +y_0=0 +datum=NAD83 +units=us-ft +no_defs","EPSG:3435":"+proj=tmerc +lat_0=36.66666666666666 +lon_0=-88.33333333333333 +k=0.9999749999999999 +x_0=300000 +y_0=0 +datum=NAD83 +units=us-ft +no_defs","EPSG:3436":"+proj=tmerc +lat_0=36.66666666666666 +lon_0=-90.16666666666667 +k=0.999941177 +x_0=700000 +y_0=0 +datum=NAD83 +units=us-ft +no_defs","EPSG:2285":"+proj=lcc +lat_1=48.73333333333333 +lat_2=47.5 +lat_0=47 +lon_0=-120.8333333333333 +x_0=500000.0001016001 +y_0=0 +datum=NAD83 +units=us-ft +no_defs","EPSG:2286":"+proj=lcc +lat_1=47.33333333333334 +lat_2=45.83333333333334 +lat_0=45.33333333333334 +lon_0=-120.5 +x_0=500000.0001016001 +y_0=0 +datum=NAD83 +units=us-ft +no_defs","EPSG:2269":"+proj=lcc +lat_1=46 +lat_2=44.33333333333334 +lat_0=43.66666666666666 +lon_0=-120.5 +x_0=2500000 +y_0=0 +datum=NAD83 +units=m +no_defs","EPSG:2270":"+proj=lcc +lat_1=44 +lat_2=42.33333333333334 +lat_0=41.66666666666666 +lon_0=-120.5 +x_0=1500000 +y_0=0 +datum=NAD83 +units=m +no_defs","EPSG:3451":"+proj=lcc +lat_1=32.66666666666666 +lat_2=31.16666666666667 +lat_0=30.5 +lon_0=-92.5 +x_0=1000000 +y_0=0 +datum=NAD83 +units=us-ft +no_defs","EPSG:3452":"+proj=lcc +lat_1=30.7 +lat_2=29.3 +lat_0=28.5 +lon_0=-91.33333333333333 +x_0=1000000 +y_0=0 +datum=NAD83 +units=us-ft +no_defs","EPSG:2283":"+proj=lcc +lat_1=39.2 +lat_2=38.03333333333333 +lat_0=37.66666666666666 +lon_0=-78.5 +x_0=3500000.0001016001 +y_0=1000000.0001016001 +datum=NAD83 +units=us-ft +no_defs","EPSG:2284":"+proj=lcc +lat_1=37.96666666666667 +lat_2=36.76666666666667 +lat_0=36.33333333333334 +lon_0=-78.5 +x_0=3500000.0001016001 +y_0=1000000.0001016001 +datum=NAD83 +units=us-ft +no_defs"};
+const CRS_DEFS = {"EPSG:32601":"+proj=utm +zone=1 +datum=WGS84 +units=m +no_defs","EPSG:32701":"+proj=utm +zone=1 +south +datum=WGS84 +units=m +no_defs","EPSG:32602":"+proj=utm +zone=2 +datum=WGS84 +units=m +no_defs","EPSG:32702":"+proj=utm +zone=2 +south +datum=WGS84 +units=m +no_defs","EPSG:32603":"+proj=utm +zone=3 +datum=WGS84 +units=m +no_defs","EPSG:32703":"+proj=utm +zone=3 +south +datum=WGS84 +units=m +no_defs","EPSG:32604":"+proj=utm +zone=4 +datum=WGS84 +units=m +no_defs","EPSG:32704":"+proj=utm +zone=4 +south +datum=WGS84 +units=m +no_defs","EPSG:32605":"+proj=utm +zone=5 +datum=WGS84 +units=m +no_defs","EPSG:32705":"+proj=utm +zone=5 +south +datum=WGS84 +units=m +no_defs","EPSG:32606":"+proj=utm +zone=6 +datum=WGS84 +units=m +no_defs","EPSG:32706":"+proj=utm +zone=6 +south +datum=WGS84 +units=m +no_defs","EPSG:32607":"+proj=utm +zone=7 +datum=WGS84 +units=m +no_defs","EPSG:32707":"+proj=utm +zone=7 +south +datum=WGS84 +units=m +no_defs","EPSG:32608":"+proj=utm +zone=8 +datum=WGS84 +units=m +no_defs","EPSG:32708":"+proj=utm +zone=8 +south +datum=WGS84 +units=m +no_defs","EPSG:32609":"+proj=utm +zone=9 +datum=WGS84 +units=m +no_defs","EPSG:32709":"+proj=utm +zone=9 +south +datum=WGS84 +units=m +no_defs","EPSG:32610":"+proj=utm +zone=10 +datum=WGS84 +units=m +no_defs","EPSG:32710":"+proj=utm +zone=10 +south +datum=WGS84 +units=m +no_defs","EPSG:32611":"+proj=utm +zone=11 +datum=WGS84 +units=m +no_defs","EPSG:32711":"+proj=utm +zone=11 +south +datum=WGS84 +units=m +no_defs","EPSG:32612":"+proj=utm +zone=12 +datum=WGS84 +units=m +no_defs","EPSG:32712":"+proj=utm +zone=12 +south +datum=WGS84 +units=m +no_defs","EPSG:32613":"+proj=utm +zone=13 +datum=WGS84 +units=m +no_defs","EPSG:32713":"+proj=utm +zone=13 +south +datum=WGS84 +units=m +no_defs","EPSG:32614":"+proj=utm +zone=14 +datum=WGS84 +units=m +no_defs","EPSG:32714":"+proj=utm +zone=14 +south +datum=WGS84 +units=m +no_defs","EPSG:32615":"+proj=utm +zone=15 +datum=WGS84 +units=m +no_defs","EPSG:32715":"+proj=utm +zone=15 +south +datum=WGS84 +units=m +no_defs","EPSG:32616":"+proj=utm +zone=16 +datum=WGS84 +units=m +no_defs","EPSG:32716":"+proj=utm +zone=16 +south +datum=WGS84 +units=m +no_defs","EPSG:32617":"+proj=utm +zone=17 +datum=WGS84 +units=m +no_defs","EPSG:32717":"+proj=utm +zone=17 +south +datum=WGS84 +units=m +no_defs","EPSG:32618":"+proj=utm +zone=18 +datum=WGS84 +units=m +no_defs","EPSG:32718":"+proj=utm +zone=18 +south +datum=WGS84 +units=m +no_defs","EPSG:32619":"+proj=utm +zone=19 +datum=WGS84 +units=m +no_defs","EPSG:32719":"+proj=utm +zone=19 +south +datum=WGS84 +units=m +no_defs","EPSG:32620":"+proj=utm +zone=20 +datum=WGS84 +units=m +no_defs","EPSG:32720":"+proj=utm +zone=20 +south +datum=WGS84 +units=m +no_defs","EPSG:32621":"+proj=utm +zone=21 +datum=WGS84 +units=m +no_defs","EPSG:32721":"+proj=utm +zone=21 +south +datum=WGS84 +units=m +no_defs","EPSG:32622":"+proj=utm +zone=22 +datum=WGS84 +units=m +no_defs","EPSG:32722":"+proj=utm +zone=22 +south +datum=WGS84 +units=m +no_defs","EPSG:32623":"+proj=utm +zone=23 +datum=WGS84 +units=m +no_defs","EPSG:32723":"+proj=utm +zone=23 +south +datum=WGS84 +units=m +no_defs","EPSG:32624":"+proj=utm +zone=24 +datum=WGS84 +units=m +no_defs","EPSG:32724":"+proj=utm +zone=24 +south +datum=WGS84 +units=m +no_defs","EPSG:32625":"+proj=utm +zone=25 +datum=WGS84 +units=m +no_defs","EPSG:32725":"+proj=utm +zone=25 +south +datum=WGS84 +units=m +no_defs","EPSG:32626":"+proj=utm +zone=26 +datum=WGS84 +units=m +no_defs","EPSG:32726":"+proj=utm +zone=26 +south +datum=WGS84 +units=m +no_defs","EPSG:32627":"+proj=utm +zone=27 +datum=WGS84 +units=m +no_defs","EPSG:32727":"+proj=utm +zone=27 +south +datum=WGS84 +units=m +no_defs","EPSG:32628":"+proj=utm +zone=28 +datum=WGS84 +units=m +no_defs","EPSG:32728":"+proj=utm +zone=28 +south +datum=WGS84 +units=m +no_defs","EPSG:32629":"+proj=utm +zone=29 +datum=WGS84 +units=m +no_defs","EPSG:32729":"+proj=utm +zone=29 +south +datum=WGS84 +units=m +no_defs","EPSG:32630":"+proj=utm +zone=30 +datum=WGS84 +units=m +no_defs","EPSG:32730":"+proj=utm +zone=30 +south +datum=WGS84 +units=m +no_defs","EPSG:32631":"+proj=utm +zone=31 +datum=WGS84 +units=m +no_defs","EPSG:32731":"+proj=utm +zone=31 +south +datum=WGS84 +units=m +no_defs","EPSG:32632":"+proj=utm +zone=32 +datum=WGS84 +units=m +no_defs","EPSG:32732":"+proj=utm +zone=32 +south +datum=WGS84 +units=m +no_defs","EPSG:32633":"+proj=utm +zone=33 +datum=WGS84 +units=m +no_defs","EPSG:32733":"+proj=utm +zone=33 +south +datum=WGS84 +units=m +no_defs","EPSG:32634":"+proj=utm +zone=34 +datum=WGS84 +units=m +no_defs","EPSG:32734":"+proj=utm +zone=34 +south +datum=WGS84 +units=m +no_defs","EPSG:32635":"+proj=utm +zone=35 +datum=WGS84 +units=m +no_defs","EPSG:32735":"+proj=utm +zone=35 +south +datum=WGS84 +units=m +no_defs","EPSG:32636":"+proj=utm +zone=36 +datum=WGS84 +units=m +no_defs","EPSG:32736":"+proj=utm +zone=36 +south +datum=WGS84 +units=m +no_defs","EPSG:32637":"+proj=utm +zone=37 +datum=WGS84 +units=m +no_defs","EPSG:32737":"+proj=utm +zone=37 +south +datum=WGS84 +units=m +no_defs","EPSG:32638":"+proj=utm +zone=38 +datum=WGS84 +units=m +no_defs","EPSG:32738":"+proj=utm +zone=38 +south +datum=WGS84 +units=m +no_defs","EPSG:32639":"+proj=utm +zone=39 +datum=WGS84 +units=m +no_defs","EPSG:32739":"+proj=utm +zone=39 +south +datum=WGS84 +units=m +no_defs","EPSG:32640":"+proj=utm +zone=40 +datum=WGS84 +units=m +no_defs","EPSG:32740":"+proj=utm +zone=40 +south +datum=WGS84 +units=m +no_defs","EPSG:32641":"+proj=utm +zone=41 +datum=WGS84 +units=m +no_defs","EPSG:32741":"+proj=utm +zone=41 +south +datum=WGS84 +units=m +no_defs","EPSG:32642":"+proj=utm +zone=42 +datum=WGS84 +units=m +no_defs","EPSG:32742":"+proj=utm +zone=42 +south +datum=WGS84 +units=m +no_defs","EPSG:32643":"+proj=utm +zone=43 +datum=WGS84 +units=m +no_defs","EPSG:32743":"+proj=utm +zone=43 +south +datum=WGS84 +units=m +no_defs","EPSG:32644":"+proj=utm +zone=44 +datum=WGS84 +units=m +no_defs","EPSG:32744":"+proj=utm +zone=44 +south +datum=WGS84 +units=m +no_defs","EPSG:32645":"+proj=utm +zone=45 +datum=WGS84 +units=m +no_defs","EPSG:32745":"+proj=utm +zone=45 +south +datum=WGS84 +units=m +no_defs","EPSG:32646":"+proj=utm +zone=46 +datum=WGS84 +units=m +no_defs","EPSG:32746":"+proj=utm +zone=46 +south +datum=WGS84 +units=m +no_defs","EPSG:32647":"+proj=utm +zone=47 +datum=WGS84 +units=m +no_defs","EPSG:32747":"+proj=utm +zone=47 +south +datum=WGS84 +units=m +no_defs","EPSG:32648":"+proj=utm +zone=48 +datum=WGS84 +units=m +no_defs","EPSG:32748":"+proj=utm +zone=48 +south +datum=WGS84 +units=m +no_defs","EPSG:32649":"+proj=utm +zone=49 +datum=WGS84 +units=m +no_defs","EPSG:32749":"+proj=utm +zone=49 +south +datum=WGS84 +units=m +no_defs","EPSG:32650":"+proj=utm +zone=50 +datum=WGS84 +units=m +no_defs","EPSG:32750":"+proj=utm +zone=50 +south +datum=WGS84 +units=m +no_defs","EPSG:32651":"+proj=utm +zone=51 +datum=WGS84 +units=m +no_defs","EPSG:32751":"+proj=utm +zone=51 +south +datum=WGS84 +units=m +no_defs","EPSG:32652":"+proj=utm +zone=52 +datum=WGS84 +units=m +no_defs","EPSG:32752":"+proj=utm +zone=52 +south +datum=WGS84 +units=m +no_defs","EPSG:32653":"+proj=utm +zone=53 +datum=WGS84 +units=m +no_defs","EPSG:32753":"+proj=utm +zone=53 +south +datum=WGS84 +units=m +no_defs","EPSG:32654":"+proj=utm +zone=54 +datum=WGS84 +units=m +no_defs","EPSG:32754":"+proj=utm +zone=54 +south +datum=WGS84 +units=m +no_defs","EPSG:32655":"+proj=utm +zone=55 +datum=WGS84 +units=m +no_defs","EPSG:32755":"+proj=utm +zone=55 +south +datum=WGS84 +units=m +no_defs","EPSG:32656":"+proj=utm +zone=56 +datum=WGS84 +units=m +no_defs","EPSG:32756":"+proj=utm +zone=56 +south +datum=WGS84 +units=m +no_defs","EPSG:32657":"+proj=utm +zone=57 +datum=WGS84 +units=m +no_defs","EPSG:32757":"+proj=utm +zone=57 +south +datum=WGS84 +units=m +no_defs","EPSG:32658":"+proj=utm +zone=58 +datum=WGS84 +units=m +no_defs","EPSG:32758":"+proj=utm +zone=58 +south +datum=WGS84 +units=m +no_defs","EPSG:32659":"+proj=utm +zone=59 +datum=WGS84 +units=m +no_defs","EPSG:32759":"+proj=utm +zone=59 +south +datum=WGS84 +units=m +no_defs","EPSG:32660":"+proj=utm +zone=60 +datum=WGS84 +units=m +no_defs","EPSG:32760":"+proj=utm +zone=60 +south +datum=WGS84 +units=m +no_defs","EPSG:26901":"+proj=utm +zone=1 +datum=NAD83 +units=m +no_defs","EPSG:26902":"+proj=utm +zone=2 +datum=NAD83 +units=m +no_defs","EPSG:26903":"+proj=utm +zone=3 +datum=NAD83 +units=m +no_defs","EPSG:26904":"+proj=utm +zone=4 +datum=NAD83 +units=m +no_defs","EPSG:26905":"+proj=utm +zone=5 +datum=NAD83 +units=m +no_defs","EPSG:26906":"+proj=utm +zone=6 +datum=NAD83 +units=m +no_defs","EPSG:26907":"+proj=utm +zone=7 +datum=NAD83 +units=m +no_defs","EPSG:26908":"+proj=utm +zone=8 +datum=NAD83 +units=m +no_defs","EPSG:26909":"+proj=utm +zone=9 +datum=NAD83 +units=m +no_defs","EPSG:26910":"+proj=utm +zone=10 +datum=NAD83 +units=m +no_defs","EPSG:26911":"+proj=utm +zone=11 +datum=NAD83 +units=m +no_defs","EPSG:26912":"+proj=utm +zone=12 +datum=NAD83 +units=m +no_defs","EPSG:26913":"+proj=utm +zone=13 +datum=NAD83 +units=m +no_defs","EPSG:26914":"+proj=utm +zone=14 +datum=NAD83 +units=m +no_defs","EPSG:26915":"+proj=utm +zone=15 +datum=NAD83 +units=m +no_defs","EPSG:26916":"+proj=utm +zone=16 +datum=NAD83 +units=m +no_defs","EPSG:26917":"+proj=utm +zone=17 +datum=NAD83 +units=m +no_defs","EPSG:26918":"+proj=utm +zone=18 +datum=NAD83 +units=m +no_defs","EPSG:26919":"+proj=utm +zone=19 +datum=NAD83 +units=m +no_defs","EPSG:26920":"+proj=utm +zone=20 +datum=NAD83 +units=m +no_defs","EPSG:26921":"+proj=utm +zone=21 +datum=NAD83 +units=m +no_defs","EPSG:26922":"+proj=utm +zone=22 +datum=NAD83 +units=m +no_defs","EPSG:26923":"+proj=utm +zone=23 +datum=NAD83 +units=m +no_defs","EPSG:26701":"+proj=utm +zone=1 +datum=NAD27 +units=m +no_defs","EPSG:26702":"+proj=utm +zone=2 +datum=NAD27 +units=m +no_defs","EPSG:26703":"+proj=utm +zone=3 +datum=NAD27 +units=m +no_defs","EPSG:26704":"+proj=utm +zone=4 +datum=NAD27 +units=m +no_defs","EPSG:26705":"+proj=utm +zone=5 +datum=NAD27 +units=m +no_defs","EPSG:26706":"+proj=utm +zone=6 +datum=NAD27 +units=m +no_defs","EPSG:26707":"+proj=utm +zone=7 +datum=NAD27 +units=m +no_defs","EPSG:26708":"+proj=utm +zone=8 +datum=NAD27 +units=m +no_defs","EPSG:26709":"+proj=utm +zone=9 +datum=NAD27 +units=m +no_defs","EPSG:26710":"+proj=utm +zone=10 +datum=NAD27 +units=m +no_defs","EPSG:26711":"+proj=utm +zone=11 +datum=NAD27 +units=m +no_defs","EPSG:26712":"+proj=utm +zone=12 +datum=NAD27 +units=m +no_defs","EPSG:26713":"+proj=utm +zone=13 +datum=NAD27 +units=m +no_defs","EPSG:26714":"+proj=utm +zone=14 +datum=NAD27 +units=m +no_defs","EPSG:26715":"+proj=utm +zone=15 +datum=NAD27 +units=m +no_defs","EPSG:26716":"+proj=utm +zone=16 +datum=NAD27 +units=m +no_defs","EPSG:26717":"+proj=utm +zone=17 +datum=NAD27 +units=m +no_defs","EPSG:26718":"+proj=utm +zone=18 +datum=NAD27 +units=m +no_defs","EPSG:26719":"+proj=utm +zone=19 +datum=NAD27 +units=m +no_defs","EPSG:26720":"+proj=utm +zone=20 +datum=NAD27 +units=m +no_defs","EPSG:26721":"+proj=utm +zone=21 +datum=NAD27 +units=m +no_defs","EPSG:26722":"+proj=utm +zone=22 +datum=NAD27 +units=m +no_defs","EPSG:4326":"+proj=longlat +datum=WGS84 +no_defs","EPSG:4979":"+proj=longlat +datum=WGS84 +no_defs","EPSG:4978":"+proj=geocent +datum=WGS84 +units=m +no_defs","EPSG:4269":"+proj=longlat +datum=NAD83 +no_defs","EPSG:4267":"+proj=longlat +datum=NAD27 +no_defs","EPSG:4258":"+proj=longlat +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +no_defs","EPSG:4230":"+proj=longlat +ellps=intl +towgs84=-87,-98,-121 +no_defs","EPSG:4277":"+proj=longlat +ellps=airy +datum=OSGB36 +no_defs","EPSG:4283":"+proj=longlat +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +no_defs","EPSG:7844":"+proj=longlat +ellps=GRS80 +no_defs","EPSG:3857":"+proj=merc +a=6378137 +b=6378137 +lat_ts=0 +lon_0=0 +x_0=0 +y_0=0 +units=m +no_defs","EPSG:900913":"+proj=merc +a=6378137 +b=6378137 +lat_ts=0 +lon_0=0 +x_0=0 +y_0=0 +units=m +no_defs","EPSG:27700":"+proj=tmerc +lat_0=49 +lon_0=-2 +k=0.9996012717 +x_0=400000 +y_0=-100000 +ellps=airy +datum=OSGB36 +units=m +no_defs","EPSG:29902":"+proj=tmerc +lat_0=53.5 +lon_0=-8 +k=1.000035 +x_0=200000 +y_0=250000 +ellps=mod_airy +towgs84=482.5,-130.6,564.6,-1.042,-0.214,-0.631,8.15 +units=m +no_defs","EPSG:28992":"+proj=sterea +lat_0=52.15616055555555 +lon_0=5.38763888888889 +k=0.9999079 +x_0=155000 +y_0=463000 +ellps=bessel +towgs84=565.417,50.3319,465.552,-0.398957,0.343988,-1.8774,4.0725 +units=m +no_defs","EPSG:4289":"+proj=longlat +ellps=bessel +towgs84=565.417,50.3319,465.552,-0.398957,0.343988,-1.8774,4.0725 +no_defs","EPSG:3006":"+proj=utm +zone=33 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs","EPSG:25828":"+proj=utm +zone=28 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs","EPSG:25829":"+proj=utm +zone=29 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs","EPSG:25830":"+proj=utm +zone=30 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs","EPSG:25831":"+proj=utm +zone=31 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs","EPSG:25832":"+proj=utm +zone=32 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs","EPSG:25833":"+proj=utm +zone=33 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs","EPSG:25834":"+proj=utm +zone=34 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs","EPSG:25835":"+proj=utm +zone=35 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs","EPSG:25836":"+proj=utm +zone=36 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs","EPSG:25837":"+proj=utm +zone=37 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs","EPSG:28348":"+proj=utm +zone=48 +south +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs","EPSG:28349":"+proj=utm +zone=49 +south +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs","EPSG:28350":"+proj=utm +zone=50 +south +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs","EPSG:28351":"+proj=utm +zone=51 +south +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs","EPSG:28352":"+proj=utm +zone=52 +south +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs","EPSG:28353":"+proj=utm +zone=53 +south +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs","EPSG:28354":"+proj=utm +zone=54 +south +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs","EPSG:28355":"+proj=utm +zone=55 +south +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs","EPSG:28356":"+proj=utm +zone=56 +south +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs","EPSG:7850":"+proj=utm +zone=50 +south +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs","EPSG:7851":"+proj=utm +zone=51 +south +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs","EPSG:7852":"+proj=utm +zone=52 +south +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs","EPSG:7853":"+proj=utm +zone=53 +south +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs","EPSG:7854":"+proj=utm +zone=54 +south +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs","EPSG:7855":"+proj=utm +zone=55 +south +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs","EPSG:7856":"+proj=utm +zone=56 +south +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs","EPSG:2225":"+proj=lcc +lat_1=41.66666666666666 +lat_2=40 +lat_0=39.33333333333334 +lon_0=-122 +x_0=2000000.0001016 +y_0=500000.0001016001 +datum=NAD83 +units=us-ft +no_defs","EPSG:2226":"+proj=lcc +lat_1=39.83333333333334 +lat_2=38.33333333333334 +lat_0=37.66666666666666 +lon_0=-122 +x_0=2000000.0001016 +y_0=500000.0001016001 +datum=NAD83 +units=us-ft +no_defs","EPSG:2227":"+proj=lcc +lat_1=38.43333333333333 +lat_2=37.06666666666667 +lat_0=36.5 +lon_0=-120.5 +x_0=2000000.0001016 +y_0=500000.0001016001 +datum=NAD83 +units=us-ft +no_defs","EPSG:2228":"+proj=lcc +lat_1=37.25 +lat_2=36 +lat_0=35.33333333333334 +lon_0=-119 +x_0=2000000.0001016 +y_0=500000.0001016001 +datum=NAD83 +units=us-ft +no_defs","EPSG:2229":"+proj=lcc +lat_1=35.46666666666667 +lat_2=34.03333333333333 +lat_0=33.5 +lon_0=-118 +x_0=2000000.0001016 +y_0=500000.0001016001 +datum=NAD83 +units=us-ft +no_defs","EPSG:2230":"+proj=lcc +lat_1=33.88333333333333 +lat_2=32.78333333333333 +lat_0=32.16666666666666 +lon_0=-116.25 +x_0=2000000.0001016 +y_0=500000.0001016001 +datum=NAD83 +units=us-ft +no_defs","EPSG:2275":"+proj=lcc +lat_1=36.18333333333333 +lat_2=34.65 +lat_0=34 +lon_0=-101.5 +x_0=200000 +y_0=1000000 +datum=NAD83 +units=us-ft +no_defs","EPSG:2276":"+proj=lcc +lat_1=33.96666666666667 +lat_2=32.13333333333333 +lat_0=31.66666666666667 +lon_0=-98.5 +x_0=600000 +y_0=2000000 +datum=NAD83 +units=us-ft +no_defs","EPSG:2277":"+proj=lcc +lat_1=31.88333333333333 +lat_2=30.11666666666667 +lat_0=29.66666666666667 +lon_0=-100.3333333333333 +x_0=700000 +y_0=3000000 +datum=NAD83 +units=us-ft +no_defs","EPSG:2278":"+proj=lcc +lat_1=30.28333333333333 +lat_2=28.38333333333333 +lat_0=27.83333333333333 +lon_0=-99 +x_0=600000 +y_0=4000000 +datum=NAD83 +units=us-ft +no_defs","EPSG:2279":"+proj=lcc +lat_1=27.83333333333333 +lat_2=26.16666666666667 +lat_0=25.66666666666667 +lon_0=-98.5 +x_0=300000 +y_0=5000000 +datum=NAD83 +units=us-ft +no_defs","EPSG:2236":"+proj=tmerc +lat_0=24.33333333333333 +lon_0=-81 +k=0.999941177 +x_0=200000.0001016002 +y_0=0 +datum=NAD83 +units=us-ft +no_defs","EPSG:2237":"+proj=tmerc +lat_0=24.33333333333333 +lon_0=-82 +k=0.999941177 +x_0=200000.0001016002 +y_0=0 +datum=NAD83 +units=us-ft +no_defs","EPSG:2238":"+proj=lcc +lat_1=30.75 +lat_2=29.58333333333333 +lat_0=29 +lon_0=-84.5 +x_0=600000 +y_0=0 +datum=NAD83 +units=us-ft +no_defs","EPSG:2260":"+proj=tmerc +lat_0=38.83333333333334 +lon_0=-74.5 +k=0.9999 +x_0=150000 +y_0=0 +datum=NAD83 +units=us-ft +no_defs","EPSG:2261":"+proj=tmerc +lat_0=40 +lon_0=-76.58333333333333 +k=0.9999375 +x_0=250000 +y_0=0 +datum=NAD83 +units=us-ft +no_defs","EPSG:2262":"+proj=tmerc +lat_0=40 +lon_0=-78.58333333333333 +k=0.9999375 +x_0=350000 +y_0=0 +datum=NAD83 +units=us-ft +no_defs","EPSG:2263":"+proj=lcc +lat_1=41.03333333333333 +lat_2=40.66666666666666 +lat_0=40.16666666666666 +lon_0=-74 +x_0=300000 +y_0=0 +datum=NAD83 +units=us-ft +no_defs","EPSG:3435":"+proj=tmerc +lat_0=36.66666666666666 +lon_0=-88.33333333333333 +k=0.9999749999999999 +x_0=300000 +y_0=0 +datum=NAD83 +units=us-ft +no_defs","EPSG:3436":"+proj=tmerc +lat_0=36.66666666666666 +lon_0=-90.16666666666667 +k=0.999941177 +x_0=700000 +y_0=0 +datum=NAD83 +units=us-ft +no_defs","EPSG:2285":"+proj=lcc +lat_1=48.73333333333333 +lat_2=47.5 +lat_0=47 +lon_0=-120.8333333333333 +x_0=500000.0001016001 +y_0=0 +datum=NAD83 +units=us-ft +no_defs","EPSG:2286":"+proj=lcc +lat_1=47.33333333333334 +lat_2=45.83333333333334 +lat_0=45.33333333333334 +lon_0=-120.5 +x_0=500000.0001016001 +y_0=0 +datum=NAD83 +units=us-ft +no_defs","EPSG:2269":"+proj=lcc +lat_1=46 +lat_2=44.33333333333334 +lat_0=43.66666666666666 +lon_0=-120.5 +x_0=2500000 +y_0=0 +datum=NAD83 +units=m +no_defs","EPSG:2270":"+proj=lcc +lat_1=44 +lat_2=42.33333333333334 +lat_0=41.66666666666666 +lon_0=-120.5 +x_0=1500000 +y_0=0 +datum=NAD83 +units=m +no_defs","EPSG:3451":"+proj=lcc +lat_1=32.66666666666666 +lat_2=31.16666666666667 +lat_0=30.5 +lon_0=-92.5 +x_0=1000000 +y_0=0 +datum=NAD83 +units=us-ft +no_defs","EPSG:3452":"+proj=lcc +lat_1=30.7 +lat_2=29.3 +lat_0=28.5 +lon_0=-91.33333333333333 +x_0=1000000 +y_0=0 +datum=NAD83 +units=us-ft +no_defs","EPSG:2283":"+proj=lcc +lat_1=39.2 +lat_2=38.03333333333333 +lat_0=37.66666666666666 +lon_0=-78.5 +x_0=3500000.0001016001 +y_0=1000000.0001016001 +datum=NAD83 +units=us-ft +no_defs","EPSG:2284":"+proj=lcc +lat_1=37.96666666666667 +lat_2=36.76666666666667 +lat_0=36.33333333333334 +lon_0=-78.5 +x_0=3500000.0001016001 +y_0=1000000.0001016001 +datum=NAD83 +units=us-ft +no_defs"};
 
 // Register all embedded definitions with proj4
 (function() {
@@ -1684,8 +1752,21 @@ const CRS_DEFS = {"EPSG:32601":"+proj=utm +zone=1 +datum=WGS84 +units=m +no_defs
 /**
  * Parse EPSG code(s) from any OGC srsName string.
  * Returns { horiz: number|null, vert: number|null }
+ * Memoized by srsName — toWGS84 is called per-vertex in posList/ring loops
+ * where the srsName is constant, so the regex cascade below would otherwise
+ * re-run for every coordinate. Pure string→result, so never invalidated.
+ * Callers must not mutate the returned object (all current callers
+ * destructure it).
  */
+const _PARSE_EPSG_CACHE = new Map();
 function parseEPSG(srsName) {
+  const key = srsName || '';
+  let r = _PARSE_EPSG_CACHE.get(key);
+  if (!r) { r = _parseEPSGRaw(srsName); _PARSE_EPSG_CACHE.set(key, r); }
+  return r;
+}
+
+function _parseEPSGRaw(srsName) {
   if (!srsName) return { horiz: null, vert: null };
   const s = srsName.trim();
 
@@ -1722,6 +1803,9 @@ function parseEPSG(srsName) {
   return { horiz: null, vert: null };
 }
 
+/** Cached proj4 converter objects, keyed by 'EPSG:nnnn' source code. */
+const _PROJ_CONV_CACHE = new Map();
+
 /**
  * Convert coordinates to WGS84 [lat, lon] for Leaflet.
  * pos: array of numbers from gml:pos (in srsName axis order)
@@ -1731,13 +1815,37 @@ function parseEPSG(srsName) {
 function toWGS84(pos, srsName) {
   const result = { lat: null, lon: null, elev: null,
                    horizEPSG: null, vertEPSG: null,
-                   transformed: false, axisSwapped: false, warning: null };
+                   transformed: false, axisSwapped: false, warning: null,
+                   isLocalCRS: false, localCRSName: null };
 
   if (!pos || pos.length < 2) {
     result.warning = 'No coordinates'; return result;
   }
 
   const { horiz, vert } = parseEPSG(srsName);
+
+  // ── Local Cartesian CRS reference ──
+  // If no EPSG code was found but srsName carries a #fragment, check whether
+  // it refers to a diggs:LocalCartesianCRS embedded in this document (via
+  // DocumentInformation/crs) before falling back to the "assume lat,lon"
+  // default below, which would otherwise silently mis-plot local-grid data.
+  if (!horiz && srsName) {
+    const frag = srsName.replace(/^.*#/, '').trim();
+    if (frag && LOCAL_CRS_INDEX[frag]) {
+      const localCRS = LOCAL_CRS_INDEX[frag];
+      result.isLocalCRS = true;
+      result.localCRSName = localCRS.name;
+      result.elev = pos.length >= 3 ? pos[2] : null;
+      const local = localCartesianToWGS84(pos, localCRS);
+      result.lat = local.lat;
+      result.lon = local.lon;
+      if (local.elev !== null) result.elev = local.elev;
+      result.warning = local.warning;
+      result.transformed = local.lat !== null;
+      return result;
+    }
+  }
+
   result.horizEPSG = horiz;
   result.vertEPSG  = vert;
   result.elev      = pos.length >= 3 ? pos[2] : null;
@@ -1789,8 +1897,29 @@ function toWGS84(pos, srsName) {
   }
 
   try {
-    // proj4 always returns [lon, lat] after transform to geographic
-    const [lon, lat] = proj4(key, 'EPSG:4326', [pos[0], pos[1]]);
+    // Include all available position components. For ordinary projected CRSs
+    // (UTM, etc.) a 3rd/Z component is irrelevant and proj4 passes it through
+    // unchanged. For a geocentric CRS (e.g. EPSG:4978) the Z component is not
+    // optional — X, Y, and Z together define the 3D point, and the inverse
+    // geocentric-to-geodetic formula needs all three to solve for latitude.
+    // Omitting Z forces it to 0, which mathematically pins the point to the
+    // equatorial plane and always yields latitude = 0 (longitude is
+    // unaffected since atan2(Y, X) doesn't depend on Z).
+    const inputCoord = (pos.length > 2 && pos[2] !== undefined)
+      ? [pos[0], pos[1], pos[2]]
+      : [pos[0], pos[1]];
+    // Converter objects are cached per EPSG code: proj4(from, to, coord)
+    // re-parses both proj-strings and rebuilds projection constants on every
+    // call, and toWGS84 runs per-vertex over posList/ring loops. Cached only
+    // after a successful build, so a def added later by fetchEPSGDef is
+    // picked up on the next call.
+    let conv = _PROJ_CONV_CACHE.get(key);
+    if (!conv) {
+      conv = proj4(key, 'EPSG:4326');
+      _PROJ_CONV_CACHE.set(key, conv);
+    }
+    // proj4 always returns [lon, lat, (height)] after transform to geographic
+    const [lon, lat] = conv.forward(inputCoord);
     // Sanity check — valid WGS84 range
     if (lat < -90 || lat > 90 || lon < -180 || lon > 180) {
       result.warning = `EPSG:${horiz} transform produced out-of-range coords (${lat.toFixed(4)}, ${lon.toFixed(4)})`;
@@ -1807,6 +1936,25 @@ function toWGS84(pos, srsName) {
 
 /** CRS names fetched at runtime from epsg.io — keyed by numeric EPSG code. */
 const FETCHED_CRS_NAMES = {};
+
+/**
+ * vertDatumLabel(srsName, datumRef) — human-readable vertical datum label
+ * for an elevation element. Prefers srsName (EPSG code from URI →
+ * VERT_CRS_INFO name → FETCHED_CRS_NAMES → 'EPSG:n'; non-EPSG srsName shown
+ * verbatim); falls back to the datumReference attribute text. Shared by
+ * renderElevRef and renderLTPElevAttr.
+ */
+function vertDatumLabel(srsName, datumRef) {
+  if (srsName) {
+    const m = srsName.match(/EPSG[/:](?:[\d.]+[/:])?(\d+)/i);
+    const epsg = m ? parseInt(m[1]) : null;
+    if (!epsg) return srsName;
+    if (VERT_CRS_INFO[epsg]) return VERT_CRS_INFO[epsg].name;
+    if (FETCHED_CRS_NAMES[epsg]) return FETCHED_CRS_NAMES[epsg];
+    return `EPSG:${epsg}`;
+  }
+  return datumRef || '';
+}
 
 /** Fetch a proj4 definition (and CRS name) from epsg.io (online fallback for unknown codes) */
 async function fetchEPSGDef(epsg) {
@@ -1837,6 +1985,672 @@ async function fetchEPSGDef(epsg) {
 
     return def;
   } catch { return null; }
+}
+
+// ══════════════════════════════════════════════════════════════
+//  LINEAR UNIT RESOLUTION (horizontal CRS + elevation)
+// ══════════════════════════════════════════════════════════════
+
+/** Map a proj4 +units= token (or a raw uomLabels string) to a short display label. */
+function mapProjUnitLabel(u) {
+  if (!u) return '';
+  const map = {
+    'm':'m', 'meter':'m', 'metre':'m', 'metres':'m',
+    'ft':'ft', 'foot':'ft', 'international-ft':'ft',
+    'us-ft':'ftUS', 'us-foot':'ftUS', 'ftus':'ftUS',
+    'ind-ft':'ftInd',
+    'km':'km', 'kmi':'nmi', 'nmi':'nmi',
+    'mi':'mi', 'us-mi':'miUS',
+    'yd':'yd', 'us-yd':'ydUS',
+    'in':'in', 'us-in':'inUS',
+    'deg':'°', 'degree':'°', 'degrees':'°',
+  };
+  return map[u.toLowerCase()] || u;
+}
+
+/**
+ * Determine the native linear unit of a (horizontal) CRS purely from its proj4
+ * definition string — NOT from uomLabels. Returns null if the CRS definition
+ * isn't available (not embedded and not yet fetched) or its unit can't be parsed.
+ * Synchronous — relies on CRS_DEFS already being populated (embedded, or by a
+ * prior fetchEPSGDef()/prefetchUnknownCRS() call).
+ */
+function crsDefLinearUnit(epsgCode) {
+  if (!epsgCode) return null;
+  const def = CRS_DEFS[`EPSG:${epsgCode}`];
+  if (!def) return null;
+  if (/\+proj=longlat/.test(def)) return '°';
+  const um = def.match(/\+units=(\S+)/);
+  if (um) return mapProjUnitLabel(um[1]);
+  const tm = def.match(/\+to_meter=([\d.eE+-]+)/);
+  if (tm) {
+    const v = parseFloat(tm[1]);
+    if (!isNaN(v)) {
+      if (Math.abs(v - 1) < 1e-9) return 'm';
+      if (Math.abs(v - 0.3048) < 1e-6) return 'ft';
+      if (v > 0.30479 && v < 0.30482) return 'ftUS';
+      return `×${v}m`;
+    }
+  }
+  return null;
+}
+
+/**
+ * Resolve the display unit + provenance for a horizontal (Easting/Northing) CRS.
+ * Priority per project convention:
+ *   1. Embedded proj4 definition (CRS_DEFS)
+ *   2. Definition fetched live from epsg.io (only if not already embedded)
+ *   3. uomLabels reported on the instance — flagged "(reported)" since it did
+ *      not come from the CRS definition itself
+ * If (1) or (2) succeed AND uomLabels was also present, the two are cross-checked
+ * and a "(reported uom mismatch)" flag is raised on disagreement.
+ * Mutates sf: sf.horizUnit, sf.horizUnitFlag ('' | 'reported' | 'mismatch').
+ */
+async function resolveHorizUnit(sf) {
+  const epsg = sf.horizEPSG;
+  if (!epsg || GEO_CRS.has(epsg)) return;  // geographic — handled as degrees elsewhere
+  const reported = sf.rawUomLabels ? (sf.rawUomLabels[0] || '') : '';
+  let unit = crsDefLinearUnit(epsg);
+  if (!unit) {
+    const def = await fetchEPSGDef(epsg);   // no-op if already cached/attempted
+    if (def) unit = crsDefLinearUnit(epsg);
+  }
+  if (unit) {
+    sf.horizUnit = unit;
+    sf.horizUnitFlag = '';
+    if (reported && mapProjUnitLabel(reported).toLowerCase() !== unit.toLowerCase()) {
+      sf.horizUnitFlag = 'mismatch';
+    }
+  } else if (reported) {
+    sf.horizUnit = mapProjUnitLabel(reported);
+    sf.horizUnitFlag = 'reported';
+  } else {
+    sf.horizUnit = '';
+    sf.horizUnitFlag = '';
+  }
+}
+
+/**
+ * Determine the height/Z unit of a CRS from its proj4 definition string.
+ * Unlike crsDefLinearUnit() (used for horizontal Easting/Northing display,
+ * which returns '°' for a longlat CRS), this always resolves a *linear* unit:
+ * for a longlat CRS (Geographic 2D/3D) the height component is ellipsoidal
+ * height, conventionally in meters absent any other indication; for a
+ * geocentric or projected CRS the height/Z shares the CRS's own linear unit.
+ */
+function crsDefHeightUnit(epsgCode) {
+  if (!epsgCode) return null;
+  const def = CRS_DEFS[`EPSG:${epsgCode}`];
+  if (!def) return null;
+  const vm = def.match(/\+vunits=(\S+)/);
+  if (vm) return mapProjUnitLabel(vm[1]);
+  if (/\+proj=longlat/.test(def)) return 'm';  // ellipsoidal height convention
+  const um = def.match(/\+units=(\S+)/);
+  if (um) return mapProjUnitLabel(um[1]);
+  const tm = def.match(/\+to_meter=([\d.eE+-]+)/);
+  if (tm) {
+    const v = parseFloat(tm[1]);
+    if (!isNaN(v)) {
+      if (Math.abs(v - 1) < 1e-9) return 'm';
+      if (Math.abs(v - 0.3048) < 1e-6) return 'ft';
+      if (v > 0.30479 && v < 0.30482) return 'ftUS';
+      return `×${v}m`;
+    }
+  }
+  return null;
+}
+
+/**
+ * Resolve the display unit + provenance for elevation, extending getVertCRSInfo()
+ * (embedded table + epsg.io fallback) with a uomLabels-reported fallback and
+ * mismatch detection, per project convention.
+ * Mutates sf: sf.elevUnit, sf.vertCRSName, sf.elevUnitFlag ('' | 'reported' | 'mismatch').
+ */
+async function resolveVertUnit(sf) {
+  const reported = sf.rawUomLabels ? (sf.rawUomLabels[2] || '') : '';
+  if (sf.vertEPSG) {
+    const info = await getVertCRSInfo(sf.vertEPSG);
+    if (info) {
+      sf.elevUnit = info.unit;
+      sf.vertCRSName = info.name;
+      sf.elevUnitFlag = '';
+      if (reported && mapProjUnitLabel(reported).toLowerCase() !== info.unit.toLowerCase()) {
+        sf.elevUnitFlag = 'mismatch';
+      }
+      return;
+    }
+  }
+
+  // No separate vertical CRS component (no compound). If the horizontal CRS
+  // is itself 3D — Geographic 3D (e.g. EPSG:4979) or Geocentric (e.g. 4978) —
+  // its own height/Z unit applies directly; this was previously missed since
+  // only sf.vertEPSG (compound CRS case) was consulted.
+  const cat = crsCategory(sf);
+  if (cat === 'geographic3d' || cat === 'geocentric') {
+    let unit = crsDefHeightUnit(sf.horizEPSG);
+    if (!unit) {
+      const def = await fetchEPSGDef(sf.horizEPSG);
+      if (def) unit = crsDefHeightUnit(sf.horizEPSG);
+    }
+    if (unit) {
+      sf.elevUnit = unit;
+      sf.elevUnitFlag = '';
+      if (reported && mapProjUnitLabel(reported).toLowerCase() !== unit.toLowerCase()) {
+        sf.elevUnitFlag = 'mismatch';
+      }
+      return;
+    }
+  }
+
+  // Vertical CRS absent or unresolvable (offline / not embedded / not found).
+  if (reported) {
+    sf.elevUnit = mapProjUnitLabel(reported);
+    sf.elevUnitFlag = 'reported';
+  } else {
+    sf.elevUnit = '';       // leave blank — signals an encoding gap to the user
+    sf.elevUnitFlag = '';
+  }
+}
+
+/**
+ * Async post-pass: resolve horizontal + vertical display units for every parsed
+ * SF (including nested LTP/RI), re-rendering the open detail panel if affected.
+ * Call after prefetchUnknownCRS() so CRS_DEFS is as complete as possible first.
+ */
+async function enrichCoordUnits() {
+  const allFeatures = [];
+  for (const arr of DIGGS_SF.values()) allFeatures.push(...arr);
+  for (const rifsSF of DIGGS_SF.get('RIFoundationSystem') || []) {
+    for (const ltpSF of rifsSF.ltps || []) {
+      allFeatures.push(ltpSF);
+      for (const riSF of ltpSF.ris || []) allFeatures.push(riSF);
+    }
+  }
+  for (const f of allFeatures) {
+    await resolveHorizUnit(f);
+    await resolveVertUnit(f);
+    if (window._selectedFeatureId === f.id) showSFDetail(f);
+  }
+}
+
+// ══════════════════════════════════════════════════════════════
+//  LOCAL CARTESIAN CRS  (diggs:LocalCartesianCRS, embedded per-document)
+// ══════════════════════════════════════════════════════════════
+
+/** gml:id → parsed local-CRS descriptor, rebuilt each time a new file is loaded. */
+let LOCAL_CRS_INDEX = {};
+
+/**
+ * Scan the whole document for diggs:LocalCartesianCRS elements (normally found
+ * inside DocumentInformation/crs, but matched anywhere by local name so xlink
+ * copies elsewhere still resolve) and index them by gml:id for lookup by any
+ * srsName that references them via a local #fragment.
+ */
+function indexLocalCartesianCRS(doc) {
+  LOCAL_CRS_INDEX = {};
+  const els = doc.getElementsByTagNameNS(NS.diggs, 'LocalCartesianCRS');
+  for (const el of els) {
+    const id = el.getAttributeNS(NS.gml, 'id') || el.getAttribute('gml:id') || el.getAttribute('id');
+    if (!id) continue;
+    try { LOCAL_CRS_INDEX[id] = parseLocalCartesianCRS(doc, el); }
+    catch (e) { console.warn('[DIGGS] Failed to parse LocalCartesianCRS', id, e); }
+  }
+}
+
+/**
+ * Parse a diggs:LocalCartesianCRS element into a descriptor used by
+ * localCartesianToWGS84(). Best-effort: supports axes defined either by an
+ * explicit directionVector, or derived as the unit vector of a location
+ * LinearExtent (start→end) when no directionVector is given. This has not
+ * been validated against a real-world instance (none was available at the
+ * time this was written) — treat as a first pass pending a test file.
+ */
+function parseLocalCartesianCRS(doc, el) {
+  const id   = el.getAttributeNS(NS.gml, 'id') || el.getAttribute('gml:id') || '';
+  const name = xText(doc, 'gml:name', el) || id || 'Local CRS';
+
+  // Axis units, from gml:cartesianCS → gml:axis → gml:CoordinateSystemAxis@uom
+  const axisUnits = [];
+  const axEls = el.getElementsByTagNameNS(NS.gml, 'CoordinateSystemAxis');
+  for (const axEl of axEls) axisUnits.push(axEl.getAttribute('uom') || '');
+
+  // Origin location — a PointLocation in a real (resolvable) spatial CRS.
+  let origin = null;
+  const originPL = xFirst(doc, 'diggs:originLocation/diggs:PointLocation', el);
+  if (originPL) {
+    const srsName = originPL.getAttribute('srsName') || '';
+    const posText = xText(doc, 'gml:pos', originPL);
+    const tokens  = numTokens(posText);
+    if (tokens.length >= 2) {
+      const geo = toWGS84(tokens, srsName);
+      origin = { rawPos: tokens, srsName, lat: geo.lat, lon: geo.lon, elev: geo.elev };
+    }
+  }
+
+  // Axis locations — direction vector per axis, in the origin's spatial CRS.
+  const axes = [];
+  const axisLocEls = el.getElementsByTagNameNS(NS.diggs, 'AxisLocation');
+  for (const axLocEl of axisLocEls) {
+    const orderText = xText(doc, 'diggs:axisOrder', axLocEl);
+    const order = parseInt(orderText) || (axes.length + 1);
+    let vec = null;
+    const dvText = xText(doc, 'gml:directionVector', axLocEl) || xText(doc, 'diggs:directionVector', axLocEl);
+    if (dvText && dvText.trim()) {
+      const v = numTokens(dvText);
+      if (v.length >= 2) vec = v;
+    }
+    if (!vec) {
+      const leEl = xFirst(doc, 'diggs:location/diggs:LinearExtent', axLocEl);
+      if (leEl) {
+        const dim = parseInt(leEl.getAttribute('srsDimension') || '3') || 3;
+        const posListText = xText(doc, 'gml:posList', leEl);
+        const toks = numTokens(posListText);
+        if (toks.length >= dim * 2) {
+          const start = toks.slice(0, dim), end = toks.slice(dim, dim * 2);
+          const delta = start.map((s, i) => end[i] - s);
+          const mag = Math.sqrt(delta.reduce((a, b) => a + b * b, 0));
+          if (mag > 0) vec = delta.map(d => d / mag);
+        }
+      }
+    }
+    if (vec) axes.push({ order, vec });
+  }
+  axes.sort((a, b) => a.order - b.order);
+
+  const scaleFactorText = xText(doc, 'diggs:scaleFactor', el);
+  const scaleFactor = scaleFactorText ? (parseFloat(scaleFactorText) || 1) : 1;
+
+  return {
+    id, name, axisUnits, origin, axes, scaleFactor,
+    incomplete: !origin || origin.lat === null || axes.length === 0,
+  };
+}
+
+/**
+ * Transform a local-CRS coordinate to WGS84 via its origin + axis direction
+ * vectors: spatial_delta = Σ( local[i] × scaleFactor × axisVector[i] ),
+ * then re-run toWGS84 on (origin.rawPos + spatial_delta) in the origin's own
+ * spatial CRS. Best-effort (see parseLocalCartesianCRS note above) — assumes
+ * axis direction vectors are expressed in the same units/order as the
+ * origin's spatial CRS.
+ */
+function localCartesianToWGS84(pos, localCRS) {
+  const result = { lat: null, lon: null, elev: null, warning: null };
+  if (!localCRS || localCRS.incomplete) {
+    result.warning = localCRS
+      ? `Local Cartesian CRS "${localCRS.name}" has no resolvable origin or axis vectors — raw coordinates only, cannot plot`
+      : 'Local Cartesian CRS definition not found in this document';
+    return result;
+  }
+  if (localCRS.axes.length < pos.length) {
+    result.warning = `Local Cartesian CRS "${localCRS.name}" defines fewer axes than the coordinate has components — raw coordinates only, cannot plot`;
+    return result;
+  }
+  const spatialDim = localCRS.axes[0].vec.length;
+  const delta = new Array(spatialDim).fill(0);
+  for (let i = 0; i < pos.length; i++) {
+    const v = localCRS.axes[i].vec;
+    for (let d = 0; d < spatialDim; d++) delta[d] += pos[i] * localCRS.scaleFactor * (v[d] || 0);
+  }
+  const originPos = localCRS.origin.rawPos;
+  const newPos = originPos.map((v, i) => v + (delta[i] || 0));
+  const geo = toWGS84(newPos, localCRS.origin.srsName);
+  result.lat = geo.lat; result.lon = geo.lon; result.elev = geo.elev;
+  result.warning = geo.warning ? `(via local CRS "${localCRS.name}") ${geo.warning}` : null;
+  return result;
+}
+
+// ══════════════════════════════════════════════════════════════
+//  COMPUTED GEOMETRY METRICS
+//  Depth/length from centerLine, area from featureExtent — cross-checked
+//  against whatever the instance separately reports (totalMeasuredDepth,
+//  totalArea, etc.), since those are optional and may be absent or wrong.
+// ══════════════════════════════════════════════════════════════
+
+/** Linear-unit-to-meters conversion factors, keyed by the short labels used elsewhere. */
+const LINEAR_UNIT_TO_M = {
+  'm': 1, 'km': 1000,
+  'ft': 0.3048, 'ftUS': 1200 / 3937, 'ftInd': 0.30479841,
+  'mi': 1609.344, 'miUS': 1609.34721869444,
+  'yd': 0.9144, 'ydUS': (1200 / 3937) * 3,
+  'in': 0.0254, 'inUS': (1200 / 3937) / 12,
+  'nmi': 1852,
+};
+function unitToMeters(unit) {
+  if (!unit) return null;
+  return (LINEAR_UNIT_TO_M[unit] ?? LINEAR_UNIT_TO_M[mapProjUnitLabel(unit)]) ?? null;
+}
+
+/**
+ * Convert a flat array of raw coordinate tuples (native axis order, as parsed
+ * from a gml:posList) into local-metric [x, y, z] meters suitable for ordinary
+ * Euclidean length/area math, regardless of the source CRS flavor. Also
+ * returns the CRS's own "native" linear unit, used only for *display* of the
+ * computed total — the math itself always happens in meters.
+ *
+ *  - Local Cartesian CRS: scaled by its CartesianCS axis unit (GML guarantees
+ *    all axes of one CartesianCS share a single length unit).
+ *  - Geographic (lat/lon/height): local tangent-plane approximation around
+ *    the coordinate set's mean latitude — accurate to a few cm at borehole/
+ *    foundation project scales; not intended for regional-scale geodesy.
+ *  - Projected / Geocentric: native units read from the CRS's proj4
+ *    definition (falls back to 'm' if genuinely undeterminable).
+ */
+function coordsToLocalMeters(coords, srsName) {
+  const { horiz, vert } = parseEPSG(srsName);
+  const frag = (srsName || '').replace(/^.*#/, '').trim();
+
+  if (!horiz && frag && LOCAL_CRS_INDEX[frag]) {
+    const localCRS = LOCAL_CRS_INDEX[frag];
+    const rawUnit = (localCRS.axisUnits && localCRS.axisUnits[0]) ? mapProjUnitLabel(localCRS.axisUnits[0]) : 'm';
+    const f = unitToMeters(rawUnit) || 1;
+    return {
+      pts: coords.map(c => [(c[0] || 0) * f, (c[1] || 0) * f, (c[2] || 0) * f]),
+      nativeUnit: rawUnit,
+    };
+  }
+
+  // Resolve the Z/height axis unit INDEPENDENTLY of the horizontal axes' unit.
+  // For a compound CRS the vertical component (vert) carries its own linear
+  // unit that has nothing to do with the horizontal CRS's unit (e.g. a
+  // NAD83/UTM horizontal in meters commonly pairs with a NAVD88 vertical in
+  // ftUS) — so vert, when present, always takes priority. Only when there is
+  // no separate vertical component (a single 3D CRS, e.g. Geographic 3D or
+  // Geocentric) does the height unit fall back to the horizontal CRS's own
+  // definition, mirroring resolveVertUnit()'s logic for that same case.
+  let zUnit = null;
+  if (vert && VERT_CRS_INFO[vert]) zUnit = VERT_CRS_INFO[vert].unit;
+  if (!zUnit) zUnit = crsDefHeightUnit(horiz);
+  const zf = unitToMeters(zUnit) || 1;
+
+  if (horiz && GEO_CRS.has(horiz)) {
+    // rawPos convention used throughout this file: index0 = latitude, index1 = longitude
+    const R = 6378137;   // WGS84 equatorial radius — adequate for local tangent-plane approx
+    const latMean = (coords.reduce((s, c) => s + c[0], 0) / coords.length) * Math.PI / 180;
+    const mPerDegLat = (Math.PI / 180) * R;
+    const mPerDegLon = (Math.PI / 180) * R * Math.cos(latMean);
+    return {
+      pts: coords.map(c => [c[1] * mPerDegLon, c[0] * mPerDegLat, (c[2] || 0) * zf]),
+      nativeUnit: 'm',   // no other natural linear unit for a geographic CRS
+    };
+  }
+
+  // Projected or geocentric — native horizontal unit comes from the CRS's own
+  // definition; the Z/height unit was already resolved above (a separate
+  // vertical CRS component, when present, always overrides the horizontal
+  // CRS's own unit).
+  const hUnit = crsDefLinearUnit(horiz) || 'm';
+  const hf = unitToMeters(hUnit) || 1;
+  return {
+    pts: coords.map(c => [(c[0] || 0) * hf, (c[1] || 0) * hf, (c[2] || 0) * zf]),
+    nativeUnit: hUnit,
+  };
+}
+
+/** Sum of 3D Euclidean segment lengths along an ordered list of [x,y,z] meter points. */
+function polylineLengthMeters(pts) {
+  let total = 0;
+  for (let i = 1; i < pts.length; i++) {
+    const dx = pts[i][0] - pts[i - 1][0], dy = pts[i][1] - pts[i - 1][1], dz = pts[i][2] - pts[i - 1][2];
+    total += Math.sqrt(dx * dx + dy * dy + dz * dz);
+  }
+  return total;
+}
+
+/**
+ * Area of a (possibly tilted, but coplanar) 3D polygon via Newell's method —
+ * correct for any planar ring regardless of its orientation in space, so no
+ * plane-fitting step is needed as long as the ring's own vertices are
+ * coplanar (guaranteed for a single GML surface patch).
+ */
+function newellAreaMeters(pts) {
+  const n = pts.length;
+  if (n < 3) return 0;
+  let nx = 0, ny = 0, nz = 0;
+  for (let i = 0; i < n; i++) {
+    const [x1, y1, z1] = pts[i];
+    const [x2, y2, z2] = pts[(i + 1) % n];
+    nx += (y1 - y2) * (z1 + z2);
+    ny += (z1 - z2) * (x1 + x2);
+    nz += (x1 - x2) * (y1 + y2);
+  }
+  return 0.5 * Math.sqrt(nx * nx + ny * ny + nz * nz);
+}
+
+/**
+ * Compute the along-path "measured" length of a centerLine/LinearExtent from
+ * its raw posList tokens. This is the actual polyline length (sum of segment
+ * lengths), correctly handling inclined/deviated boreholes with any number of
+ * vertices — not a straight top-to-bottom chord.
+ * Returns { valueMeters, nativeUnit, valueNative } or null if too few points.
+ */
+function computeCenterLineLength(tokensFlat, dim, srsName) {
+  if (!tokensFlat || !dim || dim < 2) return null;
+  const n = Math.floor(tokensFlat.length / dim);
+  if (n < 2) return null;
+  const coords = [];
+  for (let i = 0; i < n; i++) coords.push(tokensFlat.slice(i * dim, (i + 1) * dim));
+  const { pts, nativeUnit } = coordsToLocalMeters(coords, srsName);
+  const valueMeters = polylineLengthMeters(pts);
+  const f = unitToMeters(nativeUnit) || 1;
+  return { valueMeters, nativeUnit, valueNative: valueMeters / f };
+}
+
+/**
+ * Compute the net area of one or more coplanar polygon patches (each
+ * exterior ring minus its own interior/hole rings, summed across patches).
+ * This one function naturally covers PlanarSurface, MultiPlanarSurface,
+ * MultiSurfaceAggregate, and a gml:Solid's bounding faces, since all of them
+ * reduce to the same set of exterior/interior LinearRing patches — see
+ * collectFeatureExtentRawPatches() below.
+ * Returns { valueMeters2, nativeUnit, valueNative } or null if no usable patch.
+ */
+function computeFeatureExtentArea(patches) {
+  if (!patches || !patches.length) return null;
+  let totalM2 = 0, nativeUnit = null, any = false;
+  for (const patch of patches) {
+    const n = Math.floor(patch.tokens.length / patch.dim);
+    if (n < 3) continue;
+    const coords = [];
+    for (let i = 0; i < n; i++) coords.push(patch.tokens.slice(i * patch.dim, (i + 1) * patch.dim));
+    const { pts, nativeUnit: u } = coordsToLocalMeters(coords, patch.srsName);
+    if (!nativeUnit) nativeUnit = u;
+    let patchArea = newellAreaMeters(pts);
+    for (const hole of (patch.holes || [])) {
+      const hn = Math.floor(hole.tokens.length / hole.dim);
+      if (hn < 3) continue;
+      const hCoords = [];
+      for (let i = 0; i < hn; i++) hCoords.push(hole.tokens.slice(i * hole.dim, (i + 1) * hole.dim));
+      const { pts: hPts } = coordsToLocalMeters(hCoords, hole.srsName);
+      patchArea -= newellAreaMeters(hPts);
+    }
+    totalM2 += Math.max(patchArea, 0);
+    any = true;
+  }
+  if (!any) return null;
+  nativeUnit = nativeUnit || 'm';
+  const f = unitToMeters(nativeUnit) || 1;
+  return { valueMeters2: totalM2, nativeUnit, valueNative: totalM2 / (f * f) };
+}
+
+/**
+ * Collect raw (untransformed) polygon patches from a featureExtent element —
+ * exterior + interior LinearRing/posList tokens, plus srsName/srsDimension —
+ * for true metric area computation (as opposed to the WGS84-transformed
+ * rings used for map rendering elsewhere, which lose metric precision).
+ *
+ * Deliberately geometry-type-agnostic: PlanarSurface, MultiPlanarSurface,
+ * MultiSurfaceAggregate-of-Polygons, and a gml:Solid's CompositeSurface faces
+ * all reduce to the same exterior/interior LinearRing substructure per GML,
+ * so simply finding every 'exterior' descendant and treating its parent as
+ * one coplanar patch covers all of them without type-specific branches.
+ * (The Solid/MultiSurfaceAggregate path hasn't been validated against a real
+ * instance — worth a smoke test if/when one turns up.)
+ */
+function collectFeatureExtentRawPatches(featureExtentEl, fallbackSrsName, fallbackDim) {
+  if (!featureExtentEl) return [];
+  const patches = [];
+  const seen = new Set();
+  const exteriorEls = findAllByLocalName(featureExtentEl, 'exterior');
+
+  for (const extEl of exteriorEls) {
+    const patchEl = extEl.parentNode;
+    if (seen.has(patchEl)) continue;
+    seen.add(patchEl);
+
+    // DIGGS puts srsName/srsDimension on the surface object, which may sit
+    // several levels above the raw GML exterior/LinearRing/posList — walk up
+    // from the patch to find them, falling back to the parent SF's own
+    // values (same physical CRS in the vast majority of instances).
+    let srsName = null, dim = null, node = patchEl;
+    while (node && node.nodeType === 1) {
+      if (!srsName) srsName = node.getAttribute('srsName') || (node.getAttributeNS && node.getAttributeNS(null, 'srsName'));
+      if (!dim) dim = node.getAttribute('srsDimension') || (node.getAttributeNS && node.getAttributeNS(null, 'srsDimension'));
+      if (srsName && dim) break;
+      node = (node === featureExtentEl) ? null : node.parentNode;
+    }
+    srsName = srsName || fallbackSrsName || '';
+    dim = dim || fallbackDim || '2';
+
+    const lrEl = findByLocalName(extEl, 'LinearRing');
+    if (!lrEl) continue;
+    let plEl = null;
+    for (const c of lrEl.childNodes) { if (c.nodeType === 1 && c.localName === 'posList') { plEl = c; break; } }
+    if (!plEl) continue;
+    const ringDim = parseInt(plEl.getAttribute('srsDimension') || dim || '2') || 2;
+    const tokens = numTokens(plEl.textContent);
+    if (tokens.length < ringDim * 3) continue;
+
+    const holes = [];
+    for (const child of patchEl.childNodes) {
+      if (child.nodeType === 1 && child.localName === 'interior') {
+        const hLr = findByLocalName(child, 'LinearRing');
+        if (!hLr) continue;
+        let hPl = null;
+        for (const c2 of hLr.childNodes) { if (c2.nodeType === 1 && c2.localName === 'posList') { hPl = c2; break; } }
+        if (!hPl) continue;
+        const hDim = parseInt(hPl.getAttribute('srsDimension') || dim || '2') || 2;
+        const hTokens = numTokens(hPl.textContent);
+        if (hTokens.length >= hDim * 3) holes.push({ tokens: hTokens, dim: hDim, srsName });
+      }
+    }
+    patches.push({ tokens, dim: ringDim, srsName, holes });
+  }
+  return patches;
+}
+
+/**
+ * Decide whether a reported measure and a computed one disagree enough to
+ * flag, after converting both to a common unit (meters, or meters² for
+ * areas). Tolerance is relative (2%) with a small absolute floor, so that
+ * rounding and the geographic tangent-plane approximation don't trigger
+ * false positives on near-identical values.
+ */
+/**
+ * Strip a trailing area/volume exponent (UCUM-style trailing digit, e.g.
+ * 'km2' -> 'km', or a Unicode superscript, e.g. 'm²' -> 'm') so the result is
+ * a plain linear-unit label unitToMeters() can look up. Only meaningful for
+ * area/volume unit strings — leave plain linear units untouched.
+ */
+function stripAreaExponent(unit) {
+  if (!unit) return unit;
+  return unit.replace(/[\u00b2\u00b3]$/, '').replace(/[23]$/, '');
+}
+
+/**
+ * Convert a computed geometry value from its native calculation unit into a
+ * target display unit (typically the unit of a reported value it's being
+ * compared/paired with), so the two aren't shown side by side in different
+ * units. Both units are plain linear labels (area exponent already stripped
+ * by the caller when isArea). Returns null if either unit can't be resolved
+ * to a meter conversion factor, so the caller can fall back to native units.
+ */
+function convertGeomValue(value, fromUnit, toUnit, isArea) {
+  const ff = unitToMeters(fromUnit);
+  const tf = unitToMeters(toUnit);
+  if (!ff || !tf) return null;
+  const factor = isArea ? (ff * ff) / (tf * tf) : ff / tf;
+  return value * factor;
+}
+
+function computedValueMismatch(reportedVal, reportedUnit, computedVal, computedUnit, isArea) {
+  if (reportedVal == null || isNaN(reportedVal) || computedVal == null || isNaN(computedVal)) return false;
+  const rUnit = isArea ? stripAreaExponent(reportedUnit) : reportedUnit;
+  const cUnit = isArea ? stripAreaExponent(computedUnit) : computedUnit;
+  const rf = unitToMeters(rUnit) || 1;
+  const cf = unitToMeters(cUnit) || 1;
+  const rM = isArea ? reportedVal * rf * rf : reportedVal * rf;
+  const cM = isArea ? computedVal * cf * cf : computedVal * cf;
+  const diff = Math.abs(rM - cM);
+  const tol = Math.max(0.02 * Math.max(Math.abs(rM), Math.abs(cM)), isArea ? 0.25 : 0.05);
+  return diff > tol;
+}
+
+/**
+ * The single "reported" depth/length/area value for an SF, whichever field it
+ * actually landed in (totalMeasuredDepth/totalArea → sf.depth, well depth →
+ * sf.wellDepth, or a plain reported linear-extent length) — shared by the
+ * mismatch check and the Total Depth/Extent display so both agree on what
+ * "reported" means for a given SF.
+ */
+function getReportedGeomValue(sf) {
+  if (sf.depth !== null && sf.depth !== undefined) return { val: sf.depth, unit: sf.depthUom };
+  if (sf.wellDepth !== null && sf.wellDepth !== undefined) return { val: sf.wellDepth, unit: sf.wellDepthUom };
+  if (sf.linearExtentLen !== null && sf.linearExtentLen !== undefined) return { val: sf.linearExtentLen, unit: '' };
+  return null;
+}
+
+/** Number of digits after the decimal point in a number's natural string form. */
+function decimalPlaces(num) {
+  const s = String(num);
+  const i = s.indexOf('.');
+  return i === -1 ? 0 : (s.length - i - 1);
+}
+
+/**
+ * Async post-pass: compute nominal depth/length (from centerLine) or area
+ * (from featureExtent) for every SF that carries the raw geometry, and flag
+ * a mismatch against whatever the instance separately reports
+ * (totalMeasuredDepth, totalArea, etc. — already captured as sf.depth /
+ * sf.depthUom). Run after prefetchUnknownCRS()/enrichCoordUnits() so CRS
+ * definitions are as complete as possible first; re-renders the open detail
+ * panel if it's affected.
+ */
+async function enrichComputedGeometry() {
+  const allFeatures = [];
+  for (const arr of DIGGS_SF.values()) allFeatures.push(...arr);
+  for (const rifsSF of DIGGS_SF.get('RIFoundationSystem') || []) {
+    for (const ltpSF of rifsSF.ltps || []) {
+      allFeatures.push(ltpSF);
+      for (const riSF of ltpSF.ris || []) allFeatures.push(riSF);
+    }
+  }
+
+  for (const f of allFeatures) {
+    let result = null;
+
+    if (f.centerLineRaw) {
+      const { horiz } = parseEPSG(f.centerLineRaw.srsName);
+      if (horiz && !GEO_CRS.has(horiz) && !CRS_DEFS[`EPSG:${horiz}`]) await fetchEPSGDef(horiz);
+      const len = computeCenterLineLength(f.centerLineRaw.tokens, f.centerLineRaw.dim, f.centerLineRaw.srsName);
+      if (len) result = { kind: 'length', value: len.valueNative, unit: len.nativeUnit };
+    } else if (f.featureExtentRawPatches) {
+      for (const patch of f.featureExtentRawPatches) {
+        const { horiz } = parseEPSG(patch.srsName);
+        if (horiz && !GEO_CRS.has(horiz) && !CRS_DEFS[`EPSG:${horiz}`]) await fetchEPSGDef(horiz);
+      }
+      const area = computeFeatureExtentArea(f.featureExtentRawPatches);
+      if (area) result = { kind: 'area', value: area.valueNative, unit: area.nativeUnit };
+    }
+
+    if (!result) continue;
+    f.computedGeom = result;
+    const reported = getReportedGeomValue(f);
+    f.geomMismatch = reported
+      ? computedValueMismatch(reported.val, reported.unit, result.value, result.unit, result.kind === 'area')
+      : false;
+    if (window._selectedFeatureId === f.id) showSFDetail(f);
+  }
 }
 
 /**
@@ -2000,8 +2814,31 @@ function detectDiggsNS(doc) {
  * so it works regardless of how the document declares its namespaces.
  */
 function xpathNS(doc, expr, ctx) {
-  return doc.evaluate(expr, ctx || doc, p => NS[p] || null,
-    XPathResult.ANY_TYPE, null);
+  return getXPathExpr(doc, expr).evaluate(ctx || doc, XPathResult.ANY_TYPE, null);
+}
+
+/**
+ * getXPathExpr(doc, expr) — compiled-XPath expression cache.
+ * doc.evaluate re-parses the XPath string on every call; buildIntervalTable
+ * evaluates the same handful of descriptor path strings once per row per
+ * column, so opening a large borehole detail recompiled them thousands of
+ * times. Cached per-Document (WeakMap, self-invalidating on file reload) and
+ * keyed by the current NS.diggs binding as well as the expression —
+ * createExpression resolves namespace prefixes at compile time and
+ * detectDiggsNS() rebinds NS.diggs per loaded file, so an expression
+ * compiled under a stale binding must not be served from cache.
+ */
+const _XPATH_EXPR_CACHE = new WeakMap();
+function getXPathExpr(doc, expr) {
+  let m = _XPATH_EXPR_CACHE.get(doc);
+  if (!m) { m = new Map(); _XPATH_EXPR_CACHE.set(doc, m); }
+  const key = NS.diggs + '|' + expr;
+  let compiled = m.get(key);
+  if (!compiled) {
+    compiled = doc.createExpression(expr, p => NS[p] || null);
+    m.set(key, compiled);
+  }
+  return compiled;
 }
 
 function xNodes(doc, expr, ctx) {
@@ -2012,8 +2849,12 @@ function xNodes(doc, expr, ctx) {
   return out;
 }
 
+// Single-node read — FIRST_ORDERED_NODE_TYPE stops at the first match instead
+// of materializing the whole node-set the way xNodes does.
 function xFirst(doc, expr, ctx) {
-  return xNodes(doc, expr, ctx)[0] || null;
+  return getXPathExpr(doc, expr)
+    .evaluate(ctx || doc, XPathResult.FIRST_ORDERED_NODE_TYPE, null)
+    .singleNodeValue;
 }
 
 function xText(doc, expr, ctx) {
@@ -2114,7 +2955,7 @@ let DIGGS_WELL_DATA = {};// keyed by well gml:id → array of Monitor objects
 //     ├─ AbstractPlanarSamplingFeatureType (abstract) — has featureExtent (surface)
 //     │    ├─ PlanarSamplingFeature   → polygon (currently point — see mapGeom note)
 //     │    ├─ GP_ArealSurvey          → polygon (currently point — see mapGeom note)
-//     │    └─ TrenchWall              → polygon (currently point — see mapGeom note)
+//     │    └─ TrenchWall              → polygon (featureExtent, projected to horizontal plane)
 //     ├─ AbstractVolumeSamplingFeatureType (abstract) — has featureExtent (volume)
 //     │    └─ VolumetricSamplingFeature → polygon (currently point — see mapGeom note)
 //     ├─ AbstractLinearInstallationType (abstract) — has samplingFeatureRef → parent
@@ -2207,15 +3048,20 @@ const SF_TYPE_CONFIG = {
     parentPath: null,
     date: 'diggs:whenSurveyed/diggs:TimeInterval/diggs:start',
     // polygon marker style: color = stroke, fillColor = fill (use 'none' for transparent)
-    marker: { color: '#4843a3', weight: 3, opacity: 1.0, fillColor: '##4843a3', fillOpacity: 0.4 },
+    marker: { color: '#4843a3', weight: 3, opacity: 1.0, fillColor: '#4843a3', fillOpacity: 0.4 },
   },
   TrenchWall: {
     tabLabel:  'Trench Walls',
-    mapGeom:   'point',
+    mapGeom:   'polygon',
     depthPath: 'diggs:trenchDepth',
     parentPath: null,
     date: 'diggs:whenConstructed/diggs:TimeInterval/diggs:start',
-    marker: { shape: 'square',  color: '#8B7355', border: '#ffffff', size: 11, opacity: 1.0 },
+    // Trench walls are near-vertical (rarely horizontal), so their featureExtent
+    // polygon projects to a line or a thin sliver on the map — same ring
+    // extraction as GP_ArealSurvey (posListToLatLngs drops Z, i.e. projects
+    // onto the horizontal plane regardless of how the wall is sloped/oriented).
+    // polygon marker style: color = stroke, fillColor = fill (use 'none' for transparent)
+    marker: { color: '#FF3333', weight: 2, opacity: 1.0, fillColor: '#FF3333', fillOpacity: 0.4 },
   },
 
   // ── Volumetric SF types (featureExtent volume geometry) ──────────────────
@@ -2609,22 +3455,66 @@ const PROJECT_DETAIL_DESCRIPTOR = [
 //  Borehole is the first (and currently only) entry.
 //  Each rawFormat key maps to a function in KV_FORMAT.
 // ══════════════════════════════════════════════════════════════
+// ── Shared descriptor sections ──────────────────────────────────────────────
+// Spread (`...SF_ID_SECTION`) into the per-type arrays below. Pure data —
+// rendering only reads these objects, so sharing them across types is safe.
+
+// Identification block common to Borehole / Sounding / Well.
+// (RIFoundationSystem / LoadTransferPlatform use a shorter variant inline.)
+const SF_ID_SECTION = [
+  { sectionHeader: 'Identification' },
+  { label: 'ID',                    path: '@gml:id' },
+  { label: 'Other Names',           path: 'gml:name[position()>1]', multi: true },
+  { label: 'Description',           path: 'gml:description' },
+  { label: 'Identifier',            path: 'gml:identifier', multi: true },
+  { label: 'Internal ID',           path: 'diggs:internalIdentifier', multi: true },
+  { label: 'Status',                path: 'diggs:status' },
+  { label: 'Implementation Status', path: 'diggs:implementationStatus' },
+];
+
+// Trailing Roles & Parties / Remarks / Associated Files trio shared by every
+// SF type; Borehole/Sounding/Well also append SF_OTHER_PROPS_SECTION.
+const SF_TRAILING_SECTIONS = [
+  { sectionHeader: 'Roles & Parties' },
+  { label: 'Roles',        parentPath: 'diggs:role',
+                           multi: true, rawFormat: 'renderRole' },
+  { sectionHeader: 'Remarks' },
+  { label: 'Remarks',      parentPath: 'diggs:remark',
+                           multi: true, rawFormat: 'renderRemark' },
+  { sectionHeader: 'Associated Files' },
+  { label: 'Files',        parentPath: 'diggs:associatedFile',
+                           multi: true, rawFormat: 'renderAssociatedFile' },
+];
+
+const SF_OTHER_PROPS_SECTION = [
+  { sectionHeader: 'Other Properties' },
+  { label: 'Other',        parentPath: 'diggs:otherSamplingFeatureProperty/diggs:Parameter',
+                           multi: true, rawFormat: 'renderParameterKV' },
+];
+
+
 const SF_DETAIL_DESCRIPTORS = {
 
   Borehole: [
 
+    ...SF_ID_SECTION,
+
     { sectionHeader: 'Classification' },
-    { label: 'Purpose',      path: 'diggs:boreholePurpose' },
-    { label: 'Type',         parentPath: 'diggs:boreholeType', multi: true,
-                             composite: [{ path: '.' }] },
+    { label: 'Purpose',              path: 'diggs:boreholePurpose' },
+    { label: 'Type',                 parentPath: 'diggs:boreholeType', multi: true,
+                                      composite: [{ path: '.' }] },
+    { label: 'Investigation Target', parentPath: 'diggs:investigationTarget', multi: true,
+                                      composite: [{ path: '.' }] },
+    { label: 'Total Measured Depth', parentPath: 'diggs:totalMeasuredDepth',
+                                      rawFormat: 'renderMeasureAttr' },
 
     { sectionHeader: 'Geometry' },
     { label: 'Orientation',  parentPath: 'diggs:centerLine/diggs:LinearExtent',
                              rawFormat: 'resolveBoreholeOrientation' },
     { label: 'Plunge',       parentPath: 'diggs:centerLine/diggs:LinearExtent',
-                             rawFormat: 'resolvePlunge' },
+                             rawFormat: 'resolvePlungeAlways' },
     { label: 'Bearing',      parentPath: 'diggs:centerLine/diggs:LinearExtent',
-                             rawFormat: 'resolveBearing' },
+                             rawFormat: 'resolveBearingAlways' },
 
     { sectionHeader: 'Timing' },
     { label: 'Constructed',  parentPath: 'diggs:whenConstructed/diggs:TimeInterval',
@@ -2672,43 +3562,26 @@ const SF_DETAIL_DESCRIPTORS = {
     { label: 'Environment',  parentPath: 'diggs:environment/diggs:Environment',
                              multi: true, rawFormat: 'renderEnvironment' },
 
-    { sectionHeader: 'Roles & Parties' },
-    { label: 'Roles',        parentPath: 'diggs:role',
-                             multi: true, rawFormat: 'renderRole' },
-
-    { sectionHeader: 'Remarks' },
-    { label: 'Remarks',      parentPath: 'diggs:remark',
-                             multi: true, rawFormat: 'renderRemark' },
-
-    { sectionHeader: 'Associated Files' },
-    { label: 'Files',        parentPath: 'diggs:associatedFile',
-                             multi: true, rawFormat: 'renderAssociatedFile' },
-
-    { sectionHeader: 'Other Properties' },
-    { label: 'Other',        parentPath: 'diggs:otherSamplingFeatureProperty/diggs:Parameter',
-                             multi: true,
-                             composite: [
-                               { path: 'diggs:parameterName' },
-                               { path: 'diggs:parameterValue', prefix: ': ' },
-                               { path: 'diggs:parameterUnits', prefix: '\u00a0' },
-                             ],
-                             compositeSeparator: '' },
+    ...SF_TRAILING_SECTIONS,
+    ...SF_OTHER_PROPS_SECTION,
   ],
 
   Sounding: [
+
+    { sectionHeader: 'Identification' },
+    { label: 'ID',                    path: '@gml:id' },
+    { label: 'Other Names',           path: 'gml:name[position()>1]', multi: true },
+    { label: 'Description',           path: 'gml:description' },
+    { label: 'Identifier',            path: 'gml:identifier', multi: true },
+    { label: 'Internal ID',           path: 'diggs:internalIdentifier', multi: true },
+    { label: 'Status',                path: 'diggs:status' },
+    { label: 'Implementation Status', path: 'diggs:implementationStatus' },
 
     { sectionHeader: 'Classification' },
     { label: 'Purpose',      path: 'diggs:soundingPurpose' },
 
     { sectionHeader: 'Geometry' },
-    { label: 'Orientation',  parentPath: 'diggs:centerLine/diggs:LinearExtent',
-                             rawFormat: 'resolveSoundingOrientation' },
-    { label: 'Plunge',       parentPath: 'diggs:centerLine/diggs:LinearExtent',
-                             rawFormat: 'resolveSoundingPlunge' },
-    { label: 'Bearing',      parentPath: 'diggs:centerLine/diggs:LinearExtent',
-                             rawFormat: 'resolveSoundingBearing' },
-
-    { sectionHeader: 'Timing' },
+    ...SF_ID_SECTION,
     { label: 'Constructed',  parentPath: 'diggs:whenConstructed/diggs:TimeInterval',
                              rawFormat: 'renderTimeInterval' },
 
@@ -2736,30 +3609,20 @@ const SF_DETAIL_DESCRIPTORS = {
     { label: 'Environment',  parentPath: 'diggs:environment/diggs:Environment',
                              multi: true, rawFormat: 'renderEnvironment' },
 
-    { sectionHeader: 'Roles & Parties' },
-    { label: 'Roles',        parentPath: 'diggs:role',
-                             multi: true, rawFormat: 'renderRole' },
-
-    { sectionHeader: 'Remarks' },
-    { label: 'Remarks',      parentPath: 'diggs:remark',
-                             multi: true, rawFormat: 'renderRemark' },
-
-    { sectionHeader: 'Associated Files' },
-    { label: 'Files',        parentPath: 'diggs:associatedFile',
-                             multi: true, rawFormat: 'renderAssociatedFile' },
-
-    { sectionHeader: 'Other Properties' },
-    { label: 'Other',        parentPath: 'diggs:otherSamplingFeatureProperty/diggs:Parameter',
-                             multi: true,
-                             composite: [
-                               { path: 'diggs:parameterName' },
-                               { path: 'diggs:parameterValue', prefix: ': ' },
-                               { path: 'diggs:parameterUnits', prefix: '\u00a0' },
-                             ],
-                             compositeSeparator: '' },
+    ...SF_TRAILING_SECTIONS,
+    ...SF_OTHER_PROPS_SECTION,
   ],
 
   Well: [
+
+    { sectionHeader: 'Identification' },
+    { label: 'ID',                    path: '@gml:id' },
+    { label: 'Other Names',           path: 'gml:name[position()>1]', multi: true },
+    { label: 'Description',           path: 'gml:description' },
+    { label: 'Identifier',            path: 'gml:identifier', multi: true },
+    { label: 'Internal ID',           path: 'diggs:internalIdentifier', multi: true },
+    { label: 'Status',                path: 'diggs:status' },
+    { label: 'Implementation Status', path: 'diggs:implementationStatus' },
 
     { sectionHeader: 'Classification' },
     { label: 'Purpose',        path: 'diggs:wellPurpose' },
@@ -2778,14 +3641,7 @@ const SF_DETAIL_DESCRIPTORS = {
                          rawFormat: 'resolveSoundingBearing' },
 
     { sectionHeader: 'Timing' },
-    { label: 'Initial Development',  parentPath: 'diggs:initialDevelopmentTime/diggs:TimeInterval',
-                                     rawFormat: 'renderTimeInterval' },
-
-    { sectionHeader: 'Development & Sealing' },
-    { label: 'Dev. Method',         parentPath: 'diggs:initialDevelopmentMethod/diggs:Specification',
-                                    rawFormat: 'renderSpecificationKV' },
-    { label: 'Special Treatment',   path: 'diggs:specialTreatment' },
-    { label: 'Sanitary Seal Loc.',  path: 'diggs:sanitarySealLocation' },
+    ...SF_ID_SECTION,
     { label: 'Sanitary Seal Type',  path: 'diggs:sanitarySealType' },
 
     { sectionHeader: 'Well Openings' },
@@ -2815,31 +3671,19 @@ const SF_DETAIL_DESCRIPTORS = {
     { label: 'Environment',  parentPath: 'diggs:environment/diggs:Environment',
                              multi: true, rawFormat: 'renderEnvironment' },
 
-    { sectionHeader: 'Roles & Parties' },
-    { label: 'Roles',        parentPath: 'diggs:role',
-                             multi: true, rawFormat: 'renderRole' },
-
-    { sectionHeader: 'Remarks' },
-    { label: 'Remarks',      parentPath: 'diggs:remark',
-                             multi: true, rawFormat: 'renderRemark' },
-
-    { sectionHeader: 'Associated Files' },
-    { label: 'Files',        parentPath: 'diggs:associatedFile',
-                             multi: true, rawFormat: 'renderAssociatedFile' },
-
-    { sectionHeader: 'Other Properties' },
-    { label: 'Other',        parentPath: 'diggs:otherSamplingFeatureProperty/diggs:Parameter',
-                             multi: true,
-                             composite: [
-                               { path: 'diggs:parameterName' },
-                               { path: 'diggs:parameterValue', prefix: ': ' },
-                               { path: 'diggs:parameterUnits', prefix: '\u00a0' },
-                             ],
-                             compositeSeparator: '' },
+    ...SF_TRAILING_SECTIONS,
+    ...SF_OTHER_PROPS_SECTION,
   ],
 
   // ── RI Foundation System (top-level container) ─────────────────────────────
   RIFoundationSystem: [
+
+    { sectionHeader: 'Identification' },
+    { label: 'ID',           path: '@gml:id' },
+    { label: 'Other Names',  path: 'gml:name[position()>1]', multi: true },
+    { label: 'Description',  path: 'gml:description' },
+    { label: 'Identifier',   path: 'gml:identifier', multi: true },
+    { label: 'Status',       path: 'diggs:status' },
 
     { sectionHeader: 'System Summary' },
     { label: 'Constructed',           parentPath: 'diggs:whenConstructed/diggs:TimeInterval',
@@ -2856,21 +3700,18 @@ const SF_DETAIL_DESCRIPTORS = {
     { sectionHeader: 'Purpose' },
     { label: 'Purpose',               parentPath: 'diggs:purpose' },
 
-    { sectionHeader: 'Roles & Parties' },
-    { label: 'Roles',                 parentPath: 'diggs:role',
-                                      multi: true, rawFormat: 'renderRole' },
-
-    { sectionHeader: 'Remarks' },
-    { label: 'Remarks',               parentPath: 'diggs:remark',
-                                      multi: true, rawFormat: 'renderRemark' },
-
-    { sectionHeader: 'Associated Files' },
-    { label: 'Files',                 parentPath: 'diggs:associatedFile',
-                                      multi: true, rawFormat: 'renderAssociatedFile' },
+    ...SF_TRAILING_SECTIONS,
   ],
 
   // ── Load Transfer Platform (nested inside RIFoundationSystem) ──────────────
   LoadTransferPlatform: [
+
+    { sectionHeader: 'Identification' },
+    { label: 'ID',           path: '@gml:id' },
+    { label: 'Other Names',  path: 'gml:name[position()>1]', multi: true },
+    { label: 'Description',  path: 'gml:description' },
+    { label: 'Identifier',   path: 'gml:identifier', multi: true },
+    { label: 'Status',       path: 'diggs:status' },
 
     { sectionHeader: 'LTP Summary' },
     { label: 'Total Area',            parentPath: 'diggs:totalArea',
@@ -2884,17 +3725,7 @@ const SF_DETAIL_DESCRIPTORS = {
     { label: 'Geosynthetic',          parentPath: 'diggs:geosynthetic',
                                       multi: true, rawFormat: 'renderGeosyntheticInline' },
 
-    { sectionHeader: 'Roles & Parties' },
-    { label: 'Roles',                 parentPath: 'diggs:role',
-                                      multi: true, rawFormat: 'renderRole' },
-
-    { sectionHeader: 'Remarks' },
-    { label: 'Remarks',               parentPath: 'diggs:remark',
-                                      multi: true, rawFormat: 'renderRemark' },
-
-    { sectionHeader: 'Associated Files' },
-    { label: 'Files',                 parentPath: 'diggs:associatedFile',
-                                      multi: true, rawFormat: 'renderAssociatedFile' },
+    ...SF_TRAILING_SECTIONS,
   ],
 
   // ── LTP Zone ─── (kept for any files that still use top-level LTPZone) ─────
@@ -2916,23 +3747,16 @@ const SF_DETAIL_DESCRIPTORS = {
     { label: '',                      parentPath: '.',
                                       rawFormat: 'renderCMCTable' },
 
-    { sectionHeader: 'Roles & Parties' },
-    { label: 'Roles',                 parentPath: 'diggs:role',
-                                      multi: true, rawFormat: 'renderRole' },
-
-    { sectionHeader: 'Remarks' },
-    { label: 'Remarks',               parentPath: 'diggs:remark',
-                                      multi: true, rawFormat: 'renderRemark' },
-
-    { sectionHeader: 'Associated Files' },
-    { label: 'Files',                 parentPath: 'diggs:associatedFile',
-                                      multi: true, rawFormat: 'renderAssociatedFile' },
+    ...SF_TRAILING_SECTIONS,
   ],
 
   // ── Rigid Inclusion ─────────────────────────────────────────────────────────
   RigidInclusion: [
 
     { sectionHeader: 'Column Summary' },
+    { label: 'ID',                    path: '@gml:id' },
+    { label: 'Other Names',           path: 'gml:name[position()>1]', multi: true },
+    { label: 'Description',           path: 'gml:description' },
     { label: 'Column Type',           parentPath: 'diggs:columnType' },
     { label: 'Installation Type',     parentPath: 'diggs:installationType' },
     { label: 'Status',                parentPath: 'diggs:status' },
@@ -2964,17 +3788,7 @@ const SF_DETAIL_DESCRIPTORS = {
     { label: 'Cutoff',                parentPath: 'diggs:cutoffMethod/diggs:Specification',
                                       rawFormat: 'renderSpecificationInline' },
 
-    { sectionHeader: 'Roles & Parties' },
-    { label: 'Roles',                 parentPath: 'diggs:role',
-                                      multi: true, rawFormat: 'renderRole' },
-
-    { sectionHeader: 'Remarks' },
-    { label: 'Remarks',               parentPath: 'diggs:remark',
-                                      multi: true, rawFormat: 'renderRemark' },
-
-    { sectionHeader: 'Associated Files' },
-    { label: 'Files',                 parentPath: 'diggs:associatedFile',
-                                      multi: true, rawFormat: 'renderAssociatedFile' },
+    ...SF_TRAILING_SECTIONS,
   ],
 
 };
@@ -3152,6 +3966,108 @@ const DRILL_PIPE_FIELDS = [
   { label: 'Material',        path: 'diggs:pipeMaterial' },
   { label: 'Section Length',  path: 'diggs:pipeSectionLength',   format: 'measure' },
   { label: 'Section Weight',  path: 'diggs:pipeSectcionWeight',  format: 'measure' },  // schema typo preserved
+];
+
+// ── Grouting / ground-improvement / sensor equipment sub-types ────────────
+// (constructionEquipment can wrap any of these; equipmentFieldsFor() below
+//  maps localName → the appropriate array, falling back to EQUIPMENT_FIELDS.)
+
+const GROUT_MIXER_FIELDS = [
+  ...EQUIPMENT_FIELDS,
+  { label: 'Outlet Pressure', path: 'diggs:outletPressure',  format: 'measure' },
+  { label: 'Output Rate',     path: 'diggs:outputRate',      format: 'measure' },
+  { label: 'Agitator Volume', path: 'diggs:agitatorVolume',  format: 'measure' },
+  { label: 'Mixer Volume',    path: 'diggs:mixerVolume',     format: 'measure' },
+  { label: 'Agitator Speed',  path: 'diggs:agitatorSpeed',   format: 'measure' },
+  { label: 'Impeller Speed',  path: 'diggs:impellerSpeed',   format: 'measure' },
+];
+
+const GROUT_PUMP_FIELDS = [
+  ...EQUIPMENT_FIELDS,
+  { label: 'Max Flow',        path: 'diggs:maxFlow',         format: 'measure' },
+  { label: 'Max Pressure',    path: 'diggs:maxPressure',     format: 'measure' },
+  { label: 'No. Pistons',     path: 'diggs:numberOfPistons' },
+  { label: 'Pump Type',       path: 'diggs:type' },
+  { label: 'Engine Power',    path: 'diggs:enginePower',     format: 'measure' },
+];
+
+const GROUT_PLANT_FIELDS = [
+  ...EQUIPMENT_FIELDS,
+  { label: 'Mixer', path: 'diggs:mixer/diggs:GroutMixer',
+                     fields: GROUT_MIXER_FIELDS, indent: true },
+  { label: 'Pump',  path: 'diggs:pump/diggs:GroutPump',
+                     fields: GROUT_PUMP_FIELDS, indent: true },
+];
+
+const GROUT_INJECTION_EQUIPMENT_FIELDS = [
+  ...EQUIPMENT_FIELDS,
+  { label: 'Lance Outer Dia.',   path: 'diggs:lanceOuterDiameter',   format: 'measure' },
+  { label: 'Lance Length',       path: 'diggs:lanceLength',          format: 'measure' },
+  { label: 'Packer Spacing',     path: 'diggs:packerSpacing',        format: 'measure' },
+  { label: 'Packer Type',        path: 'diggs:packerType' },
+  { label: 'Grout Pipe ID',      path: 'diggs:groutPipeInnerDiameter', format: 'measure' },
+  { label: 'Seal Type',          path: 'diggs:sealType' },
+  { label: 'Tube Inner Dia.',    path: 'diggs:tubeInnerDiameter',    format: 'measure' },
+  { label: 'Tube Type',          path: 'diggs:tubeType' },
+];
+
+const JET_GROUTING_MONITOR_FIELDS = [
+  ...EQUIPMENT_FIELDS,
+  { label: 'Grout Nozzles',           path: 'diggs:numberOfGroutNozzles' },
+  { label: 'Grout Nozzle Dia.',       path: 'diggs:diameterOfGroutNozzles',        format: 'measure' },
+  { label: 'Fluid-2 Nozzles',         path: 'diggs:numberOfFluid_2Nozzles' },
+  { label: 'Fluid-2 Nozzle ID',       path: 'diggs:innerDiameterOfFluid_2Nozzles', format: 'measure' },
+  { label: 'Fluid-2 Nozzle OD',       path: 'diggs:outerDiameterOfFluid_2Nozzles', format: 'measure' },
+  { label: 'Fluid-3 Nozzles',         path: 'diggs:numberOfFluid_3Nozzles' },
+  { label: 'Fluid-3 Nozzle Dia.',     path: 'diggs:diameterOfFluid_3Nozzles',      format: 'measure' },
+  { label: 'X-Jet',                   path: 'diggs:xJet', boolean: true },
+];
+
+const CUTTER_SOIL_MIXING_TOOL_FIELDS = [
+  ...EQUIPMENT_FIELDS,
+  { label: 'Cutting Wheel Dia.', path: 'diggs:diameterCuttingWheels', format: 'measure' },
+  { label: 'Panel Length',       path: 'diggs:panelLength',           format: 'measure' },
+  { label: 'Panel Width',        path: 'diggs:panelWidth',            format: 'measure' },
+];
+
+const DEEP_SOIL_MIXING_TOOL_FIELDS = [
+  ...EQUIPMENT_FIELDS,
+  { label: 'Mixing Blade Dia.',  path: 'diggs:diameterMixingBlades', format: 'measure' },
+  { label: 'Blades / Shaft',     path: 'diggs:numberBladesPerShaft' },
+  { label: 'No. Shafts',         path: 'diggs:numberShafts' },
+  { label: 'Tool Height',        path: 'diggs:mixingToolHeight',     format: 'measure' },
+  { label: 'Panel Length',       path: 'diggs:panelLength',          format: 'measure' },
+  { label: 'Panel Width',        path: 'diggs:panelWidth',           format: 'measure' },
+];
+
+// Detector — nested inside Sensor (diggs:detector/diggs:Detector)
+const DETECTOR_FIELDS = [
+  { path: '.',                    format: 'gmlNames', bold: true },
+  { path: 'gml:description' },
+  { label: 'Status',              path: 'diggs:status',           meta: true },
+  { label: 'Location (depth)',    path: 'diggs:detectorLocation',  format: 'resolveFilterPackInterval' },
+  { label: 'Measurand',           path: 'diggs:measurand' },
+  { label: 'Detector Type',       path: 'diggs:type' },
+  { label: 'Axis Bearing',        path: 'diggs:measurementAxisBearing',      format: 'measure' },
+  { label: 'Axis Inclination',    path: 'diggs:measurementAxisInclination',  format: 'measure' },
+];
+
+const SENSOR_FIELDS = [
+  ...EQUIPMENT_FIELDS,
+  { label: 'Reference Point',   path: 'diggs:referencePoint',           format: 'resolvePointDepth' },
+  { label: 'Date Installed',    path: 'diggs:dateInstalled/diggs:TimeInterval', format: 'timeIntervalInline' },
+  { label: 'Detector',          path: 'diggs:detector/diggs:Detector',
+                                 fields: DETECTOR_FIELDS, multi: true, indent: true },
+];
+
+const TRIAXIAL_TEST_EQUIPMENT_FIELDS = [
+  ...EQUIPMENT_FIELDS,
+  { label: 'Load Cell Capacity',   path: 'diggs:loadCellCapacity',        format: 'measure' },
+  { label: 'Top Porous Stone Mass',path: 'diggs:massOfTopPorousStone',    format: 'measure' },
+  { label: 'Top Cap Mass',         path: 'diggs:massOfTopCap',            format: 'measure' },
+  { label: 'Piston Diameter',      path: 'diggs:pistonDiameter',          format: 'measure' },
+  { label: 'PWP Device (undrained)', path: 'diggs:poreWaterPressureDeviceMeetsUndrainedSpecs', boolean: true },
+  { label: 'Pressure Transducer',  path: 'diggs:pressureTransducerType' },
 ];
 
 // Specification — SpecificationType (extends AbstractProcedureType → AbstractNamedRoleObjectType)
@@ -3364,19 +4280,19 @@ function renderFields(el, fields) {
             const subNodes = sub.path ? evalXPath(pn, sub.path) : [pn];
             if (!subNodes.length) return '';
             const fn  = sub.format && FORMAT_FN[sub.format];
-            const raw = fn ? fn(subNodes[0]) : nodeText(subNodes[0]);
+            const raw = fn ? fn(subNodes[0]) : valueWithCodeSpace(subNodes[0]);
             if (!raw) return '';
             return (sub.prefix || '') + raw + (sub.suffix || '');
           }).filter(Boolean);
           const val = parts.join(sep);
-          if (val) result = [makeRenderItem(val, spec)];
+          if (val) result = [makeRenderItem(val, spec, true)];
           else if (spec.showEmpty) result = [makeRenderItem('—', { ...spec, _emptyPlaceholder: true })];
         } else if (spec.fields) {
           result = renderFields(pn, spec.fields)
             .map(item => spec.indent ? { ...item, indent: true } : item);
         } else {
-          const val = nodeText(pn);
-          if (val) result = [makeRenderItem(val, spec)];
+          const val = valueWithCodeSpace(pn);
+          if (val) result = [makeRenderItem(val, spec, true)];
           else if (spec.showEmpty) result = [makeRenderItem('—', { ...spec, _emptyPlaceholder: true })];
         }
         items.push(...result);
@@ -3397,18 +4313,18 @@ function renderFields(el, fields) {
       if (!node) continue;
       let result = [];
       if (spec.composite) {
-        // Composite: assemble multiple sub-paths into one plain string
+        // Composite: assemble multiple sub-paths into one safe-HTML string
         const sep   = spec.separator || '';
         const parts = spec.composite.map(sub => {
           const subNodes = sub.path ? evalXPath(node, sub.path) : [node];
           if (!subNodes.length) return '';
           const fn  = sub.format && FORMAT_FN[sub.format];
-          const raw = fn ? fn(subNodes[0]) : nodeText(subNodes[0]);
+          const raw = fn ? fn(subNodes[0]) : valueWithCodeSpace(subNodes[0]);
           if (!raw) return '';
           return (sub.prefix || '') + raw + (sub.suffix || '');
         }).filter(Boolean);
         const val = parts.join(sep);
-        if (val) result = [makeRenderItem(val, spec)];
+        if (val) result = [makeRenderItem(val, spec, true)];
         else if (spec.showEmpty) result = [makeRenderItem('—', { ...spec, _emptyPlaceholder: true })];
       } else if (spec.fields) {
         // Nested recursion — propagate indent from spec
@@ -3426,9 +4342,17 @@ function renderFields(el, fields) {
         } else if (spec.showEmpty) {
           result = [makeRenderItem('—', { ...spec, _emptyPlaceholder: true })];
         }
-      } else {
-        const val = nodeText(node);
+      } else if (spec.boolean) {
+        const txt = nodeText(node).toLowerCase();
+        let val = '';
+        if (txt === 'true' || txt === '1' || txt === 'yes') val = 'Yes';
+        else if (txt === 'false' || txt === '0' || txt === 'no') val = 'No';
+        else val = txt || '';
         if (val) result = [makeRenderItem(val, spec)];
+        else if (spec.showEmpty) result = [makeRenderItem('—', { ...spec, _emptyPlaceholder: true })];
+      } else {
+        const val = valueWithCodeSpace(node);
+        if (val) result = [makeRenderItem(val, spec, true)];
         else if (spec.showEmpty) result = [makeRenderItem('—', { ...spec, _emptyPlaceholder: true })];
       }
       if ((spec.omitIfEmpty !== false) && !result.length) continue;
@@ -3669,16 +4593,32 @@ const FORMAT_FN = {
     return el ? renderNestedKV(el, ADDRESS_FIELDS) : '';
   },
 
-  // Render a diggs:Parameter element → "name: value uom" plain string
+  // Render a diggs:Parameter element → "name: value (min-max) uom" plain string.
+  // Range parenthetical rules:
+  //   value + min + max        → "value (min-max)"
+  //   value + min, no max      → "value (min-value)"
+  //   value + max, no min      → "value (value-max)"
+  //   min + max, no value      → "min-max" (no value/parens — the range IS the value)
+  //   only one of min/max      → that bound alone
+  //   value only               → "value" (unchanged, no parens)
   renderParameter(node) {
     if (!node) return '';
     const name  = nodeText(evalXPath(node, 'diggs:parameterName')[0]);
     const val   = nodeText(evalXPath(node, 'diggs:parameterValue')[0]);
+    const minV  = nodeText(evalXPath(node, 'diggs:parameterMinValue')[0]);
+    const maxV  = nodeText(evalXPath(node, 'diggs:parameterMaxValue')[0]);
     const units = nodeText(evalXPath(node, 'diggs:parameterUnits')[0]);
-    if (!name && !val) return '';
+    if (!name && !val && !minV && !maxV) return '';
+
+    let valueStr = '';
+    if (minV && maxV)      valueStr = val ? `${val} (${minV}-${maxV})` : `${minV}-${maxV}`;
+    else if (minV && val)  valueStr = `${val} (${minV}-${val})`;
+    else if (maxV && val)  valueStr = `${val} (${val}-${maxV})`;
+    else                   valueStr = val || minV || maxV || '';
+
     let out = name || '';
-    if (val) out += out ? `: ${val}` : val;
-    if (units) out += `\u00a0${units}`;
+    if (valueStr) out += out ? `: ${valueStr}` : valueStr;
+    if (units) out += `\u00a0${superscriptUom(units)}`;
     return out;
   },
 
@@ -3707,7 +4647,7 @@ const FORMAT_FN = {
     const val = nodeText(el);
     if (!val) return '';
     const uom = el.getAttribute('uom') || '';
-    return uom ? `${val}\u00a0${uom}` : val;
+    return uom ? `${val}\u00a0${superscriptUom(uom)}` : val;
   },
 
   resolvePlunge(node) {
@@ -3716,6 +4656,30 @@ const FORMAT_FN = {
 
   resolveBearing(node) {
     return FORMAT_FN._resolveOrientationAttr(node, FORMAT_FN._bhFromLE, 'bearing', 'holeBearing');
+  },
+
+  // Unconditional plunge/bearing — shows the value whenever the direct
+  // diggs:plunge / diggs:bearing element is present on the Borehole,
+  // regardless of computed orientation (Vertical boreholes may still record
+  // an explicit 90 deg plunge / 0 deg bearing).
+  _resolveOrientationAttrAlways(leEl, sfGetterFn, primaryEl, fallbackEl) {
+    const sfEl = sfGetterFn(leEl);
+    if (!sfEl) return '';
+    const el = sfEl.getElementsByTagNameNS(NS.diggs, primaryEl)[0]
+            || (fallbackEl && sfEl.getElementsByTagNameNS(NS.diggs, fallbackEl)[0]);
+    if (!el) return '';
+    const val = nodeText(el);
+    if (!val) return '';
+    const uom = el.getAttribute('uom') || '';
+    return uom ? `${val}\u00a0${superscriptUom(uom)}` : val;
+  },
+
+  resolvePlungeAlways(node) {
+    return FORMAT_FN._resolveOrientationAttrAlways(node, FORMAT_FN._bhFromLE, 'plunge', 'holePlunge');
+  },
+
+  resolveBearingAlways(node) {
+    return FORMAT_FN._resolveOrientationAttrAlways(node, FORMAT_FN._bhFromLE, 'bearing', 'holeBearing');
   },
 
   // Compute borehole orientation from a LinearExtent element.
@@ -3792,22 +4756,42 @@ const FORMAT_FN = {
     return uom ? `${val}\u00a0${uom}` : val;
   },
 
+  // Resolve a diggs:MultiPointLocation element (e.g. constructionEvent
+  // location listing several test depths along the borehole axis) to a
+  // compact "N pts: v1, v2, … uom" string. Depth is the last coordinate
+  // of each srsDimension-sized tuple in gml:posList.
+  renderMultiPointDepths(mplEl) {
+    if (!mplEl) return '';
+    const posListEl = mplEl.getElementsByTagNameNS(NS.gml, 'posList')[0];
+    if (!posListEl) return '';
+    const txt = (posListEl.textContent || '').trim();
+    if (!txt) return '';
+    const dim = parseInt(mplEl.getAttribute('srsDimension') || '1') || 1;
+    const tokens = txt.split(/\s+/).map(Number);
+    const n = Math.floor(tokens.length / dim);
+    if (!n) return '';
+    const vals = [];
+    for (let i = 0; i < n; i++) vals.push(tokens[i * dim + dim - 1]);
+    const srsName = mplEl.getAttribute('srsName') || '';
+    const uom = (srsName && LSR_UOM[srsName]) ? LSR_UOM[srsName] : '';
+    const shown = vals.length > 8
+      ? vals.slice(0, 8).join(', ') + `, … (+${vals.length - 8} more)`
+      : vals.join(', ');
+    return `<span style="color:var(--text-muted);font-size:10.5px">${vals.length}\u00a0pts:</span> ${escHtml(shown)}${uom ? '\u00a0' + escHtml(uom) : ''}`;
+  },
+
   // Resolve a filterPackInterval property element to a depth range string.
   // Strategy 1: xlink:href → find referenced LinearExtent in document → read from/to.
   // Strategy 2: inline (deprecated) LinearExtent child → read from/to directly.
   // Falls back to '' (suppresses column) if neither resolves.
   resolveFilterPackInterval(propEl) {
     if (!propEl) return '';
-    let leEl = null;
     // Strategy 1: href reference
-    const href = (propEl.getAttributeNS(NS.xlink, 'href') || propEl.getAttribute('xlink:href') || '').replace(/^#/, '');
-    if (href) {
-      leEl = propEl.ownerDocument.querySelector(`[*|id="${href}"]`);
-      // The referenced element may be a LinearExtent directly, or a backfillInterval
-      // property wrapping one; unwrap if needed.
-      if (leEl && leEl.localName !== 'LinearExtent') {
-        leEl = leEl.getElementsByTagNameNS(NS.diggs, 'LinearExtent')[0] || null;
-      }
+    let leEl = resolveHref(propEl);
+    // The referenced element may be a LinearExtent directly, or a backfillInterval
+    // property wrapping one; unwrap if needed.
+    if (leEl && leEl.localName !== 'LinearExtent') {
+      leEl = leEl.getElementsByTagNameNS(NS.diggs, 'LinearExtent')[0] || null;
     }
     // Strategy 2: inline deprecated LinearExtent child
     if (!leEl) {
@@ -3818,7 +4802,7 @@ const FORMAT_FN = {
     const posListEl = leEl.getElementsByTagNameNS(NS.gml, 'posList')[0];
     if (!posListEl) return '';
     const dim = parseInt(leEl.getAttribute('srsDimension') || '3') || 3;
-    const tokens = posListEl.textContent.trim().split(/\s+/).map(Number);
+    const tokens = numTokens(posListEl.textContent, true);
     if (tokens.length < dim * 2) return '';
     const from = tokens[dim - 1];
     const to   = tokens[dim * 2 - 1];
@@ -3857,138 +4841,26 @@ const FORMAT_FN = {
     const val = nodeText(el);
     if (!val) return '';
     const uom = el.getAttribute('uom') || '';
-    return uom ? `${escHtml(val)}\u00a0${escHtml(uom)}` : escHtml(val);
+    return uom ? `${escHtml(val)}\u00a0${escUom(uom)}` : escHtml(val);
   },
 
   // Render an elevation reference element: value + vertical datum label.
-  // Prefers srsName attribute (extract EPSG code from URI → look up VERT_CRS_INFO or FETCHED_CRS_NAMES);
-  // falls back to datumReference attribute text.
+  // Datum label resolution lives in vertDatumLabel() (shared with
+  // renderLTPElevAttr).
   renderElevRef(el) {
     if (!el) return '';
     const val = nodeText(el);
     if (!val) return '';
     const uom = el.getAttribute('uom') || '';
-    const srsName = el.getAttribute('srsName') || '';
-    const datumRef = el.getAttribute('datumReference') || '';
-    let datumLabel = '';
-    if (srsName) {
-      // Parse vertical EPSG code from URI
-      const m = srsName.match(/EPSG[/:](?:[\d.]+[/:])?(\d+)/i);
-      const epsg = m ? parseInt(m[1]) : null;
-      if (epsg) {
-        if (VERT_CRS_INFO[epsg]) datumLabel = VERT_CRS_INFO[epsg].name;
-        else if (FETCHED_CRS_NAMES[epsg]) datumLabel = FETCHED_CRS_NAMES[epsg];
-        else datumLabel = `EPSG:${epsg}`;
-      } else {
-        datumLabel = srsName;
-      }
-    } else if (datumRef) {
-      datumLabel = datumRef;
-    }
-    const uomStr  = uom ? `\u00a0${escHtml(uom)}` : '';
+    const datumLabel = vertDatumLabel(el.getAttribute('srsName') || '',
+                                      el.getAttribute('datumReference') || '');
+    const uomStr  = uom ? `\u00a0${escUom(uom)}` : '';
     const datumStr = datumLabel
       ? `\u00a0<span style="color:var(--text-muted);font-size:10px">(${escHtml(datumLabel)})</span>`
       : '';
     return `${escHtml(val)}${uomStr}${datumStr}`;
   },
 
-  // Render the LTP zone table + inline zone mini-map.
-  // Receives the LoadTransferPlatform element.
-  renderLTPZoneTable(el) {
-    if (!el) return '';
-    const sfId = el.getAttribute('id') || el.getAttributeNS(NS.gml, 'id') || '';
-    const zoneEls = findAllByLocalName(el, 'LTPZone');
-    if (!zoneEls.length) return '';
-
-    // ── Zone table ──────────────────────────────────────────────────────────
-    // Columns: Name | Material (pill) | Elev CMC Cutoff | Elev Top LTP |
-    //          Thickness | Geosynthetic (pill)
-    const palette = LTP_ZONE_PALETTE;
-
-    let thead = `<thead style="position:sticky;top:0;z-index:2;background:var(--surface2)"><tr>
-      <th style="width:26px"></th>
-      <th style="width:150px;min-width:150px;max-width:150px">Zone Name</th>
-      <th style="width:44px;text-align:center">Mat.</th>
-      <th>CMC Cutoff Elev</th>
-      <th>Top of LTP Elev</th>
-      <th>LTP Thickness</th>
-      <th style="width:44px;text-align:center">Geo.</th>
-    </tr></thead>`;
-
-    let tbody = '<tbody>';
-    zoneEls.forEach((zEl, zi) => {
-      const zoneId = zEl.getAttribute('id') || zEl.getAttributeNS(NS.gml, 'id') || `zone-${zi}`;
-      const zoneName = nodeText(zEl.getElementsByTagNameNS(NS.gml, 'name')[0] || {}) || zoneId;
-      const color = palette[zi % palette.length];
-
-      // Material — info-circle icon only
-      const lithoEl = zEl.getElementsByTagNameNS(NS.diggs, 'Lithology')[0] || null;
-      let matCell = '<span style="color:var(--text-dim)">—</span>';
-      if (lithoEl) {
-        const popKey = _registerPopup('Zone Material', [{ els: [lithoEl], fields: LTP_LITHOLOGY_FIELDS }]);
-        matCell = `<span class="col-info-icon" onclick="showDetailPopup('${escHtml(popKey)}')" title="View material details">i</span>`;
-      }
-
-      // Elevation cells — datum on second line
-      const cmcEl  = zEl.getElementsByTagNameNS(NS.diggs, 'elevationCMCCutoff')[0] || null;
-      const topEl  = zEl.getElementsByTagNameNS(NS.diggs, 'elevationTopLTP')[0] || null;
-      const thkEl  = zEl.getElementsByTagNameNS(NS.diggs, 'impliedLTPThickness')[0] || null;
-      const _elevCellHtml = (elevEl) => {
-        if (!elevEl) return '—';
-        const raw = KV_FORMAT.renderElevRef(elevEl);
-        // Put datum on second line: replace nbsp before datum span with <br>
-        return raw.replace(/ (<span[^>]*text-muted[^>]*>)/, '<br>$1');
-      }
-      const cmcStr = _elevCellHtml(cmcEl);
-      const topStr = _elevCellHtml(topEl);
-      const thkStr = thkEl ? KV_FORMAT.renderMeasureAttr(thkEl) : '—';
-
-      // Geosynthetic — info-circle icon only
-      const geoEls = findAllByLocalName(zEl, 'Geosynthetic');
-      let geoCell = '<span style="color:var(--text-dim)">—</span>';
-      if (geoEls.length) {
-        // Multiple geosynthetics: register a combined popup
-        const allGeoSections = geoEls.map((gEl, gi) => ({ els: [gEl], fields: LTP_GEOSYNTHETIC_FIELDS, heading: `Geosynthetic ${gi + 1}` }));
-        const geoPopKey = _registerPopup('Geosynthetics', allGeoSections);
-        geoCell = `<span class="col-info-icon" onclick="showDetailPopup('${escHtml(geoPopKey)}')" title="View geosynthetic details">i</span>`;
-      }
-
-      const rowId = `ltp-zone-row-${escHtml(sfId)}-${zi}`;
-      tbody += `<tr id="${rowId}" data-zone-idx="${zi}"
-          style="cursor:default"
-          onmouseenter="ltpZoneHover('${escHtml(sfId)}',${zi},true)"
-          onmouseleave="ltpZoneHover('${escHtml(sfId)}',${zi},false)">
-        <td style="text-align:center">
-          <span style="display:inline-block;width:12px;height:12px;border-radius:2px;
-            background:${escHtml(color)};border:1px solid rgba(255,255,255,.25);vertical-align:middle"></span>
-        </td>
-        <td style="width:150px;min-width:150px;max-width:150px;white-space:normal;word-wrap:break-word">${escHtml(zoneName)}</td>
-        <td style="text-align:center">${matCell}</td>
-        <td style="white-space:normal;line-height:1.3">${cmcStr}</td>
-        <td style="white-space:normal;line-height:1.3">${topStr}</td>
-        <td>${thkStr}</td>
-        <td style="text-align:center">${geoCell}</td>
-      </tr>`;
-    });
-    tbody += '</tbody>';
-
-    const tableHtml = `<div style="overflow-x:auto;overflow-y:auto;margin-top:4px;max-height:calc(35vh);border:1px solid var(--border);border-radius:3px">
-      <table class="sub-table meas-table" id="ltp-zone-table-${escHtml(sfId)}" style="width:100%">${thead}${tbody}</table>
-    </div>`;
-
-    // ── Zone mini-map placeholder ────────────────────────────────────────────
-    const mapDivId = `ltp-zone-map-${escHtml(sfId)}`;
-    const mapHtml  = `<div id="${mapDivId}"
-        style="width:100%;height:360px;margin-top:10px;border:1px solid var(--border);
-               border-radius:4px;background:var(--surface2);position:relative">
-        <div style="position:absolute;inset:0;display:flex;align-items:center;
-          justify-content:center;color:var(--text-muted);font-size:12px;pointer-events:none">
-          Initialising zone map…
-        </div>
-      </div>`;
-
-    return tableHtml + mapHtml;
-  },
 };
 
 // ── resolvePropertyEl — GML object-property unwrapper ────────
@@ -4002,10 +4874,7 @@ function resolvePropertyEl(propEl, localName) {
     .find(n => n.nodeType === 1 && n.localName === localName);
   if (child) return child;
   // xlink:href fallback — only meaningful for BA and AssociatedFile in practice
-  const href = (propEl.getAttributeNS(NS.xlink, 'href')
-    || propEl.getAttribute('xlink:href') || '').replace(/^#/, '');
-  if (!href) return null;
-  return propEl.ownerDocument.querySelector(`[*|id="${href}"]`) || null;
+  return resolveHref(propEl);
 }
 
 /**
@@ -4034,10 +4903,7 @@ function resolveXlinkEl(wrapperEl) {
     if (ch.nodeType === 1) return ch;
   }
   // Pattern B: xlink:href reference
-  const href = (wrapperEl.getAttributeNS(NS.xlink, 'href')
-    || wrapperEl.getAttribute('xlink:href') || '').replace(/^#/, '');
-  if (!href) return null;
-  return wrapperEl.ownerDocument.querySelector(`[*|id="${href}"]`) || null;
+  return resolveHref(wrapperEl);
 }
 
 // ── renderNestedKV — wraps itemsToHtml output in a nested-table container ──
@@ -4085,43 +4951,13 @@ FORMAT_FN.renderLTPElevAttr = function(el) {
   if (!el) return '';
   const val = nodeText(el);
   if (!val) return '';
-  const uom     = el.getAttribute('uom') || '';
-  const datumRef = el.getAttribute('datumReference') || '';
-  const srsName  = el.getAttribute('srsName') || '';
-  let datumLabel = '';
-  if (srsName) {
-    const m = srsName.match(/EPSG[/:](?:[\d.]+[/:])?(\d+)/i);
-    const epsg = m ? parseInt(m[1]) : null;
-    if (epsg && VERT_CRS_INFO[epsg]) datumLabel = VERT_CRS_INFO[epsg].name;
-    else if (epsg && FETCHED_CRS_NAMES[epsg]) datumLabel = FETCHED_CRS_NAMES[epsg];
-    else if (epsg) datumLabel = `EPSG:${epsg}`;
-    else datumLabel = srsName;
-  } else if (datumRef) {
-    datumLabel = datumRef;
-  }
-  const uomStr   = uom ? `\u00a0${uom}` : '';
+  const uom = el.getAttribute('uom') || '';
+  const datumLabel = vertDatumLabel(el.getAttribute('srsName') || '',
+                                    el.getAttribute('datumReference') || '');
+  const uomStr   = uom ? `\u00a0${superscriptUom(uom)}` : '';
   const datumStr = datumLabel ? ` (${datumLabel})` : '';
   return `${val}${uomStr}${datumStr}`;
 };
-
-// ── ltpZoneHover: highlight zone row ↔ map polygon on hover ─────────────────
-// Called from onmouseenter/onmouseleave on table rows.
-const _ltpZoneMaps = new Map(); // sfId → { map, polygons[], zoneEls[] }
-
-function ltpZoneHover(sfId, zoneIdx, entering) {
-  const entry = _ltpZoneMaps.get(sfId);
-  if (!entry) return;
-  const poly = entry.polygons[zoneIdx];
-  if (!poly) return;
-  const palette = LTP_ZONE_PALETTE;
-  const color   = palette[zoneIdx % palette.length];
-  if (entering) {
-    poly.setStyle({ weight: 3, color: '#ffffff', fillOpacity: 0.75 });
-  } else {
-    poly.setStyle({ weight: 1.5, color: '#000000', fillColor: color, fillOpacity: 0.55,
-                    opacity: 0.85 });
-  }
-}
 
 // ══════════════════════════════════════════════════════════════
 //  CMC COLUMN MAP MARKERS
@@ -4231,160 +5067,6 @@ function _selectCMCRow(zoneId, cmcId, markers, selStyle, dimStyle, normStyle) {
     const dot = activeMarkers.get(cmcId);
     if (dot && mapInstance) mapInstance.panTo(dot.getLatLng(), { animate: true });
   }
-}
-
-/**
- * resetCMCMarkers(zoneId)
- * Restore all CMC dots to normal style and clear row highlights.
- */
-function resetCMCMarkers(zoneId) {
-  if (!_cmcMarkerState || _cmcMarkerState.zoneId !== zoneId) return;
-  const normStyle = { radius: 3, color: '#111111', weight: 1, fillColor: '#222222',
-    fillOpacity: 0.85, opacity: 1 };
-  for (const dot of _cmcMarkerState.markers.values()) dot.setStyle(normStyle);
-  const tableId = `cmc-table-${zoneId.replace(/[^a-zA-Z0-9_-]/g,'_')}`;
-  const tbl = document.getElementById(tableId);
-  if (tbl) tbl.querySelectorAll('tr.cmc-row-selected').forEach(r => r.classList.remove('cmc-row-selected'));
-}
-
-// ── initLTPZoneMap: build Leaflet mini-map for an LTP zone detail view ────────
-// Called after the Section 4 HTML is injected into the DOM.
-function initLTPZoneMap(sf) {
-  const sfId   = sf.id;
-  const el     = sf.el;
-  const mapDivId = `ltp-zone-map-${sfId}`;
-  const mapDiv   = document.getElementById(mapDivId);
-  if (!mapDiv) return;
-
-  // Clean up any previous instance for this SF
-  if (_ltpZoneMaps.has(sfId)) {
-    try { _ltpZoneMaps.get(sfId).map.remove(); } catch(e) {}
-    _ltpZoneMaps.delete(sfId);
-  }
-
-  // Gather all zone polygons
-  const zoneEls = findAllByLocalName(el, 'LTPZone');
-  if (!zoneEls.length) { mapDiv.innerHTML = '<div style="padding:12px;color:var(--text-muted)">No zone geometry found.</div>'; return; }
-
-  // Parse all zone exterior rings (using same logic as featureExtent parser)
-  const palette = LTP_ZONE_PALETTE;
-  const allBounds = [];
-  const polygonData = []; // { latlngs, color, name, thickness }
-
-  // Determine the CRS from the featureExtent or referencePoint — already resolved on sf.
-  // For zone PlanarSurfaces, use the same srsName they carry (same as overall LTP).
-  for (let zi = 0; zi < zoneEls.length; zi++) {
-    const zEl = zoneEls[zi];
-    const name = nodeText(zEl.getElementsByTagNameNS(NS.gml, 'name')[0] || {})
-               || `Zone ${zi + 1}`;
-    const thkEl = zEl.getElementsByTagNameNS(NS.diggs, 'impliedLTPThickness')[0];
-    const thickness = thkEl
-      ? (nodeText(thkEl) + (thkEl.getAttribute('uom') ? '\u00a0' + thkEl.getAttribute('uom') : ''))
-      : '';
-    const color = palette[zi % palette.length];
-
-    // Find the PlanarSurface inside location
-    const locEls = findAllByLocalName(zEl, 'PlanarSurface');
-    for (const surfEl of locEls) {
-      const srsNameSurf = surfEl.getAttribute('srsName')
-        || surfEl.getAttributeNS(null, 'srsName') || sf.rawSrsName || '';
-      const dimSurf = surfEl.getAttribute('srsDimension')
-        || surfEl.getAttributeNS(null, 'srsDimension') || '2';
-
-      const allRings = [];
-      // Extract exterior + any interior rings
-      for (const child of surfEl.childNodes) {
-        if (child.nodeType !== 1) continue;
-        if (child.localName === 'exterior' || child.localName === 'interior') {
-          const lrEl = findByLocalName(child, 'LinearRing');
-          if (!lrEl) continue;
-          let plEl = null;
-          for (const lrChild of lrEl.childNodes) {
-            if (lrChild.nodeType === 1 && lrChild.localName === 'posList') { plEl = lrChild; break; }
-          }
-          if (!plEl) continue;
-          const dim = parseInt(plEl.getAttribute('srsDimension') || dimSurf || '2');
-          const rawPairs = posListToLatLngs(plEl.textContent, dim);
-          if (rawPairs.length < 3) continue;
-          const wgsRing = [];
-          for (const pair of rawPairs) {
-            const geo = toWGS84(pair, srsNameSurf);
-            if (geo.lat !== null && geo.lon !== null && !isNaN(geo.lat)) {
-              wgsRing.push([geo.lat, geo.lon]);
-            }
-          }
-          if (wgsRing.length >= 3) allRings.push(wgsRing);
-        }
-      }
-
-      if (allRings.length) {
-        const latlngs = allRings.length === 1 ? allRings[0] : allRings;
-        polygonData.push({ latlngs, color, name, thickness, zoneIdx: zi });
-        // Accumulate bounds from exterior ring only
-        (Array.isArray(allRings[0][0]) ? allRings[0] : allRings[0]).forEach(ll => allBounds.push(ll));
-      }
-    }
-  }
-
-  if (!polygonData.length) {
-    mapDiv.innerHTML = '<div style="padding:12px;color:var(--text-muted)">Zone polygons could not be projected — check CRS.</div>';
-    return;
-  }
-
-  // Clear the loading placeholder and init Leaflet
-  mapDiv.innerHTML = '';
-
-  const ltpMap = L.map(mapDiv, { zoomControl: true, attributionControl: false });
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    maxZoom: 22,
-    errorTileUrl: 'data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs='
-  }).addTo(ltpMap);
-
-  const polygonLayers = new Array(zoneEls.length).fill(null);
-
-  for (const pd of polygonData) {
-    const poly = L.polygon(pd.latlngs, {
-      color: '#000000', weight: 1.5, opacity: 0.85,
-      fillColor: pd.color, fillOpacity: 0.55, interactive: true,
-    }).addTo(ltpMap);
-
-    // Tooltip: zone name + thickness
-    const tipHtml = `<strong>${escHtml(pd.name)}</strong>${pd.thickness ? '<br>Thickness: ' + escHtml(pd.thickness) : ''}`;
-    poly.bindTooltip(tipHtml, { sticky: true, opacity: 0.92, className: 'ltp-zone-tip' });
-
-    // Click: highlight table row
-    poly.on('click', () => {
-      const tbl = document.getElementById(`ltp-zone-table-${sfId}`);
-      if (tbl) {
-        tbl.querySelectorAll('tr.ltp-row-selected').forEach(r => r.classList.remove('ltp-row-selected'));
-        const row = document.getElementById(`ltp-zone-row-${sfId}-${pd.zoneIdx}`);
-        if (row) {
-          row.classList.add('ltp-row-selected');
-          row.scrollIntoView({ block: 'nearest' });
-        }
-      }
-      // Dim all others, brighten selected
-      for (const entry of polygonLayers) {
-        if (!entry) continue;
-        if (entry === poly) {
-          poly.setStyle({ weight: 3, color: '#ffffff', fillOpacity: 0.80 });
-        } else {
-          entry.setStyle({ fillOpacity: 0.20, opacity: 0.4 });
-        }
-      }
-    });
-
-    // Row hover → polygon hover handled via ltpZoneHover
-    polygonLayers[pd.zoneIdx] = poly;
-  }
-
-  // Fit map to all zone bounds with padding
-  if (allBounds.length >= 2) {
-    let bounds = L.latLngBounds(allBounds);
-    ltpMap.fitBounds(bounds, { padding: [20, 20] });
-  }
-
-  _ltpZoneMaps.set(sfId, { map: ltpMap, polygons: polygonLayers, zoneEls });
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -4763,10 +5445,19 @@ document.addEventListener('DOMContentLoaded', () => {
 // ── Equipment helpers (kept for backward compat with renderEquipment FORMAT_FN) ──
 function equipmentFieldsFor(localName) {
   return {
-    DrillRig:      DRILL_RIG_FIELDS,
-    CoringDevice:  CORING_DEVICE_FIELDS,
-    CuttingTool:   CUTTING_TOOL_FIELDS,
-    DrillPipe:     DRILL_PIPE_FIELDS,
+    DrillRig:               DRILL_RIG_FIELDS,
+    CoringDevice:           CORING_DEVICE_FIELDS,
+    CuttingTool:            CUTTING_TOOL_FIELDS,
+    DrillPipe:              DRILL_PIPE_FIELDS,
+    GroutMixer:             GROUT_MIXER_FIELDS,
+    GroutPump:              GROUT_PUMP_FIELDS,
+    GroutPlant:             GROUT_PLANT_FIELDS,
+    GroutInjectionEquipment: GROUT_INJECTION_EQUIPMENT_FIELDS,
+    JetGroutingMonitor:     JET_GROUTING_MONITOR_FIELDS,
+    CutterSoilMixingTool:   CUTTER_SOIL_MIXING_TOOL_FIELDS,
+    DeepSoilMixingTool:     DEEP_SOIL_MIXING_TOOL_FIELDS,
+    Sensor:                 SENSOR_FIELDS,
+    TriaxialTestEquipment:  TRIAXIAL_TEST_EQUIPMENT_FIELDS,
   }[localName] || EQUIPMENT_FIELDS;
 }
 
@@ -4849,9 +5540,9 @@ function buildIntervalTable(parentEl, config) {
       } else if (colSpec.uom === 'attr') {
         const txt = nodeText(node);
         const uom = (node.getAttribute && node.getAttribute('uom')) || '';
-        val = txt ? (uom ? `${txt}\u00a0<span class="col-uom" style="display:inline">${escHtml(uom)}</span>` : escHtml(txt)) : '';
+        val = txt ? (uom ? `${txt}\u00a0<span class="col-uom" style="display:inline">${escUom(uom)}</span>` : escHtml(txt)) : '';
       } else {
-        val = escHtml(nodeText(node));
+        val = valueWithCodeSpace(node);
       }
       if (val) parts.push(val);
     }
@@ -5080,6 +5771,13 @@ const KV_FORMAT = {
 
   // Nested-KV delegates — property wrapper → unwrap → renderNestedKV
   renderRemark(el)              { return FORMAT_FN.renderRemarkNested(el); },
+
+  // Single diggs:Parameter → "name: value (min-max) uom" (see FORMAT_FN.renderParameter
+  // for range-parenthetical rules). Wrapped/escaped for direct rawFormat use.
+  renderParameterKV(el) {
+    const raw = FORMAT_FN.renderParameter(el);
+    return raw ? escHtml(raw) : '';
+  },
   renderRole(el)                { return FORMAT_FN.renderRoleNested(el); },
   renderBusinessAssociate(el)   { return FORMAT_FN.renderBANested(el); },
   renderAssociatedFile(el)      { return FORMAT_FN.renderAssocFileNested(el); },
@@ -5152,7 +5850,7 @@ const KV_FORMAT = {
       if (posListEl) {
         const srsName = mplEl.getAttribute('srsName') || '';
         const dim     = parseInt(mplEl.getAttribute('srsDimension') || '3');
-        const tokens  = (posListEl.textContent || '').trim().split(/\s+/).map(Number);
+        const tokens  = numTokens(posListEl.textContent, true);
         for (let i = 0; i < n; i++) {
           const base = i * dim;
           if (base + 1 < tokens.length) {
@@ -5250,10 +5948,7 @@ const KV_FORMAT = {
       if (ch.nodeType === 1) { equipEl = ch; break; }
     }
     // xlink fallback
-    if (!equipEl) {
-      const href = (el.getAttributeNS(NS.xlink, 'href') || el.getAttribute('xlink:href') || '').replace(/^#/, '');
-      if (href) equipEl = el.ownerDocument.querySelector(`[*|id="${href}"]`);
-    }
+    if (!equipEl) equipEl = resolveHref(el);
     if (!equipEl) return '—';
     return KV_FORMAT.renderEquipmentInline(equipEl);
   },
@@ -5376,6 +6071,14 @@ const KV_FORMAT = {
 
   resolveBearing(el) {
     return FORMAT_FN.resolveBearing(el);
+  },
+
+  resolvePlungeAlways(el) {
+    return FORMAT_FN.resolvePlungeAlways(el);
+  },
+
+  resolveBearingAlways(el) {
+    return FORMAT_FN.resolveBearingAlways(el);
   },
 
   // ── Sounding / Well geometry resolvers ───────────────────────────────────
@@ -5770,6 +6473,8 @@ const KV_FORMAT = {
        { label: 'Name',          path: 'gml:name' },
        { label: 'Description',   path: 'gml:description' },
        { label: 'Status',        path: 'diggs:status' },
+        { label: 'Test Depths',   path: 'diggs:location/diggs:MultiPointLocation',
+                                  format: 'renderMultiPointDepths' },
         { label: 'Hole Bottom',   path: 'diggs:holeBottom',                 format: 'resolvePointDepth' },
         { label: 'Casing Bottom', path: 'diggs:casingBottom',               format: 'resolvePointDepth' },
         { label: 'Water Depth',   path: 'diggs:waterDepth',                 format: 'resolvePointDepth' },
@@ -5910,8 +6615,7 @@ function evalXPath(ctx, path) {
   if (!ctx || !path) return [];
   try {
     const doc    = ctx.ownerDocument || ctx;
-    const result = doc.evaluate(path, ctx, p => NS[p] || null,
-      XPathResult.ANY_TYPE, null);
+    const result = getXPathExpr(doc, path).evaluate(ctx, XPathResult.ANY_TYPE, null);
     const nodes  = [];
     if (result.resultType === XPathResult.STRING_TYPE) {
       const s = result.stringValue.trim();
@@ -5931,6 +6635,34 @@ function nodeText(n) {
   return (n ? (n.textContent || n.nodeValue || '').trim() : '');
 }
 
+/**
+ * valueWithCodeSpace(node) — display helper: escaped text content of `node`,
+ * followed by its codeSpace attribute (if present) rendered as trailing
+ * annotation. Returns a SAFE HTML string (already escaped) or ''.
+ *
+ * DIGGS codeSpace attributes come in two flavors:
+ *  - a plain label (e.g. an organization or authority name) — shown as
+ *    small muted parenthetical text, same as the value itself.
+ *  - a URI (http://, https://, ftp://, file://, urn:, etc. — typically a
+ *    long link into a controlled-vocabulary dictionary) — these clutter the
+ *    display badly if printed in full, so instead we show a small 🔗 icon
+ *    that opens the URI in a new tab; the full URI is still available as
+ *    a title tooltip.
+ */
+function valueWithCodeSpace(node) {
+  if (!node) return '';
+  const txt = nodeText(node);
+  if (!txt) return '';
+  const cs = (node.getAttribute && node.getAttribute('codeSpace')) || '';
+  if (!cs) return escHtml(txt);
+  const isUrl = /^(https?|ftp|ftps|file|urn):/i.test(cs);
+  if (isUrl) {
+    return `${escHtml(txt)} <a href="${escHtml(cs)}" target="_blank" rel="noopener noreferrer" `
+         + `class="cs-link" title="${escHtml(cs)}" onclick="event.stopPropagation()">\u{1F517}</a>`;
+  }
+  return `${escHtml(txt)} <span class="cs-tag">(${escHtml(cs)})</span>`;
+}
+
 // ══════════════════════════════════════════════════════════════
 //  renderKVTable(element, descriptor)
 //
@@ -5939,7 +6671,8 @@ function nodeText(n) {
 //
 //  Descriptor entry shapes:
 //    { sectionHeader: 'Title' }               — section divider
-//    { label, path }                          — single XPath value
+//    { label, path, multi? }                  — single/multi XPath value(s);
+//      each value shown with its codeSpace attribute (if any) trailing it.
 //    { label, parentPath, composite[], compositeSeparator, multi, children }
 //      — one or more parent nodes, each assembled from composite sub-paths
 //
@@ -5952,18 +6685,18 @@ function nodeText(n) {
 function renderKVTable(element, descriptor) {
 
   /** Apply a named format function to the first matching node for a path,
-   *  or fall back to plain text. */
+   *  or fall back to a codeSpace-aware display value. Returns safe HTML. */
   function applyFormat(ctx, sub) {
     const nodes = evalXPath(ctx, sub.path);
     if (!nodes.length) return '';
     const n = nodes[0];
     const fn = sub.format && KV_FORMAT[sub.format];
-    const raw = fn ? fn(n) : nodeText(n);
+    const raw = fn ? fn(n) : valueWithCodeSpace(n);
     if (!raw) return '';
     return (sub.prefix || '') + raw + (sub.suffix || '');
   }
 
-  /** Assemble a composite value string from sub-entries, relative to ctx. */
+  /** Assemble a composite value string (safe HTML) from sub-entries, relative to ctx. */
   function assembleComposite(ctx, composite, separator) {
     const parts = composite.map(sub => applyFormat(ctx, sub)).filter(Boolean);
     return parts.join(separator || '');
@@ -5977,43 +6710,42 @@ function renderKVTable(element, descriptor) {
     const lines = [];
     for (const cn of childNodes) {
       const val = assembleComposite(cn, childDesc.composite, childDesc.compositeSeparator);
-      if (val) lines.push(`<div style="padding-left:1em;color:var(--text-muted);font-size:12px">${escHtml(val)}</div>`);
+      if (val) lines.push(`<div style="padding-left:1em;color:var(--text-muted);font-size:12px">${val}</div>`);
     }
     return lines.join('');
   }
 
-  // ── Build rows ──────────────────────────────────────────────
-  // Section headers are buffered and only emitted when at least one
-  // data row follows them within the same section.
-  // If any entry in the section has showEmpty:true the header is always flushed.
-  const rows = [];
-  let pendingSectionHeader = null;  // held until we know a data row follows
-  let pendingSectionHasShowEmpty = false; // true if any entry in current section has showEmpty
+  // ── Build rows, grouped into collapsible sections ────────────────────────
+  // Each sectionHeader starts a new group; the group (header + toggle triangle)
+  // is only emitted if at least one data row ends up inside it. Section bodies
+  // start collapsed (display:none) — clicking the header (or its triangle)
+  // toggles open/closed via toggleKVSection().
+  const sections = [];              // { title, rows: [] }
+  let current = { title: null, rows: [] };
 
   for (const entry of descriptor) {
-    // Section header sentinel — buffer it, don't emit yet
+    // Section header sentinel — start a new group
     if (entry.sectionHeader) {
-      pendingSectionHeader = `<div class="kv-section-header">${escHtml(entry.sectionHeader)}</div>`;
-      pendingSectionHasShowEmpty = false;
+      if (current.rows.length) sections.push(current);
+      current = { title: entry.sectionHeader, rows: [] };
       continue;
     }
-
-    // Track whether this section contains any showEmpty entries
-    if (entry.showEmpty) pendingSectionHasShowEmpty = true;
 
     let cellHtml = '';
     let isEmpty = false;
 
     if (entry.path) {
-      // Simple single-path field
+      // Simple path field — supports multi-cardinality and shows codeSpace
+      // (if present on the matched element) as trailing muted text.
       const nodes = evalXPath(element, entry.path);
-      const val = nodes.length ? nodeText(nodes[0]) : '';
-      if (!val) {
+      const targets = entry.multi ? nodes : nodes.slice(0, 1);
+      const parts = targets.map(n => valueWithCodeSpace(n)).filter(Boolean);
+      if (!parts.length) {
         if (!entry.showEmpty) continue;
         isEmpty = true;
         cellHtml = '<span style="color:var(--text-dim,#484f58)">—</span>';
       } else {
-        cellHtml = escHtml(val);
+        cellHtml = parts.join('<div style="height:4px"></div>');
       }
 
     } else if (entry.parentPath) {
@@ -6034,9 +6766,9 @@ function renderKVTable(element, descriptor) {
           } else {
             const val = entry.composite
               ? assembleComposite(pn, entry.composite, entry.compositeSeparator)
-              : nodeText(pn);
+              : valueWithCodeSpace(pn);
             if (!val && !entry.children) continue;
-            itemHtml = val ? escHtml(val) : '';
+            itemHtml = val || '';
             if (entry.children) {
               itemHtml += renderChildren(pn, entry.children);
             }
@@ -6055,35 +6787,58 @@ function renderKVTable(element, descriptor) {
     }
 
     if (!cellHtml) continue;
-
-    // We have a real data row (or a showEmpty placeholder) —
-    // flush any pending section header first.
-    // For showEmpty sections, flush the header even if this row is empty,
-    // but only if the section has at least one showEmpty entry.
-    if (pendingSectionHeader && (!isEmpty || pendingSectionHasShowEmpty)) {
-      rows.push(pendingSectionHeader);
-      pendingSectionHeader = null;
-    }
-
-    if (isEmpty && !pendingSectionHasShowEmpty) continue;
+    if (isEmpty && !entry.showEmpty) continue;
 
     // Empty label → full-width block (used for interval tables and other
     // section-spanning content that shouldn't be indented by a key column).
     if (entry.label === '') {
-      rows.push(`<div style="padding:2px 0">${cellHtml}</div>`);
+      current.rows.push(`<div style="padding:2px 0">${cellHtml}</div>`);
     } else {
-      rows.push(`
+      current.rows.push(`
         <div class="kv-row">
           <span class="kv-key">${escHtml(entry.label)}</span>
           <span class="kv-val">${cellHtml}</span>
         </div>`);
     }
   }
+  if (current.rows.length) sections.push(current);
 
-  if (!rows.length) {
+  if (!sections.length) {
     return '<div style="color:var(--text-muted);font-size:12px;padding:8px 0">No additional metadata found.</div>';
   }
-  return rows.join('');
+
+  // A titled section starts expanded when it holds exactly one row and
+  // collapsed otherwise \u2014 mirrors the badge-count rule in renderBadgeGrid().
+  // Title-less sections (sec.title === null) have no header/toggle at all,
+  // so they're always rendered visible regardless of row count.
+  return sections.map(sec => {
+    if (sec.title === null) {
+      return `<div class="kv-section-body">${sec.rows.join('')}</div>`;
+    }
+    const startOpen = sec.rows.length === 1;
+    const triChar = startOpen ? '\u25BC' : '\u25B6';
+    const bodyStyle = startOpen ? '' : ' style="display:none"';
+    return `
+      <div class="kv-section">
+        <div class="kv-section-header" onclick="toggleKVSection(this)">
+          <span class="kv-tri">${triChar}</span>${escHtml(sec.title)}
+        </div>
+        <div class="kv-section-body"${bodyStyle}>${sec.rows.join('')}</div>
+      </div>`;
+  }).join('');
+}
+
+/**
+ * toggleKVSection(headerEl) — expand/collapse the section body following a
+ * clicked .kv-section-header. Triangle rotates: ▶ collapsed, ▼ expanded.
+ */
+function toggleKVSection(headerEl) {
+  const body = headerEl.nextElementSibling;
+  if (!body) return;
+  const isOpen = body.style.display !== 'none';
+  body.style.display = isOpen ? 'none' : '';
+  const tri = headerEl.querySelector('.kv-tri');
+  if (tri) tri.textContent = isOpen ? '\u25B6' : '\u25BC';
 }
 
 /**
@@ -6276,6 +7031,24 @@ function escHtml(s) {
     .replace(/"/g,'&quot;');
 }
 
+// ── Superscripted unit display ───────────────────────────────────────────
+// UCUM-style unit codes as they appear in DIGGS uom attributes write exponents
+// as plain trailing digits (e.g. "m2", "cm3", "g/cm3", "kN/m3"). For display,
+// convert any digit sequence immediately following a letter into Unicode
+// superscript characters ("m2" → "m²") — the same treatment already used for
+// computed area units. This is the standard way any uom attribute value
+// should be rendered in the app; use escUom()/superscriptUom() rather than
+// displaying a uom string plain or through esc()/escHtml() directly.
+const SUPERSCRIPT_DIGITS = { '0':'\u2070','1':'\u00b9','2':'\u00b2','3':'\u00b3','4':'\u2074',
+  '5':'\u2075','6':'\u2076','7':'\u2077','8':'\u2078','9':'\u2079','-':'\u207b' };
+function superscriptUom(uom) {
+  if (!uom) return uom;
+  return String(uom).replace(/([A-Za-z])(-?\d+)/g, (m, letter, digits) =>
+    letter + digits.split('').map(ch => SUPERSCRIPT_DIGITS[ch] || ch).join(''));
+}
+/** HTML-escaped + superscripted uom, for use anywhere a uom attribute value is displayed. */
+function escUom(uom) { return escHtml(superscriptUom(uom)); }
+
 /**
  * formatDiggsDate(str, includeTime)
  *
@@ -6346,6 +7119,10 @@ function loadDIGGS(doc, filename) {
 
   // ── DETECT DIGGS NAMESPACE ────────────────────────
   const detectedNS = detectDiggsNS(doc);
+
+  // ── INDEX EMBEDDED LOCAL CARTESIAN CRS DEFINITIONS ─
+  // Must happen before any SF parsing, since toWGS84() consults LOCAL_CRS_INDEX.
+  indexLocalCartesianCRS(doc);
 
   // ── PROJECT INFO ─────────────────────────────────
   const created  = xText(doc, '//diggs:DocumentInformation/diggs:creationDate');
@@ -6818,7 +7595,7 @@ function loadDIGGS(doc, filename) {
         const smHref = smEl.getAttributeNS(NS.xlink, 'href');
         if (smHref) {
           const targetId = smHref.replace(/^#/, '');
-          const target = doc.querySelector(`[*|id="${targetId}"]`);
+          const target = getIdIndex(doc).get(targetId) || null;
           if (target) {
             const nameEl = target.getElementsByTagNameNS(NS.gml, 'name')[0];
             method = (nameEl && nameEl.textContent.trim()) ||
@@ -6886,7 +7663,7 @@ function loadDIGGS(doc, filename) {
 
     // Depths (MultiPointLocation posList)
     const depthText = xText(doc, './/diggs:MultiPointLocation/gml:posList', test);
-    const depths = depthText.trim().split(/\s+/).map(Number);
+    const depths = numTokens(depthText, true);
 
     // Data values
     const dvEl = xFirst(doc, './/diggs:dataValues', rs);
@@ -7078,7 +7855,7 @@ function loadDIGGS(doc, filename) {
       const leEl = xFirst(doc, 'diggs:openInterval/diggs:LinearExtent', wo);
       if (leEl) {
         const posListText = xText(doc, 'gml:posList', leEl);
-        const toks = posListText.trim().split(/\s+/).map(Number);
+        const toks = numTokens(posListText, true);
         const srsName = leEl.getAttribute('srsName') || '';
         openings.push({ id: woId, from: toks[0] ?? null, to: toks[1] ?? null, srsName });
       }
@@ -7337,7 +8114,7 @@ function loadDIGGS(doc, filename) {
                           || riEl.getElementsByTagNameNS(NS.diggs, 'LinearExtent')[0];
                 if (clEl) {
                   const plText = clEl.textContent || '';
-                  const nums = plText.trim().split(/\s+/).map(Number).filter(v => !isNaN(v));
+                  const nums = numTokens(plText);
                   if (nums.length >= 6) {
                     riSF.depth    = Math.abs(nums[nums.length - 1] - nums[2]);
                     riSF.depthUom = clEl.getAttribute('uom') || 'm';
@@ -7465,6 +8242,8 @@ function loadDIGGS(doc, filename) {
     await prefetchUnknownCRS();
     initMap();
     enrichElevUnits();   // runs after CRS fetch so vertEPSG is set on all nested SFs
+    enrichCoordUnits();  // resolves header display units (horiz + elev) with provenance
+    enrichComputedGeometry();  // computes nominal depth/length/area from geometry
   }));
 }
 
@@ -7560,7 +8339,7 @@ async function resolveLsrUom(lsrEl) {
       }
       // Find the LinearReferencingMethod with matching gml:id
       const lrmEl = fragment
-        ? dictDoc.querySelector(`[*|id="${fragment}"]`)
+        ? getIdIndex(dictDoc).get(fragment)
         : dictDoc.getElementsByTagNameNS('*', 'LinearReferencingMethod')[0];
       return lrmUnits(lrmEl);
     } catch { return ''; }
@@ -7597,8 +8376,7 @@ async function resolveSrsNameUom(doc, srsName) {
   if (srsName.startsWith('#')) {
     // Local fragment → find LSR element in the current document by gml:id
     const lsrId = srsName.slice(1);
-    const lsrEl = doc.querySelector(`[*|id="${CSS.escape(lsrId)}"]`)
-               || doc.querySelector(`[id="${lsrId}"]`);
+    const lsrEl = getIdIndex(doc).get(lsrId);
     uom = await resolveLsrUom(lsrEl);
   } else {
     // Absolute URI — may have a #fragment identifying the LSR element
@@ -7615,8 +8393,7 @@ async function resolveSrsNameUom(doc, srsName) {
         LRM_DOC_CACHE[url] = remoteDoc;
       }
       const lsrEl = fragment
-        ? (remoteDoc.querySelector(`[*|id="${CSS.escape(fragment)}"]`)
-           || remoteDoc.querySelector(`[id="${fragment}"]`))
+        ? getIdIndex(remoteDoc).get(fragment)
         : remoteDoc.getElementsByTagNameNS('*', 'LinearSpatialReferenceSystem')[0];
       uom = await resolveLsrUom(lsrEl);
     } catch { uom = ''; }
@@ -7759,16 +8536,7 @@ function parseSamplingFeature(doc, el, type) {
       const href = rpEl.getAttributeNS(NS.xlink, 'href') || rpEl.getAttribute('xlink:href') || '';
       const frag = href.replace(/^#/, '').trim();
       if (frag) {
-        // getElementById is most efficient; fall back to querySelector for gml:id
-        const target = doc.getElementById(frag)
-          || doc.querySelector(`[*|id="${frag}"]`)
-          || (() => {
-               const all = doc.getElementsByTagName('*');
-               for (const n of all) {
-                 if ((n.getAttribute('id') || n.getAttributeNS(NS.gml, 'id')) === frag) return n;
-               }
-               return null;
-             })();
+        const target = getIdIndex(doc).get(frag) || null;
         // target may be the PointLocation itself or a wrapper containing it
         if (target) {
           pl = (target.localName === 'PointLocation') ? target
@@ -7780,16 +8548,24 @@ function parseSamplingFeature(doc, el, type) {
   let lat = null, lon = null, elev = null, elevUom = '';
   let crsInfo = { horizEPSG: null, vertEPSG: null, transformed: false, warning: null };
   // rawPos: native coords as parsed (for display in detail tables - NOT transformed)
-  let rawPos = null, rawSrsName = '', rawSrsDimension = 2;
+  let rawPos = null, rawSrsName = '', rawSrsDimension = 2, rawUomLabels = null;
+  let refPointDescription = '';
   if (pl) {
     const srsName   = pl.getAttribute('srsName') || '';
     const posText   = xText(doc, 'gml:pos', pl);
-    const uomLabels = (pl.getAttribute('uomLabels') || '').trim().split(/\s+/);
-    const tokens    = posText.trim().split(/\s+/).map(Number);
+    const uomLabelsAttr = pl.getAttribute('uomLabels');
+    const uomLabels = (uomLabelsAttr || '').trim().split(/\s+/);
+    const tokens    = numTokens(posText, true);
+    // PointLocation's own gml:description (direct child) — distinct from the
+    // parent SF's own gml:description already surfaced in Identification.
+    refPointDescription = xText(doc, 'gml:description', pl).trim();
     if (tokens.length >= 2) {
       rawPos = tokens;
       rawSrsName = srsName;
       rawSrsDimension = parseInt(pl.getAttribute('srsDimension') || String(tokens.length)) || tokens.length;
+      // Only keep rawUomLabels if the attribute was actually declared, so downstream
+      // unit resolution can tell "not reported" apart from "reported empty".
+      if (uomLabelsAttr && uomLabelsAttr.trim()) rawUomLabels = uomLabels;
       const geo = toWGS84(tokens, srsName);
       lat     = geo.lat;
       lon     = geo.lon;
@@ -7803,26 +8579,13 @@ function parseSamplingFeature(doc, el, type) {
   const depthEl  = xFirst(doc, _depthPath, el);
   let depth    = depthEl ? parseFloat(depthEl.textContent) : null;
   let depthUom = depthEl ? (depthEl.getAttribute('uom') || '') : '';
-
-  // ── RigidInclusion: fall back to centerLine z-delta if columnLength absent ──
-  if (type === 'RigidInclusion' && (depth === null || isNaN(depth))) {
-    const clEl = xFirst(doc, 'diggs:centerLine/diggs:LinearExtent', el);
-    if (clEl) {
-      const posListText = xText(doc, 'gml:posList', clEl);
-      const dim = parseInt(clEl.getAttribute('srsDimension') || '3');
-      if (posListText.trim() && dim >= 3) {
-        const tokens = posListText.trim().split(/\s+/).map(Number);
-        // First point z is index 2, last point z is at tokens[tokens.length - (dim - 2)]
-        const topZ    = tokens[2];
-        const botZ    = tokens[tokens.length - (dim - 2)];
-        if (!isNaN(topZ) && !isNaN(botZ)) {
-          depth    = Math.abs(topZ - botZ);
-          depthUom = clEl.getAttribute('uomLabels')
-            ? (clEl.getAttribute('uomLabels').trim().split(/\s+/)[2] || 'm') : 'm';
-        }
-      }
-    }
-  }
+  // Note: RigidInclusion depth, when totalMeasuredDepth/columnLength is absent,
+  // is no longer back-filled here from a crude centerLine z-delta — the general
+  // computed-length pipeline (computeCenterLineLength, driven by centerLineRaw)
+  // covers this more accurately (true 3D path length, not just vertical delta)
+  // and keeps `depth`/`depthUom` a genuine "reported" value, or null when there
+  // truly isn't one, so the Total Depth/Extent cell doesn't mislabel a derived
+  // number as reported.
 
   const bhType   = type === 'Borehole' ? xText(doc, 'diggs:boreholeType', el) : '';
 
@@ -7869,6 +8632,7 @@ function parseSamplingFeature(doc, el, type) {
   let linearExtentLatLngs = null;
   let linearExtentLen     = null;
   let leAxisSwapped       = false;   // true if any centerLine point triggered axis swap
+  let centerLineRaw       = null;    // { tokens, dim, srsName } — raw, for computed-length math
   {
     // Try centerLine first (GP_Trackline), then featureExtent/LinearExtent
     const leEl = xFirst(doc, 'diggs:centerLine/diggs:LinearExtent', el)
@@ -7879,6 +8643,11 @@ function parseSamplingFeature(doc, el, type) {
       const srsDimension  = leEl.getAttribute('srsDimension') || '2';
       const srsNameLE     = leEl.getAttribute('srsName') || '';
       if (posListText.trim()) {
+        const rawTokens = numTokens(posListText);
+        const dimNum = parseInt(srsDimension) || 2;
+        if (rawTokens.length >= dimNum * 2) {
+          centerLineRaw = { tokens: rawTokens, dim: dimNum, srsName: srsNameLE };
+        }
         const rawLls = posListToLatLngs(posListText, srsDimension);
         if (rawLls.length >= 2) {
           // Transform each point to WGS84 so map renderer can use directly.
@@ -7920,9 +8689,13 @@ function parseSamplingFeature(doc, el, type) {
   // Strategy: for each surface patch, collect its exterior ring first, then any interior
   // rings — preserving patch-interior ordering so Leaflet renders holes correctly.
   let polygonLatLngs = null;
+  let featureExtentRawPatches = null;   // raw patches for computed-area math
   {
     const feExtEl = xFirst(doc, 'diggs:featureExtent', el);
     if (feExtEl) {
+      featureExtentRawPatches = collectFeatureExtentRawPatches(feExtEl, rawSrsName, String(rawSrsDimension || 2));
+      if (!featureExtentRawPatches.length) featureExtentRawPatches = null;
+
       // Helper: extract a WGS84 [[lat,lon],...] ring from a gml:exterior or gml:interior
       // wrapper element, given the srsName already resolved from the DIGGS surface object.
       const extractRing = (wrapperEl, srsNameSurface, dimSurface) => {
@@ -8085,12 +8858,14 @@ function parseSamplingFeature(doc, el, type) {
   }
 
   return { id, name, type, el, lat, lon, elev, elevUom, depth, depthUom,
-    rawPos, rawSrsName, rawSrsDimension, polygonLatLngs,
+    rawPos, rawSrsName, rawSrsDimension, rawUomLabels, refPointDescription, polygonLatLngs,
     waterDepth, waterDepthUom, waterLsrSrsName, bhType,
     horizEPSG: crsInfo.horizEPSG, vertEPSG: crsInfo.vertEPSG,
     crsTransformed: crsInfo.transformed, axisSwapped: crsInfo.axisSwapped || leAxisSwapped,
-    crsWarning: crsInfo.warning, projectRefs,
-    purpose, linearExtentLatLngs, linearExtentLen,
+    crsWarning: crsInfo.warning,
+    isLocalCRS: crsInfo.isLocalCRS || false, localCRSName: crsInfo.localCRSName || null,
+    projectRefs,
+    purpose, linearExtentLatLngs, linearExtentLen, centerLineRaw, featureExtentRawPatches,
     parentRef, childRefs, memberRefs, dateEl };
 }
 
@@ -8258,7 +9033,7 @@ function buildSFTable(type, sfArray, sfById) {
       const nameCode = sf.codeSpace ? `<div class="sf-name-code">${esc(sf.codeSpace)}</div>` : '';
       const ltpCount = (sf.ltps || []).length;
       const riCount  = (sf.ltps || []).reduce((n, l) => n + (l.ris || []).length, 0);
-      const depthStr = sf.depth != null ? `${sf.depth}${sf.depthUom ? '\u00a0' + esc(sf.depthUom) : ''}` : '—';
+      const depthStr = sf.depth != null ? `${sf.depth}${sf.depthUom ? '\u00a0' + escUom(sf.depthUom) : ''}` : '—';
       const dateStr  = (typeof FORMAT_FN !== 'undefined' && sf.dateEl)
         ? FORMAT_FN.timeIntervalInline(sf.dateEl) : '—';
       tr.innerHTML = `
@@ -8283,9 +9058,9 @@ function buildSFTable(type, sfArray, sfById) {
     // ── Depth / Extent cell ─────────────────────────────────────
     let depthCell = '—';
     if (sf.depth !== null && sf.depth !== undefined) {
-      depthCell = `${sf.depth}${sf.depthUom ? '\u00a0' + esc(sf.depthUom) : ''}`;
+      depthCell = `${sf.depth}${sf.depthUom ? '\u00a0' + escUom(sf.depthUom) : ''}`;
     } else if (sf.wellDepth !== null && sf.wellDepth !== undefined) {
-      depthCell = `${sf.wellDepth}${sf.wellDepthUom ? '\u00a0' + esc(sf.wellDepthUom) : ''}`;
+      depthCell = `${sf.wellDepth}${sf.wellDepthUom ? '\u00a0' + escUom(sf.wellDepthUom) : ''}`;
     } else if (sf.linearExtentLen !== null && sf.linearExtentLen !== undefined) {
       depthCell = `${sf.linearExtentLen}`;
     }
@@ -8427,9 +9202,9 @@ function toggleMultiTrack(id, headerTr, tbody, sfById) {
       const name  = esc(m.name || m.id);
       let depthCell = '—';
       if (m.depth !== null && m.depth !== undefined && !isNaN(m.depth)) {
-        depthCell = `${m.depth}${m.depthUom ? '\u00a0' + esc(m.depthUom) : ''}`;
+        depthCell = `${m.depth}${m.depthUom ? '\u00a0' + escUom(m.depthUom) : ''}`;
       } else if (m.wellDepth !== null && m.wellDepth !== undefined) {
-        depthCell = `${m.wellDepth}${m.wellDepthUom ? '\u00a0' + esc(m.wellDepthUom) : ''}`;
+        depthCell = `${m.wellDepth}${m.wellDepthUom ? '\u00a0' + escUom(m.wellDepthUom) : ''}`;
       } else if (m.linearExtentLen !== null && m.linearExtentLen !== undefined) {
         depthCell = `${m.linearExtentLen}`;
       }
@@ -8650,7 +9425,7 @@ function toggleRIFS(rifsId, headerTr, tbody) {
     const rowsHtml = ltps.map(ltpSF => {
       const swatch = `<span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${ltpSF.zoneColor};margin-right:6px;vertical-align:middle"></span>`;
       const name   = esc(ltpSF.name || ltpSF.id);
-      const area   = (ltpSF.depth != null) ? `${ltpSF.depth}${ltpSF.depthUom ? '\u00a0' + esc(ltpSF.depthUom) : ''}` : '—';
+      const area   = (ltpSF.depth != null) ? `${ltpSF.depth}${ltpSF.depthUom ? '\u00a0' + escUom(ltpSF.depthUom) : ''}` : '—';
       const dateStr = (typeof FORMAT_FN !== 'undefined' && ltpSF.dateEl)
         ? FORMAT_FN.timeIntervalInline(ltpSF.dateEl) : '—';
       const riCount = (ltpSF.ris || []).length;
@@ -8840,7 +9615,9 @@ function selectLTP(rifsId, ltpId) {
 
   const riRowsHtml = ris.map(riSF => {
     const name     = esc(riSF.name || riSF.id);
-    const lenStr   = (riSF.depth != null) ? `${riSF.depth}${riSF.depthUom ? '\u00a0' + esc(riSF.depthUom) : ''}` : '—';
+    const lenStr   = (riSF.depth != null)
+      ? `${riSF.depth}${riSF.depthUom ? '\u00a0' + escUom(riSF.depthUom) : ''}`
+      : (riSF.computedGeom ? `${fmtNum(riSF.computedGeom.value, 3)}\u00a0${esc(riSF.computedGeom.unit)}` : '—');
     const dateStr  = (typeof FORMAT_FN !== 'undefined' && riSF.dateEl)
       ? FORMAT_FN.timeIntervalInline(riSF.dateEl) : '—';
     // Diameter from columnDiameter element
@@ -8850,7 +9627,7 @@ function selectLTP(rifsId, ltpId) {
       if (diaEl) {
         const dv  = parseFloat(diaEl.textContent);
         const uom = diaEl.getAttribute('uom') || '';
-        if (!isNaN(dv)) diaStr = `${dv}${uom ? '\u00a0' + esc(uom) : ''}`;
+        if (!isNaN(dv)) diaStr = `${dv}${uom ? '\u00a0' + escUom(uom) : ''}`;
       }
     }
     const hasLoc = (riSF.lat !== null && riSF.lat !== undefined && !isNaN(riSF.lat));
@@ -8953,7 +9730,7 @@ function selectRI(rifsId, ltpId, riId) {
 // Coordinates are stored as lat lon pairs (EPSG:4326 axis order).
 function posListToLatLngs(posListText, srsDimension) {
   const dim = parseInt(srsDimension) || 2;
-  const nums = posListText.trim().split(/\s+/).map(Number).filter(v => !isNaN(v));
+  const nums = numTokens(posListText);
   const lls = [];
   for (let i = 0; i + 1 < nums.length; i += dim) {
     lls.push([nums[i], nums[i + 1]]); // lat, lon
@@ -9045,7 +9822,7 @@ function renderProjectGeometry() {
     if (rpWrapper) {
       const posEl = findByLocalName(rpWrapper, 'pos');
       if (posEl) {
-        const parts = posEl.textContent.trim().split(/\s+/).map(Number);
+        const parts = numTokens(posEl.textContent, true);
         if (parts.length >= 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
           layers.push(L.circleMarker([parts[0], parts[1]], MUTED_POINT_STYLE)
             .bindPopup(`<strong>Project:</strong> ${proj.titleHtml}`, { maxWidth: 260 }));
@@ -10023,61 +10800,140 @@ const HORIZ_CRS_NAMES = {
   3006:'SWEREF99 TM',
 };
 // For UTM zones we generate the name on the fly from EPSG code ranges.
-function horizCRSLabel(sf) {
-  const epsg = sf.horizEPSG;
+// Returns the bare CRS name (no "(EPSG:...)" suffix, no vertical-CRS component) —
+// callers that need the full annotated label use buildCRSHeaderLines() below.
+function horizCRSBareName(epsg, sf) {
   if (!epsg) {
-    // No EPSG recognised — show rawSrsName truncated or "Geographic (unknown)"
-    if (sf.rawSrsName) {
+    if (sf && sf.rawSrsName) {
       const s = sf.rawSrsName;
       return s.length > 60 ? s.slice(0, 57) + '…' : s;
     }
-    return sf.lat !== null ? 'Geographic (CRS unknown)' : '—';
+    return 'CRS unknown';
   }
-  if (HORIZ_CRS_NAMES[epsg]) return `${HORIZ_CRS_NAMES[epsg]} (EPSG:${epsg})`;
+  if (HORIZ_CRS_NAMES[epsg]) return HORIZ_CRS_NAMES[epsg];
   // UTM WGS84 north  32601–32660
-  if (epsg >= 32601 && epsg <= 32660) return `WGS 84 / UTM Zone ${epsg - 32600}N (EPSG:${epsg})`;
+  if (epsg >= 32601 && epsg <= 32660) return `WGS 84 / UTM Zone ${epsg - 32600}N`;
   // UTM WGS84 south  32701–32760
-  if (epsg >= 32701 && epsg <= 32760) return `WGS 84 / UTM Zone ${epsg - 32700}S (EPSG:${epsg})`;
+  if (epsg >= 32701 && epsg <= 32760) return `WGS 84 / UTM Zone ${epsg - 32700}S`;
   // UTM NAD83 north  26901–26923
-  if (epsg >= 26901 && epsg <= 26923) return `NAD83 / UTM Zone ${epsg - 26900}N (EPSG:${epsg})`;
+  if (epsg >= 26901 && epsg <= 26923) return `NAD83 / UTM Zone ${epsg - 26900}N`;
   // UTM NAD27 north  26701–26722
-  if (epsg >= 26701 && epsg <= 26722) return `NAD27 / UTM Zone ${epsg - 26700}N (EPSG:${epsg})`;
+  if (epsg >= 26701 && epsg <= 26722) return `NAD27 / UTM Zone ${epsg - 26700}N`;
   // ETRS89 / UTM  25828–25837
-  if (epsg >= 25828 && epsg <= 25837) return `ETRS89 / UTM Zone ${epsg - 25800}N (EPSG:${epsg})`;
+  if (epsg >= 25828 && epsg <= 25837) return `ETRS89 / UTM Zone ${epsg - 25800}N`;
   // GDA94 MGA  28348–28356
-  if (epsg >= 28348 && epsg <= 28356) return `GDA94 / MGA Zone ${epsg - 28300} (EPSG:${epsg})`;
+  if (epsg >= 28348 && epsg <= 28356) return `GDA94 / MGA Zone ${epsg - 28300}`;
   // GDA2020 MGA  7850–7856
-  if (epsg >= 7850 && epsg <= 7856) return `GDA2020 / MGA Zone ${epsg - 7800} (EPSG:${epsg})`;
+  if (epsg >= 7850 && epsg <= 7856) return `GDA2020 / MGA Zone ${epsg - 7800}`;
   // Louisiana state planes 3451/3452
-  if (epsg === 3451) return 'NAD83 / Louisiana North (ftUS) (EPSG:3451)';
-  if (epsg === 3452) return 'NAD83 / Louisiana South (ftUS) (EPSG:3452)';
+  if (epsg === 3451) return 'NAD83 / Louisiana North (ftUS)';
+  if (epsg === 3452) return 'NAD83 / Louisiana South (ftUS)';
   // Name fetched at runtime from epsg.io
-  if (FETCHED_CRS_NAMES[epsg]) return `${FETCHED_CRS_NAMES[epsg]} (EPSG:${epsg})`;
+  if (FETCHED_CRS_NAMES[epsg]) return FETCHED_CRS_NAMES[epsg];
   return `EPSG:${epsg}`;
+}
+
+/**
+ * Categorize an SF's horizontal CRS for header display purposes:
+ *   'local'         — diggs:LocalCartesianCRS embedded in this document
+ *   'geographic3d'  — single 3D geographic CRS (srsDimension 3, no separate vert CRS)
+ *   'geocentric'    — geocentric CRS (proj4 def is +proj=geocent)
+ *   'geographic'    — ordinary 2D geographic (lat/lon), possibly + compound vertical
+ *   'projected'     — projected (Easting/Northing), possibly + compound vertical
+ *   'unknown'       — coordinates present but CRS couldn't be identified
+ *   'none'          — no coordinates at all
+ */
+function crsCategory(sf) {
+  if (sf.isLocalCRS) return 'local';
+  const epsg = sf.horizEPSG;
+  if (!epsg) return (sf.lat !== null && sf.lat !== undefined) ? 'unknown' : 'none';
+  if (GEO_CRS.has(epsg)) {
+    return (sf.rawSrsDimension === 3 && !sf.vertEPSG) ? 'geographic3d' : 'geographic';
+  }
+  const def = CRS_DEFS[`EPSG:${epsg}`];
+  if (def && /\+proj=geocent/.test(def)) return 'geocentric';
+  return 'projected';
+}
+
+/** Small inline flag for a unit whose source wasn't the CRS definition itself. */
+function unitFlagHtml(flag) {
+  if (flag === 'reported')
+    return ' <span style="color:#9aa0a6;font-size:9px" title="Unit not derivable from the CRS definition — shown as declared on the instance (uomLabels)">(reported)</span>';
+  if (flag === 'mismatch')
+    return ' <span style="color:#f0c060;font-size:9px" title="The declared uomLabels unit does not match the CRS definition\'s native unit">(reported uom mismatch)</span>';
+  return '';
+}
+
+/**
+ * Build the full annotated CRS header line(s):
+ *   Compound:      CRSName (Geographic|Projected: EPSG:code)<br>VertCRSName (Vertical: EPSG:code)
+ *   3D:            CRSName (3D Geographic: EPSG:code)   — or (Geocentric: EPSG:code)
+ *   Local CRS:     LocalCRSName (Local Cartesian CRS)
+ *   Unknown/none:  best-effort fallback text
+ */
+function buildCRSHeaderLines(sf) {
+  const cat = crsCategory(sf);
+
+  if (cat === 'local') {
+    return `${esc(sf.localCRSName || 'Local CRS')} <span style="opacity:.7">(Local Cartesian CRS)</span>`;
+  }
+  if (cat === 'none') return '—';
+  if (cat === 'unknown') return esc(horizCRSBareName(null, sf));
+
+  const epsg = sf.horizEPSG;
+  const name = horizCRSBareName(epsg, sf);
+
+  if (cat === 'geographic3d') {
+    return `${esc(name)} <span style="opacity:.7">(3D Geographic: EPSG:${epsg})</span>`;
+  }
+  if (cat === 'geocentric') {
+    return `${esc(name)} <span style="opacity:.7">(Geocentric: EPSG:${epsg})</span>`;
+  }
+
+  const kindWord = cat === 'projected' ? 'Projected' : 'Geographic';
+  let out = `${esc(name)} <span style="opacity:.7">(${kindWord}: EPSG:${epsg})</span>`;
+  if (sf.vertEPSG) {
+    const vname = sf.vertCRSName || `EPSG:${sf.vertEPSG}`;
+    out += `<br>${esc(vname)} <span style="opacity:.7">(Vertical: EPSG:${sf.vertEPSG})</span>`;
+  }
+  return out;
 }
 
 // ── Section 2: common meta grid ────────────────────────────
 // Returns HTML string for the 3-row, 2-col data grid shared by all SF types.
 function buildSFCommonGrid(sf) {
-  const isGeo = !sf.horizEPSG || GEO_CRS.has(sf.horizEPSG);
+  const cat        = crsCategory(sf);
+  const isGeo      = (cat === 'geographic' || cat === 'geographic3d');
+  const isGeocentric = (cat === 'geocentric');
 
-  // Row 2: native reference-point coordinates
+  // Row 2: native reference-point coordinates.
   // For projected CRS: DIGGS/GML rawPos[0]=Easting, rawPos[1]=Northing,
-  // but we display Easting (X) left and Northing (Y) right — matching lat/lon order.
-  const axis1Label = isGeo ? 'Latitude' : 'Easting';
-  const axis2Label = isGeo ? 'Longitude' : 'Northing';
+  // displayed Easting (left) / Northing (right) — matching lat/lon order.
+  // For geocentric CRS, rawPos is X/Y/Z — label accordingly.
+  let axis1Label, axis2Label, elevLabelText;
+  if (isGeo) { axis1Label = 'Latitude'; axis2Label = 'Longitude'; elevLabelText = 'Elevation'; }
+  else if (isGeocentric) { axis1Label = 'X'; axis2Label = 'Y'; elevLabelText = 'Z'; }
+  else { axis1Label = 'Easting'; axis2Label = 'Northing'; elevLabelText = 'Elevation'; }
+
+  // Unit suffix + provenance flag for the two horizontal cells.
+  let axisUnitSuffix = '', axisUnitFlagHtml = '';
+  if (isGeo) {
+    axisUnitSuffix = '°';   // geographic axes are always degrees — unambiguous
+  } else {
+    axisUnitSuffix   = sf.horizUnit ? '\u00a0' + esc(sf.horizUnit) : '';
+    axisUnitFlagHtml = unitFlagHtml(sf.horizUnitFlag);
+  }
+
   let axis1Val = '—', axis2Val = '—';
   if (sf.rawPos && sf.rawPos.length >= 2) {
-    const dim  = sf.rawSrsDimension || 2;
-    const uomSuffix = isGeo ? '°' : '';
     if (isGeo) {
       // Geographic: rawPos[0]=Latitude, rawPos[1]=Longitude
-      axis1Val = fmtNum(sf.rawPos[0], 6) + uomSuffix;
-      axis2Val = fmtNum(sf.rawPos[1], 6) + uomSuffix;
+      axis1Val = fmtNum(sf.rawPos[0], 6) + axisUnitSuffix + axisUnitFlagHtml;
+      axis2Val = fmtNum(sf.rawPos[1], 6) + axisUnitSuffix + axisUnitFlagHtml;
     } else {
-      // Projected: rawPos[0]=Easting, rawPos[1]=Northing
-      axis1Val = fmtNum(sf.rawPos[0], 3);  // Easting → left cell (Easting label)
-      axis2Val = fmtNum(sf.rawPos[1], 3);  // Northing → right cell (Northing label)
+      // Projected / geocentric: rawPos[0]=X or Easting, rawPos[1]=Y or Northing
+      axis1Val = fmtNum(sf.rawPos[0], 3) + axisUnitSuffix + axisUnitFlagHtml;
+      axis2Val = fmtNum(sf.rawPos[1], 3) + axisUnitSuffix + axisUnitFlagHtml;
     }
   } else if (sf.lat !== null && sf.lon !== null) {
     // Fallback to transformed WGS84 values when rawPos unavailable
@@ -10085,35 +10941,83 @@ function buildSFCommonGrid(sf) {
     axis2Val = fmtNum(sf.lon, 6) + '°';
   }
 
-  // Row 3 left: elevation (uses formatElevStr which handles async CRS lookup)
-  const elevStr = formatElevStr(sf) ?? '—';
-  const elevLabel = sf.vertCRSName
-    ? `Elevation <span style="font-weight:400;opacity:.7;font-size:10px">(${esc(sf.vertCRSName)})</span>`
-    : 'Elevation';
+  // Row 3 left: elevation — unit always shown when a value is present
+  // (CRS-derived unit preferred; "(reported)"/"(reported uom mismatch)" flags
+  // surface when the unit came from — or disagrees with — uomLabels instead).
+  let elevStr = '—';
+  if (sf.elev !== null && sf.elev !== undefined && !isNaN(sf.elev)) {
+    const elevUnitSuffix = sf.elevUnit ? '\u00a0' + esc(sf.elevUnit) : '';
+    elevStr = sf.elev + elevUnitSuffix + unitFlagHtml(sf.elevUnitFlag);
+  }
+  const elevLabel = elevLabelText;
 
-  // Row 3 right: Total Depth / Extent — same string used in the SF table
-  let depthStr = '—';
-  if (sf.depth !== null && sf.depth !== undefined) {
-    depthStr = `${sf.depth}${sf.depthUom ? '\u00a0' + esc(sf.depthUom) : ''}`;
-  } else if (sf.wellDepth !== null && sf.wellDepth !== undefined) {
-    depthStr = `${sf.wellDepth}${sf.wellDepthUom ? '\u00a0' + esc(sf.wellDepthUom) : ''}`;
-  } else if (sf.linearExtentLen !== null && sf.linearExtentLen !== undefined) {
-    depthStr = `${sf.linearExtentLen}`;
+  // Row 3 right: Total Depth / Extent — reported value(s) plus, when
+  // available, the nominal value computed from the feature's own geometry
+  // (centerLine path length, or featureExtent polygon area), flagged if the
+  // two disagree beyond rounding/approximation tolerance.
+  let reportedGeom = getReportedGeomValue(sf);
+  let reportedStr = reportedGeom
+    ? `${reportedGeom.val}${reportedGeom.unit ? '\u00a0' + escUom(reportedGeom.unit) : ''}`
+    : null;
+
+  let computedStr = null;
+  if (sf.computedGeom) {
+    const isArea = sf.computedGeom.kind === 'area';
+    let dispValue = sf.computedGeom.value;
+    // Label to feed superscriptUom(): native calc unit gets a synthetic '2'
+    // exponent appended for areas (e.g. 'm' -> 'm2' -> 'm²'); once converted
+    // to the reported unit's own label below, that label is used as-is since
+    // it already carries its own UCUM exponent digit if it's an area unit.
+    let unitLabel = isArea ? `${sf.computedGeom.unit}2` : sf.computedGeom.unit;
+
+    if (reportedGeom && reportedGeom.unit) {
+      const repBaseUnit = isArea ? stripAreaExponent(reportedGeom.unit) : reportedGeom.unit;
+      const converted = convertGeomValue(sf.computedGeom.value, sf.computedGeom.unit, repBaseUnit, isArea);
+      if (converted !== null) {
+        dispValue = converted;
+        unitLabel = reportedGeom.unit;
+      }
+      // If conversion isn't possible (unrecognized reported unit), silently
+      // fall back to displaying the computed value in its own native unit.
+    }
+
+    // Match the reported value's own precision when one exists, so e.g. a
+    // reported "23.4 m" pairs with a computed "23.4 m" (rounded), not "23.3821 m".
+    const dec = reportedGeom ? decimalPlaces(reportedGeom.val) : (isArea ? 2 : 3);
+    computedStr = `${fmtNum(dispValue, dec)}\u00a0${escHtml(superscriptUom(unitLabel))}`;
   }
 
-  // CRS flags
+  let depthStr;
+  if (reportedStr && computedStr) {
+    const mismatchFlag = sf.geomMismatch
+      ? ' <span style="color:#f0c060;font-size:9px" title="Reported and geometry-derived values disagree by more than the expected rounding/approximation tolerance">⚠ mismatch</span>'
+      : '';
+    depthStr = `${reportedStr} <span style="opacity:.6;font-size:10px">(reported)</span><br>`
+             + `${computedStr} <span style="opacity:.6;font-size:10px">(computed)</span>${mismatchFlag}`;
+  } else if (reportedStr) {
+    depthStr = reportedStr;
+  } else if (computedStr) {
+    depthStr = `${computedStr} <span style="opacity:.6;font-size:10px">(computed)</span>`;
+  } else {
+    depthStr = '—';
+  }
+
+  // CRS flags — the former "▶ projected → WGS84" notice has been removed:
+  // it described an internal Leaflet-plotting implementation detail, not
+  // anything about the data itself. The axis-swap correction (a genuine
+  // data-encoding observation) and any unresolved-CRS warning are kept.
   let crsFlags = '';
-  if (sf.crsTransformed) crsFlags += ' <span style="color:#e8a045;font-size:10px">▶ projected → WGS84</span>';
-  if (sf.axisSwapped)    crsFlags += ' <span style="color:#f0c060;font-size:10px">⇄ axis swapped</span>';
-  if (sf.crsWarning && !sf.axisSwapped && !sf.crsTransformed)
+  if (sf.axisSwapped) crsFlags += ' <span style="color:#f0c060;font-size:10px">⇄ axis swapped</span>';
+  if (sf.crsWarning && !sf.axisSwapped)
     crsFlags += ` <span style="color:#f85149;font-size:10px">⚠ ${esc(sf.crsWarning)}</span>`;
 
   return `
+  <div class="kv-section-header" style="cursor:default;margin-top:0;padding-left:16px">REFERENCE POINT</div>
   <div class="detail-meta-grid">
     <div class="meta-cell" style="grid-column:1/-1">
       <div class="meta-label">CRS</div>
       <div class="meta-value" style="font-size:12px;white-space:normal;line-height:1.4">
-        ${esc(horizCRSLabel(sf))}${crsFlags}
+        ${buildCRSHeaderLines(sf)}${crsFlags}
       </div>
     </div>
     <div class="meta-cell"><div class="meta-label">${axis1Label}</div>
@@ -10123,8 +11027,12 @@ function buildSFCommonGrid(sf) {
     <div class="meta-cell"><div class="meta-label">${elevLabel}</div>
       <div class="meta-value">${elevStr}</div></div>
     <div class="meta-cell"><div class="meta-label">Total Depth / Extent</div>
-      <div class="meta-value">${depthStr}</div></div>
-  </div>`;
+      <div class="meta-value" style="white-space:normal;line-height:1.4">${depthStr}</div></div>
+  </div>${sf.refPointDescription ? `
+  <div class="meta-cell" style="margin-top:2px">
+    <div class="meta-label">Reference Point Description</div>
+    <div class="meta-value" style="font-size:12px;font-weight:400;white-space:normal;line-height:1.4;opacity:.9">${esc(sf.refPointDescription)}</div>
+  </div>` : ''}`;
 }
 
 // ── Section 3: associated-data badge grid ──────────────────
@@ -10146,6 +11054,7 @@ function buildAssocBadges(sf) {
       label: 'Lithology',
       count: `${totalObs} interval${totalObs !== 1 ? 's' : ''}`,
       contentFn: () => renderLithBadgeContent(sfId, sf, lithSystems, allObs),
+      category: 'observations',
     });
   }
 
@@ -10158,7 +11067,7 @@ function buildAssocBadges(sf) {
       count: `${samps.length} sample${samps.length !== 1 ? 's' : ''}`,
       contentFn: () => {
         const sampUom = depthUomForRows(samps);
-        const sampUomTxt = sampUom ? `<br><span class="col-uom">(${esc(sampUom)})</span>` : '';
+        const sampUomTxt = sampUom ? `<br><span class="col-uom">(${escUom(sampUom)})</span>` : '';
         let t = `<table class="sub-table"><thead><tr>
           <th>From${sampUomTxt}</th><th>To${sampUomTxt}</th>
           <th>Sample ID</th><th>Method</th>
@@ -10175,6 +11084,7 @@ function buildAssocBadges(sf) {
         </tr>`; });
         return t + '</tbody></table>';
       },
+      category: 'samples',
     });
   }
 
@@ -10189,6 +11099,7 @@ function buildAssocBadges(sf) {
       label,
       count: `${rows.length} result${rows.length !== 1 ? 's' : ''}`,
       contentFn: () => buildMeasTable(procType, procObj, rows, depthUom),
+      category: 'measurements',
     });
   }
 
@@ -10231,6 +11142,7 @@ function buildAssocBadges(sf) {
           }
         });
       } : undefined,
+      category: 'measurements',
     });
   }
 
@@ -10244,28 +11156,53 @@ function buildAssocBadges(sf) {
       count: '',
       monHtml, monDraw,
       contentFn: () => monHtml,
+      category: 'measurements',
     });
   }
 
   return badges;
 }
 
-// ── renderBadgeGrid: single emitter of sf-assoc-section / assoc-badge-grid ──
-// badges[]  — array from buildAssocBadges() (plus any pre-pended badges)
-// sfId      — gml:id of the owning SF, used in onclick handlers
+// ── Badge category grouping — splits the former single "Associated Data"
+// grid into topic-based, independently-collapsible sections. New badge kinds
+// added in buildAssocBadges() should be tagged with one of these `category`
+// keys; a category with no badges is omitted entirely (no title/grid shown).
+const ASSOC_BADGE_CATEGORIES = [
+  { key: 'samples',      title: 'Sampling and Samples' },
+  { key: 'observations', title: 'Observations' },
+  { key: 'measurements', title: 'Measurements' },
+];
+
+// ── renderBadgeGrid: emits one collapsible sf-assoc-section per category
+// present in badges[] (from buildAssocBadges(), plus any pre-pended badges —
+// each must carry a `category` matching ASSOC_BADGE_CATEGORIES above).
+// sfId — gml:id of the owning SF, used in onclick handlers.
+// A category grid starts expanded when it holds ≤2 badges (i.e. one row of
+// the 2-column grid) and collapsed otherwise — mirrors the row-count rule
+// used for kv-sections in renderKVTable().
 // Returns the HTML string, or '' if badges is empty.
 function renderBadgeGrid(badges, sfId) {
   if (!badges.length) return '';
-  let html = `<div class="sf-assoc-section">
-    <div class="sf-assoc-section-title">Associated Data</div>
-    <div class="assoc-badge-grid">`;
-  for (const b of badges) {
-    const countHtml = b.count ? `<span class="badge-count">${esc(b.count)}</span>` : '';
-    html += `<button class="assoc-badge" id="${b.id}"
-        onclick="showAssocBadge('${esc(sfId)}','${b.id}')"
-      ><span class="badge-label">${esc(b.label)}</span>${countHtml}</button>`;
+  let html = '';
+  for (const { key, title } of ASSOC_BADGE_CATEGORIES) {
+    const group = badges.filter(b => b.category === key);
+    if (!group.length) continue;
+    const startOpen = group.length <= 2;
+    const triChar = startOpen ? '▼' : '▶';
+    const bodyStyle = startOpen ? '' : ' style="display:none"';
+    html += `<div class="sf-assoc-section">
+      <div class="sf-assoc-section-title" onclick="toggleKVSection(this)">
+        <span class="kv-tri">${triChar}</span>${esc(title)}
+      </div>
+      <div class="assoc-badge-grid"${bodyStyle}>`;
+    for (const b of group) {
+      const countHtml = b.count ? `<span class="badge-count">${esc(b.count)}</span>` : '';
+      html += `<button class="assoc-badge" id="${b.id}"
+          onclick="showAssocBadge('${esc(sfId)}','${b.id}')"
+        ><span class="badge-label">${esc(b.label)}</span>${countHtml}</button>`;
+    }
+    html += `</div></div>`;
   }
-  html += `</div></div>`;
   return html;
 }
 
@@ -10342,17 +11279,28 @@ function showSFDetail(sf) {
     ? cfg.tabLabel.replace(/s$/, '')   // strip trailing 's' from plural tab label
     : sf.type;
 
+  // Show the codeSpace of the first gml:name (if present) next to the header name.
+  let nameCodeSpace = '';
+  if (sf.name && sf.el) {
+    const firstNameEl = sf.el.getElementsByTagNameNS(NS.gml, 'name')[0];
+    if (firstNameEl) nameCodeSpace = firstNameEl.getAttribute('codeSpace') || '';
+  }
+  const nameCsHtml = nameCodeSpace
+    ? ` <span style="font-size:10px;color:var(--text-muted);font-weight:400">(${esc(nameCodeSpace)})</span>`
+    : '';
+
   let html = `
   <div class="detail-header">
     <div class="detail-type" style="color:${color}">${typeGlyph} ${esc(typeLabel)}</div>
-    <div class="detail-name">${esc(sf.name || sf.id)}</div>
+    <div class="detail-name">${esc(sf.name || sf.id)}${nameCsHtml}</div>
   </div>`;
 
   // ── Section 2: common meta grid ──────────────────────────
   html += buildSFCommonGrid(sf);
 
-  // ── Section 3: assoc badges ───────────────────────────────
-  // Inject CPT profile as the first badge for Soundings; then render the grid.
+  // ── Section 3: assoc badges (rendered into detail-content-scroll, above
+  // section 4 — see showDetail() below) ─────────────────────
+  // Inject CPT profile as the first badge for Soundings; then render the grids.
   const badges = buildAssocBadges(sf);
 
   if (sf.type === 'Sounding') {
@@ -10366,6 +11314,7 @@ function showSFDetail(sf) {
         contentFn: () => `<div id="cpt-canvas-area-assoc"></div>`,
         _isCPTProfile: true,
         _sfId: sf.id,
+        category: 'measurements',
       };
       badges.unshift(cptBadge);
     }
@@ -10374,19 +11323,26 @@ function showSFDetail(sf) {
   // Register badges for this SF so showAssocBadge can find them
   _assocBadgeRegistry.set(sf.id, badges);
 
-  html += renderBadgeGrid(badges, sf.id);
+  const badgeGridHtml = renderBadgeGrid(badges, sf.id);
 
   // ── Section 4: type-specific descriptor metadata ────────────
   const sfMetaHtml = renderSFMetadata(sf);
 
   showDetail(html);
 
-  // Inject section 4 into the scrollable container
-  if (sfMetaHtml) {
-    const scrollDiv = document.getElementById('detail-content-scroll');
-    if (scrollDiv) {
-      scrollDiv.innerHTML = `<div class="detail-section" style="padding:10px 16px 14px">${sfMetaHtml}</div>`;
-    }
+  // Inject sections 3 (badge grids) and 4 (type-specific metadata) into the
+  // scrollable container — badge grids first, so the fixed pane (header +
+  // common meta grid) stays capped at 50% height regardless of how many
+  // associated-data badges a feature has.
+  // Badge-grid wrapper: top padding only, for parity with the metadata
+  // block's top offset — horizontal padding already comes from
+  // .sf-assoc-section (each category div supplies its own 16px), and no
+  // bottom padding/border, so nothing trails below the last category grid;
+  // the metadata block's first kv-section supplies its own leading rule.
+  const scrollDiv = document.getElementById('detail-content-scroll');
+  if (scrollDiv) {
+    scrollDiv.innerHTML = (badgeGridHtml ? `<div style="padding-top:10px">${badgeGridHtml}</div>` : '')
+      + (sfMetaHtml ? `<div class="detail-section" style="padding:10px 16px 14px">${sfMetaHtml}</div>` : '');
   }
 
   // ── Post-render: LTPZone CMC dot markers ──────────────────────────────────
@@ -10414,7 +11370,7 @@ function showSFDetail(sf) {
 
       const srsName = mplEl.getAttribute('srsName') || '';
       const dim     = parseInt(mplEl.getAttribute('srsDimension') || '3');
-      const tokens  = (posListEl.textContent || '').trim().split(/\s+/).map(Number);
+      const tokens  = numTokens(posListEl.textContent, true);
 
       // Build cmcData: {id, lat, lon} for each column that projects successfully
       const cmcData = [];
@@ -10515,7 +11471,7 @@ function buildMeasTable(procType, procObj, rows, depthUom) {
   const hasInterval = rows.some(r => r.depthTo !== '');
 
   // ── Build header ──────────────────────────────────────────────────────────
-  const depthUomTxt = depthUom ? `<br><span class="col-uom">(${esc(depthUom)})</span>` : '';
+  const depthUomTxt = depthUom ? `<br><span class="col-uom">(${escUom(depthUom)})</span>` : '';
   let thead = '<thead><tr>';
   thead += `<th>Depth${hasInterval ? ' From' : ''}${depthUomTxt}</th>`;
   if (hasInterval) thead += `<th>Depth To${depthUomTxt}</th>`;
@@ -10530,7 +11486,7 @@ function buildMeasTable(procType, procObj, rows, depthUom) {
   }
 
   for (const [name, uom] of resultCols) {
-    thead += `<th>${esc(name)}${uom ? `<br><span class="col-uom">(${esc(uom)})</span>` : ''}</th>`;
+    thead += `<th>${esc(name)}${uom ? `<br><span class="col-uom">(${escUom(uom)})</span>` : ''}</th>`;
   }
   thead += '</tr></thead>';
 
@@ -10557,7 +11513,7 @@ function buildMeasTable(procType, procObj, rows, depthUom) {
         if (el) {
           const val = el.textContent.trim();
           const uom = f.uom === null ? (el.getAttribute('uom') || '') : f.uom;
-          tbody += `<td class="mono">${esc(val)}${uom ? ' <span class="col-uom">('+esc(uom)+')</span>' : ''}</td>`;
+          tbody += `<td class="mono">${esc(val)}${uom ? ' <span class="col-uom">('+escUom(uom)+')</span>' : ''}</td>`;
         } else {
           tbody += `<td class="muted-dash">—</td>`;
         }
@@ -10801,7 +11757,7 @@ function renderLithTable(obsArray, sf) {
   // UOM for From/To headers
   const depthUom = depthUomForRows(obsArray);
   const uomSpan  = depthUom
-    ? `<br><span class="col-uom">(${esc(depthUom)})</span>` : '';
+    ? `<br><span class="col-uom">(${escUom(depthUom)})</span>` : '';
 
   // Build <thead>
   const thCells = activeCols.map(col => {

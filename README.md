@@ -56,7 +56,7 @@ All DIGGS 3.0 Sampling Feature types are recognized and displayed in the SF tabl
 ### Observation Systems
 The followign Observation Systems are supported;
 
-| Observation System | Sustem Properties | Observation Properties |
+| Observation System | System Properties | Observation Properties |
 |---|---|---|
 | `LithologySystem` | ✅ Full | 0D and 1D sampling features only |
 | `ColorSystem` | -- | -- |
@@ -95,9 +95,7 @@ The followign Observation Systems are supported;
 | AggregateImpactValueTest | ✅ Full|-- |-- |
 | AggregatePolishedStoneValueTest |✅ Full |-- |-- |
 | AggregateSlakeDurabilityTest |✅ Full |-- |-- |
-| AggregateSoundnessTest | ✅ Full|-- | |
-| AggregateTenPercentFinesTest | ✅ Full|-- |-- |
-| AggregateWaterAbsorptionTest | ✅ Full|-- |-- |
+| AggregateWaterAbsorptionTest | ✅ Full|v-- |-- |
 | AtterbergLimitsTest | ✅ Full|-- |-- |
 | ChalkCrushingValueTest |✅ Full |-- |-- |
 | ConsolidationTest |✅ Full |-- |-- |
