@@ -196,6 +196,183 @@
           <transformationAccuracy uom="m">0.001</transformationAccuracy>
         </LocalCartesianCRS>
       </crs>
+      <crs>
+        <!-- Local CRS for Patch 1 of the DogLeg Trench (dogleg1). X-axis bearing 78 deg from
+             North, D-axis depth downward. Origin at the DogLeg Trench reference point (SW end
+             of Patch 1). -->
+        <LocalCartesianCRS gml:id="dogleg-patch1-crs">
+          <gml:description>
+            Two-dimensional local Cartesian coordinate reference system for Patch 1
+            of the DogLeg Trench. The X-axis runs horizontally along the patch face
+            (bearing 78 degrees from North), and the D-axis (depth) points vertically
+            downward. Origin is at the reference point (SW end of Patch 1), ground
+            elevation 6.2 m. Patch is 48 m long and reaches 5.2 m maximum depth.
+          </gml:description>
+          <gml:identifier codeSpace="http://diggsml.org/def/authorities.xml#DIGGS">
+            dogleg-patch1-crs
+          </gml:identifier>
+          <gml:name>Local Coordinate System for DogLeg Trench Patch 1</gml:name>
+          <gml:scope>Trench wall mapping and geological logging with 2D representation</gml:scope>
+          <gml:cartesianCS>
+            <gml:CartesianCS gml:id="dogleg-patch1-cs">
+              <gml:identifier codeSpace="http://diggsml.org/def/authorities.xml#DIGGS">
+                dogleg-patch1-cartesian-cs
+              </gml:identifier>
+              <gml:name>DogLeg Patch 1 2D Cartesian CS</gml:name>
+              <gml:remarks>
+                Two-dimensional Cartesian coordinate system for Patch 1 with X along
+                the patch (bearing 78 degrees) and D downward (depth from reference point)
+              </gml:remarks>
+              <gml:axis>
+                <gml:CoordinateSystemAxis gml:id="dogleg-p1-x-axis" uom="m">
+                  <gml:identifier codeSpace="http://diggsml.org/def/authorities.xml#DIGGS">dogleg-p1-x-horizontal</gml:identifier>
+                  <gml:name>X - Horizontal Along Patch 1 (bearing 78 deg)</gml:name>
+                  <gml:axisAbbrev>X</gml:axisAbbrev>
+                  <gml:axisDirection codeSpace="http://diggsml.org/def/authorities.xml#DIGGS">northeast</gml:axisDirection>
+                </gml:CoordinateSystemAxis>
+              </gml:axis>
+              <gml:axis>
+                <gml:CoordinateSystemAxis gml:id="dogleg-p1-d-axis" uom="m">
+                  <gml:identifier codeSpace="http://diggsml.org/def/authorities.xml#DIGGS">dogleg-p1-d-depth</gml:identifier>
+                  <gml:name>D - Depth Below Reference Point</gml:name>
+                  <gml:axisAbbrev>D</gml:axisAbbrev>
+                  <gml:axisDirection codeSpace="EPSG">down</gml:axisDirection>
+                </gml:CoordinateSystemAxis>
+              </gml:axis>
+            </gml:CartesianCS>
+          </gml:cartesianCS>
+          <gml:engineeringDatum>
+            <gml:EngineeringDatum gml:id="dogleg-patch1-datum">
+              <gml:identifier codeSpace="http://diggsml.org/def/authorities.xml#DIGGS">dogleg-patch1-datum-001</gml:identifier>
+              <gml:name>DogLeg Trench Patch 1 Local Datum</gml:name>
+              <gml:scope/>
+              <gml:anchorDefinition>
+                Origin at DogLeg Trench reference point, elevation 6.2 m NAVD88. Patch 1
+                extends 48 m along a bearing of 78 degrees to the junction with Patch 2 at
+                elevation 4.8 m, reaching a maximum trench depth of 5.2 m (elevation 1.0 m).
+              </gml:anchorDefinition>
+            </gml:EngineeringDatum>
+          </gml:engineeringDatum>
+          <originLocation>
+            <PointLocation gml:id="dogleg-patch1-origin" srsDimension="3"
+              srsName="https://www.opengis.net/def/crs-compound?1=http://www.opengis.net/def/crs/EPSG/0/26911&amp;2=http://www.opengis.net/def/crs/EPSG/0/5703">
+              <gml:description>Origin (0,0) at DogLeg Trench reference point (SW end of Patch 1).</gml:description>
+              <gml:pos>387516.6651 3742145.123 6.2</gml:pos>
+            </PointLocation>
+          </originLocation>
+          <axisLocation>
+            <AxisLocation gml:id="dogleg-p1-x-axis-location">
+              <axisRef xlink:href="#dogleg-p1-x-axis"/>
+              <axisOrder>1</axisOrder>
+              <directionVector>0.9781 0.2079 0.0</directionVector>
+            </AxisLocation>
+          </axisLocation>
+          <axisLocation>
+            <diggs:AxisLocation gml:id="dogleg-p1-d-axis-location">
+              <axisRef xlink:href="#dogleg-p1-d-axis"/>
+              <axisOrder>2</axisOrder>
+              <directionVector>0.0 0.0 -1.0</directionVector>
+            </diggs:AxisLocation>
+          </axisLocation>
+          <transformationMethod>affine</transformationMethod>
+          <rotationAngle uom="dega">78.0</rotationAngle>
+          <scaleFactor>1.0</scaleFactor>
+          <transformationAccuracy uom="m">0.001</transformationAccuracy>
+        </LocalCartesianCRS>
+      </crs>
+      <crs>
+        <!-- Local CRS for Patch 2 of the DogLeg Trench (dogleg1). X-axis bearing 110 deg from
+             North, D-axis depth downward. Origin at the Patch 1/Patch 2 junction. The X-axis
+             AxisLocation carries an originOffset of 48, so local X-coordinates in this CRS's
+             posList continue Patch 1's chainage (48-85) rather than resetting to 0. NOTE:
+             originOffset is a schema addition not yet present in ../diggs-schema as checked
+             out here - see CLAUDE.md / plan notes. -->
+        <LocalCartesianCRS gml:id="dogleg-patch2-crs">
+          <gml:description>
+            Two-dimensional local Cartesian coordinate reference system for Patch 2
+            of the DogLeg Trench. The X-axis runs horizontally along the patch face
+            (bearing 110 degrees from North), and the D-axis (depth) points vertically
+            downward. Origin is at the Patch 1/Patch 2 junction, ground elevation
+            4.8 m. Patch is 37 m long and reaches 6.5 m maximum depth (below its own
+            origin; -3.4 m absolute elevation). Local X-coordinates are expressed in
+            a continuous chainage shared with Patch 1 via the X-axis AxisLocation's
+            originOffset (48).
+          </gml:description>
+          <gml:identifier codeSpace="http://diggsml.org/def/authorities.xml#DIGGS">
+            dogleg-patch2-crs
+          </gml:identifier>
+          <gml:name>Local Coordinate System for DogLeg Trench Patch 2</gml:name>
+          <gml:scope>Trench wall mapping and geological logging with 2D representation</gml:scope>
+          <gml:cartesianCS>
+            <gml:CartesianCS gml:id="dogleg-patch2-cs">
+              <gml:identifier codeSpace="http://diggsml.org/def/authorities.xml#DIGGS">
+                dogleg-patch2-cartesian-cs
+              </gml:identifier>
+              <gml:name>DogLeg Patch 2 2D Cartesian CS</gml:name>
+              <gml:remarks>
+                Two-dimensional Cartesian coordinate system for Patch 2 with X along
+                the patch (bearing 110 degrees) and D downward (depth from junction point)
+              </gml:remarks>
+              <gml:axis>
+                <gml:CoordinateSystemAxis gml:id="dogleg-p2-x-axis" uom="m">
+                  <gml:identifier codeSpace="http://diggsml.org/def/authorities.xml#DIGGS">dogleg-p2-x-horizontal</gml:identifier>
+                  <gml:name>X - Horizontal Along Patch 2 (bearing 110 deg)</gml:name>
+                  <gml:axisAbbrev>X</gml:axisAbbrev>
+                  <gml:axisDirection codeSpace="http://diggsml.org/def/authorities.xml#DIGGS">southeast</gml:axisDirection>
+                </gml:CoordinateSystemAxis>
+              </gml:axis>
+              <gml:axis>
+                <gml:CoordinateSystemAxis gml:id="dogleg-p2-d-axis" uom="m">
+                  <gml:identifier codeSpace="http://diggsml.org/def/authorities.xml#DIGGS">dogleg-p2-d-depth</gml:identifier>
+                  <gml:name>D - Depth Below Junction Point</gml:name>
+                  <gml:axisAbbrev>D</gml:axisAbbrev>
+                  <gml:axisDirection codeSpace="EPSG">down</gml:axisDirection>
+                </gml:CoordinateSystemAxis>
+              </gml:axis>
+            </gml:CartesianCS>
+          </gml:cartesianCS>
+          <gml:engineeringDatum>
+            <gml:EngineeringDatum gml:id="dogleg-patch2-datum">
+              <gml:identifier codeSpace="http://diggsml.org/def/authorities.xml#DIGGS">dogleg-patch2-datum-001</gml:identifier>
+              <gml:name>DogLeg Trench Patch 2 Local Datum</gml:name>
+              <gml:scope/>
+              <gml:anchorDefinition>
+                Origin at the Patch 1/Patch 2 junction, elevation 4.8 m NAVD88. Patch 2
+                extends 37 m along a bearing of 110 degrees to its east end at elevation 6.75 m,
+                reaching a maximum trench depth of 6.5 m below origin (absolute elevation
+                -3.4 m).
+              </gml:anchorDefinition>
+            </gml:EngineeringDatum>
+          </gml:engineeringDatum>
+          <originLocation>
+            <PointLocation gml:id="dogleg-patch2-origin" srsDimension="3"
+              srsName="https://www.opengis.net/def/crs-compound?1=http://www.opengis.net/def/crs/EPSG/0/26911&amp;2=http://www.opengis.net/def/crs/EPSG/0/5703">
+              <gml:description>Origin (local X=48 after offset, D=0) at the Patch 1/Patch 2 junction (west end of Patch 2).</gml:description>
+              <gml:pos>387563.6162 3742155.1028 4.8</gml:pos>
+            </PointLocation>
+          </originLocation>
+          <axisLocation>
+            <AxisLocation gml:id="dogleg-p2-x-axis-location">
+              <axisRef xlink:href="#dogleg-p2-x-axis"/>
+              <axisOrder>1</axisOrder>
+              <directionVector>0.9397 -0.3420 0.0</directionVector>
+              <originOffset>48</originOffset>
+            </AxisLocation>
+          </axisLocation>
+          <axisLocation>
+            <diggs:AxisLocation gml:id="dogleg-p2-d-axis-location">
+              <axisRef xlink:href="#dogleg-p2-d-axis"/>
+              <axisOrder>2</axisOrder>
+              <directionVector>0.0 0.0 -1.0</directionVector>
+              <!-- no originOffset needed on D - defaults to 0.0 -->
+            </diggs:AxisLocation>
+          </axisLocation>
+          <transformationMethod>affine</transformationMethod>
+          <rotationAngle uom="dega">110.0</rotationAngle>
+          <scaleFactor>1.0</scaleFactor>
+          <transformationAccuracy uom="m">0.001</transformationAccuracy>
+        </LocalCartesianCRS>
+      </crs>
     </DocumentInformation>
   </documentInformation>
 
@@ -251,6 +428,244 @@
         </TrenchConstructionMethod>
       </constructionMethod>
 
+    </TrenchWall>
+  </samplingFeature>
+
+  <samplingFeature>
+    <!-- DogLeg Trench: a two-patch MultiPlanarSurface trench wall used to test rendering of
+         a bent trench alignment, each patch in its own local CRS (see the two dogleg-patch*-crs
+         LocalCartesianCRS objects above). Exhaustively populated (every optional field from
+         TrenchWallType and its ancestor types) to exercise the file inspector's rendering
+         against a maximally complete TrenchWall instance - contrast with the minimal "My trench"
+         (b11) above. -->
+    <TrenchWall gml:id="dogleg1">
+      <gml:description>
+        A dog-leg shaped trench wall consisting of two planar patches at different bearings
+        (78 and 110 degrees from North), used to test MultiPlanarSurface rendering with
+        per-patch local coordinate reference systems.
+      </gml:description>
+      <gml:identifier codeSpace="usgs">urn:diggs:def:fi:USGS:usgs_dogleg1</gml:identifier>
+      <gml:name>DogLeg Trench</gml:name>
+      <gml:name codeSpace="field-log">Trench DL-1</gml:name>
+      <internalIdentifier codeSpace="field-log">DL-1</internalIdentifier>
+      <status>final</status>
+      <associatedFile>
+        <AssociatedFile gml:id="dogleg-file1">
+          <gml:name>Site photo</gml:name>
+          <fileURL>https://example.com/dogleg-trench/site-photo-01.jpg</fileURL>
+          <fileType>jpg</fileType>
+          <documentType>photo</documentType>
+        </AssociatedFile>
+      </associatedFile>
+      <associatedFile>
+        <AssociatedFile gml:id="dogleg-file2">
+          <gml:name>Field log</gml:name>
+          <fileURL>https://example.com/dogleg-trench/field-log.pdf</fileURL>
+          <fileType>pdf</fileType>
+          <documentType>log</documentType>
+        </AssociatedFile>
+      </associatedFile>
+      <role>
+        <Role>
+          <rolePerformed>Field Geologist</rolePerformed>
+          <businessAssociate xlink:href="#a23"/>
+        </Role>
+      </role>
+      <role>
+        <Role>
+          <rolePerformed>Excavation Contractor</rolePerformed>
+          <businessAssociate xlink:href="#a23"/>
+        </Role>
+      </role>
+      <remark>
+        <Remark>
+          <content>Trench alignment changes bearing partway along its length, hence "DogLeg"
+            naming; used as a test fixture for MultiPlanarSurface rendering.</content>
+        </Remark>
+      </remark>
+      <remark>
+        <Remark>
+          <content>Field crew noted stable side-wall conditions throughout excavation; no
+            shoring required beyond the initial 2 m.</content>
+        </Remark>
+      </remark>
+      <investigationTarget>Natural Ground</investigationTarget>
+      <investigationTarget>Ground Water</investigationTarget>
+      <projectRef xlink:href="#p1"/>
+      <originalProjectRef xlink:href="#p1"/>
+      <associatedProjectRef xlink:href="#p1"/>
+      <associatedProjectRef identifierRef="urn:diggs:example:project:regional-fault-study"/>
+      <programRef identifierRef="urn:diggs:example:program:dogleg-test-program"/>
+      <environment>
+        <Environment gml:id="dogleg-env1">
+          <gml:name>Site conditions during DogLeg Trench excavation</gml:name>
+          <weather>Clear, light breeze</weather>
+          <ambientTemperature uom="degC">18</ambientTemperature>
+        </Environment>
+      </environment>
+      <environment>
+        <Environment gml:id="dogleg-env2">
+          <gml:name>Site conditions during trench backfilling</gml:name>
+          <weather>Overcast, light rain</weather>
+          <ambientTemperature uom="degC">14</ambientTemperature>
+        </Environment>
+      </environment>
+      <otherSamplingFeatureProperty>
+        <Parameter gml:id="dogleg-param1">
+          <parameterName codeSpace="https://diggsml.org/def/codes/DIGGS/0,1/properties.xml#bearing_change">Bearing change at Patch1/Patch2 junction</parameterName>
+          <parameterValue>32</parameterValue>
+          <parameterUnits>dega</parameterUnits>
+        </Parameter>
+      </otherSamplingFeatureProperty>
+      <otherSamplingFeatureProperty>
+        <Parameter gml:id="dogleg-param2">
+          <parameterName codeSpace="https://diggsml.org/def/codes/DIGGS/0,1/properties.xml#developed_length">Total developed trench length (both patches)</parameterName>
+          <parameterValue>85</parameterValue>
+          <parameterUnits>m</parameterUnits>
+        </Parameter>
+      </otherSamplingFeatureProperty>
+      <locality>
+        <!-- First choice branch (not used): a Locality object with non-coordinate location info, e.g.:
+        <Locality>
+          <district>Test District</district>
+          <lot>42</lot>
+        </Locality>
+        -->
+        <PointLocation gml:id="dogleg-locality-pt" srsDimension="3"
+          srsName="https://www.opengis.net/def/crs-compound?1=http://www.opengis.net/def/crs/EPSG/0/26911&amp;2=http://www.opengis.net/def/crs/EPSG/0/5703">
+          <gml:pos>387516.6651 3742145.123 6.2</gml:pos>
+        </PointLocation>
+      </locality>
+      <referencePoint>
+        <PointLocation gml:id="dogleg-refpt" srsDimension="3"
+          srsName="https://www.opengis.net/def/crs-compound?1=http://www.opengis.net/def/crs/EPSG/0/26911&amp;2=http://www.opengis.net/def/crs/EPSG/0/5703">
+          <gml:pos>387516.6651 3742145.123 6.2</gml:pos>
+          <uncertainty>
+            <LocationUncertainty gml:id="dogleg-refpt-unc">
+              <locationMethod>RTK GNSS</locationMethod>
+              <horizontalUncertainty>
+                <Uncertainty>
+                  <plusUncertaintyValue uom="m">0.02</plusUncertaintyValue>
+                  <minusUncertaintyValue uom="m">0.02</minusUncertaintyValue>
+                </Uncertainty>
+              </horizontalUncertainty>
+            </LocationUncertainty>
+          </uncertainty>
+        </PointLocation>
+      </referencePoint>
+      <localCoordinates>
+        <LocalCoordinate gml:id="dogleg-localcoord1">
+          <!-- First choice branch (not used): explicit easting/northing/elevation values, e.g.:
+          <easting uom="m">387516.6651</easting>
+          <northing uom="m">3742145.123</northing>
+          <elevation uom="m">6.2</elevation>
+          -->
+          <location>
+            <PointLocation gml:id="dogleg-localcoord-pt" srsDimension="3"
+              srsName="https://www.opengis.net/def/crs-compound?1=http://www.opengis.net/def/crs/EPSG/0/26911&amp;2=http://www.opengis.net/def/crs/EPSG/0/5703">
+              <gml:pos>387516.6651 3742145.123 6.2</gml:pos>
+            </PointLocation>
+          </location>
+        </LocalCoordinate>
+      </localCoordinates>
+      <featureExtent>
+        <!-- Feature extent: two planar patches at different bearings (dog-leg), each in its own
+             local CRS (dogleg-patch1-crs / dogleg-patch2-crs, defined in documentInformation
+             above). Patch 2's posList uses a continuous chainage (48-85) via its X-axis
+             AxisLocation's originOffset, rather than resetting to a local 0-37 frame - see the
+             originOffset note on dogleg-patch2-crs. srsDimension/srsName are declared directly
+             on each PlanarSurfacePatch (schema extension to PlanarSurfacePatchType, not yet in
+             ../diggs-schema as checked out - see CLAUDE.md / plan notes). -->
+        <MultiPlanarSurface gml:id="dogleg-extent">
+          <gml:patches>
+            <PlanarSurfacePatch gml:id="dogleg-patch1" srsDimension="2" srsName="#dogleg-patch1-crs">
+              <gml:exterior>
+                <gml:LinearRing>
+                  <gml:posList count="25">
+                    0 0 6 0.025 12 0.35 18 0.675 24 0.7 30 0.725 36 1.05 42 1.375 48 1.4
+                    48 5.2 4 5.2 3.5 5.1111 3 4.8889 2.5 4.6 2 4.3111 1.5 4.0889 1 4
+                    0.9 3.888 0.8 3.584 0.65 2.873 0.5 2 0.35 1.127 0.2 0.416 0.1 0.112 0 0
+                  </gml:posList>
+                </gml:LinearRing>
+              </gml:exterior>
+            </PlanarSurfacePatch>
+            <PlanarSurfacePatch gml:id="dogleg-patch2" srsDimension="2" srsName="#dogleg-patch2-crs">
+              <gml:exterior>
+                <gml:LinearRing>
+                  <gml:posList count="26">
+                    48 0 53 -0.3986 58 -0.7056 63 -0.8913 68 -1.0087 73 -1.1568 78 -1.4141 81.5 -1.6647 85 -1.95
+                    84 -1.6019 83 -0.6691 82 0.6815 81 2.2826 80 3.9674 79 5.5685 78 6.9191 77 7.8519 76 8.2
+                    51 8.2 50.5 7.8741 50 7.0593 49.5 6 49 4.9407 48.5 4.1259 48 3.8 48 0
+                  </gml:posList>
+                </gml:LinearRing>
+              </gml:exterior>
+            </PlanarSurfacePatch>
+          </gml:patches>
+        </MultiPlanarSurface>
+      </featureExtent>
+      <whenConstructed>
+        <TimeInterval gml:id="dogleg-whenbuilt">
+          <start>2024-06-03T08:00:00Z</start>
+          <end>2024-06-04T17:00:00Z</end>
+        </TimeInterval>
+      </whenConstructed>
+      <trenchDepth uom="m">6.5</trenchDepth>
+      <trenchLength uom="m">85</trenchLength>
+      <trenchWidth uom="m">1.0</trenchWidth>
+      <shoring>None required below 2 m depth; benched sides above 2 m per OSHA Type B soil requirements.</shoring>
+      <trenchPurpose codeSpace="http://diggsml.org/def/codes/DIGGS/0,1/trenchPurpose.xml">Fault investigation</trenchPurpose>
+      <backfill>
+        <Backfill gml:id="dogleg-backfill1">
+          <gml:name>DogLeg Trench Backfill</gml:name>
+          <backfillDateTime>
+            <TimeInterval gml:id="dogleg-backfill-time">
+              <start>2024-06-05T08:00:00Z</start>
+              <end>2024-06-05T15:00:00Z</end>
+            </TimeInterval>
+          </backfillDateTime>
+          <backfillType>open hole</backfillType>
+        </Backfill>
+      </backfill>
+      <constructionMethod>
+        <TrenchConstructionMethod gml:id="dogleg-cm1">
+          <gml:name>backhoe</gml:name>
+          <remark>
+            <Remark>
+              <content>Backhoe with 1 m wide bucket used to excavate the full dog-leg alignment
+                in a single pass per patch.</content>
+            </Remark>
+          </remark>
+          <constructionEquipment>
+            <Equipment gml:id="dogleg-equip1">
+              <gml:name>Backhoe with 1 m bucket</gml:name>
+            </Equipment>
+          </constructionEquipment>
+        </TrenchConstructionMethod>
+      </constructionMethod>
+      <constructionMethod>
+        <TrenchConstructionMethod gml:id="dogleg-cm2">
+          <gml:name>hand trimming</gml:name>
+          <trenchStability>Stable; no sloughing observed during hand-trimming of wall face.</trenchStability>
+        </TrenchConstructionMethod>
+      </constructionMethod>
+      <constructionEvent>
+        <TrenchWallEvent gml:id="dogleg-event1">
+          <gml:name>Initial excavation - Patch 1</gml:name>
+          <depth uom="m">5.2</depth>
+          <length uom="m">48</length>
+          <width uom="m">1.0</width>
+          <stability>Stable</stability>
+        </TrenchWallEvent>
+      </constructionEvent>
+      <constructionEvent>
+        <TrenchWallEvent gml:id="dogleg-event2">
+          <gml:name>Initial excavation - Patch 2</gml:name>
+          <depth uom="m">6.5</depth>
+          <length uom="m">37</length>
+          <width uom="m">1.0</width>
+          <stability>Stable</stability>
+        </TrenchWallEvent>
+      </constructionEvent>
     </TrenchWall>
   </samplingFeature>
 

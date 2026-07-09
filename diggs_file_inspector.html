@@ -2201,9 +2201,14 @@ function indexLocalCartesianCRS(doc) {
  * Parse a diggs:LocalCartesianCRS element into a descriptor used by
  * localCartesianToWGS84(). Best-effort: supports axes defined either by an
  * explicit directionVector, or derived as the unit vector of a location
- * LinearExtent (start→end) when no directionVector is given. This has not
- * been validated against a real-world instance (none was available at the
- * time this was written) — treat as a first pass pending a test file.
+ * LinearExtent (start→end) when no directionVector is given. Validated
+ * against real instances (TrenchWall2.xml, TrenchWall3.xml,
+ * InspectorTestFile.xml) — see CLAUDE.md's "Local Cartesian CRS support"
+ * note. Also reads a per-axis originOffset (proposed DIGGS schema addition,
+ * not yet in the schema repo) so a posList can be authored in a continuous
+ * chainage across multiple adjoining LocalCartesianCRS definitions instead
+ * of resetting to 0 at each one's own origin — see TrenchWall3.xml's
+ * dogleg-patch2-crs for a worked example.
  */
 function parseLocalCartesianCRS(doc, el) {
   const id   = el.getAttributeNS(NS.gml, 'id') || el.getAttribute('gml:id') || '';
@@ -2253,7 +2258,15 @@ function parseLocalCartesianCRS(doc, el) {
         }
       }
     }
-    if (vec) axes.push({ order, vec });
+    // originOffset: the raw local coordinate value (along this axis) that
+    // corresponds to originLocation — lets a posList be authored in a
+    // shared/continuous chainage across multiple adjoining local CRSs
+    // instead of resetting to 0 at each CRS's own origin. Not a standard
+    // DIGGS/GML element (proposed addition, not yet in the schema repo);
+    // defaults to 0 when absent, which reproduces prior behavior exactly.
+    const offsetText = xText(doc, 'diggs:originOffset', axLocEl);
+    const offset = offsetText ? (parseFloat(offsetText) || 0) : 0;
+    if (vec) axes.push({ order, vec, offset });
   }
   axes.sort((a, b) => a.order - b.order);
 
@@ -2290,7 +2303,8 @@ function localCartesianToWGS84(pos, localCRS) {
   const delta = new Array(spatialDim).fill(0);
   for (let i = 0; i < pos.length; i++) {
     const v = localCRS.axes[i].vec;
-    for (let d = 0; d < spatialDim; d++) delta[d] += pos[i] * localCRS.scaleFactor * (v[d] || 0);
+    const localCoord = pos[i] - (localCRS.axes[i].offset || 0);
+    for (let d = 0; d < spatialDim; d++) delta[d] += localCoord * localCRS.scaleFactor * (v[d] || 0);
   }
   const originPos = localCRS.origin.rawPos;
   const newPos = originPos.map((v, i) => v + (delta[i] || 0));
@@ -2646,7 +2660,17 @@ async function enrichComputedGeometry() {
     if (!result) continue;
     f.computedGeom = result;
     const reported = getReportedGeomValue(f);
-    f.geomMismatch = reported
+    // Only compare when the reported value's own unit is dimensionally the
+    // same kind of quantity as what was computed (area vs. area, length vs.
+    // length). A type's depthPath isn't always an area even when its
+    // featureExtent is a surface — e.g. TrenchWall's featureExtent is a 2D
+    // (X, depth) cross-section polygon (so featureExtentRawPatches computes
+    // its area), but trenchDepth is a length, not that cross-sectional area.
+    // Comparing them would flag a false "mismatch" (and mislabel the
+    // computed value's unit) between two incommensurable quantities.
+    const reportedIsArea = !!(reported && reported.unit && stripAreaExponent(reported.unit) !== reported.unit);
+    const dimensionsMatch = !reported || result.kind !== 'area' || reportedIsArea;
+    f.geomMismatch = (reported && dimensionsMatch)
       ? computedValueMismatch(reported.val, reported.unit, result.value, result.unit, result.kind === 'area')
       : false;
     if (window._selectedFeatureId === f.id) showSFDetail(f);
@@ -10970,7 +10994,16 @@ function buildSFCommonGrid(sf) {
     // it already carries its own UCUM exponent digit if it's an area unit.
     let unitLabel = isArea ? `${sf.computedGeom.unit}2` : sf.computedGeom.unit;
 
-    if (reportedGeom && reportedGeom.unit) {
+    // Only convert into the reported value's own unit label when that unit
+    // is actually the same kind of quantity (area vs. length) as what was
+    // computed — e.g. TrenchWall's reported trenchDepth is a length even
+    // though its featureExtent computes a cross-sectional area, so pairing
+    // them would silently drop the area's '²' label (repBaseUnit would
+    // "successfully" strip a no-op exponent from a plain length unit).
+    const reportedIsArea = !!(reportedGeom && reportedGeom.unit && stripAreaExponent(reportedGeom.unit) !== reportedGeom.unit);
+    const dimensionsMatch = !isArea || reportedIsArea;
+
+    if (reportedGeom && reportedGeom.unit && dimensionsMatch) {
       const repBaseUnit = isArea ? stripAreaExponent(reportedGeom.unit) : reportedGeom.unit;
       const converted = convertGeomValue(sf.computedGeom.value, sf.computedGeom.unit, repBaseUnit, isArea);
       if (converted !== null) {
