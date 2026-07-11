@@ -952,6 +952,10 @@ html,body{height:100%;font-family:var(--font-ui);background:var(--bg);color:var(
 .lith-table-col { flex:1 1 auto; min-width:0; }
 .lith-log-zone .lith-zone-fill { transition:opacity .1s; }
 .lith-log-zone:hover .lith-zone-fill { opacity:.82; }
+/* Selection highlight — thick white border, toggled by clicking the zone
+   or its matching table row (see _lithRowClick/_lithZoneClick). */
+.lith-log-zone .lith-zone-highlight { display:none; }
+.lith-log-zone.lith-zone-selected .lith-zone-highlight { display:block; }
 .lith-legend       { margin-top:12px; max-width:150px; }
 .lith-legend-title { padding:5px 0; }
 .lith-legend-body  { padding-top:4px; }
@@ -1287,35 +1291,41 @@ table.data-table tbody tr.selected {
   color:var(--text);vertical-align:top;
 }
 .sub-table tbody tr:nth-child(even) td { background:rgba(255,255,255,.02); }
-.lith-code {
-  display:inline-block;padding:1px 7px;border-radius:3px;
-  font-family:var(--font-mono);font-size:11px;font-weight:600;
-  background:var(--surface3);color:var(--accent);
+/* ── Lithology observation table (one per LithologySystem) ──────────
+   Stretches full-width unlike the generic auto-width .sub-table default
+   (see #assoc-content .sub-table above) so the Material column has room
+   to wrap instead of forcing horizontal scroll. */
+#assoc-content .sub-table.lith-obs-table { width:100%;min-width:0; }
+.lith-material-cell { white-space:normal;word-break:break-word; }
+.lith-obs-row { cursor:pointer; }
+.lith-obs-row:hover td { background:rgba(255,255,255,.04); }
+.lith-obs-row.lith-row-selected td {
+  background:rgba(0,254,252,.14);border-left:3px solid rgba(0,254,252,.5);
 }
-.lith-code.clickable {
-  cursor:pointer;border:1px solid transparent;
+.lith-obs-row .kv-tri,
+.lith-obs-row .kv-tri-spacer { display:inline-block;width:11px;text-align:center; }
+.lith-obs-detail-row td {
+  background:rgba(255,255,255,.02);padding:8px 10px 10px 24px;cursor:default;
 }
-.lith-code.clickable:hover { border-color:var(--accent);background:var(--surface2); }
-.lith-code.dash-clickable {
-  cursor:pointer;font-family:inherit;font-weight:400;
-  color:var(--text-muted);background:transparent;
-  border:1px dashed var(--border);padding:1px 6px;
+.lith-obs-detail-group-title {
+  font-size:10px;font-weight:700;color:var(--text-muted);
+  text-transform:uppercase;letter-spacing:.06em;margin:10px 0 2px;
 }
-.lith-code.dash-clickable:hover { color:var(--text);border-color:var(--text-muted); }
-.detail-pill {
-  display:inline-block;margin:1px 2px;padding:2px 7px;
-  background:var(--surface2);border:1px solid var(--border);
-  border-radius:4px;font-size:11px;font-weight:500;color:var(--text);
-  cursor:pointer;white-space:nowrap;
-  transition:background .12s,border-color .12s,color .12s;
+.lith-obs-detail-group-title:first-child { margin-top:0; }
+.lith-obs-detail-subheading {
+  font-size:11px;font-weight:600;color:var(--text);margin:6px 0 2px;
 }
-.detail-pill:hover { background:var(--surface3);border-color:var(--text-muted);color:var(--accent); }
-.detail-pill.active { border-color:var(--accent);color:var(--accent);background:var(--surface3); }
-.lith-classification-header {
-  font-size:11px;color:var(--text-muted);padding:6px 0 4px;
-  border-bottom:1px solid var(--border);margin-bottom:4px;
+/* ── LithologySystem header (classification type + optional accordion) ── */
+.lith-sys-block { margin-bottom:14px; }
+.lith-sys-block:last-child { margin-bottom:0; }
+.lith-sys-header {
+  display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text-muted);
+  padding:6px 0 4px;border-bottom:1px solid var(--border);margin-bottom:4px;
 }
-.lith-classification-header span { color:var(--text);font-weight:600; }
+.lith-sys-header.expandable { cursor:pointer;user-select:none; }
+.lith-sys-header.expandable:hover { color:var(--text); }
+.lith-sys-header .lith-sys-classval { color:var(--text);font-weight:600; }
+.lith-sys-extra { padding-bottom:6px; }
 .lith-color-swatch {
   display:inline-block;width:14px;height:14px;border-radius:2px;
   border:1px solid var(--border);vertical-align:middle;margin-right:4px;flex-shrink:0;
@@ -4524,6 +4534,22 @@ const FORMAT_FN = {
     }).filter(Boolean);
   },
 
+  // Render a measurementRef property element (xlink:href to a Test/Monitor/
+  // MaterialTest) as its target's type + name, if resolvable, else the raw
+  // href fragment.
+  measurementRefLabel(node) {
+    if (!node) return '';
+    const href = (node.getAttributeNS(NS.xlink, 'href') || node.getAttribute('xlink:href') || '').replace(/^#/, '');
+    if (!href) return '';
+    const target = getIdIndex(node.ownerDocument).get(href);
+    if (target) {
+      const nameEl = [...target.childNodes].find(n => n.nodeType === 1 && n.localName === 'name');
+      const name = nameEl ? nodeText(nameEl) : '';
+      return `${escHtml(target.localName)}${name ? ': ' + escHtml(name) : ''} <span style="color:var(--text-muted);font-size:10px">(${escHtml(href)})</span>`;
+    }
+    return escHtml(href);
+  },
+
   // Render an emailAddress element as a mailto: link → HTML string
   emailLink(node) {
     if (!node) return '';
@@ -5166,42 +5192,6 @@ function _selectCMCRow(zoneId, cmcId, markers, selStyle, dimStyle, normStyle) {
 }
 
 // ══════════════════════════════════════════════════════════════
-//  LITHOLOGY TABLE — column config
-// ══════════════════════════════════════════════════════════════
-const LITH_TABLE_COLUMNS = [
-  { key:'from',
-    label:'From',
-    always:false,
-    suppress: (obs, sf) => sf.type === 'Station' },
-  { key:'to',
-    label:'To',
-    always:false,
-    suppress: (obs, sf) => sf.type === 'Station' },
-  { key:'position',
-    label:'Position',
-    always:false,
-    suppress: (obs, sf) => sf.type !== 'Station' ||
-                           !obs.some(o => o.coordTuple && o.coordTuple.length) },
-  { key:'classification',
-    label:'Classification',
-    always:true },
-  { key:'description',
-    label:'Description',
-    always:true },
-  { key:'unitName',
-    label:'Unit Name',
-    always:false,
-    suppress: (obs) => !obs.some(o => o.unitName) },
-  { key:'facies',
-    label:'Facies',
-    always:false,
-    suppress: (obs) => !obs.some(o => o.facies) },
-  { key:'details',
-    label:'Details',
-    always:true },
-];
-
-// ══════════════════════════════════════════════════════════════
 //  LITHOLOGY PROPERTIES GROUPS — descriptor arrays for
 //  LithProperties / ComponentProperties popup
 // ══════════════════════════════════════════════════════════════
@@ -5305,24 +5295,54 @@ const LITH_PROPS_ROCK = [
 const LITH_PROPERTIES_GROUPS = [...LITH_PROPS_SOIL, ...LITH_PROPS_ROCK];
 
 // ══════════════════════════════════════════════════════════════
-//  LITHOLOGY CLASSIFICATION POPUP — descriptor (showEmpty:true)
+//  LITHOLOGY SYSTEM — "additional data" descriptor (renderKVTable
+//  dialect), for the accordion under a LithologySystem's header.
+//  Covers everything AbstractFeatureType/AbstractObservationSystemType
+//  add besides lithologyClassificationType, lithologyObservation,
+//  gml:id, and the projectRef/programRef/samplingFeatureRef reference
+//  elements (those are cross-references, not descriptive data).
 // ══════════════════════════════════════════════════════════════
-const LITH_CLASSIFICATION_DESCRIPTOR = [
-  { label:'Classification Code',   path:'diggs:classificationCode',  showEmpty:true },
-  { label:'Code Space',            parentPath:'diggs:classificationCode',
-    composite:[{ path:'@codeSpace' }] },
-  { label:'Classification Symbol', path:'diggs:classificationSymbol', showEmpty:true },
+const LITH_SYSTEM_EXTRA_DESCRIPTOR = [
+  { label:'Name',                  path:'gml:name', multi:true },
+  { label:'Description',           path:'gml:description' },
+  { label:'Identifier',            path:'gml:identifier', multi:true },
+  { label:'Internal ID',           path:'diggs:internalIdentifier', multi:true },
+  { label:'Status',                path:'diggs:status' },
+  { label:'Implementation Status', path:'diggs:implementationStatus' },
+  { label:'Observation Procedure', parentPath:'diggs:observationProcedure',
+                                    rawFormat:'renderProcedureSpec' },
+  { label:'Roles',                 parentPath:'diggs:role',
+                                    multi:true, rawFormat:'renderRole' },
+  { label:'Remarks',               parentPath:'diggs:remark',
+                                    multi:true, rawFormat:'renderRemark' },
+  { label:'Files',                 parentPath:'diggs:associatedFile',
+                                    multi:true, rawFormat:'renderAssociatedFile' },
+];
+
+// ══════════════════════════════════════════════════════════════
+//  LITHOLOGY CLASSIFICATION (extra) — everything on a Lithology /
+//  ComponentLith object besides classificationCode / lithDescription
+//  (those two are already shown in the observation row's Material
+//  column, so they're intentionally omitted here to avoid repeats).
+// ══════════════════════════════════════════════════════════════
+const LITH_CLASS_EXTRA_DESCRIPTOR = [
+  { label:'Classification Symbol', path:'diggs:classificationSymbol' },
   { label:'Symbol Code Space',     parentPath:'diggs:classificationSymbol',
     composite:[{ path:'@codeSpace' }] },
-  { label:'Group Index (AASHTO)',  path:'diggs:groupIndexAASHTO',     showEmpty:true },
-  { label:'Legend Code',           path:'diggs:legendCode',           showEmpty:true },
+  { label:'Group Index (AASHTO)',  path:'diggs:groupIndexAASHTO' },
+  { label:'Legend Code',           path:'diggs:legendCode' },
   { label:'Legend Code Space',     parentPath:'diggs:legendCode',
     composite:[{ path:'@codeSpace' }] },
   { label:'Legend Code Href',      parentPath:'diggs:legendCode',
     composite:[{ path:'@xlink:href' }] },
   { label:'Legend MIME Type',      parentPath:'diggs:legendCode',
     composite:[{ path:'@mimeType' }] },
-  { label:'Matrix Type',           path:'diggs:matrixType',           showEmpty:true },
+  { label:'Matrix Type',           path:'diggs:matrixType' },
+  { label:'Color Character',       path:'diggs:colorCharacter' },
+  { label:'Identifier',            path:'gml:identifier', multi:true },
+  { label:'Status',                path:'diggs:status' },
+  { label:'Remarks',               parentPath:'diggs:remark',
+                                    multi:true, rawFormat:'renderRemark' },
 ];
 
 // ══════════════════════════════════════════════════════════════
@@ -5331,7 +5351,7 @@ const LITH_CLASSIFICATION_DESCRIPTOR = [
 const LITH_COLOR_DESCRIPTOR = [
   { label:'Color Code',    path:'diggs:colorCode' },
   { label:'Color Name',    path:'diggs:colorName' },
-  { label:'Preface',       path:'diggs:colorPreface' },
+  { label:'Preface',       path:'diggs:preface' },
   { label:'Intensity',     parentPath:'diggs:colorComponents',
     composite:[{ path:'diggs:intensity' }] },
   { label:'Modifier',      parentPath:'diggs:colorComponents',
@@ -5340,151 +5360,256 @@ const LITH_COLOR_DESCRIPTOR = [
     composite:[{ path:'diggs:hue' }] },
   { label:'Abundance Code',path:'diggs:abundanceCode' },
   { label:'Abundance %',   parentPath:'diggs:abundancePercent',
-    composite:[{ path:'.' },{ path:'@uom', prefix:' ' }] },
+    composite:[{ path:'@approximator', suffix:' ' },{ path:'.' },{ path:'@uom', prefix:' ' },
+               { path:'@byVolume[.="true"]', prefix:' (by volume)' }] },
   { label:'Max Abundance %',parentPath:'diggs:maxAbundancePercent',
     composite:[{ path:'.' },{ path:'@uom', prefix:' ' }] },
+  { label:'Identifier',    path:'gml:identifier', multi:true },
+  { label:'Status',        path:'diggs:status' },
+  { label:'Remarks',       parentPath:'diggs:remark',
+                           multi:true, rawFormat:'renderRemark' },
 ];
 
 // ══════════════════════════════════════════════════════════════
-//  LITHOLOGY DETAIL SECTIONS — pill config for Details column
+//  LITHOLOGY CONSTITUENT — KV descriptor for a single Constituent .el
 // ══════════════════════════════════════════════════════════════
-const LITH_DETAIL_SECTIONS = [
-  // ── Color ────────────────────────────────────────────────────
-  {
-    key: 'color',
-    label: 'Color',
-    hasData: (obs) => obs.primary && obs.primary.colors && obs.primary.colors.length > 0,
-    popupTitle: (obs) => 'Color',
-    buildSections: (obs) => {
-      const colors = obs.primary.colors;
-      return colors.map((color, i) => {
-        const rankLabel = color.rank ? ` (rank: ${color.rank})` : (colors.length > 1 ? ` #${i+1}` : '');
-        // Build swatch HTML to prepend — generated at render time
-        const cssColor = color.isMunsell && color.colorCode
-          ? munsellToCSS(color.colorCode) : '';
-        const swatchHtml = cssColor
-          ? `<div class="lith-color-row"><span class="lith-color-swatch" style="background:${cssColor}"></span>
-               <span style="font-size:11px;color:var(--text-muted)">Munsell swatch</span></div>`
-          : '';
-        // Use a custom heading that includes origin if present
-        const heading = `Color${rankLabel}${color.origin ? ' — ' + color.origin : ''}`;
-        return {
-          heading,
-          swatchHtml,  // stored for injection; handled in renderLithColorPopup
-          els: [color.el],
-          fields: LITH_COLOR_DESCRIPTOR,
-        };
-      });
-    },
-  },
+const LITH_CONSTITUENT_DESCRIPTOR = [
+  { label:'Code Value',       path:'diggs:codeValue' },
+  { label:'Code Space',       parentPath:'diggs:codeValue',
+    composite:[{ path:'@codeSpace' }] },
+  { label:'Category',         parentPath:'diggs:codeValue',
+    composite:[{ path:'@category' }] },
+  { label:'How Determined',   parentPath:'diggs:codeValue',
+    composite:[{ path:'@howDetermined' }] },
+  { label:'Abundance Code',   path:'diggs:abundanceCode' },
+  { label:'Abundance %',      parentPath:'diggs:abundancePercent',
+    composite:[{ path:'@approximator', suffix:' ' },{ path:'.' },{ path:'@uom', prefix:' ' },
+               { path:'@byVolume[.="true"]', prefix:' (by volume)' }] },
+  { label:'Max Abundance %',  parentPath:'diggs:maxAbundancePercent',
+    composite:[{ path:'.' },{ path:'@uom', prefix:' ' }] },
+  { label:'Distribution',     path:'diggs:distribution' },
+  { label:'Description',      path:'gml:description' },
+  { label:'Identifier',       path:'gml:identifier', multi:true },
+  { label:'Status',           path:'diggs:status' },
+  { label:'Remarks',          parentPath:'diggs:remark',
+                               multi:true, rawFormat:'renderRemark' },
+];
 
-  // ── Properties ───────────────────────────────────────────────
-  {
-    key: 'properties',
-    label: 'Properties',
-    // Guard: lithProperties must be non-null AND have a real DOM element
-    hasData: (obs) => !!(obs.primary &&
-                         obs.primary.lithProperties &&
-                         obs.primary.lithProperties.el &&
-                         obs.primary.lithProperties.el.nodeType === 1),
-    popupTitle: (obs) => 'Lithology Properties',
-    buildSections: (obs) => {
-      const lp = obs.primary && obs.primary.lithProperties;
-      if (!lp || !lp.el) return [];
-      return [{ els: [lp.el], fields: LITH_PROPERTIES_GROUPS }];
-    },
-  },
+// ══════════════════════════════════════════════════════════════
+//  LITHOLOGY OBSERVATION — base (observation-level) extra fields,
+//  in renderFields dialect (path/parentPath/composite/format/multi/
+//  subHeader/guardPath). Rendered via renderNestedKV(obs.el, ...).
+//  Excludes location/from/to (shown in the row's From/To columns)
+//  and primaryLithology's classificationCode/lithDescription (shown
+//  in the row's Material column) — those get their own dedicated
+//  treatment in buildLithObsExpandHtml().
+// ══════════════════════════════════════════════════════════════
+const LITH_OBS_BASE_FIELDS = [
+  { label:'How Determined',     path:'@howDetermined' },
+  { label:'Stratum Code',       path:'@stratumCode' },
+  { label:'True Top Observed',  path:'diggs:trueTopObserved',  boolean:true },
+  { label:'True Base Observed', path:'diggs:trueBaseObserved', boolean:true },
+  { label:'Identifier',         path:'gml:identifier', multi:true },
+  { label:'Status',             path:'diggs:status' },
+  { label:'Measurement Ref',    path:'diggs:measurementRef', format:'measurementRefLabel', multi:true },
+  { label:'Facies',             path:'diggs:facies' },
+  { label:'Unit Name',          path:'diggs:unitName' },
+  { subHeader:'Remarks', guardPath:'diggs:remark' },
+  { path:'diggs:remark', format:'renderRemarkNested', multi:true, indent:true },
+];
 
-  // ── Components ───────────────────────────────────────────────
-  {
-    key: 'components',
-    label: 'Components',
-    hasData: (obs) => obs.components && obs.components.length > 0,
-    popupTitle: (obs) => `Components (${obs.components.length})`,
-    buildSections: (obs) => obs.components.map((comp, i) => {
-      const rankLabel = comp.rank ? ` rank ${comp.rank}` : ` #${i+1}`;
+// ══════════════════════════════════════════════════════════════
+//  COMPONENT LITHOLOGY — wrapper-level fields (ComponentLithology
+//  element itself: gml:name/description/identifier/status/remark,
+//  from AbstractObjectType) and abundance (also on the wrapper).
+//  The inner ComponentLith object's own data reuses
+//  LITH_CLASS_EXTRA_DESCRIPTOR / colors / constituents / properties
+//  via _lithObjectExtraHtml(), same as primaryLithology.
+// ══════════════════════════════════════════════════════════════
+const LITH_COMPONENT_WRAPPER_FIELDS = [
+  { label:'Name',        path:'gml:name', multi:true },
+  { label:'Description', path:'gml:description' },
+  { label:'Identifier',  path:'gml:identifier', multi:true },
+  { label:'Status',      path:'diggs:status' },
+  { subHeader:'Remarks', guardPath:'diggs:remark' },
+  { path:'diggs:remark', format:'renderRemarkNested', multi:true, indent:true },
+];
+const LITH_COMPONENT_ABUNDANCE_DESCRIPTOR = [
+  { label:'Abundance Code',  path:'diggs:abundanceCode' },
+  { label:'Abundance %',     parentPath:'diggs:abundancePercent',
+    composite:[{ path:'.' },{ path:'@uom', prefix:' ' }] },
+  { label:'Max Abundance %', parentPath:'diggs:maxAbundancePercent',
+    composite:[{ path:'.' },{ path:'@uom', prefix:' ' }] },
+];
+// Primary classification of the inner ComponentLith (its own
+// classificationCode/lithDescription choice — not shown anywhere
+// else, unlike the observation's own primaryLithology).
+const LITH_COMPONENT_LITH_MAIN_DESCRIPTOR = [
+  { label:'Classification Code', path:'diggs:classificationCode' },
+  { label:'Code Space',          parentPath:'diggs:classificationCode',
+    composite:[{ path:'@codeSpace' }] },
+  { label:'Description',         path:'diggs:lithDescription' },
+];
+
+// ══════════════════════════════════════════════════════════════
+//  PLACED OBSERVATION — fields for a single PlacedObservation .el.
+//  (location/from/to is surfaced via the section heading, computed
+//  from the already-parsed po.from/po.to/po.locationType.)
+// ══════════════════════════════════════════════════════════════
+const LITH_PLACED_OBS_FIELDS = [
+  { label:'Observation',  path:'diggs:observation' },
+  { label:'Description',  path:'gml:description' },
+  { label:'Identifier',   path:'gml:identifier', multi:true },
+];
+
+// ══════════════════════════════════════════════════════════════
+//  BASE BOUNDARY — fields for a single Boundary .el.
+// ══════════════════════════════════════════════════════════════
+const LITH_BOUNDARY_FIELDS = [
+  { label:'Name',           path:'gml:name', multi:true },
+  { label:'Description',    path:'gml:description' },
+  { label:'Identifier',     path:'gml:identifier', multi:true },
+  { label:'Status',         path:'diggs:status' },
+  { label:'Location',       parentPath:'diggs:location',
+    composite:[{ path:'diggs:PointLocation/gml:pos' },
+               { path:'diggs:LinearExtent/gml:posList' }] },
+  { label:'Dip Angle',      parentPath:'diggs:dipAngle',
+    composite:[{ path:'.' },{ path:'@uom', prefix:' ' },
+               { path:'@apparent[.="true"]', prefix:' (apparent)' }] },
+  { label:'Dip Direction',  parentPath:'diggs:dipDirection',
+    composite:[{ path:'.' },{ path:'@uom', prefix:' ' }] },
+  { label:'Distinctness',   path:'diggs:distinctness' },
+  { label:'Origin',         path:'diggs:origin' },
+  { label:'Topography',     path:'diggs:topography' },
+  { label:'How Determined', path:'@howDetermined' },
+  { subHeader:'Remarks', guardPath:'diggs:remark' },
+  { path:'diggs:remark', format:'renderRemarkNested', multi:true, indent:true },
+];
+
+/** Build {heading, swatchHtml, els, fields} sections for an array of
+ *  parsed Color objects (obs.primary.colors or comp.lithology.colors) —
+ *  consumed by renderSectionsInline(). */
+function _buildColorSections(colors) {
+  return (colors || []).map((color, i) => {
+    const rankLabel = color.rank ? ` (rank: ${color.rank})` : (colors.length > 1 ? ` #${i+1}` : '');
+    // Swatch — direct Munsell colorCode, falling back to one assembled from
+    // colorComponents (intensity/modifier/hue) when no colorCode is given.
+    const directColor = color.isMunsell && color.colorCode ? munsellToCSS(color.colorCode) : '';
+    const hasComponents = color.intensity || color.modifier || color.hue;
+    const cssColor = directColor || (hasComponents ? _munsellFromComponents(color) : '');
+    const swatchLabel = directColor ? 'Munsell swatch' : 'Approximate swatch from components';
+    const swatchHtml = cssColor
+      ? `<div class="lith-color-row"><span class="lith-color-swatch" style="background:${cssColor}"></span>
+           <span style="font-size:11px;color:var(--text-muted)">${swatchLabel}</span></div>`
+      : '';
+    const heading = `Color${rankLabel}${color.origin ? ' — ' + color.origin : ''}`;
+    return { heading, swatchHtml, els: [color.el], fields: LITH_COLOR_DESCRIPTOR };
+  });
+}
+
+/** Build {heading, els, fields} sections for an array of parsed
+ *  Constituent objects — consumed by renderSectionsInline(). */
+function _buildConstituentSections(constituents) {
+  return (constituents || []).map((c, i) => {
+    const rankLabel = c.rank ? ` (rank: ${c.rank})` : (constituents.length > 1 ? ` #${i+1}` : '');
+    return { heading: `Constituent${rankLabel}`, els: [c.el], fields: LITH_CONSTITUENT_DESCRIPTOR };
+  });
+}
+
+/** All the data on a Lithology-like object (primaryLithology's Lithology,
+ *  or a componentLithology's ComponentLith) beyond classificationCode/
+ *  lithDescription: classification extras, colors, constituents, and
+ *  soil/rock properties. `lithObj` is a parsed LithologyObject
+ *  (has .el/.colors/.constituents); `propsObj` is its matching parsed
+ *  LithProperties/ComponentProperties object (or null). */
+function _lithObjectExtraHtml(lithObj, propsObj) {
+  if (!lithObj || !lithObj.el) return '';
+  let html = '';
+  const classHtml = kvTableOrEmpty(lithObj.el, LITH_CLASS_EXTRA_DESCRIPTOR);
+  if (classHtml) html += classHtml;
+  if (lithObj.colors && lithObj.colors.length) {
+    html += `<div class="lith-obs-detail-group-title">Color${lithObj.colors.length > 1 ? 's' : ''}</div>`;
+    html += renderSectionsInline(_buildColorSections(lithObj.colors));
+  }
+  if (lithObj.constituents && lithObj.constituents.length) {
+    html += `<div class="lith-obs-detail-group-title">Constituent${lithObj.constituents.length > 1 ? 's' : ''}</div>`;
+    html += renderSectionsInline(_buildConstituentSections(lithObj.constituents));
+  }
+  if (propsObj && propsObj.el) {
+    html += `<div class="lith-obs-detail-group-title">Properties</div>`;
+    html += renderNestedKV(propsObj.el, LITH_PROPERTIES_GROUPS);
+  }
+  return html;
+}
+
+/** Full inline "expand" content for a single LithologyObservation row:
+ *  everything not already shown in the row's From/To/Material cells.
+ *  Returns '' if there's nothing beyond what the row already shows
+ *  (in which case the row should not be expandable at all). */
+function buildLithObsExpandHtml(obs) {
+  let html = '';
+
+  const baseHtml = renderNestedKV(obs.el, LITH_OBS_BASE_FIELDS);
+  if (baseHtml) html += baseHtml;
+
+  if (obs.primary) {
+    html += _lithObjectExtraHtml(obs.primary, obs.primary.lithProperties);
+  }
+
+  if (obs.components && obs.components.length) {
+    html += `<div class="lith-obs-detail-group-title">Component Litholog${obs.components.length > 1 ? 'ies' : 'y'}</div>`;
+    obs.components.forEach((comp, i) => {
+      const rankLabel = comp.rank ? ` rank ${comp.rank}` : (obs.components.length > 1 ? ` #${i + 1}` : '');
       const assocLabel = comp.association ? ` — ${comp.association}` : '';
-      const sections = [{
-        heading: `Component${rankLabel}${assocLabel}`,
-        els: [comp.lithology.el],
-        fields: [
-          { label:'Classification Code',  parentPath:'diggs:classificationCode',
-            composite:[{ path:'.' }] },
-          { label:'Code Space',           parentPath:'diggs:classificationCode',
-            composite:[{ path:'@codeSpace' }] },
-          { label:'Description',          path:'diggs:lithDescription' },
-          { label:'Matrix Type',          path:'diggs:matrixType' },
-          { label:'Color',                path:'diggs:colorCharacter' },
-        ],
-      }];
-      // Abundance at the ComponentLithology level
-      const abundFields = [];
+      html += `<div class="lith-obs-detail-subheading">Component${rankLabel}${assocLabel}</div>`;
+      const wrapperHtml = renderNestedKV(comp.el, LITH_COMPONENT_WRAPPER_FIELDS);
+      if (wrapperHtml) html += wrapperHtml;
       if (comp.abundanceCode || comp.abundancePercent || comp.maxAbundancePercent) {
-        sections.push({
-          heading: 'Abundance',
-          els: [comp.el],
-          fields: [
-            { label:'Abundance Code',     path:'diggs:abundanceCode' },
-            { label:'Abundance %',        parentPath:'diggs:abundancePercent',
-              composite:[{ path:'.' },{ path:'@uom', prefix:' ' }] },
-            { label:'Max Abundance %',    parentPath:'diggs:maxAbundancePercent',
-              composite:[{ path:'.' },{ path:'@uom', prefix:' ' }] },
-          ],
-        });
+        const abundHtml = kvTableOrEmpty(comp.el, LITH_COMPONENT_ABUNDANCE_DESCRIPTOR);
+        if (abundHtml) html += abundHtml;
       }
-      // Component properties
-      if (comp.componentProperties) {
-        sections.push({
-          heading: 'Component Properties',
-          els: [comp.componentProperties.el],
-          fields: LITH_PROPERTIES_GROUPS,
-        });
+      if (comp.lithology && comp.lithology.el) {
+        const mainHtml = kvTableOrEmpty(comp.lithology.el, LITH_COMPONENT_LITH_MAIN_DESCRIPTOR);
+        if (mainHtml) html += mainHtml;
+        html += _lithObjectExtraHtml(comp.lithology, comp.componentProperties);
       }
-      return sections;
-    }).flat(),
-  },
+    });
+  }
 
-  // ── Placed Observations ──────────────────────────────────────
-  {
-    key: 'placed',
-    label: 'Placed Obs',
-    hasData: (obs) => obs.placedObservations && obs.placedObservations.length > 0,
-    popupTitle: (obs) => `Placed Observations (${obs.placedObservations.length})`,
-    buildSections: (obs) => obs.placedObservations.map((po, i) => ({
-      heading: po.from || po.to
-        ? `${po.from || '?'} – ${po.to || '?'}`
-        : `Placed Obs #${i+1}`,
-      els: [po.el],
-      fields: [
-        { label:'Location Type', path:'diggs:locationType' },
-        { label:'From',          path:'diggs:linearExtent/diggs:from' },
-        { label:'To',            path:'diggs:linearExtent/diggs:to' },
-        { label:'Observation',   path:'diggs:observation' },
-      ],
-    })),
-  },
+  if (obs.placedObservations && obs.placedObservations.length) {
+    html += `<div class="lith-obs-detail-group-title">Placed Observation${obs.placedObservations.length > 1 ? 's' : ''}</div>`;
+    const sections = obs.placedObservations.map((po, i) => {
+      const locStr = po.locationType === 'LinearExtent'
+        ? `${po.from || '?'}${po.to ? '–' + po.to : ''}`
+        : po.locationType === 'PointLocation' ? po.from : '';
+      return {
+        heading: locStr ? `@ ${locStr}` : `Placed Observation #${i + 1}`,
+        els: [po.el],
+        fields: LITH_PLACED_OBS_FIELDS,
+      };
+    });
+    html += renderSectionsInline(sections);
+  }
 
-  // ── Base Boundaries ──────────────────────────────────────────
-  {
-    key: 'boundary',
-    label: 'Boundary',
-    hasData: (obs) => obs.baseBoundaries && obs.baseBoundaries.length > 0,
-    popupTitle: (obs) => `Base ${obs.baseBoundaries.length > 1 ? 'Boundaries' : 'Boundary'}`,
-    buildSections: (obs) => obs.baseBoundaries.map((bb, i) => ({
-      heading: obs.baseBoundaries.length > 1 ? `Boundary #${i+1}` : undefined,
+  if (obs.baseBoundaries && obs.baseBoundaries.length) {
+    html += `<div class="lith-obs-detail-group-title">Base Boundar${obs.baseBoundaries.length > 1 ? 'ies' : 'y'}</div>`;
+    const sections = obs.baseBoundaries.map((bb, i) => ({
+      heading: obs.baseBoundaries.length > 1 ? `Boundary #${i + 1}` : undefined,
       els: [bb.el],
-      fields: [
-        { label:'Dip Angle',     parentPath:'diggs:dipAngle',
-          composite:[{ path:'.' },{ path:'@apparent', prefix:' (apparent: ', suffix:')' }] },
-        { label:'Dip Direction', path:'diggs:dipDirection' },
-        { label:'Distinctness',  path:'diggs:distinctness' },
-        { label:'Origin',        path:'diggs:origin' },
-        { label:'Topography',    path:'diggs:topography' },
-        { label:'How Determined',path:'diggs:howDetermined' },
-      ],
-    })),
-  },
-];
+      fields: LITH_BOUNDARY_FIELDS,
+    }));
+    html += renderSectionsInline(sections);
+  }
+
+  return html;
+}
+
+/** Additional (non-classificationType, non-observation) data on a
+ *  LithologySystem element, or '' if there is none — used to decide
+ *  whether the system header gets an expand triangle at all. */
+function buildLithSystemExtraHtml(sysEl) {
+  return kvTableOrEmpty(sysEl, LITH_SYSTEM_EXTRA_DESCRIPTOR);
+}
 
 // ══════════════════════════════════════════════════════════════
 //  DETAIL POPUP — generic info-icon popup for interval table
@@ -5505,21 +5630,31 @@ function _registerPopup(title, sections) {
   return key;
 }
 
-function showDetailPopup(key) {
-  const entry = _detailPopupMap.get(key);
-  if (!entry) return;
+/** Render an array of { heading?, swatchHtml?, els, fields } sections
+ *  (see _buildColorSections/_buildConstituentSections) as one inline HTML
+ *  string — shared by showDetailPopup() and the lithology observation-row
+ *  expand content (buildLithObsExpandHtml / _lithObjectExtraHtml). */
+function renderSectionsInline(sections) {
   let html = '';
-  for (const sec of entry.sections) {
+  for (const sec of sections) {
     if (sec.heading) {
       html += `<div style="font-size:11px;font-weight:700;color:var(--text-muted);
         text-transform:uppercase;letter-spacing:.04em;margin:10px 0 4px;
         border-top:1px solid var(--border);padding-top:6px">${escHtml(sec.heading)}</div>`;
     }
+    if (sec.swatchHtml) html += sec.swatchHtml;
     for (const el of sec.els) {
       const block = renderNestedKV(el, sec.fields);
       if (block) html += block;
     }
   }
+  return html;
+}
+
+function showDetailPopup(key) {
+  const entry = _detailPopupMap.get(key);
+  if (!entry) return;
+  const html = renderSectionsInline(entry.sections);
   document.getElementById('detail-popup-title').textContent = entry.title;
   document.getElementById('detail-popup-content').innerHTML =
     html || '<div style="color:var(--text-muted);font-size:12px">No data found.</div>';
@@ -6389,6 +6524,14 @@ const KV_FORMAT = {
     return renderNestedKV(specEl, SPECIFICATION_FIELDS);
   },
 
+  // Render an observationProcedure property wrapper (SpecificationPropertyType,
+  // embedded child or xlink:href) as a compact nested KV block.
+  // Used for LithologySystem (and any other AbstractObservationSystem).
+  renderProcedureSpec(node) {
+    const el = resolvePropertyEl(node, 'Specification');
+    return el ? renderNestedKV(el, SPECIFICATION_FIELDS) : '';
+  },
+
   // ── Borehole interval table rawFormat entries ────────────────────────────
   // Each receives the Borehole element (parentPath: '.') and calls buildIntervalTable.
 
@@ -6778,6 +6921,8 @@ function valueWithCodeSpace(node) {
 //  children: same shape as a composite field, evaluated relative to each
 //    parent node; rendered indented below the parent's composite value.
 // ══════════════════════════════════════════════════════════════
+const KV_TABLE_EMPTY_HTML = '<div style="color:var(--text-muted);font-size:12px;padding:8px 0">No additional metadata found.</div>';
+
 function renderKVTable(element, descriptor) {
 
   /** Apply a named format function to the first matching node for a path,
@@ -6900,7 +7045,7 @@ function renderKVTable(element, descriptor) {
   if (current.rows.length) sections.push(current);
 
   if (!sections.length) {
-    return '<div style="color:var(--text-muted);font-size:12px;padding:8px 0">No additional metadata found.</div>';
+    return KV_TABLE_EMPTY_HTML;
   }
 
   // A titled section starts expanded when it holds exactly one row and
@@ -6922,6 +7067,14 @@ function renderKVTable(element, descriptor) {
         <div class="kv-section-body"${bodyStyle}>${sec.rows.join('')}</div>
       </div>`;
   }).join('');
+}
+
+/** renderKVTable(), but returns '' instead of the "No additional metadata
+ *  found" placeholder when there's nothing to show — lets a caller decide
+ *  whether to render an expand affordance at all. */
+function kvTableOrEmpty(element, descriptor) {
+  const html = renderKVTable(element, descriptor);
+  return html === KV_TABLE_EMPTY_HTML ? '' : html;
 }
 
 /**
@@ -11758,53 +11911,6 @@ function munsellToCSS(code) {
   return `hsl(${(h + 360) % 360},${sat}%,${l}%)`;
 }
 
-// ══════════════════════════════════════════════════════════════
-//  renderLithColorPopup — build and open color detail popup
-//  (separate from _registerPopup so swatch HTML can be injected)
-// ══════════════════════════════════════════════════════════════
-function renderLithColorPopup(obs, obsLabel) {
-  const colors = obs.primary.colors;
-  let html = '';
-  colors.forEach((color, i) => {
-    const rankLabel = color.rank ? ` (rank: ${color.rank})` : (colors.length > 1 ? ` #${i+1}` : '');
-    const heading   = `Color${rankLabel}${color.origin ? ' — ' + color.origin : ''}`;
-
-    html += `<div style="font-size:11px;font-weight:700;color:var(--text-muted);
-      text-transform:uppercase;letter-spacing:.04em;margin:10px 0 4px;
-      border-top:1px solid var(--border);padding-top:6px">${escHtml(heading)}</div>`;
-
-    // Swatch — from colorCode (Munsell) or from colorComponents (intensity/modifier/hue)
-    const cssColor = color.isMunsell && color.colorCode
-      ? munsellToCSS(color.colorCode) : '';
-    const hasComponents = color.intensity || color.modifier || color.hue;
-
-    if (cssColor) {
-      // Inline swatch beside colorCode row — injected before KV table
-      html += `<div class="lith-color-row" style="margin-bottom:4px">
-        <span class="lith-color-swatch" style="background:${cssColor};width:18px;height:18px"></span>
-        <span style="font-size:11px;color:var(--text-muted)">Approximate Munsell swatch</span>
-      </div>`;
-    } else if (hasComponents) {
-      // Swatch from component-assembled color
-      const compColor = _munsellFromComponents(color);
-      if (compColor) {
-        html += `<div class="lith-color-row" style="margin-bottom:4px">
-          <span class="lith-color-swatch" style="background:${compColor};width:18px;height:18px"></span>
-          <span style="font-size:11px;color:var(--text-muted)">Approximate swatch from components</span>
-        </div>`;
-      }
-    }
-
-    html += renderKVTable(color.el, LITH_COLOR_DESCRIPTOR);
-  });
-
-  document.getElementById('detail-popup-title').textContent =
-    `Color${obsLabel ? ' — ' + obsLabel : ''}`;
-  document.getElementById('detail-popup-content').innerHTML =
-    html || '<div style="color:var(--text-muted);font-size:12px">No color data found.</div>';
-  document.getElementById('detail-popup').classList.add('open');
-}
-
 /** Attempt to build a CSS color from colorComponents (intensity/modifier/hue strings).
  *  Very approximate — assembles a synthetic Munsell-like string and delegates. */
 function _munsellFromComponents(color) {
@@ -11823,189 +11929,97 @@ function _munsellFromComponents(color) {
 }
 
 // ══════════════════════════════════════════════════════════════
-//  _buildLithClassCell — build the classification column cell HTML
-//  for a single LithologyObservation, registering a popup if any
-//  classification data exists.
+//  renderLithSysTable — build a single <table class="sub-table"> for
+//  one LithologySystem's observations: From / To (or Position, for
+//  Station SFs with no depth axis) / Material only. A row expands
+//  inline (no popup) via buildLithObsExpandHtml() when there's any
+//  data beyond what those three columns already show. Every row (and
+//  its detail row, if any) is tagged with the observation's gml:id so
+//  it can be found from a graphic-log zone click (see drawLithLog /
+//  _lithRowClick / _lithZoneClick).
 // ══════════════════════════════════════════════════════════════
-function _buildLithClassCell(obs) {
-  const pri = obs.primary || {};
-
-  // Resolve display value priority: code → symbol → legendCode → '—'
-  const displayVal =
-    (pri.classificationCode || pri.classificationCodeFragment) ||
-    pri.classificationSymbol ||
-    pri.legendCode ||
-    null;
-
-  // Determine if there's anything worth opening a popup for
-  const hasClassData = !!(
-    pri.classificationCode || pri.classificationCodeFragment ||
-    pri.classificationSymbol || pri.legendCode ||
-    pri.groupIndexAASHTO    || pri.matrixType
-  );
-
-  if (!hasClassData) {
-    return `<td><span class="lith-code">—</span></td>`;
-  }
-
-  const key = _registerPopup('Classification', [{
-    els: [pri.el],
-    fields: LITH_CLASSIFICATION_DESCRIPTOR,
-  }]);
-
-  if (displayVal) {
-    return `<td><span class="lith-code clickable"
-      onclick="showDetailPopup('${key}')">${esc(displayVal)}</span></td>`;
-  } else {
-    // All five fields absent but groupIndexAASHTO or matrixType present
-    return `<td><span class="lith-code dash-clickable"
-      onclick="showDetailPopup('${key}')">—</span></td>`;
-  }
+function _lithObsKey(obs) {
+  return (obs.gml_id || '').replace(/[^a-zA-Z0-9_-]/g, '_');
 }
 
-// ══════════════════════════════════════════════════════════════
-//  renderLithTable — build a single <table class="sub-table">
-//  for an array of LithologyObservation objects.
-// ══════════════════════════════════════════════════════════════
-function renderLithTable(obsArray, sf) {
+function renderLithSysTable(sys, sf) {
+  const obsArray = sys.observations;
   if (!obsArray || !obsArray.length) return '';
 
-  // Resolve active columns
-  const activeCols = LITH_TABLE_COLUMNS.filter(col =>
-    col.always || (col.suppress ? !col.suppress(obsArray, sf) : true)
-  );
+  const showPosition = sf.type === 'Station' && obsArray.some(o => o.coordTuple && o.coordTuple.length);
 
-  // Depth-sort
   const sorted = [...obsArray].sort((a, b) => {
     const fa = parseFloat(a.from), fb = parseFloat(b.from);
     return (!isNaN(fa) && !isNaN(fb)) ? fa - fb
       : (a.from || '').localeCompare(b.from || '');
   });
 
-  // UOM for From/To headers
   const depthUom = depthUomForRows(obsArray);
-  const uomSpan  = depthUom
-    ? `<br><span class="col-uom">(${escUom(depthUom)})</span>` : '';
+  const uomSpan  = depthUom ? `<br><span class="col-uom">(${escUom(depthUom)})</span>` : '';
 
-  // Build <thead>
-  const thCells = activeCols.map(col => {
-    const label = (col.key === 'from' || col.key === 'to')
-      ? `${col.label}${uomSpan}` : col.label;
-    return `<th>${label}</th>`;
-  }).join('');
-  const thead = `<thead><tr>${thCells}</tr></thead>`;
+  const thead = showPosition
+    ? `<thead><tr><th colspan="2">Position</th><th>Material</th></tr></thead>`
+    : `<thead><tr><th>From${uomSpan}</th><th>To${uomSpan}</th><th>Material</th></tr></thead>`;
 
-  // Build <tbody>
   let tbody = '<tbody>';
   for (const obs of sorted) {
-    const cells = activeCols.map(col => _buildLithCell(col.key, obs, sf, obsArray));
-    tbody += `<tr>${cells.join('')}</tr>`;
+    const pri = obs.primary || {};
+    const material = pri.classificationCode || pri.lithDescription || '—';
+    const key = _lithObsKey(obs);
+
+    const expandHtml = buildLithObsExpandHtml(obs);
+    const expandable = !!expandHtml.trim();
+    const tri = expandable ? '<span class="kv-tri">▶</span>' : '<span class="kv-tri-spacer"></span>';
+
+    const leadCells = showPosition
+      ? `<td colspan="2" class="lith-depth-val">${tri}${obs.coordTuple && obs.coordTuple.length ? esc(obs.coordTuple.join(' / ')) : '—'}</td>`
+      : `<td class="lith-depth-val">${tri}${esc(obs.from)}</td><td class="lith-depth-val">${esc(obs.to)}</td>`;
+
+    tbody += `<tr class="lith-obs-row" data-obs-key="${key}" onclick="_lithRowClick(this)">`
+      + leadCells
+      + `<td class="lith-material-cell">${esc(material)}</td></tr>`;
+
+    if (expandable) {
+      tbody += `<tr class="lith-obs-detail-row" data-obs-key="${key}" style="display:none">
+        <td colspan="3">${expandHtml}</td></tr>`;
+    }
   }
   tbody += '</tbody>';
 
-  return `<table class="sub-table">${thead}${tbody}</table>`;
+  return `<table class="sub-table lith-obs-table">${thead}${tbody}</table>`;
 }
 
-/** Build a single <td> for the given column key and observation. */
-function _buildLithCell(key, obs, sf, allObs) {
-  const pri = obs.primary || {};
-
-  switch (key) {
-    case 'from':
-      return `<td class="lith-depth-val">${esc(obs.from)}</td>`;
-
-    case 'to':
-      return `<td class="lith-depth-val">${esc(obs.to)}</td>`;
-
-    case 'position': {
-      if (!obs.coordTuple || !obs.coordTuple.length) return '<td class="muted-dash">—</td>';
-      // Determine axis labels
-      let axisLabels;
-      const t = obs.coordTuple;
-      const allInLatLon = t.every((v, idx) => {
-        const f = parseFloat(v);
-        return !isNaN(f) && (idx === 0 ? (f >= -90 && f <= 90) : (f >= -180 && f <= 180));
-      });
-      if (allInLatLon) {
-        axisLabels = ['Lat', 'Lon'];
-      } else {
-        axisLabels = ['E', 'N'];
-      }
-      const fragment = obs.srsName ? obs.srsName.split(/[/#]/).pop() : '';
-      const tooltip  = fragment && !allInLatLon ? ` title="${esc(obs.srsName)}"` : '';
-      const axisHtml = `<span class="col-uom">${esc(axisLabels.join(' / '))}</span>`;
-      return `<td${tooltip}>${esc(t.join(' / '))}<br>${axisHtml}</td>`;
-    }
-
-    case 'classification':
-      return _buildLithClassCell(obs);
-
-    case 'description':
-      return `<td style="white-space:normal;font-size:11.5px">${esc(pri.lithDescription || '—')}</td>`;
-
-    case 'unitName':
-      return `<td>${esc(obs.unitName || '')}</td>`;
-
-    case 'facies':
-      return `<td>${esc(obs.facies || '')}</td>`;
-
-    case 'details':
-      return _buildLithDetailCell(obs, allObs);
-
-    default:
-      return '<td></td>';
+/** Toggle a lithology observation row's expand state (if it has one) and
+ *  select it — highlighting the row and its matching graphic-log zone
+ *  (scoped to the enclosing .lith-badge-layout, since a feature can have
+ *  several system tables/log columns sharing the same assoc panel).
+ *  Shared by direct row clicks and _lithZoneClick() (graphic-log zone → row). */
+function _lithRowClick(rowEl) {
+  const scope = rowEl.closest('.lith-badge-layout') || document;
+  const detail = rowEl.nextElementSibling;
+  if (detail && detail.classList.contains('lith-obs-detail-row')) {
+    toggleKVSection(rowEl);
   }
+  scope.querySelectorAll('.lith-obs-row.lith-row-selected').forEach(r => r.classList.remove('lith-row-selected'));
+  scope.querySelectorAll('.lith-log-zone.lith-zone-selected').forEach(z => z.classList.remove('lith-zone-selected'));
+  rowEl.classList.add('lith-row-selected');
+  const key = rowEl.getAttribute('data-obs-key');
+  if (!key) return;
+  const zoneEl = scope.querySelector(`.lith-log-zone[data-obs-key="${key}"]`);
+  if (zoneEl) zoneEl.classList.add('lith-zone-selected');
 }
 
-/** Build the Details cell — one .detail-pill per applicable LITH_DETAIL_SECTIONS entry. */
-function _buildLithDetailCell(obs, allObs) {
-  let pills = '';
-
-  for (const sec of LITH_DETAIL_SECTIONS) {
-    if (!sec.hasData(obs)) continue;
-
-    if (sec.key === 'color') {
-      // Color uses its own popup builder (needs swatch injection)
-      const obsLabel = obs.from != null ? `${obs.from}–${obs.to}` : '';
-      const fnKey    = _nextPopupKey();
-      _detailPopupMap.set(fnKey, { _colorObs: obs, _colorLabel: obsLabel });
-      pills += `<button class="detail-pill"
-        onclick="_pillActivate(this);_openLithColorPopup('${fnKey}')">${esc(sec.label)}</button>`;
-    } else {
-      const sections = sec.buildSections(obs);
-      const key      = _registerPopup(sec.popupTitle(obs), sections);
-      pills += `<button class="detail-pill"
-        onclick="_pillActivate(this);showDetailPopup('${key}')">${esc(sec.label)}</button>`;
-    }
+/** Graphic-log zone click → find and toggle/select the matching table row
+ *  (see drawLithLog, which tags each zone's <g> with the same data-obs-key). */
+function _lithZoneClick(zoneEl) {
+  const scope = zoneEl.closest('.lith-badge-layout') || document;
+  const key = zoneEl.getAttribute('data-obs-key');
+  if (!key) return;
+  const rowEl = scope.querySelector(`tr.lith-obs-row[data-obs-key="${key}"]`);
+  if (rowEl) {
+    _lithRowClick(rowEl);
+    rowEl.scrollIntoView({ block: 'nearest' });
   }
-
-  return `<td style="white-space:nowrap">${pills || '<span class="muted-dash">—</span>'}</td>`;
-}
-
-/** Mark a pill as active; clear any previously active pill in the same table.
- *  Attaches a MutationObserver to remove .active when the popup closes. */
-function _pillActivate(btn) {
-  const tbl = btn.closest('table');
-  if (tbl) tbl.querySelectorAll('.detail-pill.active,.lith-code.active')
-    .forEach(el => el.classList.remove('active'));
-  btn.classList.add('active');
-  const popup = document.getElementById('detail-popup');
-  if (popup) {
-    const observer = new MutationObserver(() => {
-      if (!popup.classList.contains('open')) {
-        btn.classList.remove('active');
-        observer.disconnect();
-      }
-    });
-    observer.observe(popup, { attributes: true, attributeFilter: ['class'] });
-  }
-}
-
-/** Thin wrapper so color popup can be triggered via data-key from onclick attribute. */
-function _openLithColorPopup(key) {
-  const entry = _detailPopupMap.get(key);
-  if (!entry || !entry._colorObs) return;
-  renderLithColorPopup(entry._colorObs, entry._colorLabel);
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -12557,6 +12571,7 @@ function drawLithLog(container, obsArray, sf, opts = {}) {
     const meta = LITH_MATERIALS[mat] || LITH_MATERIALS.unknown;
 
     const g = mk('g', { class: 'lith-log-zone' });
+    if (z.o.gml_id) g.setAttribute('data-obs-key', z.o.gml_id.replace(/[^a-zA-Z0-9_-]/g, '_'));
     g.appendChild(mk('rect', { x: barX, y: y0, width: barW, height: h, fill: meta.color, class: 'lith-zone-fill' }));
     // One rect per pattern layer (composited overlays); soil materials carry a
     // `layers` recipe, rock/unknown fall back to their single `lithpat-<key>`.
@@ -12564,6 +12579,12 @@ function drawLithLog(container, obsArray, sf, opts = {}) {
       g.appendChild(mk('rect', { x: barX, y: y0, width: barW, height: h, fill: `url(#${lp})` }));
     }
     g.appendChild(mk('rect', { x: barX, y: y0, width: barW, height: h, fill: 'none', stroke: C_BORDER, 'stroke-width': '0.75' }));
+    // Selection highlight — a thick white border drawn over the zone, shown
+    // via the .lith-zone-selected class (see _lithRowClick/_lithZoneClick).
+    g.appendChild(mk('rect', {
+      x: barX, y: y0, width: barW, height: h, fill: 'none',
+      class: 'lith-zone-highlight', stroke: '#ffffff', 'stroke-width': '3',
+    }));
 
     // In-strip classification symbol — only when it fits the narrow bar.
     const pri = z.o.primary || {};
@@ -12579,10 +12600,9 @@ function drawLithLog(container, obsArray, sf, opts = {}) {
       g.appendChild(t);
     }
 
-    if (pri.el) {
-      const key = _registerPopup('Classification', [{ els: [pri.el], fields: LITH_CLASSIFICATION_DESCRIPTOR }]);
+    if (z.o.gml_id) {
       g.style.cursor = 'pointer';
-      g.addEventListener('click', () => showDetailPopup(key));
+      g.addEventListener('click', () => _lithZoneClick(g));
     }
     const tt = mk('title', {});
     tt.textContent = `${z.from}–${z.to}${uom ? ' ' + uom : ''}  ${meta.label}`;
@@ -12690,33 +12710,30 @@ function renderLithBadgeContent(sfId, sf, lithSystems, allObs, drawJobs) {
     combined = !hasOverlap;
   }
 
+  // Step 3 — one table per LithologySystem, always (never merged, even when
+  // systems don't spatially overlap) — otherwise a system's own data (its
+  // classification type(s), and anything in LITH_SYSTEM_EXTRA_DESCRIPTOR)
+  // gets silently dropped when systems are combined. The graphic log below
+  // makes its own, independent combined-vs-separate decision (`combined`,
+  // computed above) since that's a spatial/visual choice, not a data one.
   let html = '';
-
-  if (combined) {
-    // Single classification header listing all system types
-    const classTypeSpans = lithSystems
-      .flatMap(sys => sys.classificationTypes)
-      .map(ct => `<span>${esc(ct.value || ct.codeSpace || 'Unknown')}</span>`)
-      .join(' · ');
-    if (classTypeSpans) {
-      html += `<div class="lith-classification-header">Classification: ${classTypeSpans}</div>`;
+  lithSystems.forEach((sys) => {
+    const ctLabel = sys.classificationTypes.length
+      ? sys.classificationTypes.map(ct => ct.value || ct.codeSpace || 'Unknown').join(', ')
+      : 'Unknown';
+    const extraHtml = buildLithSystemExtraHtml(sys.el);
+    const expandable = !!extraHtml;
+    const headerCls = expandable ? 'lith-sys-header expandable' : 'lith-sys-header';
+    const headerAttrs = expandable ? ' onclick="toggleKVSection(this)"' : '';
+    const tri = expandable ? '<span class="kv-tri">▶</span>' : '';
+    html += `<div class="lith-sys-block">
+      <div class="${headerCls}"${headerAttrs}>${tri}Classification: <span class="lith-sys-classval">${esc(ctLabel)}</span></div>`;
+    if (expandable) {
+      html += `<div class="kv-section-body lith-sys-extra" style="display:none">${extraHtml}</div>`;
     }
-    html += renderLithTable(allObs, sf);
-  } else {
-    // Separate table per system
-    lithSystems.forEach((sys, idx) => {
-      const range  = ranges[idx];
-      const rangeLabel = isFinite(range.min) && isFinite(range.max)
-        ? ` (${range.min}–${range.max})` : '';
-      const ctLabel = sys.classificationTypes.length
-        ? sys.classificationTypes.map(ct => ct.value || ct.codeSpace || 'Unknown').join(', ')
-        : 'Unknown';
-      html += `<div class="lith-classification-header">
-        Classification${rangeLabel}: <span>${esc(ctLabel)}</span></div>`;
-      html += renderLithTable(sys.observations, sf);
-      if (idx < lithSystems.length - 1) html += '<hr style="border:none;border-top:1px solid var(--border);margin:8px 0">';
-    });
-  }
+    html += renderLithSysTable(sys, sf);
+    html += '</div>';
+  });
 
   if (!html) return '<div style="color:var(--text-muted);font-size:12px;padding:8px">No lithology data.</div>';
 
@@ -12779,7 +12796,8 @@ function renderLithBadgeContent(sfId, sf, lithSystems, allObs, drawJobs) {
       <div class="lith-log-row">
         <div class="lith-log-axis-label">${esc(axisLabel)}</div>${logsHtml}
       </div>${buildLithLegend(allObs)}</div>`;
-  return `<div class="lith-badge-layout">${logCol}<div class="lith-table-col">${html}</div></div>`;
+  const scopeId = `lith-badge-${sfId.replace(/[^a-zA-Z0-9]/g, '_')}`;
+  return `<div class="lith-badge-layout" id="${scopeId}">${logCol}<div class="lith-table-col">${html}</div></div>`;
 }
 
 // ══════════════════════════════════════════════════════════════

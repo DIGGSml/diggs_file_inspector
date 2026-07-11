@@ -12635,17 +12635,75 @@
             <associatedFile>
                 <AssociatedFile gml:id="AF_Soil_BH33_FieldLog">
                     <gml:description>Scanned PDF of the original field boring log for BH-33</gml:description>
+                    <gml:identifier codeSpace="https://diggsml.org/def/authorities.xml#DIGGS">https://acme-geotech.com/files/bh-33-field-log</gml:identifier>
                     <gml:name>BH-33 Field Boring Log</gml:name>
+                    <status codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/status.xml">final</status>
+                    <remark>
+                        <Remark>
+                            <content>Original field log scanned at 600 dpi; legible throughout</content>
+                        </Remark>
+                    </remark>
+                    <contact xlink:href="#BA_Logger_BH33_Soil"/>
                     <fileURL>https://diggsml.org/docs/DIGGSOverview.pdf</fileURL>
+                    <fileType codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/fileTypes.xml">pdf</fileType>
+                    <creatingApplication>
+                        <SoftwareApplication gml:id="SW_Scanner_BH33">
+                            <gml:name>Adobe Scan</gml:name>
+                            <version>23.09</version>
+                        </SoftwareApplication>
+                    </creatingApplication>
+                    <documentType codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/documentTypes.xml">field log</documentType>
+                    <fileDate frame="#ISO-8601">2025-05-20</fileDate>
+                    <fileStructure>single document</fileStructure>
                     <mimeType>application/pdf</mimeType>
                 </AssociatedFile>
             </associatedFile>
             <role>
                 <Role>
                     <rolePerformed codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/roles.xml">field logger</rolePerformed>
+                    <timePerformed>
+                        <TimeInterval gml:id="TI_Role_BH33_Soil">
+                            <start frame="#ISO-8601">2025-05-19</start>
+                            <end frame="#ISO-8601">2025-05-20</end>
+                        </TimeInterval>
+                    </timePerformed>
+                    <remark>
+                        <Remark>
+                            <content>Field logging performed over two consecutive days due to weather delay</content>
+                        </Remark>
+                    </remark>
                     <businessAssociate>
                         <BusinessAssociate gml:id="BA_Logger_BH33_Soil">
+                            <gml:description>Field geologist responsible for logging the BH-33 soil interval</gml:description>
+                            <gml:identifier codeSpace="https://acme-geotech.com">staff-jsmith</gml:identifier>
                             <gml:name>Jane Smith</gml:name>
+                            <internalIdentifier codeSpace="Acme Geotech HR system">EMP-1045</internalIdentifier>
+                            <status codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/status.xml">final</status>
+                            <associatedFile>
+                                <AssociatedFile gml:id="AF_BA_JaneSmith_Cert">
+                                    <gml:name>PE Certification</gml:name>
+                                    <fileURL>https://acme-geotech.com/staff/jsmith-pe-cert.pdf</fileURL>
+                                    <mimeType>application/pdf</mimeType>
+                                </AssociatedFile>
+                            </associatedFile>
+                            <remark>
+                                <Remark>
+                                    <content>10 years of field logging experience; PE licensed in this state</content>
+                                </Remark>
+                            </remark>
+                            <title>Ms.</title>
+                            <address>
+                                <Address gml:id="Addr_JaneSmith">
+                                    <streetAddress>1200 Bannock St</streetAddress>
+                                    <city>Denver</city>
+                                    <state>CO</state>
+                                    <country>USA</country>
+                                    <postalCode>80204</postalCode>
+                                </Address>
+                            </address>
+                            <emailAddress type="business">jane.smith@acme-geotech.com</emailAddress>
+                            <phoneNumber type="voice">303-555-0142</phoneNumber>
+                            <associatedWith xlink:href="#BA_Logger_BH33_Rock"/>
                         </BusinessAssociate>
                     </businessAssociate>
                 </Role>
@@ -12653,6 +12711,7 @@
             <remark>
                 <Remark>
                     <content>Groundwater encountered at 11.0 m depth during drilling. Log reviewed and approved by project geologist.</content>
+                    <remarkDateTime frame="#ISO-8601">2025-05-22</remarkDateTime>
                 </Remark>
             </remark>
             <!-- AbstractObservationSystemType additions -->
@@ -12661,7 +12720,34 @@
             <samplingFeatureRef xlink:href="#Location_BH-33"/>
             <observationProcedure>
                 <Specification gml:id="Spec_LithLog_BH33_Soil">
+                    <gml:description>Visual-manual soil description procedure applied to the BH-33 soil interval</gml:description>
+                    <gml:identifier codeSpace="https://acme-geotech.com">spec-bh33-soil</gml:identifier>
                     <gml:name>ASTM D2488 Visual-Manual Description</gml:name>
+                    <internalIdentifier codeSpace="Acme Geotech field log system">SPEC-D2488-01</internalIdentifier>
+                    <status codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/status.xml">final</status>
+                    <implementationStatus codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/implementationStatus.xml">released</implementationStatus>
+                    <associatedFile>
+                        <AssociatedFile gml:id="AF_Spec_Soil_ASTM">
+                            <gml:name>ASTM D2488 Standard</gml:name>
+                            <fileURL>https://www.astm.org/d2488-17e01</fileURL>
+                            <mimeType>application/pdf</mimeType>
+                        </AssociatedFile>
+                    </associatedFile>
+                    <role>
+                        <Role>
+                            <rolePerformed codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/roles.xml">standard publisher</rolePerformed>
+                            <businessAssociate>
+                                <BusinessAssociate gml:id="BA_ASTM">
+                                    <gml:name>ASTM International</gml:name>
+                                </BusinessAssociate>
+                            </businessAssociate>
+                        </Role>
+                    </role>
+                    <remark>
+                        <Remark>
+                            <content>Standard practice applied without modification</content>
+                        </Remark>
+                    </remark>
                     <accredtingBody>ASTM International</accredtingBody>
                     <shortMethodName>D2488</shortMethodName>
                     <standardClause>Sections 7 through 13</standardClause>
@@ -12767,11 +12853,20 @@
                             <colorCharacter>banded</colorCharacter>
                             <color>
                                 <Color gml:id="DGS1EFE-854-3326-6C4B-6FBF" origin="matrix" rank="1">
+                                    <gml:identifier codeSpace="https://acme-geotech.com">color-bh33-3m-primary</gml:identifier>
+                                    <status codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/status.xml">final</status>
+                                    <remark>
+                                        <Remark>
+                                            <content>Primary matrix color, consistent throughout the interval</content>
+                                        </Remark>
+                                    </remark>
                                     <colorName>dark brown</colorName>
                                     <!-- colorCode alongside colorName (both allowed in the sequence branch) -->
                                     <colorCode codeSpace="Munsell">10YR 3/3</colorCode>
                                     <colorComponents>
                                         <ColorComponents>
+                                            <gml:description>Color component breakdown for the primary matrix color</gml:description>
+                                            <gml:identifier codeSpace="https://acme-geotech.com">colorcomp-bh33-3m-primary</gml:identifier>
                                             <intensity>dark</intensity>
                                             <modifier>brownish</modifier>
                                             <hue>brown</hue>
@@ -12828,6 +12923,7 @@
                                     <dipAngle uom="dega" apparent="false">5</dipAngle>
                                     <dipDirection uom="dega">135</dipDirection>
                                     <beddingSpacing>thin</beddingSpacing>
+                                    <dilatancy>slow</dilatancy>
                                     <dryStrength>medium</dryStrength>
                                     <fabric>oriented</fabric>
                                     <moistureCondition>moist</moistureCondition>
@@ -12838,8 +12934,17 @@
                                     <!-- particleSizeDistribution: full ParticleSizeDistribution content -->
                                     <particleSizeDistribution>
                                         <ParticleSizeDistribution gml:id="PSD_BH33_3m" howDetermined="visual">
+                                            <gml:description>Visual grain-size summary for the lean clay interval</gml:description>
+                                            <gml:identifier codeSpace="https://acme-geotech.com">psd-bh33-3m</gml:identifier>
                                             <meanGrainsize>
                                                 <ParticleSize gml:id="PS_mean_BH33_3m">
+                                                    <gml:identifier codeSpace="https://acme-geotech.com">ps-mean-bh33-3m</gml:identifier>
+                                                    <status codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/status.xml">final</status>
+                                                    <remark>
+                                                        <Remark>
+                                                            <content>Mean grain size estimated visually, not measured</content>
+                                                        </Remark>
+                                                    </remark>
                                                     <particleSizeDescription>fine sand</particleSizeDescription>
                                                 </ParticleSize>
                                             </meanGrainsize>
@@ -12888,6 +12993,15 @@
                     <componentLithology>
                         <ComponentLithology gml:id="DGS3E71-480-2604-E05A-2CC6E"
                             association="disseminated" rank="1">
+                            <gml:description>Subordinate gravel fraction within the lean clay interval</gml:description>
+                            <gml:identifier codeSpace="https://acme-geotech.com">complith-bh33-3m-gravel</gml:identifier>
+                            <gml:name>Gravel component, BH-33 3.0 m interval</gml:name>
+                            <status codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/status.xml">final</status>
+                            <remark>
+                                <Remark>
+                                    <content>Gravel fraction concentrated near the base of the interval</content>
+                                </Remark>
+                            </remark>
                             <lithology>
                                 <ComponentLith gml:id="CompLith_BH33_3m_gravel">
                                     <gml:identifier codeSpace="https://acme-geotech.com">complit-bh33-3m-gravel</gml:identifier>
@@ -12975,9 +13089,16 @@
                             association="disseminated">
                             <lithology>
                                 <ComponentLith>
+                                    <status codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/status.xml">final</status>
+                                    <remark>
+                                        <Remark>
+                                            <content>Clay fraction is the primary binder for the gravel-clay mixture</content>
+                                        </Remark>
+                                    </remark>
                                     <classificationCode codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/USCSSoilComponents.xml#clay">clay</classificationCode>
                                     <componentProperties>
                                         <ComponentProperties>
+                                            <consistency>stiff</consistency>
                                             <dilatancy>no</dilatancy>
                                             <plasticity>low</plasticity>
                                         </ComponentProperties>
@@ -12995,7 +13116,10 @@
                                 <ComponentLith>
                                     <classificationCode codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/USCSSoilComponents.xml#sand">Sand</classificationCode>
                                     <componentProperties>
-                                        <ComponentProperties> </ComponentProperties>
+                                        <ComponentProperties>
+                                            <!-- dipDirection alone (no dipAngle): orientation trend noted, angle not measured -->
+                                            <dipDirection uom="dega">210</dipDirection>
+                                        </ComponentProperties>
                                     </componentProperties>
                                 </ComponentLith>
                             </lithology>
@@ -13005,11 +13129,38 @@
                         </ComponentLithology>
                     </componentLithology>
 
+                    <componentLithology>
+                        <!-- ComponentLith lithDescription-alone choice branch (alternative to classificationCode) -->
+                        <ComponentLithology gml:id="DGS_CompLith_BH33_3m_organics"
+                            association="disseminated">
+                            <lithology>
+                                <ComponentLith>
+                                    <lithDescription>trace fibrous organic material (rootlets/plant fragments), dark brown, thread-like</lithDescription>
+                                    <componentProperties>
+                                        <ComponentProperties>
+                                            <moistureCondition>moist</moistureCondition>
+                                        </ComponentProperties>
+                                    </componentProperties>
+                                </ComponentLith>
+                            </lithology>
+                            <abundancePercent uom="%">1</abundancePercent>
+                        </ComponentLithology>
+                    </componentLithology>
+
                     <facies>fill</facies>
                     <unitName>Unit A</unitName>
                     <!-- baseBoundary: full Boundary content -->
                     <baseBoundary>
                         <Boundary gml:id="Boundary_BH33_3m" howDetermined="visual">
+                            <gml:description>Base contact of the fill/lean clay interval</gml:description>
+                            <gml:identifier codeSpace="https://acme-geotech.com">boundary-bh33-3m</gml:identifier>
+                            <gml:name>BH-33 3.0 m boundary</gml:name>
+                            <status codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/status.xml">final</status>
+                            <remark>
+                                <Remark>
+                                    <content>Contact picked from visual change in color and consistency</content>
+                                </Remark>
+                            </remark>
                             <location>
                                 <PointLocation gml:id="BoundaryLoc_BH33_3m" srsName="#lsr-BH-33" srsDimension="1">
                                     <gml:pos>15.55</gml:pos>
@@ -13040,6 +13191,12 @@
                     <trueBaseObserved>true</trueBaseObserved>
                     <primaryLithology>
                         <Lithology gml:id="DGSA0AE-ABB-4F7E-D2D0-22A54">
+                            <status codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/status.xml">final</status>
+                            <remark>
+                                <Remark>
+                                    <content>Classification confirmed against ASTM D2488 group name criteria</content>
+                                </Remark>
+                            </remark>
                             <classificationCode codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/astmD2488.xml#SP">Poorly graded sand</classificationCode>
                             <lithDescription>POORLY GRADED SAND (SP); mostly rounded SAND; light brown, moist, loose to medium dense, trace silt, hydrocarbon odor, ALLUVIUM</lithDescription>
                             <classificationSymbol codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/grp-astmD2488.xml#SP">SP</classificationSymbol>
@@ -13141,6 +13298,13 @@
             <!-- ============================================================ -->
             <lithologyObservation>
                 <LithologyObservation gml:id="Litho_Soil_Observation_BH-33_17.5">
+                    <gml:identifier codeSpace="https://acme-geotech.com">litho-obs-bh33-17.5m</gml:identifier>
+                    <status codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/status.xml">final</status>
+                    <remark>
+                        <Remark>
+                            <content>Interval logged during the second day of drilling</content>
+                        </Remark>
+                    </remark>
                     <location>
                         <LinearExtent gml:id="DGS937C-1059-23CE-EFDF-CB4D" srsName="#lsr-BH-33"
                             srsDimension="1">
@@ -13274,6 +13438,13 @@
                                     <abundanceCode codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/abundance.xml#primary">primary</abundanceCode>
                                 </Color>
                             </color>
+                            <!-- Secondary color reported as a Munsell reading only, no plain-language name (colorCode-alone choice branch) -->
+                            <color>
+                                <Color origin="mottle" rank="2">
+                                    <colorCode codeSpace="Munsell">7.5YR 5/6</colorCode>
+                                    <abundanceCode codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/abundance.xml#trace">trace</abundanceCode>
+                                </Color>
+                            </color>
                             <lithProperties>
                                 <LithProperties gml:id="DGS3694-1329-1AAE-F17B-1210E">
                                     <consistency>very dense</consistency>
@@ -13368,6 +13539,8 @@
                     <gml:name>BH-33 Core Photo Log</gml:name>
                     <fileURL>https://acme-geotech.com/files/BH-33-core-photos.zip</fileURL>
                     <mimeType>image/jpeg</mimeType>
+                    <compression>urn:x-diggs:compression:zip-deflate</compression>
+                    <encryption>urn:x-diggs:encryption:none</encryption>
                 </AssociatedFile>
             </associatedFile>
             <role>
@@ -13384,6 +13557,8 @@
             <remark>
                 <Remark>
                     <content>Core recovery averaged 85% through the rock interval. Vuggy porosity noted at 33 m. Drilling fluid loss occurred at 35 m.</content>
+                    <author xlink:href="#BA_Logger_BH33_Rock"/>
+                    <remarkDateTime>3036-03-22</remarkDateTime>
                 </Remark>
             </remark>
             <!-- AbstractObservationSystemType additions -->
@@ -13558,15 +13733,48 @@
                                     <!-- unitRQDLength: total length of qualifying pieces -->
                                     <unitRQDLength uom="m">3.12</unitRQDLength>
                                     <otherLithProperty>
-                                        <Parameter gml:id="Param_LP_BH33_30m_vuggy">
+                                        <Parameter gml:id="Param_LP_BH33_30m_vuggy" index="1">
                                             <parameterName>vuggyPorosity</parameterName>
                                             <parameterValue>present</parameterValue>
+                                        </Parameter>
+                                    </otherLithProperty>
+                                    <!-- Parameter numeric range (parameterMinValue/parameterMaxValue/parameterUnits/index) -->
+                                    <otherLithProperty>
+                                        <Parameter gml:id="Param_LP_BH33_30m_porosity" index="2">
+                                            <parameterName codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/properties.xml">porosity</parameterName>
+                                            <parameterMinValue>8</parameterMinValue>
+                                            <parameterValue>10</parameterValue>
+                                            <parameterMaxValue>12</parameterMaxValue>
+                                            <parameterUnits>%</parameterUnits>
                                         </Parameter>
                                     </otherLithProperty>
                                 </LithProperties>
                             </lithProperties>
                         </Lithology>
                     </primaryLithology>
+
+                    <componentLithology>
+                        <!-- Rock-specific ComponentProperties fields + ComponentLithology abundanceCode choice branch -->
+                        <ComponentLithology gml:id="DGS_CompLith_BH33_30m_chert" association="inclusions">
+                            <lithology>
+                                <ComponentLith>
+                                    <classificationCode codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/rockLithology.xml#chert">chert</classificationCode>
+                                    <componentProperties>
+                                        <ComponentProperties>
+                                            <rockGrainSize>cryptocrystalline</rockGrainSize>
+                                            <rockHardness>hard</rockHardness>
+                                            <rockMass>massive</rockMass>
+                                            <rockSlakingRate>very slow</rockSlakingRate>
+                                            <rockSorting>well sorted</rockSorting>
+                                            <rockStrength>very strong</rockStrength>
+                                            <rockWeathering>unweathered</rockWeathering>
+                                        </ComponentProperties>
+                                    </componentProperties>
+                                </ComponentLith>
+                            </lithology>
+                            <abundanceCode codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/abundance.xml#trace">trace</abundanceCode>
+                        </ComponentLithology>
+                    </componentLithology>
 
                     <placedObservation>
                         <PlacedObservation gml:id="PO_BH33_30m_vuggy">
