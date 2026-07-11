@@ -12,6 +12,7 @@
 .DS_Store
 snippets and plan docs
 CLAUDE.md
+.claude/settings.local.json
 
 # User-specific files (MonoDevelop/Xamarin Studio)
 *.userprefs
@@ -402,3 +403,7 @@ FodyWeavers.xsd
 
 # JetBrains Rider
 *.sln.iml
+
+# Node tooling (tools/gen_pattern_reference.js deps — installed locally, not part of the app)
+package.json
+package-lock.json

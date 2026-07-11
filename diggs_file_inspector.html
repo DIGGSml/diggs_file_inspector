@@ -674,6 +674,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
   --text:       #e6edf3;
   --text-muted: #7d8590;
   --text-dim:   #4d5562;
+  --lith-ink:   #e6edf3;
   --shadow:     0 4px 24px rgba(0,0,0,.5);
   --radius:     6px;
   --font-mono:  'JetBrains Mono','Fira Code','Cascadia Code','Consolas','Courier New',monospace;
@@ -905,6 +906,58 @@ html,body{height:100%;font-family:var(--font-ui);background:var(--bg);color:var(
 .assoc-badge.active .badge-count { color:var(--accent); }
 /* Assoc panel table — auto-width, not full-width */
 #assoc-content .sub-table { width:auto;min-width:360px;max-width:100%; }
+
+/* ── Graphic lithology log ─────────────────────────────────
+   Pattern tiles live once in a hidden #lith-pattern-defs svg; their
+   ink shapes are recolored via these classes (CSS var works because the
+   shapes are styled where they live in the DOM, then used as paint servers). */
+/* NOTE: stroke-width intentionally omitted here (see the matching note below
+   on .sk/.wk) — phyllite's line sets its own via stroke-width="…", so a
+   class-level value here would win over it in the generated PDF only. The
+   unknown-material fallback pattern has no override and falls back to the
+   SVG spec default (1), identical to the old value here. */
+#lith-pattern-defs .lpk { stroke:var(--lith-ink); fill:none; vector-effect:non-scaling-stroke; }
+#lith-pattern-defs .lpf { fill:var(--lith-ink); stroke:none; }
+/* Soil (USCS) tiles: recreated from FGDC patterns — black ink over a
+   family-colored background; peat uses white ink (.wk) on a dark background. */
+/* NOTE: stroke-width is deliberately NOT set here (unlike .lpk above) — every
+   .sk/.wk line/path sets its own via its stroke-width="…" attribute (see
+   fgdc-217 vs fgdc-215, CL vs CH). svg-to-pdfkit (used by
+   tools/gen_pattern_reference.js) resolves an embedded <style> class rule
+   BEFORE a per-element override, the reverse of real CSS cascade order — a
+   class-level stroke-width here would silently win over every pattern's own
+   weight in the generated PDF (though not in the browser) and make e.g.
+   lean/fat clay indistinguishable. Circle/ellipse outlines that don't specify
+   their own weight get the SVG spec default (1), which is fine. */
+#lith-pattern-defs .sk { stroke:#141414; fill:none; }
+#lith-pattern-defs .sf { fill:#141414; stroke:none; }
+#lith-pattern-defs .wk { stroke:#ffffff; fill:none; }
+#lith-pattern-defs .wf { fill:#ffffff; stroke:none; }
+.lith-badge-layout { display:flex; gap:6px; align-items:flex-start; }
+.lith-log-col   { flex:0 0 auto; position:sticky; top:0; align-self:flex-start; }
+.lith-log-row   { display:flex; gap:12px; }
+.lith-log-axis-label {
+  flex:0 0 auto; display:flex; align-items:center; justify-content:center;
+  writing-mode:vertical-rl; transform:rotate(180deg);
+  font-family:var(--font-ui); font-size:12px; color:var(--text);
+  white-space:nowrap;
+}
+.lith-log-col-item  { flex:0 0 auto; }
+.lith-log-col-title {
+  font-size:11px; color:var(--text); font-weight:600; text-align:center;
+  margin-bottom:4px; line-height:1.25; overflow:hidden; text-overflow:ellipsis;
+  display:-webkit-box; -webkit-line-clamp:2; line-clamp:2; -webkit-box-orient:vertical;
+}
+.lith-log-host  { line-height:0; }
+.lith-table-col { flex:1 1 auto; min-width:0; }
+.lith-log-zone .lith-zone-fill { transition:opacity .1s; }
+.lith-log-zone:hover .lith-zone-fill { opacity:.82; }
+.lith-legend       { margin-top:12px; max-width:150px; }
+.lith-legend-title { padding:5px 0; }
+.lith-legend-body  { padding-top:4px; }
+.lith-legend-item  { display:flex; align-items:center; gap:7px; padding:2px 0; font-size:11px; color:var(--text-muted); min-width:0; }
+.lith-legend-item span { white-space:normal; line-height:1.2; }
+.lith-legend-sw    { flex:0 0 auto; border:1px solid var(--border); border-radius:2px; }
 /* tile-pane filter removed — it was desaturating all basemaps and turning satellite greyscale */
 .leaflet-container { font-family:var(--font-ui); }
 .leaflet-popup-content-wrapper {
@@ -1073,6 +1126,10 @@ table.data-table tbody tr.selected {
   outline-offset:-1px;
 }
 .mono { font-family:var(--font-mono);font-size:12px; }
+/* Lithology table's From/To cells only — sans-serif to match the graphic
+   log's depth-axis numbers (also var(--font-ui)), not the app-wide .mono
+   convention used by every other table's depth/numeric columns. */
+.lith-depth-val { font-family:var(--font-ui);font-size:12px; }
 .tag-bh { color:var(--bh-color);font-weight:500; }
 .tag-cpt { color:var(--cpt-color);font-weight:500; }
 .depth-val { color:var(--accent3);font-family:var(--font-mono); }
@@ -2204,11 +2261,12 @@ function indexLocalCartesianCRS(doc) {
  * LinearExtent (start→end) when no directionVector is given. Validated
  * against real instances (TrenchWall2.xml, TrenchWall3.xml,
  * InspectorTestFile.xml) — see CLAUDE.md's "Local Cartesian CRS support"
- * note. Also reads a per-axis originOffset (proposed DIGGS schema addition,
- * not yet in the schema repo) so a posList can be authored in a continuous
- * chainage across multiple adjoining LocalCartesianCRS definitions instead
- * of resetting to 0 at each one's own origin — see TrenchWall3.xml's
- * dogleg-patch2-crs for a worked example.
+ * note, including a MultiPlanarSurface whose patches each reference a
+ * different LocalCartesianCRS. Also reads a per-axis originOffset (DIGGS
+ * 3.1-dev schema addition to AxisLocationType) so a posList can be authored
+ * in a continuous chainage across multiple adjoining LocalCartesianCRS
+ * definitions instead of resetting to 0 at each one's own origin — see
+ * TrenchWall3.xml's dogleg-patch2-crs for a worked example.
  */
 function parseLocalCartesianCRS(doc, el) {
   const id   = el.getAttributeNS(NS.gml, 'id') || el.getAttribute('gml:id') || '';
@@ -2261,9 +2319,8 @@ function parseLocalCartesianCRS(doc, el) {
     // originOffset: the raw local coordinate value (along this axis) that
     // corresponds to originLocation — lets a posList be authored in a
     // shared/continuous chainage across multiple adjoining local CRSs
-    // instead of resetting to 0 at each CRS's own origin. Not a standard
-    // DIGGS/GML element (proposed addition, not yet in the schema repo);
-    // defaults to 0 when absent, which reproduces prior behavior exactly.
+    // instead of resetting to 0 at each CRS's own origin (DIGGS 3.1-dev
+    // addition to AxisLocationType); defaults to 0 when absent.
     const offsetText = xText(doc, 'diggs:originOffset', axLocEl);
     const offset = offsetText ? (parseFloat(offsetText) || 0) : 0;
     if (vec) axes.push({ order, vec, offset });
@@ -2532,6 +2589,11 @@ function collectFeatureExtentRawPatches(featureExtentEl, fallbackSrsName, fallba
     for (const c of lrEl.childNodes) { if (c.nodeType === 1 && c.localName === 'posList') { plEl = c; break; } }
     if (!plEl) continue;
     const ringDim = parseInt(plEl.getAttribute('srsDimension') || dim || '2') || 2;
+    // A patch itself (e.g. PlanarSurfacePatch) carries no srsName — empty
+    // AbstractSurfacePatchType per schema — so a per-patch local CRS can only
+    // be declared on the posList; check there before falling back to the
+    // ancestor-derived value.
+    const ringSrsName = plEl.getAttribute('srsName') || srsName;
     const tokens = numTokens(plEl.textContent);
     if (tokens.length < ringDim * 3) continue;
 
@@ -2544,11 +2606,12 @@ function collectFeatureExtentRawPatches(featureExtentEl, fallbackSrsName, fallba
         for (const c2 of hLr.childNodes) { if (c2.nodeType === 1 && c2.localName === 'posList') { hPl = c2; break; } }
         if (!hPl) continue;
         const hDim = parseInt(hPl.getAttribute('srsDimension') || dim || '2') || 2;
+        const hSrsName = hPl.getAttribute('srsName') || ringSrsName;
         const hTokens = numTokens(hPl.textContent);
-        if (hTokens.length >= hDim * 3) holes.push({ tokens: hTokens, dim: hDim, srsName });
+        if (hTokens.length >= hDim * 3) holes.push({ tokens: hTokens, dim: hDim, srsName: hSrsName });
       }
     }
-    patches.push({ tokens, dim: ringDim, srsName, holes });
+    patches.push({ tokens, dim: ringDim, srsName: ringSrsName, holes });
   }
   return patches;
 }
@@ -2977,11 +3040,11 @@ let DIGGS_WELL_DATA = {};// keyed by well gml:id → array of Monitor objects
 //     ├─ AbstractPointSamplingFeatureType (abstract)
 //     │    └─ Station                 → point
 //     ├─ AbstractPlanarSamplingFeatureType (abstract) — has featureExtent (surface)
-//     │    ├─ PlanarSamplingFeature   → polygon (currently point — see mapGeom note)
-//     │    ├─ GP_ArealSurvey          → polygon (currently point — see mapGeom note)
+//     │    ├─ PlanarSamplingFeature   → polygon (featureExtent, projected to horizontal plane)
+//     │    ├─ GP_ArealSurvey          → polygon (featureExtent, projected to horizontal plane)
 //     │    └─ TrenchWall              → polygon (featureExtent, projected to horizontal plane)
 //     ├─ AbstractVolumeSamplingFeatureType (abstract) — has featureExtent (volume)
-//     │    └─ VolumetricSamplingFeature → polygon (currently point — see mapGeom note)
+//     │    └─ VolumetricSamplingFeature → point (Solid ring extraction not yet implemented)
 //     ├─ AbstractLinearInstallationType (abstract) — has samplingFeatureRef → parent
 //     │    ├─ Well
 //     │    └─ AbstractPileType (abstract)
@@ -3055,15 +3118,22 @@ const SF_TYPE_CONFIG = {
   },
 
   // ── Planar SF types (featureExtent surface geometry) ─────────────────────
-  // mapGeom for most is 'point' because featureExtent coords are commonly in local CRS, and transform code for these is not yet implemented.
-  // If polygon is selected, fallback is to plot point if srsName is local or non-EPSG
+  // mapGeom is 'polygon' for the planar types below; point-marker fallback
+  // (unresolvable/local CRS) is handled generically by initMap()/mapGeom gating,
+  // not per-type here.
   PlanarSamplingFeature: {
     tabLabel:  'Planar Features',
-    mapGeom:   'point',
+    mapGeom:   'polygon',
     depthPath: null,
     parentPath: null,
     date: null,
-    marker: { shape: 'circle',  color: '#A78BFA', border: '#ffffff', size: 11, opacity: 1.0 },
+    // PlanarSamplingFeature covers arbitrary orientations, including
+    // near-vertical/dipping surfaces — same ring extraction as GP_ArealSurvey/
+    // TrenchWall (posListToLatLngs drops Z, i.e. projects onto the horizontal
+    // plane regardless of how the surface is sloped/oriented). Local CRS
+    // (LocalCartesianCRS-referenced featureExtent) resolves the same way too.
+    // polygon marker style: color = stroke, fillColor = fill (use 'none' for transparent)
+    marker: { color: '#3B82F6', weight: 2, opacity: 1.0, fillColor: '#3B82F6', fillOpacity: 0.4 },
   },
   GP_ArealSurvey: {
     tabLabel:  'Areal Surveys',
@@ -3089,7 +3159,9 @@ const SF_TYPE_CONFIG = {
   },
 
   // ── Volumetric SF types (featureExtent volume geometry) ──────────────────
-  // mapGeom 'point' for same reason as planar types above.
+  // mapGeom is 'point' — ring extraction for volume geometry (Solid) is not
+  // yet implemented (see "known flagged" notes); polygon rendering is only
+  // wired up for planar (surface) featureExtent types above.
   VolumetricSamplingFeature: {
     tabLabel:  'Volumetric Features',
     mapGeom:   'point',
@@ -8494,11 +8566,16 @@ function _resolvePolygonRings(el, rawSrsName, rawSrsDimension) {
     }
     if (!plEl) return null;
     const dim = parseInt(plEl.getAttribute('srsDimension') || dimSurface || '2');
+    // PlanarSurfacePatch itself carries no srsName/srsDimension (empty
+    // AbstractSurfacePatchType per schema) — a per-patch local CRS (e.g. each
+    // patch of a MultiPlanarSurface bearing a different LocalCartesianCRS)
+    // can only be declared on the posList itself, so check there first.
+    const srsNameEff = plEl.getAttribute('srsName') || srsNameSurface;
     const rawLls = posListToLatLngs(plEl.textContent, dim);
     if (rawLls.length < 3) return null;
     const wgsRing = [];
     for (const pair of rawLls) {
-      const geo = toWGS84(pair, srsNameSurface);
+      const geo = toWGS84(pair, srsNameEff);
       if (geo.lat !== null && geo.lon !== null && !isNaN(geo.lat) && !isNaN(geo.lon)
           && geo.lat >= -90 && geo.lat <= 90 && geo.lon >= -180 && geo.lon <= 180) {
         wgsRing.push([geo.lat, geo.lon]);
@@ -8730,13 +8807,18 @@ function parseSamplingFeature(doc, el, type) {
           if (child.nodeType === 1 && child.localName === 'posList') { plEl = child; break; }
         }
         if (!plEl) return null;
-        // srsDimension may be overridden on posList itself; fall back to surface-level value
+        // srsName/srsDimension may be overridden on posList itself; fall back to
+        // surface/patch-level value. PlanarSurfacePatch itself carries neither
+        // (empty AbstractSurfacePatchType per schema), so a per-patch local CRS
+        // (e.g. each patch of a MultiPlanarSurface bearing a different
+        // LocalCartesianCRS) can only be declared on the posList.
         const dim = parseInt(plEl.getAttribute('srsDimension') || dimSurface || '2');
+        const srsNameEff = plEl.getAttribute('srsName') || srsNameSurface;
         const rawLls = posListToLatLngs(plEl.textContent, dim);
         if (rawLls.length < 3) return null;
         const wgsRing = [];
         for (const pair of rawLls) {
-          const geo = toWGS84(pair, srsNameSurface);
+          const geo = toWGS84(pair, srsNameEff);
           if (geo.lat !== null && geo.lon !== null && !isNaN(geo.lat) && !isNaN(geo.lon)
               && geo.lat >= -90 && geo.lat <= 90 && geo.lon >= -180 && geo.lon <= 180) {
             wgsRing.push([geo.lat, geo.lon]);
@@ -11082,11 +11164,24 @@ function buildAssocBadges(sf) {
     const totalObs = lithSystems.reduce((n, sys) => n + sys.observations.length, 0);
     // Flatten all observations for depthUomForRows
     const allObs = lithSystems.flatMap(sys => sys.observations);
+    // Graphic-log draw jobs — populated by renderLithBadgeContent when its
+    // HTML is built, then drawn here after that HTML is injected.
+    const lithDrawJobs = [];
     badges.push({
       id: `assoc-lith-${sfId.replace(/[^a-zA-Z0-9]/g,'_')}`,
       label: 'Lithology',
       count: `${totalObs} interval${totalObs !== 1 ? 's' : ''}`,
-      contentFn: () => renderLithBadgeContent(sfId, sf, lithSystems, allObs),
+      contentFn: () => renderLithBadgeContent(sfId, sf, lithSystems, allObs, lithDrawJobs),
+      afterRender: () => {
+        requestAnimationFrame(() => {
+          for (const job of lithDrawJobs) {
+            const c = document.getElementById(job.containerId);
+            if (c) drawLithLog(c, job.obs, job.sf, {
+              dMin: job.dMin, dMax: job.dMax,
+            });
+          }
+        });
+      },
       category: 'observations',
     });
   }
@@ -11817,10 +11912,10 @@ function _buildLithCell(key, obs, sf, allObs) {
 
   switch (key) {
     case 'from':
-      return `<td class="mono">${esc(obs.from)}</td>`;
+      return `<td class="lith-depth-val">${esc(obs.from)}</td>`;
 
     case 'to':
-      return `<td class="mono">${esc(obs.to)}</td>`;
+      return `<td class="lith-depth-val">${esc(obs.to)}</td>`;
 
     case 'position': {
       if (!obs.coordTuple || !obs.coordTuple.length) return '<td class="muted-dash">—</td>';
@@ -11914,9 +12009,649 @@ function _openLithColorPopup(key) {
 }
 
 // ══════════════════════════════════════════════════════════════
+//  GRAPHIC LITHOLOGY LOG — SVG borehole log for the Lithology badge
+//
+//  Renders a vertical, depth-scaled column of patterned zones (one per
+//  LithologyObservation with numeric from/to). Fill patterns convey the
+//  soil (USCS group) or rock type. Patterns are inline SVG <pattern> tiles;
+//  the per-zone base color is drawn separately so one tile serves any color.
+//  - Soil: the 15 USCS (ASTM D2487) groups, following the Caltrans crib-sheet
+//    convention — a fixed BLACK pattern (classes .sk/.sf) over a family-colored
+//    background (gravels orange, sands yellow, silts green, clays blue,
+//    organics grey, peat purple).
+//  - Rock: FGDC/USGS convention, light ink recolored via the --lith-ink var
+//    (classes .lpk/.lpf).
+//  resolveLithMaterial() maps any classification/description (incl. USDA /
+//  AASHTO / free-text) onto one of these keys.
+// ══════════════════════════════════════════════════════════════
+
+// Material key → { label, base color }. Pattern tile id is `lithpat-<key>`.
+// Soil keys are the 15 USCS (ASTM D2487) groups. Backgrounds are per-family
+// (gravels orange, sands yellow, silts green, clays blue, organics grey, peat
+// purple) with a fixed black pattern — Caltrans/USCS crib-sheet convention.
+const LITH_MATERIALS = {
+  // Soil: 26 USCS (ASTM D2487) groups. `layers` are FGDC pattern tile ids
+  // drawn bottom→top over `color` (see drawLithLog). Gravels orange, sands
+  // yellow, silts green, clays blue, organics grey, peat dark grey (white ink).
+  'soil-GW':    { label:'Well-graded gravel (GW)',            color:'#f79c1a', layers:['fgdc-435'] },
+  'soil-GP':    { label:'Poorly graded gravel (GP)',          color:'#f79c1a', layers:['fgdc-102'] },
+  'soil-GM':    { label:'Silty gravel (GM)',                  color:'#f79c1a', layers:['fgdc-102','fgdc-217'] },
+  'soil-GC':    { label:'Clayey gravel (GC)',                 color:'#f79c1a', layers:['fgdc-102','fgdc-217-r45'] },
+  'soil-GC-GM': { label:'Silty, clayey gravel (GC-GM)',       color:'#f79c1a', layers:['fgdc-217','fgdc-102','fgdc-217-r45'] },
+  'soil-GP-GC': { label:'Poorly graded gravel w/ clay (GP-GC)',color:'#f79c1a', layers:['fgdc-102','fgdc-230-r45'] },
+  'soil-GP-GM': { label:'Poorly graded gravel w/ silt (GP-GM)',color:'#f79c1a', layers:['fgdc-102','fgdc-230'] },
+  'soil-GW-GC': { label:'Well-graded gravel w/ clay (GW-GC)',  color:'#f79c1a', layers:['fgdc-435','fgdc-230-r45'] },
+  'soil-GW-GM': { label:'Well-graded gravel w/ silt (GW-GM)',  color:'#f79c1a', layers:['fgdc-435','fgdc-230'] },
+  'soil-SW':    { label:'Well-graded sand (SW)',              color:'#f4e11a', layers:['fgdc-134'] },
+  'soil-SP':    { label:'Poorly graded sand (SP)',            color:'#f4e11a', layers:['fgdc-132'] },
+  'soil-SM':    { label:'Silty sand (SM)',                    color:'#f4e11a', layers:['fgdc-132','fgdc-217'] },
+  'soil-SC':    { label:'Clayey sand (SC)',                   color:'#f4e11a', layers:['fgdc-132','fgdc-217-r45'] },
+  'soil-SC-SM': { label:'Silty, clayey sand (SC-SM)',         color:'#f4e11a', layers:['fgdc-132','fgdc-217','fgdc-217-r45'] },
+  'soil-SP-SC': { label:'Poorly graded sand w/ clay (SP-SC)', color:'#f4e11a', layers:['fgdc-132','fgdc-230-r45'] },
+  'soil-SP-SM': { label:'Poorly graded sand w/ silt (SP-SM)', color:'#f4e11a', layers:['fgdc-132','fgdc-230'] },
+  'soil-SW-SC': { label:'Well-graded sand w/ clay (SW-SC)',   color:'#f4e11a', layers:['fgdc-134','fgdc-230-r45'] },
+  'soil-SW-SM': { label:'Well-graded sand w/ silt (SW-SM)',   color:'#f4e11a', layers:['fgdc-134','fgdc-230'] },
+  'soil-ML':    { label:'Silt (ML)',                          color:'#7cd23f', layers:['fgdc-217'] },
+  'soil-MH':    { label:'Elastic silt (MH)',                  color:'#7cd23f', layers:['fgdc-215'] },
+  'soil-CL':    { label:'Lean clay (CL)',                     color:'#4fb4f2', layers:['fgdc-217-r45'] },
+  'soil-CH':    { label:'Fat clay (CH)',                      color:'#4fb4f2', layers:['fgdc-215-r45'] },
+  'soil-CL-ML': { label:'Silty clay (CL-ML)',                 color:'#4fb4f2', layers:['fgdc-217'] },
+  'soil-OL':    { label:'Organic silt/clay (OL)',            color:'#ccd2d9', layers:['fgdc-230-r90'] },
+  'soil-OH':    { label:'Organic clay/silt (OH)',            color:'#ccd2d9', layers:['fgdc-522'] },
+  'soil-PT':    { label:'Peat (PT)',                          color:'#30343a', layers:['fgdc-420'] },
+  'soil-fill':  { label:'Fill / man-made',                    color:'#c9bfa6', layers:['fgdc-fill'] },
+  // Sedimentary rock: FGDC patterns, black ink on white (coal = white on black).
+  'rock-sandstone':    { label:'Sandstone',             color:'#ffffff', layers:['fgdc-608'] },
+  'rock-conglomerate': { label:'Conglomerate',          color:'#ffffff', layers:['fgdc-602'] },
+  'rock-shale':        { label:'Shale / mudstone',      color:'#ffffff', layers:['fgdc-620'] },
+  'rock-limestone':    { label:'Limestone / carbonate', color:'#ffffff', layers:['fgdc-627'] },
+  'rock-dolomite':     { label:'Dolomite',              color:'#ffffff', layers:['fgdc-642'] },
+  'rock-chert':        { label:'Chert',                 color:'#ffffff', layers:['fgdc-649'] },
+  'rock-coal':         { label:'Coal',                  color:'#141414', layers:['fgdc-659'] },
+  'rock-evaporite':    { label:'Evaporite',             color:'#ffffff', layers:['fgdc-668'] },
+  // Igneous: FGDC patterns, black ink on red (tuff/ash = white ink on red).
+  'rock-volcanic':     { label:'Igneous (volcanic)',    color:'#e5483e', layers:['fgdc-317'] },
+  'rock-plutonic':     { label:'Igneous (plutonic)',    color:'#e5483e', layers:['fgdc-314'] },
+  'rock-tuff':         { label:'Ash / tephra / tuff',   color:'#e5483e', layers:['fgdc-317do'] },
+  // Metamorphic: FGDC patterns (phyllite/hornfels still hand-authored), all
+  // on purple.
+  'rock-slate':        { label:'Slate',                 color:'#9d6fdb', layers:['fgdc-703'] },
+  'rock-phyllite':     { label:'Phyllite',              color:'#9d6fdb' },
+  'rock-schist':       { label:'Schist',                color:'#9d6fdb', layers:['fgdc-705'] },
+  'rock-gneiss':       { label:'Gneiss',                color:'#9d6fdb', layers:['fgdc-708'] },
+  'rock-marble':       { label:'Marble',                color:'#9d6fdb', layers:['fgdc-641'] },
+  'rock-quartzite':    { label:'Quartzite',             color:'#9d6fdb', layers:['fgdc-702'] },
+  'rock-hornfels':     { label:'Hornfels',              color:'#9d6fdb' },
+  'unknown':           { label:'Undefined material',    color:'#4a4f57' },
+};
+
+// Inline SVG <pattern> tiles (ink-only; classes lpk/lpf recolored via CSS).
+const LITH_PATTERN_TILES = `
+<!-- Soil patterns recreated from FGDC lithologic tiles; composed as layers by
+     LITH_MATERIALS[...].layers (see drawLithLog). 217/215=vertical hachure,
+     230=vertical dashes, 102=open pebbles, 435=filled gravel, 132/134=stipple,
+     420=peat reeds, 522=organic waves; -r45/-r90 are rotated variants. -->
+<pattern id="fgdc-102" patternUnits="userSpaceOnUse" width="20" height="20">
+  <ellipse class="sk" cx="4" cy="5" rx="2.6" ry="1.9"/><ellipse class="sk" cx="13" cy="4" rx="1.8" ry="2.3"/>
+  <ellipse class="sk" cx="9" cy="12" rx="2.9" ry="2"/><ellipse class="sk" cx="16.5" cy="14" rx="2.1" ry="2.6"/>
+  <ellipse class="sk" cx="3" cy="16.5" rx="1.7" ry="1.5"/><circle class="sk" cx="18.5" cy="8" r="1.2"/></pattern>
+<pattern id="fgdc-435" patternUnits="userSpaceOnUse" width="18" height="18">
+  <ellipse class="sf" cx="3" cy="3" rx="1.8" ry="1.4"/><ellipse class="sf" cx="10" cy="5" rx="2.2" ry="1.8"/>
+  <circle class="sf" cx="15.5" cy="3" r="1"/><ellipse class="sf" cx="6" cy="10" rx="1.4" ry="1.8"/>
+  <ellipse class="sf" cx="13" cy="12" rx="2.3" ry="1.9"/><circle class="sf" cx="16.5" cy="15.5" r="1.3"/>
+  <ellipse class="sf" cx="3" cy="15" rx="1.6" ry="1.2"/><circle class="sf" cx="9" cy="15.5" r="0.8"/></pattern>
+<pattern id="fgdc-132" patternUnits="userSpaceOnUse" width="12" height="12">
+  <circle class="sf" cx="2" cy="2.5" r="0.7"/><circle class="sf" cx="7" cy="1.5" r="0.6"/><circle class="sf" cx="10" cy="4" r="0.7"/>
+  <circle class="sf" cx="4.5" cy="5.5" r="0.6"/><circle class="sf" cx="1.5" cy="8.5" r="0.7"/><circle class="sf" cx="8" cy="8" r="0.6"/>
+  <circle class="sf" cx="11" cy="10" r="0.6"/><circle class="sf" cx="5" cy="10.5" r="0.7"/></pattern>
+<pattern id="fgdc-134" patternUnits="userSpaceOnUse" width="8" height="8">
+  <circle class="sf" cx="1.5" cy="1.5" r="0.55"/><circle class="sf" cx="5" cy="2.5" r="0.55"/><circle class="sf" cx="3" cy="5" r="0.55"/>
+  <circle class="sf" cx="6.5" cy="6" r="0.55"/><circle class="sf" cx="7.5" cy="3.5" r="0.5"/><circle class="sf" cx="1" cy="6.5" r="0.5"/></pattern>
+<pattern id="fgdc-217" patternUnits="userSpaceOnUse" width="4" height="8">
+  <line class="sk" x1="2" y1="0" x2="2" y2="8" style="stroke-width:.5"/></pattern>
+<pattern id="fgdc-217-r45" patternUnits="userSpaceOnUse" width="4" height="8" patternTransform="rotate(45)">
+  <line class="sk" x1="2" y1="0" x2="2" y2="8" style="stroke-width:.5"/></pattern>
+<pattern id="fgdc-215" patternUnits="userSpaceOnUse" width="3.6" height="8">
+  <line class="sk" x1="1.8" y1="0" x2="1.8" y2="8" style="stroke-width:1.7"/></pattern>
+<pattern id="fgdc-215-r45" patternUnits="userSpaceOnUse" width="3.6" height="8" patternTransform="rotate(45)">
+  <line class="sk" x1="1.8" y1="0" x2="1.8" y2="8" style="stroke-width:1.7"/></pattern>
+<pattern id="fgdc-230" patternUnits="userSpaceOnUse" width="4" height="6">
+  <line class="sk" x1="2" y1="0.4" x2="2" y2="4" style="stroke-width:1.1"/></pattern>
+<pattern id="fgdc-230-r45" patternUnits="userSpaceOnUse" width="4" height="6" patternTransform="rotate(45)">
+  <line class="sk" x1="2" y1="0.4" x2="2" y2="4" style="stroke-width:1.1"/></pattern>
+<pattern id="fgdc-230-r90" patternUnits="userSpaceOnUse" width="4" height="6" patternTransform="rotate(90)">
+  <line class="sk" x1="2" y1="0.4" x2="2" y2="4" style="stroke-width:1.1"/></pattern>
+<pattern id="fgdc-420" patternUnits="userSpaceOnUse" width="18" height="14">
+  <path class="wk" d="M2 4 Q5 6 8 4" style="stroke-width:.7"/><path class="wk" d="M4 4 L4 2 M6 4 L6 1.5" style="stroke-width:.7"/>
+  <path class="wk" d="M11 10 Q14 12 17 10" style="stroke-width:.7"/><path class="wk" d="M13 10 L13 8 M15 10 L15 7.5" style="stroke-width:.7"/></pattern>
+<pattern id="fgdc-522" patternUnits="userSpaceOnUse" width="14" height="8">
+  <path class="sk" d="M1 2 Q3 0.7 5 2 T9 2" style="stroke-width:.6"/><path class="sk" d="M6 6 Q8 4.7 10 6 T14 6" style="stroke-width:.6"/></pattern>
+<pattern id="fgdc-fill" patternUnits="userSpaceOnUse" width="8" height="8">
+  <path class="sk" d="M0 8 L8 0" style="stroke-width:.6"/></pattern>
+<!-- Sedimentary rock patterns recreated from FGDC tiles (2026-07-10): black ink
+     on white background (coal = white lenses on black). -->
+<pattern id="fgdc-608" patternUnits="userSpaceOnUse" width="6" height="6">
+  <circle class="sf" cx="1.2" cy="1.2" r="0.45"/><circle class="sf" cx="4" cy="2.2" r="0.45"/>
+  <circle class="sf" cx="2.4" cy="4.3" r="0.45"/><circle class="sf" cx="5.2" cy="5" r="0.4"/></pattern>
+<pattern id="fgdc-602" patternUnits="userSpaceOnUse" width="18" height="18">
+  <circle class="sk" cx="4" cy="4" r="2.3"/><ellipse class="sk" cx="12" cy="6" rx="2.6" ry="1.9"/>
+  <circle class="sk" cx="8" cy="12.5" r="2.1"/><ellipse class="sk" cx="15.5" cy="14" rx="2.2" ry="1.7"/>
+  <circle class="sf" cx="15.5" cy="3" r="0.6"/><circle class="sf" cx="2" cy="11" r="0.6"/>
+  <circle class="sf" cx="11" cy="15.5" r="0.55"/><circle class="sf" cx="6" cy="8.5" r="0.5"/></pattern>
+<pattern id="fgdc-620" patternUnits="userSpaceOnUse" width="12" height="6">
+  <line class="sk" x1="0.5" y1="1.5" x2="4.5" y2="1.5" style="stroke-width:.55"/>
+  <line class="sk" x1="7" y1="1.5" x2="11.5" y2="1.5" style="stroke-width:.55"/>
+  <line class="sk" x1="0" y1="4.5" x2="1" y2="4.5" style="stroke-width:.55"/>
+  <line class="sk" x1="3" y1="4.5" x2="7.5" y2="4.5" style="stroke-width:.55"/>
+  <line class="sk" x1="9.5" y1="4.5" x2="12" y2="4.5" style="stroke-width:.55"/></pattern>
+<pattern id="fgdc-627" patternUnits="userSpaceOnUse" width="16" height="8">
+  <line class="sk" x1="0" y1="0" x2="16" y2="0" style="stroke-width:.5"/>
+  <line class="sk" x1="0" y1="4" x2="16" y2="4" style="stroke-width:.5"/>
+  <line class="sk" x1="0" y1="8" x2="16" y2="8" style="stroke-width:.5"/>
+  <line class="sk" x1="8" y1="0" x2="8" y2="4" style="stroke-width:.5"/>
+  <line class="sk" x1="0" y1="4" x2="0" y2="8" style="stroke-width:.5"/>
+  <line class="sk" x1="16" y1="4" x2="16" y2="8" style="stroke-width:.5"/></pattern>
+<pattern id="fgdc-642" patternUnits="userSpaceOnUse" width="10" height="8">
+  <line class="sk" x1="0" y1="0" x2="10" y2="0" style="stroke-width:.45"/>
+  <line class="sk" x1="0" y1="4" x2="10" y2="4" style="stroke-width:.45"/>
+  <line class="sk" x1="0" y1="8" x2="10" y2="8" style="stroke-width:.45"/>
+  <line class="sk" x1="6" y1="0" x2="4" y2="4" style="stroke-width:.45"/>
+  <line class="sk" x1="1" y1="4" x2="-1" y2="8" style="stroke-width:.45"/>
+  <line class="sk" x1="11" y1="4" x2="9" y2="8" style="stroke-width:.45"/></pattern>
+<pattern id="fgdc-649" patternUnits="userSpaceOnUse" width="14" height="7">
+  <ellipse class="sk" cx="4" cy="2" rx="3" ry="1.2"/><ellipse class="sk" cx="11" cy="2" rx="3" ry="1.2"/>
+  <ellipse class="sk" cx="0.5" cy="5.5" rx="3" ry="1.2"/><ellipse class="sk" cx="7.5" cy="5.5" rx="3" ry="1.2"/>
+  <ellipse class="sk" cx="14.5" cy="5.5" rx="3" ry="1.2"/></pattern>
+<pattern id="fgdc-659" patternUnits="userSpaceOnUse" width="18" height="18">
+  <rect x="0" y="0" width="18" height="18" fill="#141414"/>
+  <g transform="scale(0.3326) translate(-0.107,54.125)" fill="#ffffff">
+    <path d="M3.379-37.892c-3.375,0.625-0.375,2.5,1.5,2.375s3.125,0,4.125,0.375s4.5,1.25,7,1.125 s3.5-0.125,7.5-0.25c6.75-0.875,0.366-2.999-2.125-2.75c-2.5,0.25-4.875-0.125-7.125-1.25S6.754-38.517,3.379-37.892z"/>
+    <path d="M50.213-35.538c2.25-0.75,1.125-2-3.75-2c0,0-2.75-0.125-4.25-0.625s-4-0.125-7.375,0.625 s-1.5,1.75,0,1.875s2,0,6.125,0.75S47.963-34.788,50.213-35.538z"/>
+    <path d="M20.629-26.433c2.125,0,4.5,0.375,9.5,1.5s12.5-1,15.125-2s1.75-1.25,0.75-1.875 s-1.75-0.625-5.625-0.25c0,0-3.125,0-5.375-0.375s-6.5,0.125-10.125,0.375s-2.625,0-6.625,0.875S18.504-26.433,20.629-26.433z"/>
+    <path d="M50.838-14.913c4.25-0.875,0.5-2.25-4.25-2.25c0,0-1.625,0-3.25-0.375s-8-0.875-9.875-0.25 c-1.875,0.625-5.375,0.625-7.25,0.75s-0.875,1.5,0.625,1.5s4,0.625,6.5,0.25s3.75-0.125,6.125,0.875S46.588-14.038,50.838-14.913z"/>
+    <path d="M17.963-50.746c0,0-1.625,0-3.25-0.375c0,0-3.417,0.375-5.084,0.875 c-1.666,0.5-0.166,2.167,1.209,2.25c2.375,1,7.125,0.375,11.375-0.5S22.713-50.746,17.963-50.746z"/>
+    <path d="M1.463-19.288c1.25,0.375,4.125,0.5,6.125,0.125s1.125,0.625,0.625,1s0,1.125,2,1 s2.5-0.125,4.125,0s1.75-0.375,1.25-1s1.125-0.75,2.5-0.375s2.125-0.125,3.625-1s-1.5-1.625-5.375-1.625 c0,0-2.125,0.125-4.375-0.25s-6.875,0-9.625,0.375S0.213-19.663,1.463-19.288z"/>
+    <path d="M24.338-8.163c5.125,0.25,2.977,0.08,3.727,0.455s3.625,0.375,5.375-0.75s1.25-1.5-1.5-1.625 s-1.227-0.205-3.227-0.205s-3.5-0.25-3.5-0.25C19.588-10.163,19.213-8.413,24.338-8.163z"/>
+    <path d="M32.088-44.288c0,0-1.5,0.25-3.5,0.25s-5.25,0.375-8,0.5s-3.25,0.5-1.5,1.625 s4.625,1.125,5.375,0.75s3.375-0.5,8.5-0.75S37.713-43.913,32.088-44.288z"/>
+    <path d="M0.107-8.861c1.734,0.042,3.23-0.052,3.23-0.052c4.375,0.25,4.5-0.5,5.25-0.625s1.625-1-1.625-1 c-2.922,0-5.236,0-6.856,0V-8.861z"/>
+    <path d="M5.338-3.663c1.875-0.125,5.5,0.5,8.75,0.875s2.375,0.125,4.25-0.375s-0.5-1.625-1.5-1.375 s-0.479,0.328-1.875,0.25c-2.25-0.125-7.75-1.375-10.125-1.125S3.463-3.538,5.338-3.663z"/>
+    <path d="M41.338-1.663c4.375,0.375,6.125,0.25,8.25-0.75S48.524-7,43.774-6.125c0,0-3.375,0.125-5.5-0.25 s-2.812,2.837-4.187,3.462S36.963-2.038,41.338-1.663z"/>
+    <path d="M0.107-27.113c1.45-0.137,3.347-0.25,5.606-0.424c3.25-0.25,2-0.75,0.375-1.125 s-3-0.875-5.75-0.875c0,0-0.073,0.012-0.231,0.037V-27.113z"/>
+    <path d="M0.107-43.267c1.214-0.286,1.38-1.864,3.981-2.125c3.333-0.333,1.5-2.333-0.667-2.333 c-0.706,0-1.906-0.071-3.314-0.183V-43.267z"/>
+    <path d="M54.232-10.538c-0.182,0-0.355,0-0.52,0c-1.625,0-5.25,0.875-2.75,1.375 c0.971,0.194,2.168,0.275,3.27,0.302V-10.538z"/>
+    <path d="M54.232-29.501c-0.347,0.054-1.104,0.167-2.395,0.338c-1.875,0.25-0.75,2.5,0.75,2.25 c0.457-0.076,1.008-0.141,1.645-0.201V-29.501z"/>
+    <path d="M54.232-47.908c-2.915-0.233-6.718-0.646-8.854-0.983c-3.166-0.5-6.5,0.167-7.833,0.833 c0,0-1.5-1-1.167,0.333c0.334,1.333,3.667,3.333,6,3c2.334-0.333,7.834,0.5,10.5,1.333c0.586,0.183,1.012,0.205,1.354,0.125 V-47.908z"/>
+  </g></pattern>
+<pattern id="fgdc-668" patternUnits="userSpaceOnUse" width="5" height="5">
+  <path class="sk" d="M0 0 H5 M0 0 V5" style="stroke-width:.35"/></pattern>
+<!-- Igneous/metamorphic rock patterns recreated from FGDC tiles (2026-07-10):
+     igneous (volcanic/plutonic/tuff) on red; metamorphic on purple. Phyllite
+     and hornfels keep their original hand-authored tiles (light ink classes
+     lpk/lpf, recolored via the lith ink theme variable); only their background
+     color changed to purple. Note for future edits: an XML comment must never
+     contain two consecutive hyphens anywhere in its body (not just at the
+     end) — this exact comment block hit that once already. -->
+<pattern id="fgdc-314" patternUnits="userSpaceOnUse" width="20" height="20">
+  <g class="sk" style="stroke-width:.75" fill="none">
+    <path d="M2 4 L5 3 M2.3 5.3 L5.3 4.3"/>
+    <path d="M14 2 L15.5 5 M12.7 2.6 L14.2 5.6"/>
+    <path d="M8 9 L11 8.3 M8.2 10.3 L11.2 9.6"/>
+    <path d="M16 12 L18 14.5 M14.8 12.8 L16.8 15.3"/>
+    <path d="M4 14 L6.5 15.5 M3.3 15.4 L5.8 16.9"/>
+    <path d="M11 16 L13.5 17 M10.6 17.3 L13.1 18.3"/>
+  </g>
+</pattern>
+<pattern id="fgdc-317" patternUnits="userSpaceOnUse" width="18" height="18">
+  <g class="sk" style="stroke-width:.9" fill="none">
+    <path d="M3 3 L4.5 1.5 L4.8 3.5"/>
+    <path d="M13 2 L14.5 4 L12.5 4.3"/>
+    <path d="M7 9 L8.5 7.5 L8.8 9.5"/>
+    <path d="M15 11 L16.5 9.5 L16.8 11.5"/>
+    <path d="M3 13 L4.5 11.5 L4.8 13.5"/>
+    <path d="M10 15 L11.5 13.5 L11.8 15.5"/>
+  </g>
+</pattern>
+<pattern id="fgdc-317do" patternUnits="userSpaceOnUse" width="18" height="18">
+  <g class="wk" style="stroke-width:1.05" fill="none">
+    <path d="M3 3 L4.5 1.5 L4.8 3.5"/>
+    <path d="M13 2 L14.5 4 L12.5 4.3"/>
+    <path d="M7 9 L8.5 7.5 L8.8 9.5"/>
+    <path d="M15 11 L16.5 9.5 L16.8 11.5"/>
+    <path d="M3 13 L4.5 11.5 L4.8 13.5"/>
+    <path d="M10 15 L11.5 13.5 L11.8 15.5"/>
+  </g>
+</pattern>
+<pattern id="lithpat-rock-phyllite" patternUnits="userSpaceOnUse" width="14" height="8">
+  <path class="lpk" d="M0 6 Q3.5 2 7 6 T14 6" style="stroke-width:1.5"/></pattern>
+<pattern id="fgdc-703" patternUnits="userSpaceOnUse" width="6" height="6">
+  <path class="sk" d="M0 6 L6 0" style="stroke-width:.6"/></pattern>
+<pattern id="fgdc-705" patternUnits="userSpaceOnUse" width="10" height="10" patternTransform="rotate(45)">
+  <path class="sk" d="M0 2 Q2.5 0.5 5 2 T10 2" style="stroke-width:.675" fill="none"/>
+  <path class="sk" d="M0 7 Q2.5 5.5 5 7 T10 7" style="stroke-width:.675" fill="none"/>
+</pattern>
+<pattern id="fgdc-708" patternUnits="userSpaceOnUse" width="16" height="14">
+  <circle class="sf" cx="3" cy="3" r="0.4"/><circle class="sf" cx="9" cy="6" r="0.4"/><circle class="sf" cx="13" cy="2" r="0.35"/>
+  <circle class="sf" cx="5" cy="10" r="0.4"/><circle class="sf" cx="12" cy="11" r="0.4"/>
+  <path class="sk" d="M0 4 Q4 1 8 4 T16 4" style="stroke-width:.9" fill="none"/>
+  <path class="sk" d="M0 10 Q4 7 8 10 T16 10" style="stroke-width:.9" fill="none"/>
+</pattern>
+<pattern id="fgdc-641" patternUnits="userSpaceOnUse" width="12" height="6">
+  <line class="sk" x1="0" y1="0" x2="12" y2="0" style="stroke-width:.525"/>
+  <line class="sk" x1="0" y1="3" x2="12" y2="3" style="stroke-width:.525"/>
+  <line class="sk" x1="0" y1="6" x2="12" y2="6" style="stroke-width:.525"/>
+  <line class="sk" x1="6" y1="0" x2="6" y2="3" style="stroke-width:.525"/>
+  <line class="sk" x1="0" y1="3" x2="0" y2="6" style="stroke-width:.525"/>
+  <line class="sk" x1="12" y1="3" x2="12" y2="6" style="stroke-width:.525"/>
+</pattern>
+<pattern id="fgdc-702" patternUnits="userSpaceOnUse" width="14" height="14">
+  <circle class="sf" cx="2" cy="2" r="0.35"/><circle class="sf" cx="8" cy="4" r="0.35"/><circle class="sf" cx="12" cy="9" r="0.35"/>
+  <circle class="sf" cx="4" cy="11" r="0.35"/><circle class="sf" cx="10" cy="13" r="0.3"/>
+  <path class="sk" d="M2 8 Q5 6 4 10 Q3 13 6 12" style="stroke-width:.6" fill="none"/>
+  <path class="sk" d="M9 1 Q12 2 10 5 Q9 7 12 6" style="stroke-width:.6" fill="none"/>
+</pattern>
+<pattern id="lithpat-rock-hornfels" patternUnits="userSpaceOnUse" width="10" height="10">
+  <circle class="lpf" cx="2" cy="3" r="0.8"/><circle class="lpf" cx="7" cy="2" r="0.8"/><circle class="lpf" cx="4" cy="7" r="0.8"/>
+  <circle class="lpf" cx="9" cy="8" r="0.8"/><circle class="lpf" cx="6" cy="5" r="0.7"/></pattern>
+<pattern id="lithpat-unknown" patternUnits="userSpaceOnUse" width="12" height="12">
+  <path class="lpk" d="M0 12 L12 0" style="opacity:.4"/></pattern>`;
+
+// USCS (ASTM D2487) group symbol → soil group key. All 26 groups (15 basic +
+// 11 dual/borderline) now have their own composite pattern, so this is 1:1.
+const USCS_SYMBOL_TO_MAT = {
+  GW:'soil-GW', GP:'soil-GP', GM:'soil-GM', GC:'soil-GC',
+  'GC-GM':'soil-GC-GM','GP-GC':'soil-GP-GC','GP-GM':'soil-GP-GM','GW-GC':'soil-GW-GC','GW-GM':'soil-GW-GM',
+  SW:'soil-SW', SP:'soil-SP', SM:'soil-SM', SC:'soil-SC',
+  'SC-SM':'soil-SC-SM','SP-SC':'soil-SP-SC','SP-SM':'soil-SP-SM','SW-SC':'soil-SW-SC','SW-SM':'soil-SW-SM',
+  ML:'soil-ML', MH:'soil-MH',
+  CL:'soil-CL', CH:'soil-CH', 'CL-ML':'soil-CL-ML',
+  OL:'soil-OL', OH:'soil-OH',
+  PT:'soil-PT',
+};
+
+// Full USCS classification-name (lowercased, per the DIGGS grp-astmD2487
+// dictionary) → soil group key. Generic single words fall to the heuristic
+// default: gravel→GW, sand→SP, silt→ML, clay→CL.
+const USCS_NAME_TO_MAT = {
+  'well-graded gravel':'soil-GW','poorly graded gravel':'soil-GP',
+  'silty gravel':'soil-GM','clayey gravel':'soil-GC','silty, clayey gravel':'soil-GC-GM',
+  'poorly graded gravel with clay':'soil-GP-GC','poorly graded gravel with silt':'soil-GP-GM',
+  'well-graded gravel with clay':'soil-GW-GC','well-graded gravel with silt':'soil-GW-GM','gravel':'soil-GW',
+  'well-graded sand':'soil-SW','poorly graded sand':'soil-SP',
+  'silty sand':'soil-SM','clayey sand':'soil-SC','silty, clayey sand':'soil-SC-SM',
+  'poorly graded sand with clay':'soil-SP-SC','poorly graded sand with silt':'soil-SP-SM',
+  'well-graded sand with clay':'soil-SW-SC','well-graded sand with silt':'soil-SW-SM','sand':'soil-SP',
+  'silt':'soil-ML','elastic silt':'soil-MH',
+  'lean clay':'soil-CL','fat clay':'soil-CH','silty clay':'soil-CL-ML','clay':'soil-CL',
+  'organic clay':'soil-OL','organic silt':'soil-OL',
+  'peat':'soil-PT',
+};
+
+// Rock keyword rules for free-text descriptions (leftmost match wins, so
+// "LIMESTONE AND SANDSTONE" → limestone). Soil descriptions are handled
+// separately by classifySoilDescription() below. `sabkha` is an evaporitic
+// salt-flat deposit → evaporite.
+const ROCK_KEYWORDS = [
+  [/conglomerat/i,'rock-conglomerate'],
+  [/sandstone/i,'rock-sandstone'],
+  [/mudstone|claystone|siltstone|shale/i,'rock-shale'],
+  [/dolomite|dolostone/i,'rock-dolomite'],
+  [/limestone|calcareous|carbonate|chalk/i,'rock-limestone'],
+  [/chert|flint/i,'rock-chert'],
+  [/coal|lignite|anthracite/i,'rock-coal'],
+  [/sabkha|gypsum|anhydrite|evaporite|halite/i,'rock-evaporite'],
+  // "volcanic ash/tuff/tephra" is a compound where "volcanic" is only a
+  // modifier of the ash, not a separate massive igneous rock — matched first
+  // so it ties (same start index) with the plain "volcanic" rule below and
+  // wins via array order, rather than losing to leftmost-match on "volcanic".
+  [/volcanic\s+ash|volcanic\s+tuff|volcanic\s+tephra|\bash\b|tephra|tuff/i,'rock-tuff'],
+  [/basalt|andesite|rhyolite|dacite|volcanic|\blava\b/i,'rock-volcanic'],
+  [/granite|granodiorite|diorite|gabbro|plutonic|intrusive/i,'rock-plutonic'],
+  [/quartzite/i,'rock-quartzite'],
+  [/hornfels/i,'rock-hornfels'],
+  [/phyllite/i,'rock-phyllite'],
+  [/schist/i,'rock-schist'],
+  [/gneiss/i,'rock-gneiss'],
+  [/marble/i,'rock-marble'],
+  [/slate/i,'rock-slate'],
+];
+
+// Multi-word USCS names (longest first) for a substring pass on verbose
+// classification codes like "Poorly graded gravel with clay and sand".
+const _USCS_NAMES_SPECIFIC = Object.keys(USCS_NAME_TO_MAT)
+  .filter(n => n.includes(' ')).sort((a, b) => b.length - a.length);
+
+// The last (dominant) soil lithology noun in a phrase, or null.
+function _lastSoilNoun(phrase) {
+  let best = null, bestIdx = -1;
+  for (const [name, re] of [['gravel',/gravel/g],['sand',/sand/g],['silt',/silt/g],['clay',/clay/g],['peat',/peat/g]]) {
+    let m, last = -1;
+    while ((m = re.exec(phrase))) last = m.index;
+    if (last > bestIdx) { bestIdx = last; best = name; }
+  }
+  return best;
+}
+
+// Classify a soil phrase (the dominant part, before any "with") to a USCS
+// group. The dominant lithology is the *last* noun (so "gravelly sand" → sand);
+// a "silty"/"clayey" adjective yields the fines group (SM/SC/GM/GC), otherwise
+// a clean sand/gravel takes its gradation (well/poorly → SW/SP/GW/GP).
+function _baseSoilGroup(phrase) {
+  phrase = phrase.toLowerCase();
+  const noun = _lastSoilNoun(phrase);
+  if (!noun) return null;
+  if (noun === 'peat') return 'soil-PT';
+  if (noun === 'clay') return /\bfat\b|high plasticit/.test(phrase) ? 'soil-CH' : 'soil-CL';
+  if (noun === 'silt') return /\belastic\b|high plasticit/.test(phrase) ? 'soil-MH' : 'soil-ML';
+  const coarse = noun === 'gravel' ? 'G' : 'S';               // sand or gravel
+  const fines = /\bclayey\b/.test(phrase) ? 'C' : /\bsilty\b/.test(phrase) ? 'M' : null;
+  if (fines) return 'soil-' + coarse + fines;                 // SM/SC/GM/GC
+  const grad = /\bwell[\s-]*graded\b/.test(phrase) ? 'W'
+             : /\bpoorly[\s-]*graded\b/.test(phrase) ? 'P'
+             : (coarse === 'G' ? 'W' : 'P');                  // default: gravel→GW, sand→SP
+  return 'soil-' + coarse + grad;
+}
+
+/**
+ * Classify a free-text soil description to a USCS group key (or null).
+ * Rule: if the description contains "with", the dominant lithology is the
+ * phrase *before* "with" and the fines qualifier is *after* it — a clean
+ * gravel/sand + a clay/silt qualifier forms the borderline dual (e.g.
+ * "poorly graded gravel with clay and sand" → GP-GC). With no "with", the
+ * dominant lithology is the last noun (e.g. "reddish gravelly sand" → SP; the
+ * gravel is only a modifier and has no transition code on a sand).
+ */
+function classifySoilDescription(text) {
+  text = ' ' + text.toLowerCase() + ' ';
+  // Unambiguously man-made materials → fill, ahead of any incidental soil noun.
+  if (/\basphalt\b|\bpavement\b|\brubble\b|\bconcrete\b|\bspoils?\b/.test(text)) return 'soil-fill';
+  const wi = text.search(/\bwith\b/);
+  const dominant = wi >= 0 ? text.slice(0, wi) : text;
+  const qualifier = wi >= 0 ? text.slice(wi + 4) : '';
+  let base = _baseSoilGroup(dominant);
+  if (!base) {
+    if (/\bfill\b|backfill/.test(text)) return 'soil-fill';
+    return null;
+  }
+  if (qualifier && /^soil-(GW|GP|SW|SP)$/.test(base)) {
+    const ci = qualifier.search(/\bclay/), si = qualifier.search(/\bsilt/);
+    const fines = (ci >= 0 && (si < 0 || ci < si)) ? 'C' : (si >= 0 ? 'M' : null);
+    if (fines) return base + '-' + base[5] + fines;           // e.g. soil-GP → soil-GP-GC
+  }
+  return base;
+}
+
+/**
+ * Resolve free text (a classificationCode or lithDescription value) to a
+ * material key, or null if nothing recognizable is found in it. Tries, in
+ * order: exact USCS name → multi-word USCS name as a substring (handles a
+ * verbose code like "poorly graded gravel with clay and sand, cobbles...") →
+ * parenthetical symbol (e.g. "FAT CLAY (CH)") → leftmost rock keyword →
+ * "with"-aware soil description parse.
+ */
+function _resolveFromCodeOrDescription(text) {
+  const lower = text.trim().toLowerCase();
+  if (!lower) return null;
+  if (USCS_NAME_TO_MAT[lower]) return USCS_NAME_TO_MAT[lower];
+  for (const name of _USCS_NAMES_SPECIFIC) if (lower.includes(name)) return USCS_NAME_TO_MAT[name];
+
+  const pm = text.match(/\(([A-Z]{1,2}(?:-[A-Z]{2})?)\)/);
+  if (pm && USCS_SYMBOL_TO_MAT[pm[1].toUpperCase()]) return USCS_SYMBOL_TO_MAT[pm[1].toUpperCase()];
+
+  let rock = null, rockIdx = Infinity;
+  for (const [re, mat] of ROCK_KEYWORDS) {
+    const m = text.match(re);
+    if (m && m.index < rockIdx) { rockIdx = m.index; rock = mat; }
+  }
+  if (rock) return rock;
+
+  return classifySoilDescription(text);
+}
+
+/**
+ * Resolve a Lithology primary object to a USCS soil group (or rock) key.
+ * DIGGS' LithologyType requires exactly one of classificationCode /
+ * lithDescription (never both), while classificationSymbol and legendCode are
+ * each independently optional — so a recognizable string can turn up in any
+ * of the four, and more than one at once. Per-field priority (do not
+ * interleave/combine fields — check one fully before moving to the next):
+ *   1) classificationCode  2) classificationSymbol  3) legendCode
+ *   4) lithDescription
+ */
+function resolveLithMaterial(pri) {
+  pri = pri || {};
+
+  const code = pri.classificationCode || '';
+  if (code) {
+    const r = _resolveFromCodeOrDescription(code);
+    if (r) return r;
+  }
+
+  const sym = (pri.classificationSymbol || '').trim().toUpperCase();
+  if (sym && USCS_SYMBOL_TO_MAT[sym]) return USCS_SYMBOL_TO_MAT[sym];
+
+  const leg = (pri.legendCode || '').trim().toUpperCase();
+  if (leg && USCS_SYMBOL_TO_MAT[leg]) return USCS_SYMBOL_TO_MAT[leg];
+
+  const desc = pri.lithDescription || '';
+  if (desc) {
+    const r = _resolveFromCodeOrDescription(desc);
+    if (r) return r;
+  }
+
+  return 'unknown';
+}
+
+// Fixed graphic-log column width (px) — shared between drawLithLog (SVG
+// width) and renderLithBadgeContent (HTML wrapper/title width) so a
+// multi-column layout's title captions line up with their SVGs exactly.
+const LITH_LOG_W = 76;
+// Column padding — the same box drawLithLog uses to place the zone bar
+// (left gutter reserved for depth-tick numbers, see PAD in drawLithLog).
+// Shared so renderLithBadgeContent can compute where the bar itself sits
+// (not just the column's full width) and center each title caption over
+// that — the bar occupies the right portion of the column, not its center.
+const LITH_LOG_PAD = { top: 14, bottom: 16, left: 40, right: 6 };
+// Horizontal offset (px) to shift a full-width, text-align:center title box
+// so its center lands over the bar's center instead of the column's center.
+const LITH_LOG_TITLE_SHIFT =
+  LITH_LOG_PAD.left + (LITH_LOG_W - LITH_LOG_PAD.left - LITH_LOG_PAD.right) / 2 - LITH_LOG_W / 2;
+
+// Inject the shared pattern <defs> into the DOM once (paint servers are
+// referenced by url(#id) from every log/legend svg in the document).
+let _lithDefsInjected = false;
+function ensureLithPatternDefs() {
+  if (_lithDefsInjected) return;
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('id', 'lith-pattern-defs');
+  svg.setAttribute('aria-hidden', 'true');
+  svg.style.cssText = 'position:absolute;width:0;height:0;overflow:hidden';
+  svg.innerHTML = '<defs>' + LITH_PATTERN_TILES + '</defs>';
+  document.body.appendChild(svg);
+  _lithDefsInjected = true;
+}
+
+/** Compact depth-label formatter for the log's depth axis. */
+function _fmtLithDepth(d) {
+  const r = Math.round(d * 100) / 100;
+  return (Math.abs(r) >= 100 ? Math.round(r) : r).toString();
+}
+
+/** Pick a legible in-strip text color (+halo) for a given zone base color:
+ *  dark ink on light/pale backgrounds (e.g. the USCS soil colors), light ink
+ *  on darker ones (e.g. the rock colors). */
+function _lithLabelColors(hex) {
+  const m = String(hex).replace('#', '');
+  const r = parseInt(m.slice(0, 2), 16), g = parseInt(m.slice(2, 4), 16), b = parseInt(m.slice(4, 6), 16);
+  const lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  return lum > 0.6
+    ? { fill: '#141414', halo: 'rgba(255,255,255,.75)' }
+    : { fill: '#e6edf3', halo: 'rgba(0,0,0,.65)' };
+}
+
+/**
+ * Draw a vertical, depth-scaled graphic log of LithologyObservation zones
+ * into `container`. One patterned <rect> per numeric-depth interval; clicking
+ * a zone opens the same Classification popup as the table's classification
+ * cell. The SVG height is sized to fill the assoc-panel viewport so the log
+ * uses the full frame height (it sits sticky beside the scrolling table).
+ *
+ * `opts` supports rendering multiple spatially-overlapping LithologySystems
+ * as separate side-by-side log columns sharing one universal depth scale
+ * (see renderLithBadgeContent): `dMin`/`dMax` override the per-call zone
+ * range so every column maps depth to the same y pixel. Every column draws
+ * its own depth-axis baseline + boundary ticks/labels (from its own
+ * `obsArray`'s zone boundaries, positioned via the shared `dMin`/`dMax`
+ * scale) — the shared "Depth (uom)" axis title and each column's
+ * classification-type caption are both rendered as HTML outside this SVG
+ * (see `.lith-log-axis-label`/`.lith-log-col-title` in renderLithBadgeContent),
+ * not drawn in-canvas here.
+ */
+function drawLithLog(container, obsArray, sf, opts = {}) {
+  ensureLithPatternDefs();
+  container.innerHTML = '';
+  const NS_SVG = 'http://www.w3.org/2000/svg';
+
+  const zones = (obsArray || [])
+    .map(o => ({ o, from: parseFloat(o.from), to: parseFloat(o.to) }))
+    .filter(z => isFinite(z.from) && isFinite(z.to) && z.to > z.from)
+    .sort((a, b) => a.from - b.from);
+  if (!zones.length) {
+    container.innerHTML = '<div style="color:var(--text-muted);font-size:11px;padding:6px 2px">No depth intervals to plot.</div>';
+    return;
+  }
+
+  const dMin = isFinite(opts.dMin) ? opts.dMin : Math.min(...zones.map(z => z.from));
+  const dMax = isFinite(opts.dMax) ? opts.dMax : Math.max(...zones.map(z => z.to));
+  const dRange = (dMax - dMin) || 1;
+  const uom = depthUomForRows(obsArray) || '';
+
+  const scroller = container.closest('#assoc-content');
+  const availH = scroller ? scroller.clientHeight - 28 : 0;
+  const H = Math.max(availH, 340);
+  // Every column gets the same width/label gutter — each one draws its own
+  // boundary ticks/labels now (see below), not just a shared leftmost column.
+  const W = opts.width || LITH_LOG_W;
+  const PAD = LITH_LOG_PAD;
+  const barX = PAD.left, barW = W - PAD.left - PAD.right;
+  const plotTop = PAD.top, plotH = H - PAD.top - PAD.bottom;
+  const y = d => plotTop + ((d - dMin) / dRange) * plotH;
+
+  const C_MUTED = '#7d8590', C_TEXT = '#e6edf3', C_BORDER = '#30363d';
+
+  const svg = document.createElementNS(NS_SVG, 'svg');
+  svg.setAttribute('width', W);
+  svg.setAttribute('height', H);
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  svg.style.cssText = 'display:block;font-family:var(--font-mono)';
+
+  const mk = (tag, attrs) => {
+    const e = document.createElementNS(NS_SVG, tag);
+    for (const k in attrs) e.setAttribute(k, attrs[k]);
+    return e;
+  };
+
+  for (const z of zones) {
+    const y0 = y(z.from), y1 = y(z.to);
+    const h = Math.max(y1 - y0, 1);
+    const mat = resolveLithMaterial(z.o.primary);
+    const meta = LITH_MATERIALS[mat] || LITH_MATERIALS.unknown;
+
+    const g = mk('g', { class: 'lith-log-zone' });
+    g.appendChild(mk('rect', { x: barX, y: y0, width: barW, height: h, fill: meta.color, class: 'lith-zone-fill' }));
+    // One rect per pattern layer (composited overlays); soil materials carry a
+    // `layers` recipe, rock/unknown fall back to their single `lithpat-<key>`.
+    for (const lp of (meta.layers || [`lithpat-${mat}`])) {
+      g.appendChild(mk('rect', { x: barX, y: y0, width: barW, height: h, fill: `url(#${lp})` }));
+    }
+    g.appendChild(mk('rect', { x: barX, y: y0, width: barW, height: h, fill: 'none', stroke: C_BORDER, 'stroke-width': '0.75' }));
+
+    // In-strip classification symbol — only when it fits the narrow bar.
+    const pri = z.o.primary || {};
+    const lbl = (pri.classificationSymbol || '').trim();
+    if (lbl && h >= 15 && lbl.length * 9 * 0.62 <= barW - 2) {
+      const lc = _lithLabelColors(meta.color);
+      const t = mk('text', {
+        x: barX + barW / 2, y: y0 + h / 2 + 3, 'text-anchor': 'middle',
+        fill: lc.fill, 'font-size': '9', 'paint-order': 'stroke',
+        stroke: lc.halo, 'stroke-width': '2.2',
+      });
+      t.textContent = lbl;
+      g.appendChild(t);
+    }
+
+    if (pri.el) {
+      const key = _registerPopup('Classification', [{ els: [pri.el], fields: LITH_CLASSIFICATION_DESCRIPTOR }]);
+      g.style.cursor = 'pointer';
+      g.addEventListener('click', () => showDetailPopup(key));
+    }
+    const tt = mk('title', {});
+    tt.textContent = `${z.from}–${z.to}${uom ? ' ' + uom : ''}  ${meta.label}`;
+    g.appendChild(tt);
+
+    svg.appendChild(g);
+  }
+
+  // Depth axis (baseline + boundary ticks/labels) — every column draws its
+  // own, from its own zones' boundaries (positioned on the shared dMin/dMax
+  // scale), so a reader can see each system's own zone breaks regardless of
+  // which column they're looking at.
+  svg.appendChild(mk('line', { x1: barX, y1: plotTop, x2: barX, y2: plotTop + plotH, stroke: C_MUTED, 'stroke-width': '0.75' }));
+  // Depth labels at unit (zone) boundaries only — larger and brighter,
+  // matching the table's .mono depth cells (12px mono, --text) so they line up
+  // with the table rows. A tick marks every boundary; the numeric label is
+  // dropped when it would collide with the previous one (kept legible), but the
+  // deepest boundary is always labeled.
+  const bounds = [...new Set(zones.flatMap(z => [z.from, z.to]))].sort((a, b) => a - b);
+  let lastLabelY = -Infinity;
+  const MIN_GAP = 13;
+  for (const d of bounds) {
+    const yy = y(d);
+    svg.appendChild(mk('line', { x1: barX - 4, y1: yy, x2: barX, y2: yy, stroke: C_MUTED, 'stroke-width': '0.75' }));
+    const isLast = d === bounds[bounds.length - 1];
+    if (yy - lastLabelY < MIN_GAP && !isLast) continue;
+    lastLabelY = yy;
+    const tl = mk('text', { x: barX - 6, y: yy + 4, 'text-anchor': 'end', fill: C_TEXT, 'font-size': '12', 'font-family': 'var(--font-ui)' });
+    tl.textContent = _fmtLithDepth(d);
+    svg.appendChild(tl);
+  }
+
+  container.appendChild(svg);
+}
+
+/** Collapsible legend of the materials actually present in this feature. */
+function buildLithLegend(obsArray) {
+  const seen = new Set(), present = [];
+  for (const o of (obsArray || [])) {
+    if (!(isFinite(parseFloat(o.from)) && isFinite(parseFloat(o.to)))) continue;
+    const mat = resolveLithMaterial(o.primary);
+    if (!seen.has(mat)) { seen.add(mat); present.push(mat); }
+  }
+  if (!present.length) return '';
+  const items = present.map(mat => {
+    const meta = LITH_MATERIALS[mat] || LITH_MATERIALS.unknown;
+    const layerRects = (meta.layers || [`lithpat-${mat}`])
+      .map(lp => `<rect x="0" y="0" width="20" height="14" fill="url(#${lp})"/>`).join('');
+    return `<div class="lith-legend-item">
+      <svg class="lith-legend-sw" viewBox="0 0 20 14" width="20" height="14">
+        <rect x="0" y="0" width="20" height="14" fill="${meta.color}"/>${layerRects}
+      </svg><span>${esc(meta.label)}</span></div>`;
+  }).join('');
+  const open = present.length <= 6;
+  return `<div class="lith-legend">
+    <div class="kv-section-header lith-legend-title" onclick="toggleKVSection(this)">
+      <span class="kv-tri">${open ? '▼' : '▶'}</span>Legend</div>
+    <div class="lith-legend-body"${open ? '' : ' style="display:none"'}>${items}</div>
+  </div>`;
+}
+
+// ══════════════════════════════════════════════════════════════
 //  renderLithBadgeContent — orchestrator for the Lithology badge
 // ══════════════════════════════════════════════════════════════
-function renderLithBadgeContent(sfId, sf, lithSystems, allObs) {
+function renderLithBadgeContent(sfId, sf, lithSystems, allObs, drawJobs) {
+  // drawJobs (optional out-param): populated with graphic-log draw jobs to run
+  // after this HTML string is injected (see buildAssocBadges → afterRender).
+  if (drawJobs) drawJobs.length = 0;
+
   // Step 1 — geometry gate
   const nonLinear = allObs.some(o =>
     o.locationType !== 'LinearExtent' &&
@@ -11983,7 +12718,68 @@ function renderLithBadgeContent(sfId, sf, lithSystems, allObs) {
     });
   }
 
-  return html || '<div style="color:var(--text-muted);font-size:12px;padding:8px">No lithology data.</div>';
+  if (!html) return '<div style="color:var(--text-muted);font-size:12px;padding:8px">No lithology data.</div>';
+
+  // Wrap: graphic log (left, full-height sticky) + existing table (right).
+  // Only show the log when at least one observation has a numeric depth
+  // interval (e.g. skip for point-location Stations with no from/to).
+  const hasDepth = allObs.some(o =>
+    isFinite(parseFloat(o.from)) && isFinite(parseFloat(o.to)) && parseFloat(o.to) > parseFloat(o.from));
+  if (!hasDepth) return html;
+
+  // Each graphic-log column gets a classification-type caption above it,
+  // styled like the table's own classification header span (white/bold).
+  // The bar itself sits in the right portion of the column (the left
+  // LITH_LOG_PAD.left px are the depth-tick number gutter) — a plain
+  // width:100%/text-align:center caption would center over the whole
+  // column, i.e. visibly left of the bar, so it's shifted right by
+  // LITH_LOG_TITLE_SHIFT to center over the bar instead.
+  const logColItem = (logId, obsForLog, ctLabel) => `
+      <div class="lith-log-col-item" style="width:${LITH_LOG_W}px">
+        <div class="lith-log-col-title" style="width:${LITH_LOG_W}px;margin-left:${LITH_LOG_TITLE_SHIFT}px" title="${esc(ctLabel)}">${esc(ctLabel)}</div>
+        <div id="${logId}" class="lith-log-host"></div>
+      </div>`;
+
+  let logsHtml;
+  if (combined) {
+    const logId = `lith-log-${sfId.replace(/[^a-zA-Z0-9]/g, '_')}`;
+    if (drawJobs) drawJobs.push({ containerId: logId, obs: allObs, sf });
+    const ctVals = [...new Set(lithSystems.flatMap(sys => sys.classificationTypes)
+      .map(ct => ct.value || ct.codeSpace || 'Unknown'))];
+    logsHtml = logColItem(logId, allObs, ctVals.length ? ctVals.join(', ') : 'Unknown');
+  } else {
+    // Spatially-overlapping LithologySystems (e.g. USCS + USDA logs of the
+    // same interval) each get their own log column, side by side, but all
+    // mapped to one shared/universal depth scale (dMin/dMax) so the columns
+    // line up.
+    const finiteMins = ranges.map(r => r.min).filter(isFinite);
+    const finiteMaxs = ranges.map(r => r.max).filter(isFinite);
+    const dMin = finiteMins.length ? Math.min(...finiteMins) : undefined;
+    const dMax = finiteMaxs.length ? Math.max(...finiteMaxs) : undefined;
+    logsHtml = '';
+    lithSystems.forEach((sys, idx) => {
+      const hasSysDepth = sys.observations.some(o =>
+        isFinite(parseFloat(o.from)) && isFinite(parseFloat(o.to)) && parseFloat(o.to) > parseFloat(o.from));
+      if (!hasSysDepth) return; // nothing to plot for this system
+      const logId = `lith-log-${sfId.replace(/[^a-zA-Z0-9]/g, '_')}-${idx}`;
+      const ctLabel = sys.classificationTypes.length
+        ? sys.classificationTypes.map(ct => ct.value || ct.codeSpace || 'Unknown').join(', ')
+        : `Log ${idx + 1}`;
+      if (drawJobs) drawJobs.push({ containerId: logId, obs: sys.observations, sf, dMin, dMax });
+      logsHtml += logColItem(logId, sys.observations, ctLabel);
+    });
+  }
+
+  // Single shared vertical "Depth (uom)" axis title, to the left of every
+  // column, centered on the full row height — replaces the old per-SVG
+  // in-canvas title now that every column draws its own boundary ticks.
+  const uom = depthUomForRows(allObs) || '';
+  const axisLabel = `Depth${uom ? ` (${uom})` : ''}`;
+  const logCol = `<div class="lith-log-col">
+      <div class="lith-log-row">
+        <div class="lith-log-axis-label">${esc(axisLabel)}</div>${logsHtml}
+      </div>${buildLithLegend(allObs)}</div>`;
+  return `<div class="lith-badge-layout">${logCol}<div class="lith-table-col">${html}</div></div>`;
 }
 
 // ══════════════════════════════════════════════════════════════

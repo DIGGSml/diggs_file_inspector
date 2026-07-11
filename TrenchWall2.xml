@@ -2,7 +2,7 @@
 <Diggs xmlns="http://diggsml.org/schemas/3" xmlns:diggs="http://diggsml.org/schemas/3"
   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xlink="http://www.w3.org/1999/xlink"
   xmlns:gml="http://www.opengis.net/gml/3.2" xmlns:glr="http://www.opengis.net/gml/3.3/lr"
-  xsi:schemaLocation="http://diggsml.org/schemas/3 https://diggsml.org/schemas/3.0.0/Diggs.xsd"
+  xsi:schemaLocation="http://diggsml.org/schemas/3 https://raw.githubusercontent.com/DIGGSml/schema-dev/refs/heads/3.1-dev/Diggs.xsd"
   gml:id="TrenchwallExample2">
   <documentInformation>
     <DocumentInformation gml:id="d1">
@@ -239,7 +239,6 @@
           </gml:exterior>
         </PlanarSurface>
       </featureExtent>
-      <totalSurveyArea uom="m2">80</totalSurveyArea>
       <constructionMethod>
         <TrenchConstructionMethod gml:id="cm22">
           <gml:name>backhoe</gml:name>

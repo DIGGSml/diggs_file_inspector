@@ -2,7 +2,7 @@
 <Diggs xmlns="http://diggsml.org/schemas/3" xmlns:diggs="http://diggsml.org/schemas/3"
   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xlink="http://www.w3.org/1999/xlink"
   xmlns:gml="http://www.opengis.net/gml/3.2" xmlns:glr="http://www.opengis.net/gml/3.3/lr"
-  xsi:schemaLocation="http://diggsml.org/schemas/3 https://diggsml.org/schemas/3.0.0/Diggs.xsd"
+  xsi:schemaLocation="http://diggsml.org/schemas/3 https://raw.githubusercontent.com/DIGGSml/schema-dev/refs/heads/3.1-dev/Diggs.xsd"
   gml:id="TrenchwallExample2">
   <documentInformation>
     <DocumentInformation gml:id="d1">
@@ -416,7 +416,6 @@
           </gml:exterior>
         </PlanarSurface>
       </featureExtent>
-      <totalSurveyArea uom="m2">80</totalSurveyArea>
       <constructionMethod>
         <TrenchConstructionMethod gml:id="cm22">
           <gml:name>backhoe</gml:name>
@@ -499,15 +498,15 @@
       <environment>
         <Environment gml:id="dogleg-env1">
           <gml:name>Site conditions during DogLeg Trench excavation</gml:name>
-          <weather>Clear, light breeze</weather>
           <ambientTemperature uom="degC">18</ambientTemperature>
+          <weather>Clear, light breeze</weather>
         </Environment>
       </environment>
       <environment>
         <Environment gml:id="dogleg-env2">
           <gml:name>Site conditions during trench backfilling</gml:name>
-          <weather>Overcast, light rain</weather>
           <ambientTemperature uom="degC">14</ambientTemperature>
+          <weather>Overcast, light rain</weather>
         </Environment>
       </environment>
       <otherSamplingFeatureProperty>
@@ -542,11 +541,11 @@
           <gml:pos>387516.6651 3742145.123 6.2</gml:pos>
           <uncertainty>
             <LocationUncertainty gml:id="dogleg-refpt-unc">
-              <locationMethod>RTK GNSS</locationMethod>
+              <locationMethod>gnssDifferential</locationMethod>
               <horizontalUncertainty>
                 <Uncertainty>
-                  <plusUncertaintyValue uom="m">0.02</plusUncertaintyValue>
-                  <minusUncertaintyValue uom="m">0.02</minusUncertaintyValue>
+                  <plusUncertaintyValue>0.02</plusUncertaintyValue>
+                  <minusUncertaintyValue>0.02</minusUncertaintyValue>
                 </Uncertainty>
               </horizontalUncertainty>
             </LocationUncertainty>
@@ -554,7 +553,7 @@
         </PointLocation>
       </referencePoint>
       <localCoordinates>
-        <LocalCoordinate gml:id="dogleg-localcoord1">
+        <LocalCoordinate>
           <!-- First choice branch (not used): explicit easting/northing/elevation values, e.g.:
           <easting uom="m">387516.6651</easting>
           <northing uom="m">3742145.123</northing>
@@ -572,13 +571,13 @@
         <!-- Feature extent: two planar patches at different bearings (dog-leg), each in its own
              local CRS (dogleg-patch1-crs / dogleg-patch2-crs, defined in documentInformation
              above). Patch 2's posList uses a continuous chainage (48-85) via its X-axis
-             AxisLocation's originOffset, rather than resetting to a local 0-37 frame - see the
+             AxisLocation's originOffset, rather than resetting to a local 0-37 frame; see the
              originOffset note on dogleg-patch2-crs. srsDimension/srsName are declared directly
-             on each PlanarSurfacePatch (schema extension to PlanarSurfacePatchType, not yet in
-             ../diggs-schema as checked out - see CLAUDE.md / plan notes). -->
+             on each PlanarSurfacePatch, per PlanarSurfacePatchType's gml:SRSReferenceGroup
+             (DIGGS 3.1-dev). Note PlanarSurfacePatch itself still has no gml:id attribute. -->
         <MultiPlanarSurface gml:id="dogleg-extent">
           <gml:patches>
-            <PlanarSurfacePatch gml:id="dogleg-patch1" srsDimension="2" srsName="#dogleg-patch1-crs">
+            <PlanarSurfacePatch srsDimension="2" srsName="#dogleg-patch1-crs">
               <gml:exterior>
                 <gml:LinearRing>
                   <gml:posList count="25">
@@ -589,7 +588,7 @@
                 </gml:LinearRing>
               </gml:exterior>
             </PlanarSurfacePatch>
-            <PlanarSurfacePatch gml:id="dogleg-patch2" srsDimension="2" srsName="#dogleg-patch2-crs">
+            <PlanarSurfacePatch srsDimension="2" srsName="#dogleg-patch2-crs">
               <gml:exterior>
                 <gml:LinearRing>
                   <gml:posList count="26">
