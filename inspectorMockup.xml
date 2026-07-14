@@ -2082,7 +2082,7 @@
             <otherSamplingFeatureProperty>
                 <Parameter index="2" gml:id="BH001-PROP2">
                     <gml:identifier codeSpace="http://www.globalgeosolutions.com/projects">BH001-PROP2</gml:identifier>
-                    <parameterName codeSpace="http://diggsml.org/def/codes/DIGGS/0.1/SamplingFeatureParameter">drillingFluid</parameterName>
+                    <parameterName codeSpace="UDGD">drillingFluid</parameterName>
                     <parameterMinValue/>
                     <parameterValue>potable water with bentonite</parameterValue>
                     <parameterMaxValue/>
@@ -2212,7 +2212,7 @@
                 </TimeInterval>
             </whenDestroyed>
 
-            <totalMeasuredDepth uom="m" howDetermined="measured">56.54</totalMeasuredDepth>
+            <totalMeasuredDepth uom="m" howDetermined="measured" qualifier="exact">56.54</totalMeasuredDepth>
 
             <boreholePurpose codeSpace="https://www.diggsml.org/def/codes/DIGGS/0.1/BoreholeTypeDef.xml">geotechnical site characterization</boreholePurpose>
 
@@ -2428,73 +2428,12 @@
                         </Remark>
                     </remark>
 
-                    <location owns="false">
-                        <PointLocation gml:id="pl-BCM-BH001-B" srsName="#lsr-BH-33" srsDimension="1">
-                            <gml:pos>0.00</gml:pos>
-                            <uncertainty>
-                                <LocationUncertainty gml:id="LU-BCM-BH001-B">
-                                    <locationMethod>gnssDifferential</locationMethod>
-                                    <horizontalUncertainty>
-                                        <Uncertainty gml:id="UNC-BCM-BH001-B-H">
-                                            <plusUncertaintyValue howDetermined="reported"
-                                                qualifier="greater than">0.05</plusUncertaintyValue>
-                                            <minusUncertaintyValue howDetermined="reported"
-                                                qualifier="greater than"
-                                                >0.05</minusUncertaintyValue>
-                                            <confidenceLevel uom="%" howDetermined="reported"
-                                                >95</confidenceLevel>
-                                            <uncertaintyRepresentation>confidence interval</uncertaintyRepresentation>
-                                        </Uncertainty>
-                                    </horizontalUncertainty>
-                                    <verticalUncertainty>
-                                        <Uncertainty gml:id="UNC-BCM-BH001-B-V">
-                                            <plusUncertaintyValue howDetermined="reported"
-                                                qualifier="greater than">0.1</plusUncertaintyValue>
-                                            <minusUncertaintyValue howDetermined="reported"
-                                                qualifier="greater than">0.1</minusUncertaintyValue>
-                                            <confidenceLevel uom="%" howDetermined="reported"
-                                                >95</confidenceLevel>
-                                            <uncertaintyRepresentation>confidence interval</uncertaintyRepresentation>
-                                        </Uncertainty>
-                                    </verticalUncertainty>
-                                    <xValueUncertainty>
-                                        <Uncertainty gml:id="UNC-BCM-BH001-B-X">
-                                            <plusUncertaintyValue howDetermined="reported"
-                                                >0.05</plusUncertaintyValue>
-                                            <minusUncertaintyValue howDetermined="reported"
-                                                >0.05</minusUncertaintyValue>
-                                            <confidenceLevel uom="%" howDetermined="reported"
-                                                >95</confidenceLevel>
-                                            <uncertaintyRepresentation>confidence interval</uncertaintyRepresentation>
-                                        </Uncertainty>
-                                    </xValueUncertainty>
-                                    <yValueUncertainty>
-                                        <Uncertainty gml:id="UNC-BCM-BH001-B-Y">
-                                            <plusUncertaintyValue howDetermined="reported"
-                                                >0.05</plusUncertaintyValue>
-                                            <minusUncertaintyValue howDetermined="reported"
-                                                >0.05</minusUncertaintyValue>
-                                            <confidenceLevel uom="%" howDetermined="reported"
-                                                >95</confidenceLevel>
-                                            <uncertaintyRepresentation>confidence interval</uncertaintyRepresentation>
-                                        </Uncertainty>
-                                    </yValueUncertainty>
-                                    <zValueUncertainty>
-                                        <Uncertainty gml:id="UNC-BCM-BH001-B-Z">
-                                            <plusUncertaintyValue howDetermined="reported"
-                                                >0.1</plusUncertaintyValue>
-                                            <minusUncertaintyValue howDetermined="reported"
-                                                >0.1</minusUncertaintyValue>
-                                            <confidenceLevel uom="%" howDetermined="reported"
-                                                >95</confidenceLevel>
-                                            <uncertaintyRepresentation>standard deviation</uncertaintyRepresentation>
-                                        </Uncertainty>
-                                    </zValueUncertainty>
-                                </LocationUncertainty>
-                            </uncertainty>
-                        </PointLocation>
+                    <location>
+                        <LinearExtent gml:id="DGS8BE6-50E-3C2A-5616-1BBB7" srsName="#lsr-BH1"
+                            srsDimension="1">
+                            <gml:posList>0.00 30.00</gml:posList>
+                        </LinearExtent>
                     </location>
-
                     <methodTime>
                         <TimeInterval gml:id="TI-BCM-BH001-B-METHOD">
                             <start frame="#ISO-8601">2024-03-04T06:30:00+03:00</start>
@@ -12770,33 +12709,33 @@
             <!-- ============================================================ -->
             <!-- First lithologyObservation: uses diggs: prefix (unchanged)  -->
             <!-- ============================================================ -->
-            <diggs:lithologyObservation>
-                <diggs:LithologyObservation gml:id="Litho_Soil_Observation_BH-33_0.5">
-                    <diggs:location>
-                        <diggs:LinearExtent gml:id="DGS2A7E-4ED-FA5-2907-2A63" srsName="#lsr-BH-33"
+            <lithologyObservation>
+                <LithologyObservation gml:id="Litho_Soil_Observation_BH-33_0.5">
+                    <location>
+                        <LinearExtent gml:id="DGS2A7E-4ED-FA5-2907-2A63" srsName="#lsr-BH-33"
                             srsDimension="1">
                             <gml:posList>0.71 4.24</gml:posList>
-                        </diggs:LinearExtent>
-                    </diggs:location>
-                    <diggs:primaryLithology>
-                        <diggs:Lithology gml:id="DGS14E4-D53-C4-71B0-3FB08">
-                            <diggs:classificationCode codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/astmD2488.xml#GP-GCscb">Poorly graded gravel with clay and sand, Cobbles and Boulders</diggs:classificationCode>
-                            <diggs:lithProperties>
-                                <diggs:LithProperties gml:id="DGS3F43-164B-28A5-ABD7-41353">
-                                    <diggs:consistency>medium dense</diggs:consistency>
-                                    <diggs:cementation>moderate</diggs:cementation>
-                                    <diggs:moistureCondition>moist to wet</diggs:moistureCondition>
-                                    <diggs:odor>no</diggs:odor>
-                                    <diggs:particleSorting>poorly graded</diggs:particleSorting>
-                                    <diggs:reactionToHCl>weak</diggs:reactionToHCl>
-                                    <diggs:soilStructure>stratified</diggs:soilStructure>
-                                </diggs:LithProperties>
-                            </diggs:lithProperties>
-                        </diggs:Lithology>
-                    </diggs:primaryLithology>
+                        </LinearExtent>
+                    </location>
+                    <primaryLithology>
+                        <Lithology gml:id="DGS14E4-D53-C4-71B0-3FB08">
+                            <classificationCode codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/astmD2488.xml#GP-GCscb">Poorly graded gravel with clay and sand, Cobbles and Boulders</classificationCode>
+                            <lithProperties>
+                                <LithProperties gml:id="DGS3F43-164B-28A5-ABD7-41353">
+                                    <consistency>medium dense</consistency>
+                                    <cementation>moderate</cementation>
+                                    <moistureCondition>moist to wet</moistureCondition>
+                                    <odor>no</odor>
+                                    <particleSorting>poorly graded</particleSorting>
+                                    <reactionToHCl>weak</reactionToHCl>
+                                    <soilStructure>stratified</soilStructure>
+                                </LithProperties>
+                            </lithProperties>
+                        </Lithology>
+                    </primaryLithology>
                     <facies>fill</facies>
-                </diggs:LithologyObservation>
-            </diggs:lithologyObservation>
+                </LithologyObservation>
+            </lithologyObservation>
 
             <!-- ============================================================ -->
             <!-- Second lithologyObservation (unprefixed, existing, unchanged) -->
@@ -13539,7 +13478,7 @@
                     <gml:name>BH-33 Core Photo Log</gml:name>
                     <fileURL>https://acme-geotech.com/files/BH-33-core-photos.zip</fileURL>
                     <mimeType>image/jpeg</mimeType>
-                    <compression>urn:x-diggs:compression:zip-deflate</compression>
+                    <compression>urn:x-compression:zip-deflate</compression>
                     <encryption>urn:x-diggs:encryption:none</encryption>
                 </AssociatedFile>
             </associatedFile>
@@ -14089,33 +14028,33 @@
                 </TestResult>
             </outcome>
             <procedure>
-                <diggs:DrivenPenetrationTest gml:id="SPT_BH-33_7.5">
-                    <diggs:penetrationTestType>SPT</diggs:penetrationTestType>
-                    <diggs:hammerType/>
-                    <diggs:totalPenetration uom="ft">1.50</diggs:totalPenetration>
-                    <diggs:driveSet>
-                        <diggs:DriveSet gml:id="ds-2_GS66A1-FA1-6B8-3052-328FE">
-                            <diggs:index>1</diggs:index>
-                            <diggs:blowCount>1</diggs:blowCount>
-                            <diggs:penetration uom="ft">0.5</diggs:penetration>
-                        </diggs:DriveSet>
-                    </diggs:driveSet>
-                    <diggs:driveSet>
-                        <diggs:DriveSet gml:id="ds-2_GS2382-16E8-D43-92A0-B9CD">
-                            <diggs:index>2</diggs:index>
-                            <diggs:blowCount>2</diggs:blowCount>
-                            <diggs:penetration uom="ft">0.5</diggs:penetration>
-                        </diggs:DriveSet>
-                    </diggs:driveSet>
-                    <diggs:driveSet>
-                        <diggs:DriveSet gml:id="ds-2_GS95EA-88E-428B-50A2-404E8">
-                            <diggs:index>3</diggs:index>
-                            <diggs:blowCount>1</diggs:blowCount>
-                            <diggs:penetration uom="ft">0.5</diggs:penetration>
-                        </diggs:DriveSet>
-                    </diggs:driveSet>
+                <DrivenPenetrationTest gml:id="SPT_BH-33_7.5">
+                    <penetrationTestType>SPT</penetrationTestType>
+                    <hammerType/>
+                    <totalPenetration uom="ft">1.50</totalPenetration>
+                    <driveSet>
+                        <DriveSet gml:id="ds-2_GS66A1-FA1-6B8-3052-328FE">
+                            <index>1</index>
+                            <blowCount>1</blowCount>
+                            <penetration uom="ft">0.5</penetration>
+                        </DriveSet>
+                    </driveSet>
+                    <driveSet>
+                        <DriveSet gml:id="ds-2_GS2382-16E8-D43-92A0-B9CD">
+                            <index>2</index>
+                            <blowCount>2</blowCount>
+                            <penetration uom="ft">0.5</penetration>
+                        </DriveSet>
+                    </driveSet>
+                    <driveSet>
+                        <DriveSet gml:id="ds-2_GS95EA-88E-428B-50A2-404E8">
+                            <index>3</index>
+                            <blowCount>1</blowCount>
+                            <penetration uom="ft">0.5</penetration>
+                        </DriveSet>
+                    </driveSet>
 
-                </diggs:DrivenPenetrationTest>
+                </DrivenPenetrationTest>
             </procedure>
         </Test>
     </measurement>
@@ -14153,33 +14092,33 @@
                 </TestResult>
             </outcome>
             <procedure>
-                <diggs:DrivenPenetrationTest gml:id="SPT_BH-33_10.0">
-                    <diggs:penetrationTestType>SPT</diggs:penetrationTestType>
-                    <diggs:hammerType/>
-                    <diggs:totalPenetration uom="ft">1.50</diggs:totalPenetration>
-                    <diggs:driveSet>
-                        <diggs:DriveSet gml:id="ds-2_GS9F60-1943-1683-1DF8-42FFB">
-                            <diggs:index>1</diggs:index>
-                            <diggs:blowCount>2</diggs:blowCount>
-                            <diggs:penetration uom="ft">0.5</diggs:penetration>
-                        </diggs:DriveSet>
-                    </diggs:driveSet>
-                    <diggs:driveSet>
-                        <diggs:DriveSet gml:id="ds-2_GS46BA-128D-3FDA-CF15-33746">
-                            <diggs:index>2</diggs:index>
-                            <diggs:blowCount>4</diggs:blowCount>
-                            <diggs:penetration uom="ft">0.5</diggs:penetration>
-                        </diggs:DriveSet>
-                    </diggs:driveSet>
-                    <diggs:driveSet>
-                        <diggs:DriveSet gml:id="ds-2_GSA2E6-1851-4B27-9F73-1D972">
-                            <diggs:index>3</diggs:index>
-                            <diggs:blowCount>6</diggs:blowCount>
-                            <diggs:penetration uom="ft">0.5</diggs:penetration>
-                        </diggs:DriveSet>
-                    </diggs:driveSet>
+                <DrivenPenetrationTest gml:id="SPT_BH-33_10.0">
+                    <penetrationTestType>SPT</penetrationTestType>
+                    <hammerType/>
+                    <totalPenetration uom="ft">1.50</totalPenetration>
+                    <driveSet>
+                        <DriveSet gml:id="ds-2_GS9F60-1943-1683-1DF8-42FFB">
+                            <index>1</index>
+                            <blowCount>2</blowCount>
+                            <penetration uom="ft">0.5</penetration>
+                        </DriveSet>
+                    </driveSet>
+                    <driveSet>
+                        <DriveSet gml:id="ds-2_GS46BA-128D-3FDA-CF15-33746">
+                            <index>2</index>
+                            <blowCount>4</blowCount>
+                            <penetration uom="ft">0.5</penetration>
+                        </DriveSet>
+                    </driveSet>
+                    <driveSet>
+                        <DriveSet gml:id="ds-2_GSA2E6-1851-4B27-9F73-1D972">
+                            <index>3</index>
+                            <blowCount>6</blowCount>
+                            <penetration uom="ft">0.5</penetration>
+                        </DriveSet>
+                    </driveSet>
 
-                </diggs:DrivenPenetrationTest>
+                </DrivenPenetrationTest>
             </procedure>
         </Test>
     </measurement>

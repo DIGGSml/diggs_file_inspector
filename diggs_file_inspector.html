@@ -1076,13 +1076,14 @@ html,body{height:100%;font-family:var(--font-ui);background:var(--bg);color:var(
   text-decoration:none;font-size:11px;opacity:.6;margin-left:2px;display:inline-block;
 }
 .cs-link:hover { opacity:1; }
-/* Nested KV table rendered inside a kv-val cell */
-.kv-nested {
-  border-left:2px solid var(--border);padding-left:8px;margin-top:2px;width:100%;
-}
-.kv-nested .kv-row { font-size:11px;padding:2px 0; }
-.kv-nested .kv-key { min-width:90px;font-size:10px; }
-.kv-nested + .kv-nested { margin-top:6px; }
+/* BusinessAssociate name link — the one surviving popup trigger in the app */
+.ba-link { color:var(--accent);text-decoration:underline;cursor:pointer; }
+/* Inline expandable category (renderObjectCategory/renderObjectInstances) —
+   replaces the old bordered .kv-nested div and any literal nested <table>.
+   Each level of nesting indents further purely via DOM nesting (a .kv-cat
+   inside another .kv-cat-body inherits its ancestor's padding-left too). */
+.kv-cat-body { padding-left:12px; }
+.kv-cat-divider { border-top:3px double var(--border);margin:8px 0; }
 
 /* ── PROJECT INFO POPUP ───────────────────────────── */
 .proj-popup-overlay {
@@ -1453,27 +1454,7 @@ table.data-table tbody tr.selected {
 .ppd-plot-label { font-size:11px; color:var(--text-muted); margin-bottom:4px; font-style:italic; }
 .ppd-plot-container { width:80%; min-width:80%; }
 
-/* ── Borehole descriptor / SF detail section 4 ── */
-.kv-equip-link {
-  color:var(--accent);cursor:pointer;text-decoration:underline;
-  text-underline-offset:2px;font-size:12px;
-}
-.kv-equip-link:hover { color:#f0b060; }
-.kv-interval-wrap { overflow-x:auto; margin-top:4px; }
-.kv-backfill-header {
-  font-size:11px;color:var(--text-muted);font-style:italic;
-  padding:3px 0 1px;border-top:1px dashed var(--border);margin-top:6px;
-}
-.kv-backfill-header:first-child { border-top:none; margin-top:0; }
-/* Info icon for interval table complex columns */
-.col-info-icon {
-  display:inline-flex;align-items:center;justify-content:center;
-  width:18px;height:18px;border-radius:50%;
-  background:var(--accent);color:#000;font-size:11px;font-weight:700;
-  cursor:pointer;line-height:1;user-select:none;flex-shrink:0;
-}
-.col-info-icon:hover { background:#f0b060; }
-/* Generic detail popup (replaces equipment-modal) */
+/* Generic detail popup — BusinessAssociate detail is the only surviving use */
 #detail-popup { display:none;position:fixed;inset:0;z-index:9999;
   background:rgba(0,0,0,0.72);align-items:center;justify-content:center; }
 #detail-popup.open { display:flex; }
@@ -2916,7 +2897,7 @@ function xpathNS(doc, expr, ctx) {
 
 /**
  * getXPathExpr(doc, expr) — compiled-XPath expression cache.
- * doc.evaluate re-parses the XPath string on every call; buildIntervalTable
+ * doc.evaluate re-parses the XPath string on every call; renderIntervalRows
  * evaluates the same handful of descriptor path strings once per row per
  * column, so opening a large borehole detail recompiled them thousands of
  * times. Cached per-Document (WeakMap, self-invalidating on file reload) and
@@ -3582,11 +3563,9 @@ const SF_ID_SECTION = [
 // SF type; Borehole/Sounding/Well also append SF_OTHER_PROPS_SECTION.
 const SF_TRAILING_SECTIONS = [
   { sectionHeader: 'Roles & Parties' },
-  { label: 'Roles',        parentPath: 'diggs:role',
-                           multi: true, rawFormat: 'renderRole' },
+  { label: 'Role', parentPath: 'diggs:role', multi: true, rawFormat: 'renderRole', splitRows: true },
   { sectionHeader: 'Remarks' },
-  { label: 'Remarks',      parentPath: 'diggs:remark',
-                           multi: true, rawFormat: 'renderRemark' },
+  { label: 'Remark', parentPath: 'diggs:remark', multi: true, rawFormat: 'renderRemark', splitRows: true },
   { sectionHeader: 'Associated Files' },
   { label: 'Files',        parentPath: 'diggs:associatedFile',
                            multi: true, rawFormat: 'renderAssociatedFile' },
@@ -3932,13 +3911,6 @@ const SOFTWARE_APPLICATION_FIELDS = [
   { label: 'Version', path: 'diggs:version', meta: false },
 ];
 
-// Remark — applied to the diggs:Remark element (not the property wrapper)
-const REMARK_FIELDS = [
-  { path: 'diggs:content',        italic: true },
-  { path: 'diggs:remarkDateTime', format: 'dateTimePos',   meta: true },
-  { path: 'diggs:author',         format: 'resolveBAName', meta: true, multi: true },
-];
-
 // BusinessAssociate — full schema fields applied to the resolved BA element
 const BUSINESS_ASSOCIATE_FIELDS = [
   { path: '.',                   format: 'gmlNames',    bold: true },
@@ -3968,15 +3940,6 @@ const ASSOCIATED_FILE_FIELDS = [
   { path: 'diggs:remark',       format: 'renderRemarkNested', multi: true, indent: true },
 ];
 
-// Role — full schema fields applied to the diggs:Role element
-const ROLE_FIELDS = [
-  { path: 'diggs:rolePerformed',  format: 'humanizeRole', bold: true },
-  { path: 'diggs:timePerformed/diggs:TimeInterval',
-                                  fields: TIME_INTERVAL_FIELDS, meta: true },
-  { path: 'diggs:businessAssociate', format: 'renderBANested', multi: true, indent: true },
-  { path: 'diggs:remark',            format: 'renderRemarkNested', multi: true, indent: true },
-];
-
 // ══════════════════════════════════════════════════════════════
 //  FIELD CONFIG ARRAYS — Borehole descriptor equipment + sub-types
 // ══════════════════════════════════════════════════════════════
@@ -3990,12 +3953,10 @@ const EQUIPMENT_FIELDS = [
   { label: 'Make',            path: 'diggs:make' },
   { label: 'Model',           path: 'diggs:modelNumber' },
   { label: 'Serial No.',      path: 'diggs:serialNumber' },
-  { label: 'Role',            path: 'diggs:role/diggs:Role',
-                               fields: ROLE_FIELDS, multi: true, indent: true },
+  { label: 'Role',            path: 'diggs:role', format: 'renderRoleNested', multi: true, indent: true },
   { label: 'File',            path: 'diggs:associatedFile/diggs:AssociatedFile',
                                fields: ASSOCIATED_FILE_FIELDS, multi: true, indent: true },
-  { label: 'Remark',          path: 'diggs:remark/diggs:Remark',
-                               fields: REMARK_FIELDS, multi: true, indent: true },
+  { label: 'Remark',          path: 'diggs:remark', format: 'renderRemarkNested', multi: true, indent: true },
   { label: 'Calibration',     path: 'diggs:calibrationAuditTrail/diggs:Calibration',
                                format: 'renderCalibrationNested', multi: true, indent: true },
   { label: 'Other',           path: 'diggs:otherEquipmentProperty/diggs:Parameter',
@@ -4190,12 +4151,10 @@ const SPECIFICATION_FIELDS = [
   { label: 'Std Clause',               path: 'diggs:standardClause' },
   { label: 'Other',                    path: 'diggs:otherSpecificationProperty/diggs:Parameter',
                                         format: 'renderParameter', multi: true, indent: true },
-  { label: 'Role',                     path: 'diggs:role/diggs:Role',
-                                        fields: ROLE_FIELDS, multi: true, indent: true },
+  { label: 'Role',                     path: 'diggs:role', format: 'renderRoleNested', multi: true, indent: true },
   { label: 'File',                     path: 'diggs:associatedFile/diggs:AssociatedFile',
                                         fields: ASSOCIATED_FILE_FIELDS, multi: true, indent: true },
-  { label: 'Remark',                   path: 'diggs:remark/diggs:Remark',
-                                        fields: REMARK_FIELDS, multi: true, indent: true },
+  { label: 'Remark',                   path: 'diggs:remark', format: 'renderRemarkNested', multi: true, indent: true },
 ];
 
 // Calibration — CalibrationType
@@ -4208,8 +4167,7 @@ const CALIBRATION_FIELDS = [
   { label: 'Use Since Last Cal.',      path: 'diggs:useSinceLastCalibration' },
   { label: 'Calibration Values',       path: 'diggs:cqlibrationValues/diggs:Parameter',  // schema typo preserved
                                         format: 'renderParameter', multi: true, indent: true },
-  { label: 'Remark',                   path: 'diggs:remark/diggs:Remark',
-                                        fields: REMARK_FIELDS, multi: true, indent: true },
+  { label: 'Remark',                   path: 'diggs:remark', format: 'renderRemarkNested', multi: true, indent: true },
 ];
 
 // CasingAdvancement — CasingAdvancementType (extends AbstractObjectType)
@@ -4222,8 +4180,7 @@ const CASING_ADVANCEMENT_FIELDS = [
   { label: 'Casing Base (start)',      path: 'diggs:casingBaseAtStart', format: 'resolvePointDepth' },
   { label: 'Casing Base (end)',        path: 'diggs:casingBaseAtEnd',   format: 'resolvePointDepth' },
   { label: 'Casing Blows',             path: 'diggs:casingBlows' },
-  { label: 'Remark',                   path: 'diggs:remark/diggs:Remark',
-                                        fields: REMARK_FIELDS, multi: true, indent: true },
+  { label: 'Remark',                   path: 'diggs:remark', format: 'renderRemarkNested', multi: true, indent: true },
 ];
 
 const UNCERTAINTY_FIELDS = [
@@ -4386,7 +4343,7 @@ function renderFields(el, fields) {
             const subNodes = sub.path ? evalXPath(pn, sub.path) : [pn];
             if (!subNodes.length) return '';
             const fn  = sub.format && FORMAT_FN[sub.format];
-            const raw = fn ? fn(subNodes[0]) : valueWithCodeSpace(subNodes[0]);
+            const raw = fn ? fn(subNodes[0]) : renderPropertyValue(subNodes[0]);
             if (!raw) return '';
             return (sub.prefix || '') + raw + (sub.suffix || '');
           }).filter(Boolean);
@@ -4397,7 +4354,7 @@ function renderFields(el, fields) {
           result = renderFields(pn, spec.fields)
             .map(item => spec.indent ? { ...item, indent: true } : item);
         } else {
-          const val = valueWithCodeSpace(pn);
+          const val = renderPropertyValue(pn);
           if (val) result = [makeRenderItem(val, spec, true)];
           else if (spec.showEmpty) result = [makeRenderItem('—', { ...spec, _emptyPlaceholder: true })];
         }
@@ -4425,7 +4382,7 @@ function renderFields(el, fields) {
           const subNodes = sub.path ? evalXPath(node, sub.path) : [node];
           if (!subNodes.length) return '';
           const fn  = sub.format && FORMAT_FN[sub.format];
-          const raw = fn ? fn(subNodes[0]) : valueWithCodeSpace(subNodes[0]);
+          const raw = fn ? fn(subNodes[0]) : renderPropertyValue(subNodes[0]);
           if (!raw) return '';
           return (sub.prefix || '') + raw + (sub.suffix || '');
         }).filter(Boolean);
@@ -4457,7 +4414,7 @@ function renderFields(el, fields) {
         if (val) result = [makeRenderItem(val, spec)];
         else if (spec.showEmpty) result = [makeRenderItem('—', { ...spec, _emptyPlaceholder: true })];
       } else {
-        const val = valueWithCodeSpace(node);
+        const val = renderPropertyValue(node);
         if (val) result = [makeRenderItem(val, spec, true)];
         else if (spec.showEmpty) result = [makeRenderItem('—', { ...spec, _emptyPlaceholder: true })];
       }
@@ -4532,22 +4489,6 @@ const FORMAT_FN = {
       const text = cs ? `${val} (${cs})` : val;
       return text ? makeRenderItem(text, {}) : null;
     }).filter(Boolean);
-  },
-
-  // Render a measurementRef property element (xlink:href to a Test/Monitor/
-  // MaterialTest) as its target's type + name, if resolvable, else the raw
-  // href fragment.
-  measurementRefLabel(node) {
-    if (!node) return '';
-    const href = (node.getAttributeNS(NS.xlink, 'href') || node.getAttribute('xlink:href') || '').replace(/^#/, '');
-    if (!href) return '';
-    const target = getIdIndex(node.ownerDocument).get(href);
-    if (target) {
-      const nameEl = [...target.childNodes].find(n => n.nodeType === 1 && n.localName === 'name');
-      const name = nameEl ? nodeText(nameEl) : '';
-      return `${escHtml(target.localName)}${name ? ': ' + escHtml(name) : ''} <span style="color:var(--text-muted);font-size:10px">(${escHtml(href)})</span>`;
-    }
-    return escHtml(href);
   },
 
   // Render an emailAddress element as a mailto: link → HTML string
@@ -4658,61 +4599,89 @@ const FORMAT_FN = {
     return itemsToHtml(renderFields(tiEl, TIME_INTERVAL_FIELDS));
   },
 
-  // Render a diggs:time property element containing a TimeInterval → nested KV div
-  renderTimeIntervalNested(node) {
-    const el = resolvePropertyEl(node, 'TimeInterval');
-    return el ? renderNestedKV(el, TIME_INTERVAL_FIELDS) : '';
-  },
-
-  // Uniform property-wrapper renderers. resolvePropertyEl handles embedded child
-  // or xlink:href fallback; xlink only fires in practice for BA and AssociatedFile.
-  renderRemarkNested(node) {
-    const el = resolvePropertyEl(node, 'Remark');
-    return el ? renderNestedKV(el, REMARK_FIELDS) : '';
-  },
-
+  // Render a BusinessAssociate property element as a single clickable,
+  // underlined name that opens a popup showing that BA's own KV detail
+  // (renderSectionsInline / showDetailPopup) — the one surviving popup use
+  // in the app. Reused everywhere a BusinessAssociate is mentioned (Remark
+  // author, Role businessAssociate, a plain associatedWith/contractor/owner
+  // field, etc.) so every BA mention behaves identically.
   renderBANested(node) {
     const el = resolvePropertyEl(node, 'BusinessAssociate');
-    if (el) return renderNestedKV(el, BUSINESS_ASSOCIATE_FIELDS);
-    // Last resort: xlink target not in document — show name string only
+    if (el) {
+      const nameEl = [...el.childNodes].find(n => n.nodeType === 1 && n.localName === 'name');
+      const name = nameEl ? nodeText(nameEl) : '(Business Associate)';
+      const key = _registerPopup(name, [{ els: [el], fields: BUSINESS_ASSOCIATE_FIELDS }]);
+      return `<span class="ba-link" onclick="event.stopPropagation();showDetailPopup('${key}')">${escHtml(name)}</span>`;
+    }
+    // Unresolvable xlink target (not in this document) — name only, no link.
     const name = FORMAT_FN.resolveBAName(node);
-    return name ? `<div class="kv-nested"><span style="font-weight:600">${escHtml(name)}</span></div>` : '';
+    return name ? escHtml(name) : '';
+  },
+
+  // Render a Remark property element as a single line: content — by <linked
+  // author name> — on <date/time>. The only place a Remark's author links
+  // out to more detail is via renderBANested's BusinessAssociate popup.
+  renderRemarkNested(node) {
+    const el = resolvePropertyEl(node, 'Remark');
+    if (!el) return '';
+    const content = nodeText(evalXPath(el, 'diggs:content')[0]);
+    if (!content) return '';
+    let line = escHtml(content);
+    const authorNodes = evalXPath(el, 'diggs:author');
+    if (authorNodes.length) {
+      const authorHtml = FORMAT_FN.renderBANested(authorNodes[0]);
+      if (authorHtml) line += ` by ${authorHtml}`;
+    }
+    const dtEls = evalXPath(el, 'diggs:remarkDateTime');
+    if (dtEls.length) {
+      const dt = FORMAT_FN.dateTimePos(dtEls[0]);
+      if (dt) line += ` on ${escHtml(dt)}`;
+    }
+    return line;
   },
 
   renderAssocFileNested(node) {
     const el = resolvePropertyEl(node, 'AssociatedFile');
-    return el ? renderNestedKV(el, ASSOCIATED_FILE_FIELDS) : '';
+    return el ? renderObjectInstances([el], ASSOCIATED_FILE_FIELDS) : '';
   },
 
+  // Render a Role property element as a single line: bold rolePerformed
+  // (+ 🔗 if its codeSpace is a URL) : linked BA name(s), "from" the
+  // time-performed range — then, if present, the role's own remark on its
+  // own muted line, rendered via the exact same renderRemarkNested single-
+  // line format used everywhere else (just styled muted; Role remarks are
+  // rare in practice so no reduced/alternate form is needed).
   renderRoleNested(node) {
     const roleEl = resolvePropertyEl(node, 'Role');
     if (!roleEl) return '';
-    const items = [];
     const rpEls = evalXPath(roleEl, 'diggs:rolePerformed');
-    if (rpEls.length) {
-      const role = FORMAT_FN.humanizeRole(rpEls[0]);
-      if (role) items.push(makeRenderItem(role, { bold: true }));
+    const roleTxt = rpEls.length ? FORMAT_FN.humanizeRole(rpEls[0]) : '';
+    if (!roleTxt) return '';
+    let line = `<span style="font-weight:600">${escHtml(roleTxt)}</span>`;
+    const cs = (rpEls[0].getAttribute && rpEls[0].getAttribute('codeSpace')) || '';
+    if (cs && /^(https?|ftp|ftps|file|urn):/i.test(cs)) {
+      line += ` <a href="${escHtml(cs)}" target="_blank" rel="noopener noreferrer" class="cs-link" `
+            + `title="${escHtml(cs)}" onclick="event.stopPropagation()">\u{1F517}</a>`;
     }
+    const baLinks = evalXPath(roleEl, 'diggs:businessAssociate')
+      .map(n => FORMAT_FN.renderBANested(n)).filter(Boolean);
+    if (baLinks.length) line += `: ${baLinks.join(', ')}`;
     const tiEls = evalXPath(roleEl, 'diggs:timePerformed/diggs:TimeInterval');
     if (tiEls.length) {
       const str = FORMAT_FN.timeIntervalInline(tiEls[0]);
-      if (str) items.push(makeRenderItem(str, { meta: true, label: 'Time' }));
+      if (str) line += ` from ${escHtml(str)}`;
     }
-    for (const baNode of evalXPath(roleEl, 'diggs:businessAssociate')) {
-      const html = FORMAT_FN.renderBANested(baNode);
-      if (html) items.push(makeRenderItem(html, { indent: true }, true));
+    const remarkHtml = evalXPath(roleEl, 'diggs:remark')
+      .map(n => FORMAT_FN.renderRemarkNested(n)).filter(Boolean).join('');
+    if (remarkHtml) {
+      line += `<div style="font-size:11px;color:var(--text-muted);margin-top:2px">${remarkHtml}</div>`;
     }
-    for (const rNode of evalXPath(roleEl, 'diggs:remark')) {
-      const html = FORMAT_FN.renderRemarkNested(rNode);
-      if (html) items.push(makeRenderItem(html, { indent: true, meta: true }, true));
-    }
-    const inner = itemsToHtml(items);
-    return inner ? `<div class="kv-nested">${inner}</div>` : '';
+    return line;
   },
 
   renderAddress(node) {
     const el = resolvePropertyEl(node, 'Address');
-    return el ? renderNestedKV(el, ADDRESS_FIELDS) : '';
+    return el ? renderObjectInstances([el], ADDRESS_FIELDS) : '';
   },
 
   // Render a diggs:Parameter element → "name: value (min-max) uom" plain string.
@@ -4934,24 +4903,49 @@ const FORMAT_FN = {
     return uom ? `${fmt(from)}–${fmt(to)}\u00a0${uom}` : `${fmt(from)}–${fmt(to)}`;
   },
 
+  // Resolve a location/depth property — a LinearExtent range (e.g. "0 - 30
+  // m") or a PointLocation point (e.g. "12.5 m") — to a single composite
+  // line, the same way timeIntervalInline does for TimeInterval. Accepts
+  // either the property wrapper (embedded child or xlink:href) or the
+  // LinearExtent/PointLocation element itself directly, so it can be used
+  // uniformly regardless of which geometry shape a given object type uses.
+  // dimDefault is the srsDimension to assume when the element doesn't
+  // declare one itself (most SF-Detail interval configs default to 3).
+  locationInline(node, dimDefault) {
+    if (!node) return '';
+    let el = node;
+    if (el.localName !== 'LinearExtent' && el.localName !== 'PointLocation') {
+      el = resolvePropertyEl(node, 'LinearExtent') || resolvePropertyEl(node, 'PointLocation');
+    }
+    if (!el) return '';
+    const srsName = el.getAttribute('srsName') || '';
+    const uom = (srsName && LSR_UOM[srsName]) ? LSR_UOM[srsName] : '';
+    if (el.localName === 'LinearExtent') {
+      const posListEl = el.getElementsByTagNameNS(NS.gml, 'posList')[0];
+      if (!posListEl) return '';
+      const dim = parseInt(el.getAttribute('srsDimension') || String(dimDefault || 1)) || (dimDefault || 1);
+      const tokens = numTokens(posListEl.textContent, true);
+      if (!tokens.length) return '';
+      const from = tokens[dim - 1];
+      const to   = tokens.length >= dim * 2 ? tokens[dim * 2 - 1] : null;
+      const fmt  = v => (v == null || isNaN(v)) ? String.fromCharCode(8212) : String(v);
+      const range = (to != null) ? `${fmt(from)} - ${fmt(to)}` : fmt(from);
+      return uom ? `${range} ${escUom(uom)}` : range;
+    }
+    // PointLocation — last coordinate of gml:pos is the depth/value.
+    const posEl = el.getElementsByTagNameNS(NS.gml, 'pos')[0];
+    if (!posEl) return '';
+    const tokens = numTokens(posEl.textContent, true);
+    if (!tokens.length) return '';
+    const val = tokens[tokens.length - 1];
+    if (val == null || isNaN(val)) return '';
+    return uom ? `${val} ${escUom(uom)}` : String(val);
+  },
+
   // Render a calibration element nested inside equipment KV table
   renderCalibrationNested(node) {
     if (!node) return '';
-    return renderNestedKV(node, CALIBRATION_FIELDS);
-  },
-
-  // Render an equipment property wrapper → used in KV table detail sections (not interval table)
-  // node is a property element containing a child equipment element (any localName).
-  renderEquipment(node) {
-    if (!node) return '';
-    const equipEl = [...(node.childNodes || [])].find(n => n.nodeType === 1);
-    if (!equipEl) return '';
-    const fields = equipmentFieldsFor(equipEl.localName);
-    const key = _registerPopup(equipEl.localName, [{ els: [equipEl], fields }]);
-    const nameEl = equipEl.getElementsByTagNameNS(NS.gml, 'name')[0];
-    const label  = (nameEl ? nodeText(nameEl) : '') || equipEl.localName;
-    const cls    = equipEl.localName;
-    return `<span class="kv-equip-link" onclick="showDetailPopup('${escHtml(key)}')">${escHtml(label)} <span style="font-size:10px;opacity:.7">(${escHtml(cls)})</span></span>`;
+    return renderObjectInstances([node], CALIBRATION_FIELDS);
   },
 
   // ── LoadTransferPlatform renderers ───────────────────────────────────────
@@ -5028,12 +5022,70 @@ function resolveXlinkEl(wrapperEl) {
   return resolveHref(wrapperEl);
 }
 
-// ── renderNestedKV — wraps itemsToHtml output in a nested-table container ──
-// Used by KV_FORMAT renderers that need to appear as a sub-table inside a cell.
-function renderNestedKV(el, fields) {
-  if (!el) return '';
-  const html = itemsToHtml(renderFields(el, fields));
-  return html ? `<div class="kv-nested">${html}</div>` : '';
+// ══════════════════════════════════════════════════════════════
+//  renderObjectInstances / renderObjectCategory
+//
+//  Inline expandable-row replacement for the old "nested KV table (or
+//  literal <table>) inside a kv-val cell" pattern. An object — or several
+//  occurrences of the same property-type element — is rendered as its own
+//  KV rows (itemsToHtml(renderFields(el, fields))) directly inline, with
+//  no bordered sub-table.
+//
+//  Both helpers return '' when every occurrence produces zero visible
+//  rows — a category/label is never shown with nothing under it.
+// ══════════════════════════════════════════════════════════════
+
+/** renderObjectInstances(els, fields) — headerless: each object's own rows,
+ *  multiple instances joined with a divider. For use where the caller
+ *  already supplies its own heading (e.g. a renderKVTable sectionHeader). */
+function renderObjectInstances(els, fields) {
+  if (!els || !els.length) return '';
+  const blocks = els.map(el => itemsToHtml(renderFields(el, fields))).filter(Boolean);
+  return joinInstanceBlocks(blocks);
+}
+
+/** joinInstanceBlocks(blocks) — join pre-built per-occurrence HTML blocks
+ *  with the standard double-rule divider. Shared by renderObjectInstances
+ *  (which builds blocks via renderFields) and any caller that already has
+ *  hand-built per-occurrence HTML (e.g. a bespoke renderer that can't be
+ *  expressed as a plain field-config array). */
+function joinInstanceBlocks(blocks) {
+  if (!blocks || !blocks.length) return '';
+  return blocks.join('<div class="kv-cat-divider"></div>');
+}
+
+/** wrapCategoryHeader(label, body, startOpen) — wrap already-built body HTML
+ *  in a clickable, collapsible category header (reuses the
+ *  .kv-section-header/.kv-tri/toggleKVSection mechanism). Returns '' if
+ *  body is empty — a category label never shows with nothing under it. */
+function wrapCategoryHeader(label, body, startOpen) {
+  if (!body) return '';
+  const triChar = startOpen ? '▼' : '▶';
+  const bodyStyle = startOpen ? '' : ' style="display:none"';
+  return `<div class="kv-cat">` +
+    `<div class="kv-section-header" onclick="toggleKVSection(this)">` +
+    `<span class="kv-tri">${triChar}</span>${escHtml(label)}</div>` +
+    `<div class="kv-section-body kv-cat-body"${bodyStyle}>${body}</div>` +
+    `</div>`;
+}
+
+/** renderObjectCategory(label, els, fields) — wrap EACH object instance in
+ *  its own independent, clickable, collapsible category header repeating
+ *  the same label — regardless of whether there's one instance or many.
+ *  There is no shared/grouped header and no divider between instances;
+ *  each instance's own header is what separates it from its siblings (this
+ *  replaces the earlier "one shared header wraps every instance, divider
+ *  between them" behavior). All instances open by default when the group
+ *  has exactly one instance overall, collapsed by default otherwise — same
+ *  "open if trivially small" rule used elsewhere (renderKVTable sections,
+ *  badge grids), just applied per-instance now instead of per-group. */
+function renderObjectCategory(label, els, fields) {
+  if (!els || !els.length) return '';
+  const startOpen = els.length === 1;
+  return els
+    .map(el => wrapCategoryHeader(label, renderObjectInstances([el], fields), startOpen))
+    .filter(Boolean)
+    .join('');
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -5311,10 +5363,8 @@ const LITH_SYSTEM_EXTRA_DESCRIPTOR = [
   { label:'Implementation Status', path:'diggs:implementationStatus' },
   { label:'Observation Procedure', parentPath:'diggs:observationProcedure',
                                     rawFormat:'renderProcedureSpec' },
-  { label:'Roles',                 parentPath:'diggs:role',
-                                    multi:true, rawFormat:'renderRole' },
-  { label:'Remarks',               parentPath:'diggs:remark',
-                                    multi:true, rawFormat:'renderRemark' },
+  { label: 'Role', parentPath: 'diggs:role', multi: true, rawFormat: 'renderRole', splitRows: true },
+  { label: 'Remark', parentPath: 'diggs:remark', multi: true, rawFormat: 'renderRemark', splitRows: true },
   { label:'Files',                 parentPath:'diggs:associatedFile',
                                     multi:true, rawFormat:'renderAssociatedFile' },
 ];
@@ -5341,8 +5391,7 @@ const LITH_CLASS_EXTRA_DESCRIPTOR = [
   { label:'Color Character',       path:'diggs:colorCharacter' },
   { label:'Identifier',            path:'gml:identifier', multi:true },
   { label:'Status',                path:'diggs:status' },
-  { label:'Remarks',               parentPath:'diggs:remark',
-                                    multi:true, rawFormat:'renderRemark' },
+  { label: 'Remark', parentPath: 'diggs:remark', multi: true, rawFormat: 'renderRemark', splitRows: true },
 ];
 
 // ══════════════════════════════════════════════════════════════
@@ -5366,8 +5415,7 @@ const LITH_COLOR_DESCRIPTOR = [
     composite:[{ path:'.' },{ path:'@uom', prefix:' ' }] },
   { label:'Identifier',    path:'gml:identifier', multi:true },
   { label:'Status',        path:'diggs:status' },
-  { label:'Remarks',       parentPath:'diggs:remark',
-                           multi:true, rawFormat:'renderRemark' },
+  { label: 'Remark', parentPath: 'diggs:remark', multi: true, rawFormat: 'renderRemark', splitRows: true },
 ];
 
 // ══════════════════════════════════════════════════════════════
@@ -5391,14 +5439,13 @@ const LITH_CONSTITUENT_DESCRIPTOR = [
   { label:'Description',      path:'gml:description' },
   { label:'Identifier',       path:'gml:identifier', multi:true },
   { label:'Status',           path:'diggs:status' },
-  { label:'Remarks',          parentPath:'diggs:remark',
-                               multi:true, rawFormat:'renderRemark' },
+  { label: 'Remark', parentPath: 'diggs:remark', multi: true, rawFormat: 'renderRemark', splitRows: true },
 ];
 
 // ══════════════════════════════════════════════════════════════
 //  LITHOLOGY OBSERVATION — base (observation-level) extra fields,
 //  in renderFields dialect (path/parentPath/composite/format/multi/
-//  subHeader/guardPath). Rendered via renderNestedKV(obs.el, ...).
+//  subHeader/guardPath). Rendered via renderObjectInstances([obs.el], ...).
 //  Excludes location/from/to (shown in the row's From/To columns)
 //  and primaryLithology's classificationCode/lithDescription (shown
 //  in the row's Material column) — those get their own dedicated
@@ -5411,7 +5458,6 @@ const LITH_OBS_BASE_FIELDS = [
   { label:'True Base Observed', path:'diggs:trueBaseObserved', boolean:true },
   { label:'Identifier',         path:'gml:identifier', multi:true },
   { label:'Status',             path:'diggs:status' },
-  { label:'Measurement Ref',    path:'diggs:measurementRef', format:'measurementRefLabel', multi:true },
   { label:'Facies',             path:'diggs:facies' },
   { label:'Unit Name',          path:'diggs:unitName' },
   { subHeader:'Remarks', guardPath:'diggs:remark' },
@@ -5536,8 +5582,8 @@ function _lithObjectExtraHtml(lithObj, propsObj) {
     html += renderSectionsInline(_buildConstituentSections(lithObj.constituents));
   }
   if (propsObj && propsObj.el) {
-    html += `<div class="lith-obs-detail-group-title">Properties</div>`;
-    html += renderNestedKV(propsObj.el, LITH_PROPERTIES_GROUPS);
+    const cat = renderObjectCategory('Properties', [propsObj.el], LITH_PROPERTIES_GROUPS);
+    if (cat) html += cat;
   }
   return html;
 }
@@ -5549,56 +5595,52 @@ function _lithObjectExtraHtml(lithObj, propsObj) {
 function buildLithObsExpandHtml(obs) {
   let html = '';
 
-  const baseHtml = renderNestedKV(obs.el, LITH_OBS_BASE_FIELDS);
+  const baseHtml = renderObjectInstances([obs.el], LITH_OBS_BASE_FIELDS);
   if (baseHtml) html += baseHtml;
 
   if (obs.primary) {
-    html += _lithObjectExtraHtml(obs.primary, obs.primary.lithProperties);
+    const primaryBody = _lithObjectExtraHtml(obs.primary, obs.primary.lithProperties);
+    const cat = wrapCategoryHeader('Primary Lithology', primaryBody, true);
+    if (cat) html += cat;
   }
 
   if (obs.components && obs.components.length) {
-    html += `<div class="lith-obs-detail-group-title">Component Litholog${obs.components.length > 1 ? 'ies' : 'y'}</div>`;
-    obs.components.forEach((comp, i) => {
-      const rankLabel = comp.rank ? ` rank ${comp.rank}` : (obs.components.length > 1 ? ` #${i + 1}` : '');
-      const assocLabel = comp.association ? ` — ${comp.association}` : '';
-      html += `<div class="lith-obs-detail-subheading">Component${rankLabel}${assocLabel}</div>`;
-      const wrapperHtml = renderNestedKV(comp.el, LITH_COMPONENT_WRAPPER_FIELDS);
-      if (wrapperHtml) html += wrapperHtml;
+    // Every componentLithology gets its own independent "Component
+    // Lithology" header, repeated per instance — no shared outer group.
+    for (const comp of obs.components) {
+      let rows = '';
+      const wrapperHtml = renderObjectInstances([comp.el], LITH_COMPONENT_WRAPPER_FIELDS);
+      if (wrapperHtml) rows += wrapperHtml;
       if (comp.abundanceCode || comp.abundancePercent || comp.maxAbundancePercent) {
         const abundHtml = kvTableOrEmpty(comp.el, LITH_COMPONENT_ABUNDANCE_DESCRIPTOR);
-        if (abundHtml) html += abundHtml;
+        if (abundHtml) rows += abundHtml;
       }
       if (comp.lithology && comp.lithology.el) {
         const mainHtml = kvTableOrEmpty(comp.lithology.el, LITH_COMPONENT_LITH_MAIN_DESCRIPTOR);
-        if (mainHtml) html += mainHtml;
-        html += _lithObjectExtraHtml(comp.lithology, comp.componentProperties);
+        if (mainHtml) rows += mainHtml;
+        const extraHtml = _lithObjectExtraHtml(comp.lithology, comp.componentProperties);
+        const extraCat = wrapCategoryHeader('Lithology', extraHtml, true);
+        if (extraCat) rows += extraCat;
       }
-    });
+      const cat = wrapCategoryHeader('Component Lithology', rows, true);
+      if (cat) html += cat;
+    }
   }
 
   if (obs.placedObservations && obs.placedObservations.length) {
-    html += `<div class="lith-obs-detail-group-title">Placed Observation${obs.placedObservations.length > 1 ? 's' : ''}</div>`;
-    const sections = obs.placedObservations.map((po, i) => {
-      const locStr = po.locationType === 'LinearExtent'
-        ? `${po.from || '?'}${po.to ? '–' + po.to : ''}`
-        : po.locationType === 'PointLocation' ? po.from : '';
-      return {
-        heading: locStr ? `@ ${locStr}` : `Placed Observation #${i + 1}`,
-        els: [po.el],
-        fields: LITH_PLACED_OBS_FIELDS,
-      };
-    });
-    html += renderSectionsInline(sections);
+    for (const po of obs.placedObservations) {
+      const body = renderObjectInstances([po.el], LITH_PLACED_OBS_FIELDS);
+      const cat = wrapCategoryHeader('Placed Observation', body, true);
+      if (cat) html += cat;
+    }
   }
 
   if (obs.baseBoundaries && obs.baseBoundaries.length) {
-    html += `<div class="lith-obs-detail-group-title">Base Boundar${obs.baseBoundaries.length > 1 ? 'ies' : 'y'}</div>`;
-    const sections = obs.baseBoundaries.map((bb, i) => ({
-      heading: obs.baseBoundaries.length > 1 ? `Boundary #${i + 1}` : undefined,
-      els: [bb.el],
-      fields: LITH_BOUNDARY_FIELDS,
-    }));
-    html += renderSectionsInline(sections);
+    for (const bb of obs.baseBoundaries) {
+      const body = renderObjectInstances([bb.el], LITH_BOUNDARY_FIELDS);
+      const cat = wrapCategoryHeader('Base Boundary', body, true);
+      if (cat) html += cat;
+    }
   }
 
   return html;
@@ -5643,10 +5685,8 @@ function renderSectionsInline(sections) {
         border-top:1px solid var(--border);padding-top:6px">${escHtml(sec.heading)}</div>`;
     }
     if (sec.swatchHtml) html += sec.swatchHtml;
-    for (const el of sec.els) {
-      const block = renderNestedKV(el, sec.fields);
-      if (block) html += block;
-    }
+    const block = renderObjectInstances(sec.els, sec.fields);
+    if (block) html += block;
   }
   return html;
 }
@@ -5693,238 +5733,129 @@ function equipmentFieldsFor(localName) {
 }
 
 // ══════════════════════════════════════════════════════════════
-//  buildIntervalTable(parentEl, config)
+//  renderIntervalRows(parentEl, config)
 //
-//  Declarative interval table engine for Borehole descriptor sections.
-//  parentEl — the context element to evaluate rowPath against.
-//  config   — { rowPath, locationPath, locationPointPath?,
-//               srsDimensionDefault, columns[], title? }
+//  Inline expandable-row replacement for the old buildIntervalTable() grid
+//  engine. Accepts the exact same config shape every SF-Detail interval
+//  section already used (rowPath, locationPath, locationPointPath,
+//  srsDimensionDefault, columns[]) — only how it renders changed, not the
+//  config data itself.
 //
-//  Column spec (scalar): { label, path, uom?, format?, boolean?, multi? }
-//  Column spec (complex): { label, path, complex: true, fields, popupTitle? }
-//    complex:true → collect child elements at `path`, if any exist render an
-//    info icon (ⓘ) that opens a detail popup; cell is empty when none found.
-//    fields — field array for the popup KV table.
-//    popupTitle — string for popup heading (defaults to label).
-//    For Equipment: { label, path, complex:true, equipmentProp:true }
-//      Each node at path is a property wrapper around an equipment element.
-//
-//  Column suppression: any column (scalar or complex) where ALL rows produce
-//  an empty cell is dropped from both header and body.
+//  Each element matched by rowPath is one occurrence, rendered as its own
+//  block of KV rows: a single-line "Location" row first (via
+//  FORMAT_FN.locationInline, covering both a depth interval and a point),
+//  then each configured column as a normal KV row. A `complex:true` column
+//  (a nested object, e.g. a Specification or a Role) becomes its own
+//  nested renderObjectCategory instead of a popup ⓘ icon; `equipmentProp:
+//  true` columns render one category per equipment instance, titled by its
+//  own element type (mirrors the doc's "Drill Bit Info" example). Multiple
+//  row occurrences are joined with the standard double-rule divider. There
+//  is no more fixed grid to keep column-aligned, so an empty column value
+//  is simply omitted rather than shown as a muted dash placeholder.
 //
 //  Returns '' if no rows found.
 // ══════════════════════════════════════════════════════════════
-function buildIntervalTable(parentEl, config) {
-  if (!parentEl) return '';
 
+// xlink-aware location resolver for interval depth extraction. locationPath
+// is e.g. 'diggs:location/diggs:LinearExtent'. When the wrapper element
+// carries xlink:href instead of an inline child, the XPath finds nothing;
+// this follows the href to the target element.
+function _resolveLocationEl(rowEl, locationPath, wrapperPathOverride) {
+  const direct = evalXPath(rowEl, locationPath);
+  if (direct.length) return direct[0];
+  const wrapperPath = wrapperPathOverride
+    || locationPath.split('/').slice(0, -1).join('/');
+  if (!wrapperPath) return null;
+  const wrappers = evalXPath(rowEl, wrapperPath);
+  for (const w of wrappers) {
+    const resolved = resolveXlinkEl(w);
+    if (resolved) return resolved;
+  }
+  return null;
+}
+
+function renderIntervalRows(parentEl, config) {
+  if (!parentEl) return '';
   const rowEls = evalXPath(parentEl, config.rowPath);
   if (!rowEls.length) return '';
+  const dimDefault = config.srsDimensionDefault || 3;
 
-  const dim = config.srsDimensionDefault || 3;
-
-  // ── Extract depth interval from a LinearExtent element ───────────────────
-  function depthsFromLE(leEl) {
-    if (!leEl) return { from: null, to: null, uom: '' };
-    const posListEl = leEl.getElementsByTagNameNS(NS.gml, 'posList')[0];
-    if (!posListEl) return { from: null, to: null, uom: '' };
-    const txt    = posListEl.textContent.trim();
-    if (!txt) return { from: null, to: null, uom: '' };
-    const leDim  = parseInt(leEl.getAttribute('srsDimension') || String(dim)) || dim;
-    const tokens = txt.split(/\s+/).map(Number);
-    const nTuples = Math.floor(tokens.length / leDim);
-    const from   = nTuples >= 1 ? tokens[leDim - 1] : null;
-    const to     = nTuples >= 2 ? tokens[leDim * 2 - 1] : null;
-    const srsName = leEl.getAttribute('srsName') || '';
-    const uom    = (srsName && LSR_UOM[srsName]) ? LSR_UOM[srsName] : '';
-    return { from, to, uom };
-  }
-
-  // ── Extract depth from PointLocation element ─────────────────────────────
-  function depthFromPL(plEl) {
-    if (!plEl) return { from: null, uom: '' };
-    const posEl = plEl.getElementsByTagNameNS(NS.gml, 'pos')[0];
-    if (!posEl) return { from: null, uom: '' };
-    const tokens = posEl.textContent.trim().split(/\s+/);
-    const val    = parseFloat(tokens[tokens.length - 1]);
-    if (isNaN(val)) return { from: null, uom: '' };
-    const srsName = plEl.getAttribute('srsName') || '';
-    const uom    = (srsName && LSR_UOM[srsName]) ? LSR_UOM[srsName] : '';
-    return { from: val, uom };
-  }
-
-  // ── Resolve scalar cell value ─────────────────────────────────────────────
-  function scalarCellHtml(rowEl, colSpec) {
-    const nodes = evalXPath(rowEl, colSpec.path);
-    if (!nodes.length) return '';
-    const targets = colSpec.multi ? nodes : [nodes[0]];
-    const parts   = [];
-    for (const node of targets) {
-      let val = '';
-      if (colSpec.boolean) {
-        const txt = nodeText(node).toLowerCase();
-        if (txt === 'true' || txt === '1' || txt === 'yes') val = 'Yes';
-        else if (txt === 'false' || txt === '0' || txt === 'no') val = 'No';
-        else val = txt || '';
-      } else if (colSpec.format) {
-        const fn = FORMAT_FN[colSpec.format] || KV_FORMAT[colSpec.format];
-        val = fn ? fn(node) : nodeText(node);
-      } else if (colSpec.uom === 'attr') {
-        const txt = nodeText(node);
-        const uom = (node.getAttribute && node.getAttribute('uom')) || '';
-        val = txt ? (uom ? `${txt}\u00a0<span class="col-uom" style="display:inline">${escUom(uom)}</span>` : escHtml(txt)) : '';
-      } else {
-        val = valueWithCodeSpace(node);
-      }
-      if (val) parts.push(val);
-    }
-    return parts.join(', ');
-  }
-
-  // ── Resolve complex cell — returns info-icon HTML or '' ───────────────────
-  function complexCellHtml(rowEl, colSpec) {
-    const nodes = evalXPath(rowEl, colSpec.path);
-    if (!nodes.length) return '';
-
-    let sections;
-    if (colSpec.equipmentProp) {
-      // Each node is a property wrapper; unwrap to get the equipment element
-      const equipEls = nodes.map(n =>
-        [...(n.childNodes || [])].find(c => c.nodeType === 1)
-      ).filter(Boolean);
-      if (!equipEls.length) return '';
-      // Group by equipment type, each gets its own section
-      sections = equipEls.map(eq => ({
-        heading: eq.localName,
-        els: [eq],
-        fields: equipmentFieldsFor(eq.localName),
-      }));
-    } else {
-      // Nodes are the actual elements (e.g., diggs:Remark, diggs:Role)
-      sections = [{ els: [...nodes], fields: colSpec.fields }];
-    }
-
-    const title = colSpec.popupTitle || colSpec.label;
-    const key   = _registerPopup(title, sections);
-    return `<span class="col-info-icon" onclick="showDetailPopup('${escHtml(key)}')" title="${escHtml(title)}">i</span>`;
-  }
-
-  // ── xlink-aware location resolver for interval depth extraction ─────────
-  // locationPath is e.g. 'diggs:location/diggs:LinearExtent'.
-  // When the <location> wrapper carries xlink:href instead of an inline child,
-  // the XPath finds nothing; this helper follows the href to the target element.
-  function _resolveLocationEl(rowEl, locationPath, wrapperPathOverride) {
-    // 1. Try the direct XPath first (inline child case)
-    const direct = evalXPath(rowEl, locationPath);
-    if (direct.length) return direct[0];
-
-    // 2. Derive the wrapper path by stripping the last step from locationPath.
-    //    e.g. 'diggs:location/diggs:LinearExtent' → 'diggs:location'
-    const wrapperPath = wrapperPathOverride
-      || locationPath.split('/').slice(0, -1).join('/');
-    if (!wrapperPath) return null;
-
-    const wrappers = evalXPath(rowEl, wrapperPath);
-    for (const w of wrappers) {
-      const resolved = resolveXlinkEl(w);
-      if (resolved) return resolved;
-    }
-    return null;
-  }
-
-  // ── Determine UOM for depth columns ─────────────────────────────────────
-  let depthUomStr = '';
-  {
-    const firstRow = rowEls[0];
+  function rowLocationHtml(rowEl) {
     if (config.locationPath) {
-      const leEl = _resolveLocationEl(firstRow, config.locationPath, config.locationWrapperPath);
-      if (leEl) {
-        const srsName = leEl.getAttribute('srsName') || '';
-        if (srsName && LSR_UOM[srsName]) depthUomStr = LSR_UOM[srsName];
-      }
-    }
-  }
-
-  const hasInterval = !!config.locationPath;
-  const hasPoint    = !!config.locationPointPath;
-  const dUomSpan    = depthUomStr ? `<span class="col-uom">(${escHtml(depthUomStr)})</span>` : '';
-
-  // ── Collect rows with numeric depth-from for sorting ──────────────────────
-  const tableRows = [];
-  for (const rowEl of rowEls) {
-    let depthFrom = null, depthTo = null, depthUom = '';
-    if (hasInterval) {
       const leEl = _resolveLocationEl(rowEl, config.locationPath, config.locationWrapperPath);
-      const d    = leEl ? depthsFromLE(leEl) : { from: null, to: null, uom: '' };
-      depthFrom = d.from; depthTo = d.to; depthUom = d.uom;
+      const val = leEl ? FORMAT_FN.locationInline(leEl, dimDefault) : '';
+      if (val) return val;
     }
-    if (depthFrom === null && hasPoint) {
+    if (config.locationPointPath) {
       const plEl = _resolveLocationEl(rowEl, config.locationPointPath);
-      const d    = plEl ? depthFromPL(plEl) : { from: null, uom: '' };
-      depthFrom = d.from; depthUom = d.uom;
+      const val = plEl ? FORMAT_FN.locationInline(plEl, dimDefault) : '';
+      if (val) return val;
     }
-    tableRows.push({ rowEl, depthFrom, depthTo, depthUom });
+    return '';
   }
 
-  // Sort by depthFrom numerically
-  tableRows.sort((a, b) => {
-    if (a.depthFrom !== null && b.depthFrom !== null) return a.depthFrom - b.depthFrom;
-    if (a.depthFrom !== null) return -1;
-    if (b.depthFrom !== null) return  1;
-    return 0;
-  });
+  function rowHtml(rowEl) {
+    const rows = [];
+    const locVal = rowLocationHtml(rowEl);
+    if (locVal) rows.push(`<div class="kv-row"><span class="kv-key">Location</span><span class="kv-val">${locVal}</span></div>`);
 
-  // ── Pre-compute all cell values (needed for suppression check) ────────────
-  // cellMatrix[rowIdx][colIdx] = html string ('' = empty)
-  const cellMatrix = tableRows.map(({ rowEl }) =>
-    config.columns.map(col =>
-      col.complex ? complexCellHtml(rowEl, col) : scalarCellHtml(rowEl, col)
-    )
-  );
-
-  // ── Determine which columns have any data ─────────────────────────────────
-  const colActive = config.columns.map((_, ci) =>
-    cellMatrix.some(row => row[ci] !== '')
-  );
-
-  // ── Build header ──────────────────────────────────────────────────────────
-  let thead = '<thead><tr>';
-  if (hasInterval) {
-    thead += `<th>From${dUomSpan ? '<br>' + dUomSpan : ''}</th><th>To${dUomSpan ? '<br>' + dUomSpan : ''}</th>`;
-  } else if (hasPoint) {
-    thead += `<th>Depth${dUomSpan ? '<br>' + dUomSpan : ''}</th>`;
-  }
-  config.columns.forEach((col, ci) => {
-    if (colActive[ci]) thead += `<th>${escHtml(col.label)}</th>`;
-  });
-  thead += '</tr></thead>';
-
-  // ── Build body ────────────────────────────────────────────────────────────
-  let tbody = '<tbody>';
-  tableRows.forEach(({ depthFrom, depthTo }, ri) => {
-    tbody += '<tr>';
-    if (hasInterval) {
-      tbody += depthFrom !== null ? `<td class="mono">${depthFrom}</td>` : `<td class="muted-dash">—</td>`;
-      tbody += depthTo   !== null ? `<td class="mono">${depthTo}</td>`   : `<td class="muted-dash">—</td>`;
-    } else if (hasPoint) {
-      tbody += depthFrom !== null ? `<td class="mono">${depthFrom}</td>` : `<td class="muted-dash">—</td>`;
-    }
-    config.columns.forEach((col, ci) => {
-      if (!colActive[ci]) return;
-      const cell = cellMatrix[ri][ci];
-      // Complex columns: centre the icon; scalar: normal
+    for (const col of config.columns) {
       if (col.complex) {
-        tbody += cell
-          ? `<td style="text-align:center">${cell}</td>`
-          : `<td class="muted-dash">—</td>`;
-      } else {
-        tbody += cell ? `<td>${cell}</td>` : `<td class="muted-dash">—</td>`;
+        const nodes = evalXPath(rowEl, col.path);
+        if (!nodes.length) continue;
+        if (col.equipmentProp) {
+          const equipEls = nodes.map(n => [...(n.childNodes || [])].find(c => c.nodeType === 1)).filter(Boolean);
+          for (const eq of equipEls) {
+            const title = eq.localName.replace(/([A-Z])/g, ' $1').trim();
+            const cat = renderObjectCategory(title, [eq], equipmentFieldsFor(eq.localName));
+            if (cat) rows.push(cat);
+          }
+        } else {
+          const cat = renderObjectCategory(col.label, nodes, col.fields);
+          if (cat) rows.push(cat);
+        }
+        continue;
       }
-    });
-    tbody += '</tr>';
-  });
-  tbody += '</tbody>';
 
-  return `<div class="kv-interval-wrap"><table class="sub-table meas-table">${thead}${tbody}</table></div>`;
+      const allNodes = evalXPath(rowEl, col.path);
+      const targets  = col.multi ? allNodes : allNodes.slice(0, 1);
+      if (!targets.length) continue;
+
+      const cellValue = (node) => {
+        if (col.boolean) {
+          const txt = nodeText(node).toLowerCase();
+          if (txt === 'true' || txt === '1' || txt === 'yes') return 'Yes';
+          if (txt === 'false' || txt === '0' || txt === 'no') return 'No';
+          return txt || '';
+        }
+        if (col.format) {
+          const fn = FORMAT_FN[col.format] || KV_FORMAT[col.format];
+          return fn ? fn(node) : nodeText(node);
+        }
+        return renderPropertyValue(node);
+      };
+
+      if (col.splitRows) {
+        // One row per item, each repeating the same label — no
+        // concatenation into a single shared cell (e.g. Remark/Role).
+        for (const node of targets) {
+          const val = cellValue(node);
+          if (val) rows.push(`<div class="kv-row"><span class="kv-key">${escHtml(col.label)}</span><span class="kv-val">${val}</span></div>`);
+        }
+        continue;
+      }
+      const parts = targets.map(cellValue).filter(Boolean);
+      if (!parts.length) continue;
+      rows.push(`<div class="kv-row"><span class="kv-key">${escHtml(col.label)}</span><span class="kv-val">${parts.join(', ')}</span></div>`);
+    }
+    return rows.join('');
+  }
+
+  const startOpen = rowEls.length === 1;
+  return rowEls
+    .map(rowEl => wrapCategoryHeader(config.itemLabel, rowHtml(rowEl), startOpen))
+    .filter(Boolean)
+    .join('');
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -5964,7 +5895,7 @@ const LOCALITY_FIELDS = [
 const PROJECT_EVENT_FIELDS = [
   { label: 'Event', path: 'gml:name',        format: 'gmlNames', bold: true },
   { label: 'What',  path: 'gml:description' },
-  { Label: 'When', path: 'diggs:time',      format: 'renderTimeIntervalNested'},
+  { Label: 'When', path: 'diggs:time',      format: 'timeInterval'},
   { label: 'Status', path: 'diggs:status',    meta: true },
   { label: 'Note',   path: 'diggs:infoRecorded/diggs:Parameter', format: 'renderParameter',
                              multi: true, indent: true },
@@ -6000,7 +5931,7 @@ const KV_FORMAT = {
   // Delegates to FORMAT_FN.timeIntervalInline — single source of truth.
   renderTimeInterval(el) { return FORMAT_FN.timeIntervalInline(el); },
 
-  // Nested-KV delegates — property wrapper → unwrap → renderNestedKV
+  // Single-line/inline-category delegates — property wrapper → unwrap → render
   renderRemark(el)              { return FORMAT_FN.renderRemarkNested(el); },
 
   // Single diggs:Parameter → "name: value (min-max) uom" (see FORMAT_FN.renderParameter
@@ -6184,6 +6115,18 @@ const KV_FORMAT = {
     return KV_FORMAT.renderEquipmentInline(equipEl);
   },
 
+  // el is the diggs:installationEquipment property wrapper (inline child or
+  // xlink:href) — full KV detail as an inline expandable category, replacing
+  // the old popup-icon "kv-equip-link" mechanism.
+  renderEquipment(el) {
+    if (!el) return '';
+    let equipEl = [...(el.childNodes || [])].find(n => n.nodeType === 1);
+    if (!equipEl) equipEl = resolveHref(el);
+    if (!equipEl) return '';
+    const title = equipEl.localName.replace(/([A-Z])/g, ' $1').trim();
+    return renderObjectCategory(title, [equipEl], equipmentFieldsFor(equipEl.localName));
+  },
+
   // el is an Equipment / DrillRig / GroutPump element
   renderEquipmentInline(el) {
     if (!el) return '';
@@ -6268,23 +6211,23 @@ const KV_FORMAT = {
 
   renderSoftwareApplication(el) {
     const saEl = resolvePropertyEl(el, 'SoftwareApplication');
-    return saEl ? renderNestedKV(saEl, SOFTWARE_APPLICATION_FIELDS) : '';
+    return saEl ? renderObjectInstances([saEl], SOFTWARE_APPLICATION_FIELDS) : '';
   },
 
   // el is the diggs:locality property wrapper
   renderLocality(el) {
     const locEl = resolvePropertyEl(el, 'Locality');
-    return locEl ? renderNestedKV(locEl, LOCALITY_FIELDS) : '';
+    return locEl ? renderObjectInstances([locEl], LOCALITY_FIELDS) : '';
   },
 
   // el is the diggs:ProjectEvent element (parentPath resolves it directly)
   renderProjectEvent(el) {
-    return el ? renderNestedKV(el, PROJECT_EVENT_FIELDS) : '';
+    return el ? renderObjectInstances([el], PROJECT_EVENT_FIELDS) : '';
   },
 
   // el is the diggs:Contract element (parentPath resolves it directly)
   renderContract(el) {
-    return el ? renderNestedKV(el, CONTRACT_FIELDS) : '';
+    return el ? renderObjectInstances([el], CONTRACT_FIELDS) : '';
   },
 
   // ── Borehole descriptor rawFormat entries ─────────────────────────────────
@@ -6333,8 +6276,9 @@ const KV_FORMAT = {
   //   location (LinearExtent), methodTime, constructionMethod (Specification),
   //   constructionEquipment (EquipmentPropertyType).
   renderSoundingConstructionMethodTable(el) {
-    return buildIntervalTable(el, {
+    return renderIntervalRows(el, {
       rowPath:            'diggs:constructionMethod/diggs:SoundingConstructionMethod',
+      itemLabel:          'Construction Method',
       locationPath:       'diggs:location/diggs:LinearExtent',
       srsDimensionDefault: 3,
       columns: [
@@ -6347,10 +6291,8 @@ const KV_FORMAT = {
                                   complex: true, fields: SPECIFICATION_FIELDS, popupTitle: 'Specification' },
         { label: 'Equipment',     path: 'diggs:constructionEquipment',
                                   complex: true, equipmentProp: true, popupTitle: 'Equipment' },
-        { label: 'Roles',         path: 'diggs:role/diggs:Role',
-                                  complex: true, fields: ROLE_FIELDS, popupTitle: 'Roles' },
-        { label: 'Remarks',       path: 'diggs:remark/diggs:Remark',
-                                  complex: true, fields: REMARK_FIELDS, popupTitle: 'Remarks' },
+        { label: 'Role',         path: 'diggs:role', format: 'renderRole', multi: true, splitRows: true },
+        { label: 'Remark',       path: 'diggs:remark', format: 'renderRemark', multi: true, splitRows: true },
       ],
     });
   },
@@ -6359,8 +6301,9 @@ const KV_FORMAT = {
   // SoundingEventType extends AbstractEventType and adds:
   //   casingBottom (PointLocationPropertyType), soundingBottom (PointLocationPropertyType).
   renderSoundingEventTable(el) {
-    return buildIntervalTable(el, {
+    return renderIntervalRows(el, {
       rowPath:            'diggs:constructionEvent/diggs:SoundingEvent',
+      itemLabel:          'Sounding Event',
       locationPath:       'diggs:location/diggs:LinearExtent',
       locationPointPath:  'diggs:location/diggs:PointLocation',
       srsDimensionDefault: 3,
@@ -6373,8 +6316,7 @@ const KV_FORMAT = {
         { label: 'Sounding Bottom', path: 'diggs:soundingBottom',             format: 'resolvePointDepth' },
         { label: 'Notes',           path: 'diggs:infoRecorded/diggs:Parameter',
                                     format: 'renderParameter', multi: true },
-        { label: 'Remarks',         path: 'diggs:remark/diggs:Remark',
-                                    complex: true, fields: REMARK_FIELDS, popupTitle: 'Remarks' },
+        { label: 'Remark',         path: 'diggs:remark', format: 'renderRemark', multi: true, splitRows: true },
       ],
     });
   },
@@ -6384,8 +6326,9 @@ const KV_FORMAT = {
   // InstallationEvent table — used for installationConstructionEvent.
   // InstallationEventType extends AbstractEventType with no additions.
   renderInstallationEventTable(el) {
-    return buildIntervalTable(el, {
+    return renderIntervalRows(el, {
       rowPath:            'diggs:installationConstructionEvent/diggs:InstallationEvent',
+      itemLabel:          'Installation Event',
       locationPath:       'diggs:location/diggs:LinearExtent',
       locationPointPath:  'diggs:location/diggs:PointLocation',
       srsDimensionDefault: 3,
@@ -6396,16 +6339,16 @@ const KV_FORMAT = {
         { label: 'Status',      path: 'diggs:status' },
         { label: 'Notes',       path: 'diggs:infoRecorded/diggs:Parameter',
                                 format: 'renderParameter', multi: true },
-        { label: 'Remarks',     path: 'diggs:remark/diggs:Remark',
-                                complex: true, fields: REMARK_FIELDS, popupTitle: 'Remarks' },
+        { label: 'Remark',     path: 'diggs:remark', format: 'renderRemark', multi: true, splitRows: true },
       ],
     });
   },
 
   // maintenanceEvent table — same event type, different property element.
   renderMaintenanceEventTable(el) {
-    return buildIntervalTable(el, {
+    return renderIntervalRows(el, {
       rowPath:            'diggs:maintenanceEvent/diggs:InstallationEvent',
+      itemLabel:          'Maintenance Event',
       locationPath:       'diggs:location/diggs:LinearExtent',
       locationPointPath:  'diggs:location/diggs:PointLocation',
       srsDimensionDefault: 3,
@@ -6416,16 +6359,16 @@ const KV_FORMAT = {
         { label: 'Status',      path: 'diggs:status' },
         { label: 'Notes',       path: 'diggs:infoRecorded/diggs:Parameter',
                                 format: 'renderParameter', multi: true },
-        { label: 'Remarks',     path: 'diggs:remark/diggs:Remark',
-                                complex: true, fields: REMARK_FIELDS, popupTitle: 'Remarks' },
+        { label: 'Remark',     path: 'diggs:remark', format: 'renderRemark', multi: true, splitRows: true },
       ],
     });
   },
 
   // wellAbandonment table — same event type, different property element.
   renderWellAbandonmentTable(el) {
-    return buildIntervalTable(el, {
+    return renderIntervalRows(el, {
       rowPath:            'diggs:wellAbandonment/diggs:InstallationEvent',
+      itemLabel:          'Abandonment Event',
       locationPath:       'diggs:location/diggs:LinearExtent',
       locationPointPath:  'diggs:location/diggs:PointLocation',
       srsDimensionDefault: 3,
@@ -6436,16 +6379,16 @@ const KV_FORMAT = {
         { label: 'Status',      path: 'diggs:status' },
         { label: 'Notes',       path: 'diggs:infoRecorded/diggs:Parameter',
                                 format: 'renderParameter', multi: true },
-        { label: 'Remarks',     path: 'diggs:remark/diggs:Remark',
-                                complex: true, fields: REMARK_FIELDS, popupTitle: 'Remarks' },
+        { label: 'Remark',     path: 'diggs:remark', format: 'renderRemark', multi: true, splitRows: true },
       ],
     });
   },
 
   // wellCasing table — identical columns to renderCasingTable but uses diggs:wellCasing.
   renderWellCasingTable(el) {
-    return buildIntervalTable(el, {
+    return renderIntervalRows(el, {
       rowPath:            'diggs:wellCasing/diggs:Casing',
+      itemLabel:          'Casing',
       locationPath:       'diggs:casingLocation/diggs:LinearExtent',
       srsDimensionDefault: 3,
       columns: [
@@ -6461,8 +6404,7 @@ const KV_FORMAT = {
         { label: 'Removed',        path: 'diggs:timeCasingRemoved',     format: 'timeIntervalInline' },
         { label: 'Advancement',    path: 'diggs:casingAdvancement/diggs:CasingAdvancement',
                                    complex: true, fields: CASING_ADVANCEMENT_FIELDS, popupTitle: 'Casing Advancement' },
-        { label: 'Remarks',        path: 'diggs:remark/diggs:Remark',
-                                   complex: true, fields: REMARK_FIELDS, popupTitle: 'Remarks' },
+        { label: 'Remark',        path: 'diggs:remark', format: 'renderRemark', multi: true, splitRows: true },
       ],
     });
   },
@@ -6474,8 +6416,9 @@ const KV_FORMAT = {
   //                        or inline deprecated LinearExtent),
   //   openingLength, openingWidth, openingDiameter, openingType, openingMaterial.
   renderWellOpeningTable(el) {
-    return buildIntervalTable(el, {
+    return renderIntervalRows(el, {
       rowPath:            'diggs:opening/diggs:WellOpening',
+      itemLabel:          'Opening',
       locationPath:       'diggs:openInterval/diggs:LinearExtent',
       srsDimensionDefault: 3,
       columns: [
@@ -6488,8 +6431,7 @@ const KV_FORMAT = {
         { label: 'Opening Diameter', path: 'diggs:openingDiameter', uom: 'attr' },
         { label: 'Filter Pack',      path: 'diggs:filterPackInterval',
                                      format: 'resolveFilterPackInterval' },
-        { label: 'Remarks',          path: 'diggs:remark/diggs:Remark',
-                                     complex: true, fields: REMARK_FIELDS, popupTitle: 'Remarks' },
+        { label: 'Remark',          path: 'diggs:remark', format: 'renderRemark', multi: true, splitRows: true },
       ],
     });
   },
@@ -6521,7 +6463,7 @@ const KV_FORMAT = {
   // Used for Well initialDevelopmentMethod.
   renderSpecificationKV(specEl) {
     if (!specEl) return '';
-    return renderNestedKV(specEl, SPECIFICATION_FIELDS);
+    return renderObjectInstances([specEl], SPECIFICATION_FIELDS);
   },
 
   // Render an observationProcedure property wrapper (SpecificationPropertyType,
@@ -6529,15 +6471,16 @@ const KV_FORMAT = {
   // Used for LithologySystem (and any other AbstractObservationSystem).
   renderProcedureSpec(node) {
     const el = resolvePropertyEl(node, 'Specification');
-    return el ? renderNestedKV(el, SPECIFICATION_FIELDS) : '';
+    return el ? renderObjectInstances([el], SPECIFICATION_FIELDS) : '';
   },
 
   // ── Borehole interval table rawFormat entries ────────────────────────────
-  // Each receives the Borehole element (parentPath: '.') and calls buildIntervalTable.
+  // Each receives the Borehole element (parentPath: '.') and calls renderIntervalRows.
 
   renderHoleDiameterTable(el) {
-    return buildIntervalTable(el, {
+    return renderIntervalRows(el, {
       rowPath:            'diggs:holeDiameter/diggs:BoreholeDiameter',
+      itemLabel:          'Hole Diameter',
       locationPath:       'diggs:diameterLocation/diggs:LinearExtent',
       srsDimensionDefault: 3,
       columns: [
@@ -6547,15 +6490,15 @@ const KV_FORMAT = {
         { label: 'Diameter',        path: 'diggs:diameter',                            uom: 'attr' },
         { label: 'Cross-sect. Area',path: 'diggs:computedBoreholeCrossSectionalArea',  uom: 'attr' },
         { label: 'Volume',          path: 'diggs:computedBoreholeVolume',              uom: 'attr' },
-        { label: 'Remarks',         path: 'diggs:remark/diggs:Remark',
-                                    complex: true, fields: REMARK_FIELDS, popupTitle: 'Remarks' },
+        { label: 'Remark',         path: 'diggs:remark', format: 'renderRemark', multi: true, splitRows: true },
       ],
     });
   },
 
   renderFlushTable(el) {
-    return buildIntervalTable(el, {
+    return renderIntervalRows(el, {
       rowPath:            'diggs:flush/diggs:Flush',
+      itemLabel:          'Flush',
       locationPath:       'diggs:flushZoneLocation/diggs:LinearExtent',
       srsDimensionDefault: 3,
       columns: [
@@ -6566,15 +6509,15 @@ const KV_FORMAT = {
         { label: 'Min Return',  path: 'diggs:minFlushReturn',  uom: 'attr' },
         { label: 'Max Return',  path: 'diggs:maxflushReturn',  uom: 'attr' },   // schema typo
         { label: 'Color',       path: 'diggs:flushColor' },
-        { label: 'Remarks',     path: 'diggs:remark/diggs:Remark',
-                                complex: true, fields: REMARK_FIELDS, popupTitle: 'Remarks' },
+        { label: 'Remark',     path: 'diggs:remark', format: 'renderRemark', multi: true, splitRows: true },
       ],
     });
   },
 
   renderConstructionMethodTable(el) {
-    return buildIntervalTable(el, {
+    return renderIntervalRows(el, {
       rowPath:            'diggs:constructionMethod/diggs:BoreholeConstructionMethod',
+      itemLabel:          'Construction Method',
       locationPath:       'diggs:location/diggs:LinearExtent',
       srsDimensionDefault: 3,
       columns: [
@@ -6593,17 +6536,16 @@ const KV_FORMAT = {
                                    complex: true, fields: DRILL_PIPE_FIELDS, popupTitle: 'Drill Pipe' },
         { label: 'Cutting Tool',   path: 'diggs:cuttingToolInfo/diggs:CuttingTool',
                                    complex: true, fields: CUTTING_TOOL_FIELDS, popupTitle: 'Cutting Tool' },
-        { label: 'Roles',          path: 'diggs:role/diggs:Role',
-                                   complex: true, fields: ROLE_FIELDS, popupTitle: 'Roles' },
-        { label: 'Remarks',        path: 'diggs:remark/diggs:Remark',
-                                   complex: true, fields: REMARK_FIELDS, popupTitle: 'Remarks' },
+        { label: 'Role',          path: 'diggs:role', format: 'renderRole', multi: true, splitRows: true },
+        { label: 'Remark',        path: 'diggs:remark', format: 'renderRemark', multi: true, splitRows: true },
       ],
     });
   },
 
   renderDrillAdvancementTable(el) {
-    return buildIntervalTable(el, {
+    return renderIntervalRows(el, {
       rowPath:            'diggs:drillAdvancement/diggs:Advancement',
+      itemLabel:          'Drill Advancement',
       locationPath:       'diggs:location/diggs:LinearExtent',
       srsDimensionDefault: 3,
       columns: [
@@ -6631,15 +6573,15 @@ const KV_FORMAT = {
         { label: 'Penetration Rate',   path: 'diggs:penetrationRate',              uom: 'attr' },
         { label: 'Restraining Force',  path: 'diggs:restrainingForce',             uom: 'attr' },
         { label: 'Restraint Press.',   path: 'diggs:restrainingPressure',          uom: 'attr' },
-        { label: 'Remarks',            path: 'diggs:remark/diggs:Remark',
-                                       complex: true, fields: REMARK_FIELDS, popupTitle: 'Remarks' },
+        { label: 'Remark',            path: 'diggs:remark', format: 'renderRemark', multi: true, splitRows: true },
       ],
     });
   },
 
   renderCasingTable(el) {
-    return buildIntervalTable(el, {
+    return renderIntervalRows(el, {
       rowPath:            'diggs:casing/diggs:Casing',
+      itemLabel:          'Casing',
       locationPath:       'diggs:casingLocation/diggs:LinearExtent',
       srsDimensionDefault: 3,
       columns: [
@@ -6655,8 +6597,7 @@ const KV_FORMAT = {
         { label: 'Removed',        path: 'diggs:timeCasingRemoved',     format: 'timeIntervalInline' },
         { label: 'Advancement',    path: 'diggs:casingAdvancement/diggs:CasingAdvancement',
                                    complex: true, fields: CASING_ADVANCEMENT_FIELDS, popupTitle: 'Casing Advancement' },
-        { label: 'Remarks',        path: 'diggs:remark/diggs:Remark',
-                                   complex: true, fields: REMARK_FIELDS, popupTitle: 'Remarks' },
+        { label: 'Remark',        path: 'diggs:remark', format: 'renderRemark', multi: true, splitRows: true },
       ],
     });
   },
@@ -6678,13 +6619,11 @@ const KV_FORMAT = {
         { label: 'Date/Time',
           parentPath: 'diggs:backfillDateTime/diggs:TimeInterval',
           rawFormat:  'renderTimeInterval' },
-        { label: 'Remarks',
-          parentPath: 'diggs:remark',
-          multi:      true,
-          rawFormat:  'renderRemark' },
+        { label: 'Remark', parentPath: 'diggs:remark', multi: true, rawFormat: 'renderRemark', splitRows: true },
       ]);
-      out += buildIntervalTable(bfEl, {
+      out += renderIntervalRows(bfEl, {
         rowPath:            'diggs:backfillLayer/diggs:BackfillLayer',
+        itemLabel:          'Backfill Layer',
         locationPath:       'diggs:backfillInterval/diggs:LinearExtent',
         srsDimensionDefault: 3,
         columns: [
@@ -6693,8 +6632,7 @@ const KV_FORMAT = {
           { label: 'Volume',       path: 'diggs:backfillVolume',   uom: 'attr' },
           { label: 'Emplaced',     path: 'diggs:whenEmplaced/diggs:TimeInterval',
                                    format: 'timeIntervalInline' },
-          { label: 'Remarks',      path: 'diggs:remark/diggs:Remark',
-                                   complex: true, fields: REMARK_FIELDS, popupTitle: 'Remarks' },
+          { label: 'Remark',      path: 'diggs:remark', format: 'renderRemark', multi: true, splitRows: true },
         ],
       });
     }
@@ -6702,8 +6640,9 @@ const KV_FORMAT = {
   },
 
   renderConstructionEventTable(el) {
-    return buildIntervalTable(el, {
+    return renderIntervalRows(el, {
       rowPath:            'diggs:constructionEvent/diggs:BoreholeEvent',
+      itemLabel:          'Construction Event',
       locationPath:       'diggs:location/diggs:LinearExtent',
       locationPointPath:  'diggs:location/diggs:PointLocation',
       srsDimensionDefault: 3,
@@ -6720,8 +6659,7 @@ const KV_FORMAT = {
         { label: 'Dry',           path: 'diggs:isDry',                      boolean: true },
         { label: 'Notes',         path: 'diggs:infoRecorded/diggs:Parameter',
                                   format: 'renderParameter', multi: true },
-        { label: 'Remarks',       path: 'diggs:remark/diggs:Remark',
-                                  complex: true, fields: REMARK_FIELDS, popupTitle: 'Remarks' },
+        { label: 'Remark',       path: 'diggs:remark', format: 'renderRemark', multi: true, splitRows: true },
       ],
     });
   },
@@ -6745,16 +6683,15 @@ const KV_FORMAT = {
     wsDepthRow('Bottom Casing',  'diggs:bottomCasing');
     wsDepthRow('Bottom Hole',    'diggs:bottomHole');
 
-    // WaterStrikeReadings
-    const readings = evalXPath(wsEl, 'diggs:waterStrikeReadings/diggs:WaterStrikeReading');
-    for (const rEl of readings) {
+    // Build the KV rows for one reading-like element (WaterStrikeReading or
+    // LinkedWSReading — both share the same elapsedTime/dateTime and
+    // notEncountered/waterLocation choice constructs).
+    function readingRows(rEl) {
       const rdRows = [];
-      // Time: choice of diggs:elapsedTime (measure) or diggs:dateTime
       const elapsedEl = evalXPath(rEl, 'diggs:elapsedTime')[0];
       const dateTimeEl = evalXPath(rEl, 'diggs:dateTime')[0];
       if (elapsedEl)  rdRows.push(`<div class="kv-row"><span class="kv-key">Elapsed</span><span class="kv-val">${escHtml(FORMAT_FN.measure(elapsedEl))}</span></div>`);
       else if (dateTimeEl) rdRows.push(`<div class="kv-row"><span class="kv-key">Time</span><span class="kv-val">${escHtml(FORMAT_FN.dateTimePos(dateTimeEl))}</span></div>`);
-      // Location: choice of notEncountered or waterLocation
       const notEnc = evalXPath(rEl, 'diggs:notEncountered')[0];
       const waterLoc = evalXPath(rEl, 'diggs:waterLocation')[0];
       if (notEnc && nodeText(notEnc).toLowerCase() === 'true') {
@@ -6763,31 +6700,26 @@ const KV_FORMAT = {
         const depth = FORMAT_FN.resolvePointDepth(waterLoc);
         if (depth) rdRows.push(`<div class="kv-row"><span class="kv-key">Water at</span><span class="kv-val">${escHtml(depth)}</span></div>`);
       }
-      // Linked readings mini-table
-      const linked = evalXPath(rEl, 'diggs:linkedReading/diggs:LinkedWSReading');
-      if (linked.length) {
-        let linkHtml = '<table class="sub-table meas-table" style="margin-top:4px"><thead><tr><th>Time / Elapsed</th><th>Water Location</th></tr></thead><tbody>';
-        for (const lk of linked) {
-          const lkElapsed = evalXPath(lk, 'diggs:elapsedTime')[0];
-          const lkDt      = evalXPath(lk, 'diggs:dateTime')[0];
-          const lkNotEnc  = evalXPath(lk, 'diggs:notEncountered')[0];
-          const lkWaterLoc= evalXPath(lk, 'diggs:waterLocation')[0];
-          const tCell = lkElapsed ? escHtml(FORMAT_FN.measure(lkElapsed)) : (lkDt ? escHtml(FORMAT_FN.dateTimePos(lkDt)) : '—');
-          let locCell = '—';
-          if (lkNotEnc && nodeText(lkNotEnc).toLowerCase() === 'true') locCell = '<span style="color:var(--text-muted)">Not encountered</span>';
-          else if (lkWaterLoc) { const d = FORMAT_FN.resolvePointDepth(lkWaterLoc); if (d) locCell = escHtml(d); }
-          linkHtml += `<tr><td class="mono">${tCell}</td><td class="mono">${locCell}</td></tr>`;
-        }
-        linkHtml += '</tbody></table>';
-        rdRows.push(linkHtml);
-      }
-      if (rdRows.length) {
-        rows.push(`<div class="kv-nested" style="margin-top:4px">${rdRows.join('')}</div>`);
-      }
+      return rdRows;
     }
 
-    if (!rows.length) return '';
-    return `<div class="kv-nested">${rows.join('')}</div>`;
+    // WaterStrikeReadings — each occurrence gets its own independent
+    // "Water Strike Reading" header, plus a nested "Linked Reading" header
+    // (repeated per instance, replacing the old literal <table>) for each
+    // linkedReading occurrence.
+    const readings = evalXPath(wsEl, 'diggs:waterStrikeReadings/diggs:WaterStrikeReading');
+    for (const rEl of readings) {
+      const rdRows = readingRows(rEl);
+      const linked = evalXPath(rEl, 'diggs:linkedReading/diggs:LinkedWSReading');
+      for (const lk of linked) {
+        const cat = wrapCategoryHeader('Linked Reading', readingRows(lk).join(''), true);
+        if (cat) rdRows.push(cat);
+      }
+      const cat = wrapCategoryHeader('Water Strike Reading', rdRows.join(''), true);
+      if (cat) rows.push(cat);
+    }
+
+    return rows.join('');
   },
 
   // Local coordinate — diggs:LocalCoordinate element.
@@ -6825,18 +6757,18 @@ const KV_FORMAT = {
     // Uncertainty
     const uncEl = evalXPath(lcEl, 'diggs:localCoordinateUncertainty/diggs:LocationUncertainty')[0];
     if (uncEl) {
-      const uncHtml = renderNestedKV(uncEl, LOCATION_UNCERTAINTY_FIELDS);
-      if (uncHtml) kvRows.push(`<div class="kv-row"><span class="kv-key">Uncertainty</span><span class="kv-val">${uncHtml}</span></div>`);
+      const uncHtml = renderObjectCategory('Uncertainty', [uncEl], LOCATION_UNCERTAINTY_FIELDS);
+      if (uncHtml) kvRows.push(uncHtml);
     }
 
     if (!kvRows.length) return '';
-    return `<div class="kv-nested">${kvRows.join('')}</div>`;
+    return kvRows.join('');
   },
 
   // Environment — diggs:Environment element.
   renderEnvironment(envEl) {
     if (!envEl) return '';
-    return renderNestedKV(envEl, ENVIRONMENT_FIELDS);
+    return renderObjectInstances([envEl], ENVIRONMENT_FIELDS);
   },
 };
 
@@ -6875,31 +6807,56 @@ function nodeText(n) {
 }
 
 /**
- * valueWithCodeSpace(node) — display helper: escaped text content of `node`,
- * followed by its codeSpace attribute (if present) rendered as trailing
- * annotation. Returns a SAFE HTML string (already escaped) or ''.
+ * renderPropertyValue(node) — display helper for a simple property element:
+ * escaped text content, followed by its `uom` attribute (if present, styled
+ * the same as the value), followed by every *other* attribute's value in a
+ * single, differently-styled parenthetical (comma-separated when more than
+ * one; attribute names are never shown). Returns a SAFE HTML string (already
+ * escaped) or ''.
  *
- * DIGGS codeSpace attributes come in two flavors:
- *  - a plain label (e.g. an organization or authority name) — shown as
- *    small muted parenthetical text, same as the value itself.
- *  - a URI (http://, https://, ftp://, file://, urn:, etc. — typically a
- *    long link into a controlled-vocabulary dictionary) — these clutter the
- *    display badly if printed in full, so instead we show a small 🔗 icon
- *    that opens the URI in a new tab; the full URI is still available as
- *    a title tooltip.
+ * DIGGS codeSpace attributes fold into that same parenthetical when they're
+ * plain text (e.g. an organization/authority name), or — when the codeSpace
+ * is a URI (http://, https://, ftp://, file://, urn:, etc., typically a
+ * link into a controlled-vocabulary dictionary) — render instead as a
+ * trailing 🔗 icon that opens the URI in a new tab (full URI as a title
+ * tooltip), since printing the URI in full would clutter the display badly.
+ *
+ * Structural/plumbing attributes are never shown: xlink:* (href/type/role/
+ * arcrole/show/actuate), xsi:* (schemaLocation/type/nil), gml:id or a bare
+ * `id`, and `owns`.
  */
-function valueWithCodeSpace(node) {
+const _PV_SKIP_ATTRS = new Set(['uom', 'codeSpace', 'id', 'owns']);
+function renderPropertyValue(node) {
   if (!node) return '';
   const txt = nodeText(node);
   if (!txt) return '';
+  let html = escHtml(txt);
+
+  const uom = (node.getAttribute && node.getAttribute('uom')) || '';
+  if (uom) html += ` ${escUom(uom)}`;
+
   const cs = (node.getAttribute && node.getAttribute('codeSpace')) || '';
-  if (!cs) return escHtml(txt);
-  const isUrl = /^(https?|ftp|ftps|file|urn):/i.test(cs);
-  if (isUrl) {
-    return `${escHtml(txt)} <a href="${escHtml(cs)}" target="_blank" rel="noopener noreferrer" `
+  const isUrlCs = !!cs && /^(https?|ftp|ftps|file|urn):/i.test(cs);
+
+  const otherParts = [];
+  if (cs && !isUrlCs) otherParts.push(cs);
+  if (node.attributes) {
+    for (const attr of node.attributes) {
+      if (attr.namespaceURI === NS.xlink) continue;
+      if (attr.namespaceURI && attr.namespaceURI.indexOf('XMLSchema-instance') !== -1) continue;
+      if (_PV_SKIP_ATTRS.has(attr.localName || attr.name)) continue;
+      const val = (attr.value || '').trim();
+      if (val) otherParts.push(val);
+    }
+  }
+  if (otherParts.length) {
+    html += ` <span class="cs-tag">(${otherParts.map(escHtml).join(', ')})</span>`;
+  }
+  if (isUrlCs) {
+    html += ` <a href="${escHtml(cs)}" target="_blank" rel="noopener noreferrer" `
          + `class="cs-link" title="${escHtml(cs)}" onclick="event.stopPropagation()">\u{1F517}</a>`;
   }
-  return `${escHtml(txt)} <span class="cs-tag">(${escHtml(cs)})</span>`;
+  return html;
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -6932,7 +6889,7 @@ function renderKVTable(element, descriptor) {
     if (!nodes.length) return '';
     const n = nodes[0];
     const fn = sub.format && KV_FORMAT[sub.format];
-    const raw = fn ? fn(n) : valueWithCodeSpace(n);
+    const raw = fn ? fn(n) : renderPropertyValue(n);
     if (!raw) return '';
     return (sub.prefix || '') + raw + (sub.suffix || '');
   }
@@ -6980,7 +6937,7 @@ function renderKVTable(element, descriptor) {
       // (if present on the matched element) as trailing muted text.
       const nodes = evalXPath(element, entry.path);
       const targets = entry.multi ? nodes : nodes.slice(0, 1);
-      const parts = targets.map(n => valueWithCodeSpace(n)).filter(Boolean);
+      const parts = targets.map(n => renderPropertyValue(n)).filter(Boolean);
       if (!parts.length) {
         if (!entry.showEmpty) continue;
         isEmpty = true;
@@ -7007,7 +6964,7 @@ function renderKVTable(element, descriptor) {
           } else {
             const val = entry.composite
               ? assembleComposite(pn, entry.composite, entry.compositeSeparator)
-              : valueWithCodeSpace(pn);
+              : renderPropertyValue(pn);
             if (!val && !entry.children) continue;
             itemHtml = val || '';
             if (entry.children) {
@@ -7021,6 +6978,17 @@ function renderKVTable(element, descriptor) {
           if (!entry.showEmpty) continue;
           isEmpty = true;
           cellHtml = '<span style="color:var(--text-dim,#484f58)">—</span>';
+        } else if (entry.splitRows) {
+          // One row per item, each repeating the same label — no
+          // concatenation into a single shared cell (e.g. Remarks/Roles).
+          for (const itemHtml of items) {
+            current.rows.push(`
+              <div class="kv-row">
+                <span class="kv-key">${escHtml(entry.label)}</span>
+                <span class="kv-val">${itemHtml}</span>
+              </div>`);
+          }
+          continue;
         } else {
           cellHtml = items.join('<div style="height:6px"></div>');
         }
