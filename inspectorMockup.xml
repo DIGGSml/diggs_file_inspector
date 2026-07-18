@@ -1870,7 +1870,7 @@
         <Borehole gml:id="Location_BH-33">
             <gml:description>Main investigation borehole for geotechnical characterisation of foundation
                 conditions at the Jazera Royal Palace Substation site, Riyadh, Saudi Arabia.
-                Drilled by rotary wash method to 56.54 m depth.</gml:description>
+                Drilled by rotary wash method to 43.05 m depth.</gml:description>
             <gml:identifier codeSpace="Global Geoslutions">GBL-GT-24136-BH001</gml:identifier>
             <gml:name codeSpace="Global Geoslutions">BH-1</gml:name>
             <gml:name codeSpace="Jazeera-RPDA">Borehole 1</gml:name>
@@ -1939,7 +1939,7 @@
                     <content>BH-1 is the primary investigation borehole located in the northern portion
                         of the substation footprint. SPT testing was conducted at 2.83 m intervals
                         throughout. No groundwater was encountered to the maximum investigation
-                        depth of 56.54 m. Borehole terminated in dense to very dense silty sand
+                        depth of 43.05 m. Borehole terminated in dense to very dense silty sand
                         with gravel.</content>
                     <remarkDateTime frame="#ISO-8601" indeterminatePosition="unknown"
                         >2024-03-04</remarkDateTime>
@@ -2142,30 +2142,36 @@
                         in KSA-GRF17 / UTM Zone 37N (EPSG:9357); elevation referenced to EGM96
                         (EPSG:5773). Surveyed by total station from site control network.</gml:description>
                     <gml:pos>22.098873 39.026279 10.42</gml:pos>
-                </PointLocation>            </referencePoint>
+                </PointLocation>
+            </referencePoint>
             <centerLine>
                 <LinearExtent gml:id="cl-BH001-1"
                     srsName="https://www.opengis.net/def/crs/EPSG/0/4979"
                     srsDimension="3" axisLabels="latitude longitude ellipsoidal height">
-                    <gml:description>Inclined borehole</gml:description>
-                    <gml:posList>22.098873 39.026279 10.42 22.098773 39.026179 -19 22.098873 39.026379 -19</gml:posList>
+                    <gml:description>Deviated borehole; synthetic spiral trajectory (11 stations)
+                        that kicks off due north from the collar and sweeps clockwise (in plan)
+                        through 270° of azimuth, with horizontal deviation increasing progressively
+                        with depth (near-vertical near the collar), ending 10 m due west of the
+                        collar at total depth — used to exercise the 3D trajectory viewer's
+                        Deviated-hole rendering. Path length matches the reported
+                        totalMeasuredDepth of 43.05 m.</gml:description>
+                    <gml:posList>22.098873 39.026279 10.42 22.098876 39.026281 6.91 22.098879 39.026287 3.40 22.098876 39.026297 -0.10 22.098865 39.026305 -3.61 22.098849 39.026305 -7.12 22.098831 39.026294 -10.63 22.098819 39.026270 -14.14 22.098820 39.026237 -17.64 22.098838 39.026204 -21.15 22.098873 39.026182 -24.66</gml:posList>
                     <datumReference>ground surface</datumReference>
                 </LinearExtent>
             </centerLine>
-<!--  
+  
             <centerLine>
                 <LinearExtent gml:id="cl-BH001-2"
-                    srsName="https://www.opengis.net/def/crs-compound?1=http://www.opengis.net/def/crs/EPSG/0/9357%262=http://www.opengis.net/def/crs/EPSG/0/5773"
-                    srsDimension="3" axisLabels="easting northing height" uomLabels="m m m">
+                    srsName="https://www.opengis.net/def/crs/EPSG/0/4979"
+                    srsDimension="3" axisLabels="latitude longitude ellipsoidal height">
                     <gml:description>Centreline of BH-1 from collar to total depth. Borehole is
                         nominally vertical; easting and northing held constant throughout.
                         Elevation at collar 5.82 m EGM96; total depth 56.54 m below ground
                         surface giving a bottom elevation of -24.18 m EGM96.</gml:description>
-                    <gml:posList>502935.2 2443952.4 5.82 502935.2 2443952.4 -24.18</gml:posList>
+                    <gml:posList>22.098873 39.026279 10.42 22.098876 39.026281 6.91 22.098879 39.026287 3.40 22.098876 39.026297 -0.10 22.098865 39.026305 -3.61 22.098861 39.026315 -24.18</gml:posList>
                     <datumReference>ground surface</datumReference>
                 </LinearExtent>
             </centerLine>
--->
             <linearReferencing>
                 <LinearSpatialReferenceSystem gml:id="lsr-BH-33">
                     <gml:identifier codeSpace="OGC">lsr-BH001-1</gml:identifier>
@@ -2174,7 +2180,7 @@
                     <lrm xlink:href="https://diggsml.org/def/crs/DIGGS/0.1/lrm.xml#md_m"/>
                 </LinearSpatialReferenceSystem>
             </linearReferencing>
-            <!-- 
+
             <linearReferencing>
                 <LinearSpatialReferenceSystem gml:id="lsr-BH001-2">
                     <gml:identifier codeSpace="OGC">lsr-BH001-2</gml:identifier>
@@ -2183,7 +2189,6 @@
                     <lrm xlink:href="https://diggsml.org/def/crs/DIGGS/0.1/lrm.xml#md_m"/>
                 </LinearSpatialReferenceSystem>
             </linearReferencing>
-             -->
             <plunge uom="dega" howDetermined="measured">90</plunge>
 
             <bearing uom="dega" howDetermined="measured">0</bearing>
@@ -2212,7 +2217,7 @@
                 </TimeInterval>
             </whenDestroyed>
 
-            <totalMeasuredDepth uom="m" howDetermined="measured" qualifier="exact">56.54</totalMeasuredDepth>
+            <totalMeasuredDepth uom="m" howDetermined="measured" qualifier="exact">43.05</totalMeasuredDepth>
 
             <boreholePurpose codeSpace="https://www.diggsml.org/def/codes/DIGGS/0.1/BoreholeTypeDef.xml">geotechnical site characterization</boreholePurpose>
 
@@ -2241,7 +2246,7 @@
                             <backfillInterval>
                                 <LinearExtent gml:id="BKF-BH001-01-L01-EXT" srsName="#lsr-BH-33"
                                     srsDimension="1">
-                                    <gml:posList>0.00 56.54</gml:posList>
+                                    <gml:posList>0.00 43.05</gml:posList>
                                     <datumReference>ground surface</datumReference>
                                     <startValue uom="m" howDetermined="measured">0.0</startValue>
                                 </LinearExtent>
@@ -2279,7 +2284,7 @@
                             <backfillInterval>
                                 <LinearExtent gml:id="BKF-BH001-02-L01-EXT" srsName="#lsr-BH-33"
                                     srsDimension="1">
-                                    <gml:posList>0.00 0.94</gml:posList>
+                                    <gml:posList>0.00 0.72</gml:posList>
                                     <datumReference>ground surface</datumReference>
                                     <startValue uom="m" howDetermined="measured">0.0</startValue>
                                 </LinearExtent>
@@ -2306,7 +2311,7 @@
                     <casingLocation>
                         <LinearExtent gml:id="CSG-BH001-01-EXT" srsName="#lsr-BH-33"
                             srsDimension="1">
-                            <gml:posList>0.00 11.31</gml:posList>
+                            <gml:posList>0.00 8.61</gml:posList>
                             <datumReference>ground surface</datumReference>
                             <startValue uom="m" howDetermined="measured">0.0</startValue>
                         </LinearExtent>
@@ -2343,7 +2348,7 @@
                     <casingLocation>
                         <LinearExtent gml:id="CSG-BH001-02-EXT" srsName="#lsr-BH-33"
                             srsDimension="1">
-                            <gml:posList>0.00 56.54</gml:posList>
+                            <gml:posList>0.00 43.05</gml:posList>
                             <datumReference>ground surface</datumReference>
                             <startValue uom="m" howDetermined="measured">0.0</startValue>
                         </LinearExtent>
@@ -3379,7 +3384,7 @@
                                         <LinearExtent gml:id="LE-DET-BH001-AAXIS"
                                             srsName="#lsr-BH-33" srsDimension="1" axisLabels="depth"
                                             uomLabels="m">
-                                            <gml:posList count="2">0.00 56.54</gml:posList>
+                                            <gml:posList count="2">0.00 43.05</gml:posList>
                                             <startValue uom="m" howDetermined="reported"
                                                 >0.0</startValue>
                                         </LinearExtent>
@@ -3403,7 +3408,7 @@
                                         <LinearExtent gml:id="LE-DET-BH001-BAXIS"
                                             srsName="#lsr-BH-33" srsDimension="1" axisLabels="depth"
                                             uomLabels="m">
-                                            <gml:posList count="2">0.00 56.54</gml:posList>
+                                            <gml:posList count="2">0.00 43.05</gml:posList>
                                             <startValue uom="m" howDetermined="reported"
                                                 >0.0</startValue>
                                         </LinearExtent>
@@ -4150,7 +4155,7 @@
                             srsDimension="1" axisLabels="depth" uomLabels="m">
                             <gml:description>Depths of SPT tests conducted in BH-1 from 2.83 m to 56.54 m at 2.83 m intervals.</gml:description>
                             <gml:posList srsName="#lsr-BH-33" srsDimension="1" axisLabels="depth"
-                                uomLabels="m" count="20">2.83 5.65 8.48 11.31 14.14 16.96 19.79 22.62 25.44 28.27 31.10 33.93 36.75 39.58 42.41 45.24 48.06 50.89 53.72 56.54</gml:posList>
+                                uomLabels="m" count="20">2.15 4.30 6.46 8.61 10.77 12.91 15.07 17.22 19.37 21.52 23.68 25.83 27.98 30.14 32.29 34.45 36.59 38.75 40.90 43.05</gml:posList>
                             <uncertainty>
                                 <LocationUncertainty gml:id="LU-CE01-BH001">
                                     <gml:description>Depth measurement uncertainty for SPT test positions in BH-1. Depths recorded from rod tally; uncertainty estimated at ±0.05 m.</gml:description>
@@ -4675,7 +4680,7 @@
                         <PointLocation gml:id="PL-CSGBOT-BH001" srsName="#lsr-BH-33"
                             srsDimension="1">
                             <gml:description>Bottom of 168 mm OD surface casing installed in BH-1 to 11.31 m depth below ground surface.</gml:description>
-                            <gml:pos srsName="#lsr-BH-33" srsDimension="1">11.31</gml:pos>
+                            <gml:pos srsName="#lsr-BH-33" srsDimension="1">8.61</gml:pos>
                             <uncertainty>
                                 <LocationUncertainty gml:id="LU-CSGBOT-BH001">
                                     <gml:description>Depth uncertainty for surface casing bottom in BH-1. Casing driven and measured to 11.31 m; uncertainty ±0.05 m from rod tally.</gml:description>
@@ -4850,7 +4855,7 @@
                         <PointLocation gml:id="PL-HOLEBOT-BH001" srsName="#lsr-BH-33"
                             srsDimension="1">
                             <gml:description>Borehole BH-1 termination depth — 56.54 m below ground surface. Final SPT conducted at this depth prior to borehole completion.</gml:description>
-                            <gml:pos srsName="#lsr-BH-33" srsDimension="1">56.54</gml:pos>
+                            <gml:pos srsName="#lsr-BH-33" srsDimension="1">43.05</gml:pos>
                             <uncertainty>
                                 <LocationUncertainty gml:id="LU-HOLEBOT-BH001">
                                     <gml:description>Depth uncertainty for BH-1 hole bottom at 56.54 m. Confirmed by rod tally and cross-checked against total drill string length.</gml:description>
@@ -5025,7 +5030,7 @@
                         <PointLocation gml:id="PL-WATDEP-BH001" srsName="#lsr-BH-33"
                             srsDimension="1">
                             <gml:description>No groundwater encountered in BH-1 to termination depth of 56.54 m bgl. Water depth recorded as beyond termination depth. Dry borehole conditions prevailed throughout drilling on 4 March 2024.</gml:description>
-                            <gml:pos srsName="#lsr-BH-33" srsDimension="1">56.54</gml:pos>
+                            <gml:pos srsName="#lsr-BH-33" srsDimension="1">43.05</gml:pos>
                             <uncertainty>
                                 <LocationUncertainty gml:id="LU-WATDEP-BH001">
                                     <gml:description>No groundwater encountered to 56.54 m depth. Location uncertainty reflects termination depth measurement precision only; actual water table may lie below investigation depth.</gml:description>
@@ -6130,7 +6135,7 @@
                         <PointLocation gml:id="PL-CSGBOT-BH001-CE02" srsName="#lsr-BH-33"
                             srsDimension="1">
                             <gml:description>Bottom of surface casing in BH-1 at 11.31 m bgl. Same physical position as recorded in CE-BH001-01; casing remained in place throughout drilling and completion operations.</gml:description>
-                            <gml:pos srsName="#lsr-BH-33" srsDimension="1">11.31</gml:pos>
+                            <gml:pos srsName="#lsr-BH-33" srsDimension="1">8.61</gml:pos>
                             <uncertainty>
                                 <LocationUncertainty gml:id="LU-CSGBOT-BH001-CE02">
                                     <gml:description>Casing bottom uncertainty for CE02 — same measurement basis as CE01. Surface casing position unchanged through completion operations.</gml:description>
@@ -6269,7 +6274,7 @@
                         <PointLocation gml:id="PL-HOLEBOT-BH001-CE02" srsName="#lsr-BH-33"
                             srsDimension="1">
                             <gml:description>BH-1 hole bottom at 56.54 m bgl — same as CE-BH001-01. Borehole depth confirmed unchanged prior to tremie pipe insertion for grouting. Grout injected from this depth upward to surface.</gml:description>
-                            <gml:pos srsName="#lsr-BH-33" srsDimension="1">56.54</gml:pos>
+                            <gml:pos srsName="#lsr-BH-33" srsDimension="1">43.05</gml:pos>
                             <uncertainty>
                                 <LocationUncertainty gml:id="LU-HOLEBOT-BH001-CE02">
                                     <gml:description>Hole bottom uncertainty for CE02 — same measurement basis as CE01. Depth confirmed by tremie pipe insertion to 56.54 m prior to grouting.</gml:description>
@@ -6408,7 +6413,7 @@
                         <PointLocation gml:id="PL-WATDEP-BH001-CE02" srsName="#lsr-BH-33"
                             srsDimension="1">
                             <gml:description>Standing water check at BH-1 at 16:30 AST on 4 March 2024 — no water observed in open borehole approximately 45 minutes after drill string withdrawal. Water depth confirmed as beyond investigation depth of 56.54 m bgl.</gml:description>
-                            <gml:pos srsName="#lsr-BH-33" srsDimension="1">56.54</gml:pos>
+                            <gml:pos srsName="#lsr-BH-33" srsDimension="1">43.05</gml:pos>
                             <uncertainty>
                                 <LocationUncertainty gml:id="LU-WATDEP-BH001-CE02">
                                     <gml:description>Water depth uncertainty for CE02 standing check. No water observed to 56.54 m; position represents lower bound of investigation.</gml:description>
@@ -6560,7 +6565,7 @@
                     <location>
                         <LinearExtent gml:id="LE-ADV-BH001-01" srsName="#lsr-BH-33" srsDimension="1"
                             axisLabels="depth" uomLabels="m">
-                            <gml:posList count="2">0.00 28.27</gml:posList>
+                            <gml:posList count="2">0.00 21.52</gml:posList>
                             <datumReference>top of hole</datumReference>
                         </LinearExtent>
                     </location>
@@ -6587,7 +6592,7 @@
                     <location>
                         <LinearExtent gml:id="LE-ADV-BH001-02" srsName="#lsr-BH-33" srsDimension="1"
                             axisLabels="depth" uomLabels="m">
-                            <gml:posList count="2">28.27 56.54</gml:posList>
+                            <gml:posList count="2">21.52 43.05</gml:posList>
                             <datumReference>top of hole</datumReference>
                         </LinearExtent>
                     </location>
@@ -6623,7 +6628,7 @@
                     <diameterLocation>
                         <LinearExtent gml:id="LE-HD-BH001-01" srsName="#lsr-BH-33" srsDimension="1"
                             axisLabels="depth" uomLabels="m">
-                            <gml:posList count="2">0.00 11.31</gml:posList>
+                            <gml:posList count="2">0.00 8.61</gml:posList>
                             <datumReference>top of hole</datumReference>
                         </LinearExtent>
                     </diameterLocation>
@@ -6639,7 +6644,7 @@
                     <diameterLocation>
                         <LinearExtent gml:id="LE-HD-BH001-02" srsName="#lsr-BH-33" srsDimension="1"
                             axisLabels="depth" uomLabels="m">
-                            <gml:posList count="2">11.31 56.54</gml:posList>
+                            <gml:posList count="2">8.61 43.05</gml:posList>
                             <datumReference>top of hole</datumReference>
                         </LinearExtent>
                     </diameterLocation>
@@ -6678,13 +6683,13 @@
                     <bottomCasing>
                         <PointLocation gml:id="PL-WS-BH001-BCSG" srsName="#lsr-BH-33"
                             srsDimension="1" axisLabels="depth" uomLabels="m">
-                            <gml:pos>11.31</gml:pos>
+                            <gml:pos>8.61</gml:pos>
                         </PointLocation>
                     </bottomCasing>
                     <bottomHole>
                         <PointLocation gml:id="PL-WS-BH001-BH" srsName="#lsr-BH-33" srsDimension="1"
                             axisLabels="depth" uomLabels="m">
-                            <gml:pos>56.54</gml:pos>
+                            <gml:pos>43.05</gml:pos>
                         </PointLocation>
                     </bottomHole>
                 </WaterStrike>
@@ -6907,26 +6912,7 @@
                     <datumReference>ground surface</datumReference>
                 </LinearExtent>
             </centerLine>
-            <centerLine>
-                <LinearExtent gml:id="cl-BH002-1"
-                    srsName="https://www.opengis.net/def/crs-compound?1=http://www.opengis.net/def/crs/EPSG/0/9357%262=http://www.opengis.net/def/crs/EPSG/0/5773"
-                    srsDimension="3" axisLabels="easting northing height" uomLabels="m m m">
-                    <gml:description>Centreline of BH-1 from collar to total depth. Borehole is
-                        nominally vertical; easting and northing held constant throughout.
-                        Elevation at collar 5.82 m EGM96; total depth 30.0 m below ground
-                        surface giving a bottom elevation of -24.18 m EGM96.</gml:description>
-                    <gml:posList>502935.2 2443952.4 5.82 502935.2 2443952.4 -24.18</gml:posList>
-                    <datumReference>ground surface</datumReference>
-                </LinearExtent>
-            </centerLine>
-            <linearReferencing>
-                <LinearSpatialReferenceSystem gml:id="lsr-BH002-1">
-                    <gml:identifier codeSpace="OGC">lsr-BH002-1</gml:identifier>
-                    <gml:name codeSpace="http://www.globalgeosolutions.com/projects">Depth reference system for BH-1</gml:name>
-                    <glr:linearElement xlink:href="#cl-BH002-1"/>
-                    <lrm xlink:href="https://diggsml.org/def/crs/DIGGS/0.1/lrm.xml#md_m"/>
-                </LinearSpatialReferenceSystem>
-            </linearReferencing>
+            
             <linearReferencing>
                 <LinearSpatialReferenceSystem gml:id="lsr-BH002-2">
                     <gml:identifier codeSpace="OGC">lsr-BH002-2</gml:identifier>
@@ -6935,9 +6921,9 @@
                     <lrm xlink:href="https://diggsml.org/def/crs/DIGGS/0.1/lrm.xml#md_m"/>
                 </LinearSpatialReferenceSystem>
             </linearReferencing>
-            <plunge uom="dega" howDetermined="measured">90</plunge>
+            <plunge uom="dega" howDetermined="measured">76.7</plunge>
 
-            <bearing uom="dega" howDetermined="measured">0</bearing>
+            <bearing uom="dega" howDetermined="measured">45</bearing>
 
             <whenConstructed>
                 <TimeInterval gml:id="WCTI-BH002">
@@ -7506,6 +7492,17 @@
                             <internalIdentifier codeSpace="http://www.globalgeosolutions.com/projects/GBL-GT-24136">GBL-PUMP-07</internalIdentifier>
                             <status codeSpace="http://diggsml.org/def/codes/DIGGS/0.1/Status">complete</status>
                             <implementationStatus codeSpace="http://diggsml.org/def/codes/DIGGS/0.1/ImplementationStatus">actual</implementationStatus>
+                            <associatedFile>
+                                <AssociatedFile gml:id="AF-GRP2-BH002-B">
+                                    <gml:description>Manufacturer equipment data sheet and calibration certificate for the Putzmeister P13 diaphragm pump.</gml:description>
+                                    <gml:identifier codeSpace="http://www.globalgeosolutions.com/equipment">GGL-PUMP-07-DOC01</gml:identifier>
+                                    <gml:name codeSpace="http://www.globalgeosolutions.com/equipment">GGL Pump No. 7 Equipment Data Sheet</gml:name>
+                                    <status codeSpace="http://diggsml.org/def/codes/DIGGS/0.1/DocumentStatus">final</status>
+                                    <fileURL>http://www.globalgeosolutions.com/equipment/GGL-PUMP-07/datasheet.pdf</fileURL>
+                                    <fileType codeSpace="http://diggsml.org/def/codes/DIGGS/0.1/FileType">specification</fileType>
+                                    <documentType codeSpace="http://diggsml.org/def/codes/DIGGS/0.1/DocumentType">equipmentDataSheet</documentType>
+                                </AssociatedFile>
+                            </associatedFile>
                             <role>
                                 <Role owns="false">
                                     <rolePerformed codeSpace="http://diggsml.org/def/codes/DIGGS/0.1/RolePerformed">drillingContractor</rolePerformed>
@@ -7539,11 +7536,64 @@
                             <make>Putzmeister</make>
                             <modelNumber>P13</modelNumber>
                             <serialNumber>PM-P13-2018-0882</serialNumber>
+                            <calibrationAuditTrail>
+                                <Calibration gml:id="CAL-GRP2-BH002-B">
+                                    <gml:description>Annual pressure gauge and relief valve calibration for GGL Pump No. 7, performed by manufacturer-authorized service center.</gml:description>
+                                    <gml:identifier codeSpace="http://www.globalgeosolutions.com/equipment">GGL-PUMP-07-CAL-2024</gml:identifier>
+                                    <calibrationData>Pressure gauge verified against a certified deadweight tester at 0, 150, 300, 450 and 600 kPa; relief valve set-point verified at 620 kPa. All readings within +/-1.5% of reference.</calibrationData>
+                                    <cqlibrationValues>
+                                        <Parameter index="1" gml:id="PARAM-GRP2-BH002-B-CAL1">
+                                            <parameterName codeSpace="http://diggsml.org/def/codes/DIGGS/0.1/EquipmentParameter">pressureGaugeAccuracy</parameterName>
+                                            <parameterValue>1.5</parameterValue>
+                                            <parameterUnits>%</parameterUnits>
+                                        </Parameter>
+                                    </cqlibrationValues>
+                                    <date>2024-02-10</date>
+                                    <useSinceLastCalibration>Approximately 60 pump-hours prior to BH-1 grouting operations.</useSinceLastCalibration>
+                                </Calibration>
+                            </calibrationAuditTrail>
+                            <otherEquipmentProperty>
+                                <Parameter index="1" gml:id="PARAM-GRP2-BH002-B-OEP1">
+                                    <gml:description>Maximum specific gravity of grout mix the pump can reliably handle without diaphragm damage.</gml:description>
+                                    <parameterName codeSpace="http://diggsml.org/def/codes/DIGGS/0.1/EquipmentParameter">maxGroutSpecificGravity</parameterName>
+                                    <parameterValue>1.8</parameterValue>
+                                    <parameterUnits>g/cm3</parameterUnits>
+                                </Parameter>
+                            </otherEquipmentProperty>
+                            <inletPipeSize uom="mm" howDetermined="reported">50</inletPipeSize>
                             <maxFlow uom="L/min" howDetermined="reported">50</maxFlow>
+                            <maxGrainsize uom="mm">8</maxGrainsize>
                             <maxPressure uom="kPa" howDetermined="reported">600</maxPressure>
                             <numberOfPistons>1</numberOfPistons>
+                            <outletPipeSize uom="mm" howDetermined="reported">38</outletPipeSize>
+                            <pistonDiameter uom="mm" howDetermined="reported">70</pistonDiameter>
+                            <pistonStroke uom="mm" howDetermined="reported">120</pistonStroke>
+                            <cylinderVolume uom="L" howDetermined="reported">0.46</cylinderVolume>
                             <type codeSpace="http://diggsml.org/def/codes/DIGGS/0.1/PumpType">diaphragm</type>
                             <enginePower uom="kW" howDetermined="reported">3.0</enginePower>
+                            <pumpTransportWeight uom="kN" howDetermined="reported">1.2</pumpTransportWeight>
+                            <pressureFlowCurveData>
+                                <PressureFlowCurveData gml:id="PFC-GRP2-BH002-B-1">
+                                    <index>1</index>
+                                    <measuredPressure uom="kPa" howDetermined="reported">200</measuredPressure>
+                                    <measuredFlowRate uom="L/min" howDetermined="reported">48</measuredFlowRate>
+                                </PressureFlowCurveData>
+                                <PressureFlowCurveData gml:id="PFC-GRP2-BH002-B-2">
+                                    <index>2</index>
+                                    <measuredPressure uom="kPa" howDetermined="reported">350</measuredPressure>
+                                    <measuredFlowRate uom="L/min" howDetermined="reported">38</measuredFlowRate>
+                                </PressureFlowCurveData>
+                                <PressureFlowCurveData gml:id="PFC-GRP2-BH002-B-3">
+                                    <index>3</index>
+                                    <measuredPressure uom="kPa" howDetermined="reported">480</measuredPressure>
+                                    <measuredFlowRate uom="L/min" howDetermined="reported">28</measuredFlowRate>
+                                </PressureFlowCurveData>
+                                <PressureFlowCurveData gml:id="PFC-GRP2-BH002-B-4">
+                                    <index>4</index>
+                                    <measuredPressure uom="kPa" howDetermined="reported">600</measuredPressure>
+                                    <measuredFlowRate uom="L/min" howDetermined="reported">20</measuredFlowRate>
+                                </PressureFlowCurveData>
+                            </pressureFlowCurveData>
                         </GroutPump>
                     </constructionEquipment>
 
@@ -9345,7 +9395,7 @@
                 conditions at the Jazera Royal Palace Substation site, Riyadh, Saudi Arabia.
                 Drilled by rotary wash method to 30.0 m depth.</gml:description>
             <gml:identifier codeSpace="Global Geoslutions">GBL-GT-24136-BH003</gml:identifier>
-            <gml:name codeSpace="Global Geoslutions">BH-2</gml:name>
+            <gml:name codeSpace="Global Geoslutions">BH-3</gml:name>
             <gml:name codeSpace="Jazeera-RPDA">Borehole 2</gml:name>
             <internalIdentifier codeSpace="Global Geoslutions">BH003</internalIdentifier>
             <status>final</status>
@@ -9542,25 +9592,12 @@
             </referencePoint>
             <centerLine>
                 <LinearExtent gml:id="cl-BH003-1"
-                    srsName="https://www.opengis.net/def/crs-compound?1=http://www.opengis.net/def/crs/EPSG/0/9357%262=http://www.opengis.net/def/crs/EPSG/0/5773"
-                    srsDimension="3" axisLabels="easting northing height" uomLabels="m m m">
-                    <gml:description>Centreline of BH-1 from collar to total depth. Borehole is
-                        nominally vertical; easting and northing held constant throughout.
-                        Elevation at collar 5.82 m EGM96; total depth 30.0 m below ground
-                        surface giving a bottom elevation of -24.18 m EGM96.</gml:description>
-                    <gml:posList>502935.2 2443952.4 5.82 502935.2 2443952.4 -24.18</gml:posList>
-                    <datumReference>ground surface</datumReference>
-                </LinearExtent>
-            </centerLine>
-            <centerLine>
-                <LinearExtent gml:id="cl-BH003-2"
-                    srsName="https://www.opengis.net/def/crs-compound?1=http://www.opengis.net/def/crs/EPSG/0/9357%262=http://www.opengis.net/def/crs/EPSG/0/5773"
-                    srsDimension="3" axisLabels="easting northing height" uomLabels="m m m">
-                    <gml:description>Centreline of BH-1 from collar to total depth. Borehole is
-                        nominally vertical; easting and northing held constant throughout.
-                        Elevation at collar 5.82 m EGM96; total depth 30.0 m below ground
-                        surface giving a bottom elevation of -24.18 m EGM96.</gml:description>
-                    <gml:posList>502935.2 2443952.4 5.82 502935.2 2443952.4 -24.18</gml:posList>
+                    srsName="https://www.opengis.net/def/crs/EPSG/0/4978"
+                    srsDimension="3" axisLabels="latitude longitude ellipsoidal height">
+                    <gml:description>Surveyed borehole collar position for BH-1. Easting and northing
+                        in KSA-GRF17 / UTM Zone 37N (EPSG:9357); elevation referenced to EGM96
+                        (EPSG:5773). Surveyed by total station from site control network.</gml:description>
+                    <gml:posList>4593079.035 3722891.430 2384564.359 4593079.035 3722891.430 2384534.359</gml:posList>
                     <datumReference>ground surface</datumReference>
                 </LinearExtent>
             </centerLine>
@@ -11994,7 +12031,7 @@
             <samplingLocation>
                 <LinearExtent gml:id="DGS4E99-194B-3F95-75E7-41E21" srsDimension="1"
                     srsName="#lsr-BH-33">
-                    <gml:posList>31.10 33.93</gml:posList>
+                    <gml:posList>23.68 25.83</gml:posList>
                 </LinearExtent>
             </samplingLocation>
             <activityType>collect</activityType>
@@ -12003,7 +12040,7 @@
                     <location>
                         <LinearExtent gml:id="DGS335F-11EC-21B8-FA05-544C5" srsDimension="1"
                             srsName="#lsr-BH-33">
-                            <gml:posList>31.10 33.93</gml:posList>
+                            <gml:posList>23.68 25.83</gml:posList>
                         </LinearExtent>
                     </location>
                 </SampleProduced>
@@ -12029,7 +12066,7 @@
             <samplingLocation>
                 <LinearExtent gml:id="DGS4F1E-13B6-B17-2D15-55AD7" srsDimension="1"
                     srsName="#lsr-BH-33">
-                    <gml:posList>42.41 49.48</gml:posList>
+                    <gml:posList>32.29 37.67</gml:posList>
                 </LinearExtent>
             </samplingLocation>
             <activityType>collect</activityType>
@@ -12039,7 +12076,7 @@
                     <location>
                         <LinearExtent gml:id="DGSB41-CC2-2FBB-4F30-3C6AB" srsDimension="1"
                             srsName="#lsr-BH-33">
-                            <gml:posList>42.41 43.82</gml:posList>
+                            <gml:posList>32.29 33.36</gml:posList>
                         </LinearExtent>
                     </location>
                 </SampleProduced>
@@ -12050,7 +12087,7 @@
                     <location>
                         <LinearExtent gml:id="DGS2876-14B9-3004-2CF8-1E6EF" srsDimension="1"
                             srsName="#lsr-BH-33">
-                            <gml:posList>43.82 49.48</gml:posList>
+                            <gml:posList>33.36 37.67</gml:posList>
                         </LinearExtent>
                     </location>
                 </SampleProduced>
@@ -12077,7 +12114,7 @@
             <samplingLocation>
                 <LinearExtent gml:id="DGS9FD2-126C-1CE3-8A83-59DF1" srsDimension="1"
                     srsName="#lsr-BH-33">
-                    <gml:posList>49.48 56.54</gml:posList>
+                    <gml:posList>37.67 43.05</gml:posList>
                 </LinearExtent>
             </samplingLocation>
             <activityType>collect</activityType>
@@ -12087,7 +12124,7 @@
                     <location>
                         <LinearExtent gml:id="DGS8076-50A-1D87-A319-5D80B" srsDimension="1"
                             srsName="#lsr-BH-33">
-                            <gml:posList>49.48 55.13</gml:posList>
+                            <gml:posList>37.67 41.98</gml:posList>
                         </LinearExtent>
                     </location>
                 </SampleProduced>
@@ -12114,7 +12151,7 @@
             <samplingLocation>
                 <LinearExtent gml:id="DGS9E9C-1862-1B49-A070-22CF6" srsDimension="1"
                     srsName="#lsr-BH-33">
-                    <gml:posList>10.60 12.72</gml:posList>
+                    <gml:posList>8.07 9.69</gml:posList>
                 </LinearExtent>
             </samplingLocation>
             <activityType>collect</activityType>
@@ -12123,7 +12160,7 @@
                     <location>
                         <LinearExtent gml:id="DGS75B9-FDA-25C7-849-1349D" srsDimension="1"
                             srsName="#lsr-BH-33">
-                            <gml:posList>10.60 12.72</gml:posList>
+                            <gml:posList>8.07 9.69</gml:posList>
                         </LinearExtent>
                     </location>
                 </SampleProduced>
@@ -12144,7 +12181,7 @@
             <samplingLocation>
                 <LinearExtent gml:id="DGS706D-204-F1F-977-292AD" srsDimension="1"
                     srsName="#lsr-BH-33">
-                    <gml:posList>14.14 16.26</gml:posList>
+                    <gml:posList>10.77 12.38</gml:posList>
                 </LinearExtent>
             </samplingLocation>
             <activityType>collect</activityType>
@@ -12153,7 +12190,7 @@
                     <location>
                         <LinearExtent gml:id="DGS34A9-D74-C03-ED2F-1F5C7" srsDimension="1"
                             srsName="#lsr-BH-33">
-                            <gml:posList>14.14 15.55</gml:posList>
+                            <gml:posList>10.77 11.84</gml:posList>
                         </LinearExtent>
                     </location>
                 </SampleProduced>
@@ -12163,7 +12200,7 @@
                     <location>
                         <LinearExtent gml:id="DGSA651-12F0-2457-1DE1-43F5F" srsDimension="1"
                             srsName="#lsr-BH-33">
-                            <gml:posList>15.55 16.26</gml:posList>
+                            <gml:posList>11.84 12.38</gml:posList>
                         </LinearExtent>
                     </location>
                 </SampleProduced>
@@ -12184,7 +12221,7 @@
             <samplingLocation>
                 <LinearExtent gml:id="DGS7273-39D-3D70-CE9A-90D1" srsDimension="1"
                     srsName="#lsr-BH-33">
-                    <gml:posList>17.67 19.79</gml:posList>
+                    <gml:posList>13.45 15.07</gml:posList>
                 </LinearExtent>
             </samplingLocation>
             <activityType>collect</activityType>
@@ -12193,7 +12230,7 @@
                     <location>
                         <LinearExtent gml:id="DGS5004-961-2410-200D-4EF46" srsDimension="1"
                             srsName="#lsr-BH-33">
-                            <gml:posList>17.67 19.79</gml:posList>
+                            <gml:posList>13.45 15.07</gml:posList>
                         </LinearExtent>
                     </location>
                 </SampleProduced>
@@ -12214,7 +12251,7 @@
             <samplingLocation>
                 <LinearExtent gml:id="DGS64DC-14B1-95F-D44F-2D837" srsDimension="1"
                     srsName="#lsr-BH-33">
-                    <gml:posList>21.20 23.32</gml:posList>
+                    <gml:posList>16.14 17.76</gml:posList>
                 </LinearExtent>
             </samplingLocation>
             <activityType>collect</activityType>
@@ -12223,7 +12260,7 @@
                     <location>
                         <LinearExtent gml:id="DGS348D-1599-EB6-DF5-4A31E" srsDimension="1"
                             srsName="#lsr-BH-33">
-                            <gml:posList>21.20 23.32</gml:posList>
+                            <gml:posList>16.14 17.76</gml:posList>
                         </LinearExtent>
                     </location>
                 </SampleProduced>
@@ -12244,7 +12281,7 @@
             <samplingLocation>
                 <LinearExtent gml:id="DGS1775-2D3-6BF-707B-4AC82" srsDimension="1"
                     srsName="#lsr-BH-33">
-                    <gml:posList>24.74 26.86</gml:posList>
+                    <gml:posList>18.84 20.45</gml:posList>
                 </LinearExtent>
             </samplingLocation>
             <activityType>collect</activityType>
@@ -12253,7 +12290,7 @@
                     <location>
                         <LinearExtent gml:id="DGS329D-AD-198B-39A9-3CFA6" srsDimension="1"
                             srsName="#lsr-BH-33">
-                            <gml:posList>24.74 26.86</gml:posList>
+                            <gml:posList>18.84 20.45</gml:posList>
                         </LinearExtent>
                     </location>
                 </SampleProduced>
@@ -12274,7 +12311,7 @@
             <samplingLocation>
                 <LinearExtent gml:id="DGSA31A-99C-3220-EB69-39FAE" srsDimension="1"
                     srsName="#lsr-BH-33">
-                    <gml:posList>34.63 36.33</gml:posList>
+                    <gml:posList>26.37 27.66</gml:posList>
                 </LinearExtent>
             </samplingLocation>
             <activityType>collect</activityType>
@@ -12283,7 +12320,7 @@
                     <location>
                         <LinearExtent gml:id="DGS535-125A-3AC0-244F-31CEB" srsDimension="1"
                             srsName="#lsr-BH-33">
-                            <gml:posList>34.63 35.34</gml:posList>
+                            <gml:posList>26.37 26.91</gml:posList>
                         </LinearExtent>
                     </location>
                 </SampleProduced>
@@ -12293,7 +12330,7 @@
                     <location>
                         <LinearExtent gml:id="DGSA69B-88C-1909-4E41-4AEB6" srsDimension="1"
                             srsName="#lsr-BH-33">
-                            <gml:posList>35.34 36.33</gml:posList>
+                            <gml:posList>26.91 27.66</gml:posList>
                         </LinearExtent>
                     </location>
                 </SampleProduced>
@@ -12314,7 +12351,7 @@
             <samplingLocation>
                 <LinearExtent gml:id="DGS7EFF-DA2-22A3-3C25-4E9C2" srsDimension="1"
                     srsName="#lsr-BH-33">
-                    <gml:posList>38.17 39.16</gml:posList>
+                    <gml:posList>29.06 29.82</gml:posList>
                 </LinearExtent>
             </samplingLocation>
             <activityType>collect</activityType>
@@ -12323,7 +12360,7 @@
                     <location>
                         <LinearExtent gml:id="DGS1501-4F8-2F10-A3E-311B2" srsDimension="1"
                             srsName="#lsr-BH-33">
-                            <gml:posList>38.17 39.16</gml:posList>
+                            <gml:posList>29.06 29.82</gml:posList>
                         </LinearExtent>
                     </location>
                 </SampleProduced>
@@ -12344,7 +12381,7 @@
             <samplingLocation>
                 <LinearExtent gml:id="DGS811B-79F-4453-7210-54FE2" srsDimension="1"
                     srsName="#lsr-BH-33">
-                    <gml:posList>39.58 39.72</gml:posList>
+                    <gml:posList>30.14 30.24</gml:posList>
                 </LinearExtent>
             </samplingLocation>
             <activityType>collect</activityType>
@@ -12353,7 +12390,7 @@
                     <location>
                         <LinearExtent gml:id="DGS4F84-115E-D57-5487-DD2A" srsDimension="1"
                             srsName="#lsr-BH-33">
-                            <gml:posList>39.58 39.72</gml:posList>
+                            <gml:posList>30.14 30.24</gml:posList>
                         </LinearExtent>
                     </location>
                 </SampleProduced>
@@ -12374,7 +12411,7 @@
             <samplingLocation>
                 <LinearExtent gml:id="DGS2F13-16A5-4490-C41E-65AC8" srsDimension="1"
                     srsName="#lsr-BH-33">
-                    <gml:posList>2.83 4.24</gml:posList>
+                    <gml:posList>2.15 3.23</gml:posList>
                 </LinearExtent>
             </samplingLocation>
             <activityType>collect</activityType>
@@ -12383,7 +12420,7 @@
                     <location>
                         <LinearExtent gml:id="DGS279B-1473-10C8-1D5C-469C2" srsDimension="1"
                             srsName="#lsr-BH-33">
-                            <gml:posList>2.83 4.24</gml:posList>
+                            <gml:posList>2.15 3.23</gml:posList>
                         </LinearExtent>
                     </location>
                 </SampleProduced>
@@ -12714,7 +12751,7 @@
                     <location>
                         <LinearExtent gml:id="DGS2A7E-4ED-FA5-2907-2A63" srsName="#lsr-BH-33"
                             srsDimension="1">
-                            <gml:posList>0.71 4.24</gml:posList>
+                            <gml:posList>0.54 3.23</gml:posList>
                         </LinearExtent>
                     </location>
                     <primaryLithology>
@@ -12745,7 +12782,7 @@
                     <location>
                         <LinearExtent gml:id="DGS7F32-1101-F8A-CA12-3FA2F" srsName="#lsr-BH-33"
                             srsDimension="1">
-                            <gml:posList>0.00 0.71</gml:posList>
+                            <gml:posList>0.00 0.54</gml:posList>
                         </LinearExtent>
                     </location>
                     <trueBaseObserved>true</trueBaseObserved>
@@ -12772,7 +12809,7 @@
                     <measurementRef xlink:href="#Test_SPT_BH33_3m"/>
                     <location>
                         <LinearExtent gml:id="le1" srsName="#lsr-BH-33" srsDimension="1">
-                            <gml:posList>4.24 15.55</gml:posList>
+                            <gml:posList>3.23 11.84</gml:posList>
                         </LinearExtent>
                     </location>
                     <!-- AbstractObservationType: trueTopObserved (not present in original) -->
@@ -13102,7 +13139,7 @@
                             </remark>
                             <location>
                                 <PointLocation gml:id="BoundaryLoc_BH33_3m" srsName="#lsr-BH-33" srsDimension="1">
-                                    <gml:pos>15.55</gml:pos>
+                                    <gml:pos>11.84</gml:pos>
                                 </PointLocation>
                             </location>
                             <dipAngle uom="dega" apparent="false">3</dipAngle>
@@ -13124,7 +13161,7 @@
                     <location>
                         <LinearExtent gml:id="DGS98B0-1133-256F-589-66414" srsName="#lsr-BH-33"
                             srsDimension="1">
-                            <gml:posList>15.55 24.74</gml:posList>
+                            <gml:posList>11.84 18.84</gml:posList>
                         </LinearExtent>
                     </location>
                     <trueBaseObserved>true</trueBaseObserved>
@@ -13247,7 +13284,7 @@
                     <location>
                         <LinearExtent gml:id="DGS937C-1059-23CE-EFDF-CB4D" srsName="#lsr-BH-33"
                             srsDimension="1">
-                            <gml:posList>24.74 35.34</gml:posList>
+                            <gml:posList>18.84 26.91</gml:posList>
                         </LinearExtent>
                     </location>
                     <trueBaseObserved>true</trueBaseObserved>
@@ -13336,7 +13373,7 @@
                             <location>
                                 <PointLocation srsName="#lsr-BH-33" srsDimension="1"
                                     gml:id="dn1_vm2_s3c">
-                                    <gml:pos>26.86</gml:pos>
+                                    <gml:pos>20.45</gml:pos>
                                 </PointLocation>
                             </location>
                             <observation>becoming gray</observation>
@@ -13353,7 +13390,7 @@
                     <location>
                         <LinearExtent gml:id="DGS95C-17EF-2E3C-FC46-103BF" srsName="#lsr-BH-33"
                             srsDimension="1">
-                            <gml:posList>35.34 42.41</gml:posList>
+                            <gml:posList>26.91 32.29</gml:posList>
                         </LinearExtent>
                     </location>
                     <trueBaseObserved>true</trueBaseObserved>
@@ -13450,7 +13487,7 @@
                             <location>
                                 <LinearExtent gml:id="DGS7403-1565-3D23-D305-1BDEE"
                                     srsName="#lsr-BH-33" srsDimension="1">
-                                    <gml:posList>36.75 38.17</gml:posList>
+                                    <gml:posList>27.98 29.06</gml:posList>
                                 </LinearExtent>
                             </location>
                             <observation>becoming wet</observation>
@@ -13535,7 +13572,7 @@
                     <location>
                         <LinearExtent gml:id="DGS52C8-1716-1B0B-3ABD-28988" srsName="#lsr-BH-33"
                             srsDimension="1">
-                           <gml:posList>42.4099 48.06</gml:posList>
+                           <gml:posList>32.2912 36.59</gml:posList>
                         </LinearExtent>
                     </location>
                     <!-- trueTopObserved: top of rock not known to be true contact -->
@@ -13722,7 +13759,7 @@
                             <location>
                                 <PointLocation srsName="#lsr-BH-33" srsDimension="1"
                                     gml:id="en1_vm2_s3c">
-                                    <gml:pos>46.65</gml:pos>
+                                    <gml:pos>35.52</gml:pos>
                                 </PointLocation>
                             </location>
                             <observation>becoming vuggy</observation>
@@ -13734,7 +13771,7 @@
                         <Boundary gml:id="Boundary_BH33_30m" howDetermined="visual">
                             <location>
                                 <PointLocation gml:id="BoundaryLoc_BH33_30m" srsName="#lsr-BH-33" srsDimension="1">
-                                    <gml:pos>48.06</gml:pos>
+                                    <gml:pos>36.59</gml:pos>
                                 </PointLocation>
                             </location>
                             <dipAngle uom="dega" apparent="false">10</dipAngle>
@@ -13756,7 +13793,7 @@
                     <location>
                         <LinearExtent gml:id="DGS93B6-1783-3769-23ED-12087" srsName="#lsr-BH-33"
                             srsDimension="1">
-                            <gml:posList>48.06 56.54</gml:posList>
+                            <gml:posList>36.59 43.05</gml:posList>
                         </LinearExtent>
                     </location>
                     <trueBaseObserved>true</trueBaseObserved>
@@ -13841,7 +13878,7 @@
                         <Boundary gml:id="Boundary_BH33_34m" howDetermined="visual">
                             <location>
                                 <PointLocation gml:id="BoundaryLoc_BH33_34m" srsName="#lsr-BH-33" srsDimension="1">
-                                    <gml:pos>56.54</gml:pos>
+                                    <gml:pos>43.05</gml:pos>
                                 </PointLocation>
                             </location>
                             <distinctness>sharp</distinctness>
@@ -13867,7 +13904,7 @@
                     <location>
                         <LinearExtent gml:id="DGS8A24-169B-4977-99C3-59CE9" srsName="#lsr-BH-33"
                             srsDimension="1">
-                            <gml:posList>49.48 52.30</gml:posList>
+                            <gml:posList>37.67 39.82</gml:posList>
                         </LinearExtent>
                     </location>
                     <fractureObservation>
@@ -13912,7 +13949,7 @@
                     <location>
                         <LinearExtent gml:id="DGS4263-E2A-4FCB-591B-60B6B" srsName="#lsr-BH-33"
                             srsDimension="1">
-                            <gml:posList>49.48 52.30</gml:posList>
+                            <gml:posList>37.67 39.82</gml:posList>
                         </LinearExtent>
                     </location>
                     <fractureObservation>
@@ -13972,7 +14009,7 @@
                     <location>
                         <LinearExtent gml:id="DGS509-4B4-2D87-F50-8C1E" srsName="#lsr-BH-33"
                             srsDimension="1">
-                            <gml:posList>50.89 55.13</gml:posList>
+                            <gml:posList>38.75 41.98</gml:posList>
                         </LinearExtent>
                     </location>
 
@@ -14006,7 +14043,7 @@
                     <location>
                         <LinearExtent srsDimension="1" srsName="#lsr-BH-33"
                             gml:id="GS492-1857-1332-6040-2833">
-                            <gml:posList>10.60 12.72</gml:posList>
+                            <gml:posList>8.07 9.69</gml:posList>
                         </LinearExtent>
                     </location>
                     <results>
@@ -14070,7 +14107,7 @@
                     <location>
                         <LinearExtent srsDimension="1" srsName="#lsr-BH-33"
                             gml:id="GS71A1-130-1972-8C8B-E0E4AA">
-                            <gml:posList>14.14 16.26</gml:posList>
+                            <gml:posList>10.77 12.38</gml:posList>
                         </LinearExtent>
                     </location>
                     <results>
@@ -14134,7 +14171,7 @@
                     <location>
                         <LinearExtent srsDimension="1" srsName="#lsr-BH-33"
                             gml:id="GS1D11-176-173E-1FZ37-30C82">
-                            <gml:posList>17.67 19.79</gml:posList>
+                            <gml:posList>13.45 15.07</gml:posList>
                         </LinearExtent>
                     </location>
                     <results>
@@ -14199,7 +14236,7 @@
                     <location>
                         <LinearExtent srsDimension="1" srsName="#lsr-BH-33"
                             gml:id="GSA621-17B-22A8-C0EE-5A28C">
-                            <gml:posList>21.20 23.32</gml:posList>
+                            <gml:posList>16.14 17.76</gml:posList>
                         </LinearExtent>
                     </location>
                     <results>
@@ -14264,7 +14301,7 @@
                     <location>
                         <LinearExtent srsDimension="1" srsName="#lsr-BH-33"
                             gml:id="GS874A-D27-4402-A591-1A9F9">
-                            <gml:posList>24.74 26.86</gml:posList>
+                            <gml:posList>18.84 20.45</gml:posList>
                         </LinearExtent>
                     </location>
                     <results>
@@ -14329,7 +14366,7 @@
                     <location>
                         <LinearExtent srsDimension="1" srsName="#lsr-BH-33"
                             gml:id="GS88-1401-4ZDE0-D5-38442">
-                            <gml:posList>34.63 36.33</gml:posList>
+                            <gml:posList>26.37 27.66</gml:posList>
                         </LinearExtent>
                     </location>
                     <results>
@@ -14393,7 +14430,7 @@
                     <location>
                         <LinearExtent srsDimension="1" srsName="#lsr-BH-33"
                             gml:id="GS1BAD-F8B-513-8748-543C">
-                            <gml:posList>38.17 39.16</gml:posList>
+                            <gml:posList>29.06 29.82</gml:posList>
                         </LinearExtent>
                     </location>
                     <results>
@@ -14450,7 +14487,7 @@
                     <location>
                         <LinearExtent srsDimension="1" srsName="#lsr-BH-33"
                             gml:id="GS6ECA-9BB-1669-562E-793E">
-                            <gml:posList>39.58 39.72</gml:posList>
+                            <gml:posList>30.14 30.24</gml:posList>
                         </LinearExtent>
                     </location>
                     <results>
@@ -14515,7 +14552,7 @@
                 <TestResult>
                     <location>
                         <PointLocation srsDimension="1" srsName="#lsr-BH-33" gml:id="azb_vm2_s3c">
-                            <gml:pos>2.83</gml:pos>
+                            <gml:pos>2.15</gml:pos>
                         </PointLocation>
                     </location>
                     <results>
@@ -14574,7 +14611,7 @@
                 <TestResult>
                     <location>
                         <PointLocation srsDimension="1" srsName="#lsr-BH-33" gml:id="bzb_vm2_s3c">
-                            <gml:pos>31.10</gml:pos>
+                            <gml:pos>23.68</gml:pos>
                         </PointLocation>
                     </location>
                     <results>
@@ -14621,7 +14658,7 @@
                 <TestResult>
                     <location>
                         <PointLocation srsDimension="1" srsName="#lsr-BH-33" gml:id="czb_vm2_s3c">
-                            <gml:pos>39.58</gml:pos>
+                            <gml:pos>30.14</gml:pos>
                         </PointLocation>
                     </location>
                     <results>
@@ -14668,7 +14705,7 @@
                 <TestResult>
                     <location>
                         <PointLocation srsDimension="1" srsName="#lsr-BH-33" gml:id="dzb_vm2_s3c">
-                            <gml:pos>10.60</gml:pos>
+                            <gml:pos>8.07</gml:pos>
                         </PointLocation>
                     </location>
                     <results>
@@ -14715,7 +14752,7 @@
                 <TestResult>
                     <location>
                         <PointLocation srsDimension="1" srsName="#lsr-BH-33" gml:id="ezb_vm2_s3c">
-                            <gml:pos>14.14</gml:pos>
+                            <gml:pos>10.77</gml:pos>
                         </PointLocation>
                     </location>
                     <results>
@@ -14762,7 +14799,7 @@
                 <TestResult>
                     <location>
                         <PointLocation srsDimension="1" srsName="#lsr-BH-33" gml:id="fzb_vm2_s3c">
-                            <gml:pos>17.67</gml:pos>
+                            <gml:pos>13.45</gml:pos>
                         </PointLocation>
                     </location>
                     <results>
@@ -14809,7 +14846,7 @@
                 <TestResult>
                     <location>
                         <PointLocation srsDimension="1" srsName="#lsr-BH-33" gml:id="gzb_vm2_s3c">
-                            <gml:pos>21.20</gml:pos>
+                            <gml:pos>16.14</gml:pos>
                         </PointLocation>
                     </location>
                     <results>
@@ -14856,7 +14893,7 @@
                 <TestResult>
                     <location>
                         <PointLocation srsDimension="1" srsName="#lsr-BH-33" gml:id="hzb_vm2_s3c">
-                            <gml:pos>24.74</gml:pos>
+                            <gml:pos>18.84</gml:pos>
                         </PointLocation>
                     </location>
                     <results>
@@ -14903,7 +14940,7 @@
                 <TestResult>
                     <location>
                         <PointLocation srsDimension="1" srsName="#lsr-BH-33" gml:id="izb_vm2_s3c">
-                            <gml:pos>34.63</gml:pos>
+                            <gml:pos>26.37</gml:pos>
                         </PointLocation>
                     </location>
                     <results>
@@ -14950,7 +14987,7 @@
                 <TestResult>
                     <location>
                         <PointLocation srsDimension="1" srsName="#lsr-BH-33" gml:id="jzb_vm2_s3c">
-                            <gml:pos>38.17</gml:pos>
+                            <gml:pos>29.06</gml:pos>
                         </PointLocation>
                     </location>
                     <results>
@@ -15006,7 +15043,7 @@
                 <TestResult>
                     <location>
                         <PointLocation srsDimension="1" srsName="#lsr-BH-33" gml:id="e1c_vm2_s3c">
-                            <gml:pos>2.83</gml:pos>
+                            <gml:pos>2.15</gml:pos>
                         </PointLocation>
                     </location>
                     <results>
@@ -15098,7 +15135,7 @@
                 <TestResult>
                     <location>
                         <PointLocation srsDimension="1" srsName="#lsr-BH-33" gml:id="f1c_vm2_s3c">
-                            <gml:pos>31.10</gml:pos>
+                            <gml:pos>23.68</gml:pos>
                         </PointLocation>
                     </location>
                     <results>
@@ -15190,7 +15227,7 @@
                 <TestResult>
                     <location>
                         <PointLocation srsDimension="1" srsName="#lsr-BH-33" gml:id="g1c_vm2_s3c">
-                            <gml:pos>39.58</gml:pos>
+                            <gml:pos>30.14</gml:pos>
                         </PointLocation>
                     </location>
                     <results>
@@ -15282,7 +15319,7 @@
                 <TestResult>
                     <location>
                         <PointLocation srsDimension="1" srsName="#lsr-BH-33" gml:id="h1c_vm2_s3c">
-                            <gml:pos>10.60</gml:pos>
+                            <gml:pos>8.07</gml:pos>
                         </PointLocation>
                     </location>
                     <results>
@@ -15374,7 +15411,7 @@
                 <TestResult>
                     <location>
                         <PointLocation srsDimension="1" srsName="#lsr-BH-33" gml:id="i1c_vm2_s3c">
-                            <gml:pos>14.14</gml:pos>
+                            <gml:pos>10.77</gml:pos>
                         </PointLocation>
                     </location>
                     <results>
@@ -15439,7 +15476,7 @@
                             <specimenLocation>
                                 <PointLocation srsDimension="1" srsName="#lsr-BH-33"
                                     gml:id="j1c_vm2_s3c">
-                                    <gml:pos>14.14</gml:pos>
+                                    <gml:pos>10.77</gml:pos>
                                 </PointLocation>
                             </specimenLocation>
                         </SoilSpecimen>
@@ -15472,7 +15509,7 @@
                 <TestResult>
                     <location>
                         <PointLocation srsDimension="1" srsName="#lsr-BH-33" gml:id="k1c_vm2_s3c">
-                            <gml:pos>24.74</gml:pos>
+                            <gml:pos>18.84</gml:pos>
                         </PointLocation>
                     </location>
                     <results>
@@ -15564,7 +15601,7 @@
                 <TestResult>
                     <location>
                         <PointLocation srsDimension="1" srsName="#lsr-BH-33" gml:id="l1c_vm2_s3c">
-                            <gml:pos>24.74</gml:pos>
+                            <gml:pos>18.84</gml:pos>
                         </PointLocation>
                     </location>
                     <results>
@@ -15656,7 +15693,7 @@
                 <TestResult>
                     <location>
                         <PointLocation srsDimension="1" srsName="#lsr-BH-33" gml:id="m1c_vm2_s3c">
-                            <gml:pos>34.63</gml:pos>
+                            <gml:pos>26.37</gml:pos>
                         </PointLocation>
                     </location>
                     <results>
@@ -15721,7 +15758,7 @@
                             <specimenLocation>
                                 <PointLocation srsDimension="1" srsName="#lsr-BH-33"
                                     gml:id="n1c_vm2_s3c">
-                                    <gml:pos>34.63</gml:pos>
+                                    <gml:pos>26.37</gml:pos>
                                 </PointLocation>
                             </specimenLocation>
                         </SoilSpecimen>
@@ -15754,7 +15791,7 @@
                 <TestResult>
                     <location>
                         <PointLocation srsDimension="1" srsName="#lsr-BH-33" gml:id="o1c_vm2_s3c">
-                            <gml:pos>35.34</gml:pos>
+                            <gml:pos>26.91</gml:pos>
                         </PointLocation>
                     </location>
                     <results>
@@ -15819,7 +15856,7 @@
                             <specimenLocation>
                                 <PointLocation srsDimension="1" srsName="#lsr-BH-33"
                                     gml:id="p1c_vm2_s3c">
-                                    <gml:pos>35.34</gml:pos>
+                                    <gml:pos>26.91</gml:pos>
                                 </PointLocation>
                             </specimenLocation>
                         </SoilSpecimen>
@@ -15852,7 +15889,7 @@
                 <TestResult>
                     <location>
                         <PointLocation srsDimension="1" srsName="#lsr-BH-33" gml:id="q1c_vm2_s3c">
-                            <gml:pos>38.17</gml:pos>
+                            <gml:pos>29.06</gml:pos>
                         </PointLocation>
                     </location>
                     <results>
@@ -15949,7 +15986,7 @@
                 <TestResult>
                     <location>
                         <PointLocation srsDimension="1" srsName="#lsr-BH-33" gml:id="wbc_vm2_s3c">
-                            <gml:pos>2.83</gml:pos>
+                            <gml:pos>2.15</gml:pos>
                         </PointLocation>
                     </location>
                     <results>
@@ -15988,7 +16025,7 @@
                             <specimenLocation>
                                 <PointLocation srsDimension="1" srsName="#lsr-BH-33"
                                     gml:id="xbc_vm2_s3c">
-                                    <gml:pos>2.83</gml:pos>
+                                    <gml:pos>2.15</gml:pos>
                                 </PointLocation>
                             </specimenLocation>
                             <intactSpecimenPreparationInfo>
@@ -16013,7 +16050,7 @@
                 <TestResult>
                     <location>
                         <PointLocation srsDimension="1" srsName="#lsr-BH-33" gml:id="zbc_vm2_s3c">
-                            <gml:pos>2.83</gml:pos>
+                            <gml:pos>2.15</gml:pos>
                         </PointLocation>
                     </location>
                     <results>
@@ -16052,7 +16089,7 @@
                             <specimenLocation>
                                 <PointLocation srsDimension="1" srsName="#lsr-BH-33"
                                     gml:id="acc_vm2_s3c">
-                                    <gml:pos>7.07</gml:pos>
+                                    <gml:pos>5.38</gml:pos>
                                 </PointLocation>
                             </specimenLocation>
                         </SoilSpecimen>
@@ -16072,7 +16109,7 @@
                 <TestResult>
                     <location>
                         <PointLocation srsDimension="1" srsName="#lsr-BH-33" gml:id="bcc_vm2_s3c">
-                            <gml:pos>2.83</gml:pos>
+                            <gml:pos>2.15</gml:pos>
                         </PointLocation>
                     </location>
                     <results>
@@ -16110,7 +16147,7 @@
                             <specimenLocation>
                                 <PointLocation srsDimension="1" srsName="#lsr-BH-33"
                                     gml:id="ccc_vm2_s3c">
-                                    <gml:pos>7.07</gml:pos>
+                                    <gml:pos>5.38</gml:pos>
                                 </PointLocation>
                             </specimenLocation>
                         </SoilSpecimen>
@@ -16130,7 +16167,7 @@
                 <TestResult>
                     <location>
                         <PointLocation srsDimension="1" srsName="#lsr-BH-33" gml:id="dcc_vm2_s3c">
-                            <gml:pos>2.83</gml:pos>
+                            <gml:pos>2.15</gml:pos>
                         </PointLocation>
                     </location>
                     <results>
@@ -16169,7 +16206,7 @@
                             <specimenLocation>
                                 <PointLocation srsDimension="1" srsName="#lsr-BH-33"
                                     gml:id="ecc_vm2_s3c">
-                                    <gml:pos>7.07</gml:pos>
+                                    <gml:pos>5.38</gml:pos>
                                 </PointLocation>
                             </specimenLocation>
                         </SoilSpecimen>
@@ -16204,7 +16241,7 @@
                 <TestResult>
                     <location>
                         <PointLocation srsDimension="1" srsName="#lsr-BH-33" gml:id="lcc_vm2_s3c">
-                            <gml:pos>2.83</gml:pos>
+                            <gml:pos>2.15</gml:pos>
                         </PointLocation>
                     </location>
                     <results>
@@ -16340,7 +16377,7 @@
                             <specimenLocation>
                                 <PointLocation srsDimension="1" srsName="#lsr-BH-33"
                                     gml:id="mcc_vm2_s3c">
-                                    <gml:pos>2.83</gml:pos>
+                                    <gml:pos>2.15</gml:pos>
                                 </PointLocation>
                             </specimenLocation>
                             <intactSpecimenPreparationInfo>
@@ -16461,7 +16498,7 @@
                 <TestResult>
                     <location>
                         <PointLocation srsDimension="1" srsName="#lsr-BH-33" gml:id="ncc_vm2_s3c">
-                            <gml:pos>14.14</gml:pos>
+                            <gml:pos>10.77</gml:pos>
                         </PointLocation>
                     </location>
                     <results>
@@ -16590,7 +16627,7 @@
                             <specimenLocation>
                                 <PointLocation srsDimension="1" srsName="#lsr-BH-33"
                                     gml:id="occ_vm2_s3c">
-                                    <gml:pos>14.14</gml:pos>
+                                    <gml:pos>10.77</gml:pos>
                                 </PointLocation>
                             </specimenLocation>
                             <intactSpecimenPreparationInfo>
@@ -16699,7 +16736,7 @@
                 <TestResult>
                     <location>
                         <PointLocation srsDimension="1" srsName="#lsr-BH-33" gml:id="pcc_vm2_s3c">
-                            <gml:pos>17.67</gml:pos>
+                            <gml:pos>13.45</gml:pos>
                         </PointLocation>
                     </location>
                     <results>
@@ -16828,7 +16865,7 @@
                             <specimenLocation>
                                 <PointLocation srsDimension="1" srsName="#lsr-BH-33"
                                     gml:id="qcc_vm2_s3c">
-                                    <gml:pos>17.67</gml:pos>
+                                    <gml:pos>13.45</gml:pos>
                                 </PointLocation>
                             </specimenLocation>
                         </SoilSpecimen>
@@ -16944,7 +16981,7 @@
                 <TestResult>
                     <location>
                         <PointLocation srsDimension="1" srsName="#lsr-BH-33" gml:id="rcc_vm2_s3c">
-                            <gml:pos>24.74</gml:pos>
+                            <gml:pos>18.84</gml:pos>
                         </PointLocation>
                     </location>
                     <results>
@@ -17073,7 +17110,7 @@
                             <specimenLocation>
                                 <PointLocation srsDimension="1" srsName="#lsr-BH-33"
                                     gml:id="scc_vm2_s3c">
-                                    <gml:pos>24.74</gml:pos>
+                                    <gml:pos>18.84</gml:pos>
                                 </PointLocation>
                             </specimenLocation>
                             <intactSpecimenPreparationInfo>
@@ -17197,7 +17234,7 @@
                 <TestResult>
                     <location>
                         <PointLocation srsDimension="1" srsName="#lsr-BH-33" gml:id="cdc_vm2_s3c">
-                            <gml:pos>2.83</gml:pos>
+                            <gml:pos>2.15</gml:pos>
                         </PointLocation>
                     </location>
                     <results>
@@ -17246,7 +17283,7 @@
                             <specimenLocation>
                                 <PointLocation srsDimension="1" srsName="#lsr-BH-33"
                                     gml:id="ddc_vm2_s3c">
-                                    <gml:pos>7.07</gml:pos>
+                                    <gml:pos>5.38</gml:pos>
                                 </PointLocation>
                             </specimenLocation>
                         </SoilSpecimen>
@@ -17326,7 +17363,7 @@
                 <TestResult>
                     <location>
                         <PointLocation srsDimension="1" srsName="#lsr-BH-33" gml:id="fdc_vm2_s3c">
-                            <gml:pos>2.83</gml:pos>
+                            <gml:pos>2.15</gml:pos>
                         </PointLocation>
                     </location>
                     <results>
@@ -17379,7 +17416,7 @@
                             <specimenLocation>
                                 <PointLocation srsDimension="1" srsName="#lsr-BH-33"
                                     gml:id="gdc_vm2_s3c">
-                                    <gml:pos>7.07</gml:pos>
+                                    <gml:pos>5.38</gml:pos>
                                 </PointLocation>
                             </specimenLocation>
                             <intactSpecimenPreparationInfo>
@@ -17420,7 +17457,7 @@
                 <TestResult>
                     <location>
                         <PointLocation srsDimension="1" srsName="#lsr-BH-33" gml:id="jdc_vm2_s3c">
-                            <gml:pos>2.83</gml:pos>
+                            <gml:pos>2.15</gml:pos>
                         </PointLocation>
                     </location>
                     <results>
@@ -17470,7 +17507,7 @@
                             <specimenLocation>
                                 <PointLocation srsDimension="1" srsName="#lsr-BH-33"
                                     gml:id="kdc_vm2_s3c">
-                                    <gml:pos>2.83</gml:pos>
+                                    <gml:pos>2.15</gml:pos>
                                 </PointLocation>
                             </specimenLocation>
                             <intactSpecimenPreparationInfo>
@@ -17521,7 +17558,7 @@
                 <TestResult>
                     <location>
                         <PointLocation srsDimension="1" srsName="#lsr-BH-33" gml:id="ldc_vm2_s3c">
-                            <gml:pos>2.83</gml:pos>
+                            <gml:pos>2.15</gml:pos>
                         </PointLocation>
                     </location>
                     <results>
@@ -17562,7 +17599,7 @@
                             <specimenLocation>
                                 <PointLocation srsDimension="1" srsName="#lsr-BH-33"
                                     gml:id="mdc_vm2_s3c">
-                                    <gml:pos>6.50</gml:pos>
+                                    <gml:pos>4.95</gml:pos>
                                 </PointLocation>
                             </specimenLocation>
                             <intactSpecimenPreparationInfo>
@@ -17591,7 +17628,7 @@
                 <TestResult>
                     <location>
                         <PointLocation srsDimension="1" srsName="#lsr-BH-33" gml:id="ndc_vm2_s3c">
-                            <gml:pos>2.83</gml:pos>
+                            <gml:pos>2.15</gml:pos>
                         </PointLocation>
                     </location>
                     <results>
@@ -17827,7 +17864,7 @@
                 <TestResult>
                     <location>
                         <PointLocation srsDimension="1" srsName="#lsr-BH-33" gml:id="pdc_vm2_s3c">
-                            <gml:pos>31.10</gml:pos>
+                            <gml:pos>23.68</gml:pos>
                         </PointLocation>
                     </location>
                     <results>
@@ -17882,7 +17919,7 @@
                             <specimenLocation>
                                 <PointLocation srsDimension="1" srsName="#lsr-BH-33"
                                     gml:id="qdc_vm2_s3c">
-                                    <gml:pos>31.10</gml:pos>
+                                    <gml:pos>23.68</gml:pos>
                                 </PointLocation>
                             </specimenLocation>
                             <conditionPreTest>
@@ -17969,7 +18006,7 @@
                 <TestResult>
                     <location>
                         <PointLocation srsDimension="1" srsName="#lsr-BH-33" gml:id="tdc_vm2_s3c">
-                            <gml:pos>2.83</gml:pos>
+                            <gml:pos>2.15</gml:pos>
                         </PointLocation>
                     </location>
                     <results>
@@ -18001,7 +18038,7 @@
                             <specimenLocation>
                                 <PointLocation srsDimension="1" srsName="#lsr-BH-33"
                                     gml:id="udc_vm2_s3c">
-                                    <gml:pos>7.07</gml:pos>
+                                    <gml:pos>5.38</gml:pos>
                                 </PointLocation>
                             </specimenLocation>
                         </SoilSpecimen>
@@ -18021,7 +18058,7 @@
                 <TestResult>
                     <location>
                         <PointLocation srsDimension="1" srsName="#lsr-BH-33" gml:id="vdc_vm2_s3c">
-                            <gml:pos>10.60</gml:pos>
+                            <gml:pos>8.07</gml:pos>
                         </PointLocation>
                     </location>
                     <results>
@@ -18059,7 +18096,7 @@
                 <TestResult>
                     <location>
                         <PointLocation srsDimension="1" srsName="#lsr-BH-33" gml:id="wdc_vm2_s3c">
-                            <gml:pos>14.14</gml:pos>
+                            <gml:pos>10.77</gml:pos>
                         </PointLocation>
                     </location>
                     <results>
@@ -18098,7 +18135,7 @@
                 <TestResult>
                     <location>
                         <PointLocation srsDimension="1" srsName="#lsr-BH-33" gml:id="xdc_vm2_s3c">
-                            <gml:pos>24.74</gml:pos>
+                            <gml:pos>18.84</gml:pos>
                         </PointLocation>
                     </location>
                     <results>
@@ -18136,7 +18173,7 @@
                 <TestResult>
                     <location>
                         <PointLocation srsDimension="1" srsName="#lsr-BH-33" gml:id="ydc_vm2_s3c">
-                            <gml:pos>31.10</gml:pos>
+                            <gml:pos>23.68</gml:pos>
                         </PointLocation>
                     </location>
                     <results>
@@ -18175,7 +18212,7 @@
                 <TestResult>
                     <location>
                         <PointLocation srsDimension="1" srsName="#lsr-BH-33" gml:id="zdc_vm2_s3c">
-                            <gml:pos>34.63</gml:pos>
+                            <gml:pos>26.37</gml:pos>
                         </PointLocation>
                     </location>
                     <results>
@@ -18214,7 +18251,7 @@
                 <TestResult>
                     <location>
                         <PointLocation srsDimension="1" srsName="#lsr-BH-33" gml:id="a2c_vm2_s3c">
-                            <gml:pos>38.17</gml:pos>
+                            <gml:pos>29.06</gml:pos>
                         </PointLocation>
                     </location>
                     <results>
@@ -18252,7 +18289,7 @@
                 <TestResult>
                     <location>
                         <PointLocation srsDimension="1" srsName="#lsr-BH-33" gml:id="b2c_vm2_s3c">
-                            <gml:pos>39.58</gml:pos>
+                            <gml:pos>30.14</gml:pos>
                         </PointLocation>
                     </location>
                     <results>
@@ -18306,7 +18343,7 @@
                 <TestResult>
                     <location>
                         <PointLocation srsDimension="1" srsName="#lsr-BH-33" gml:id="c2c_vm2_s3c">
-                            <gml:pos>2.83</gml:pos>
+                            <gml:pos>2.15</gml:pos>
                         </PointLocation>
                     </location>
                     <results>
@@ -18351,7 +18388,7 @@
                             <specimenLocation>
                                 <PointLocation srsDimension="1" srsName="#lsr-BH-33"
                                     gml:id="d2c_vm2_s3c">
-                                    <gml:pos>7.07</gml:pos>
+                                    <gml:pos>5.38</gml:pos>
                                 </PointLocation>
                             </specimenLocation>
                             <conditionPreTest>
@@ -18402,7 +18439,7 @@
                 <TestResult>
                     <location>
                         <PointLocation srsDimension="1" srsName="#lsr-BH-33" gml:id="e2c_vm2_s3c">
-                            <gml:pos>2.83</gml:pos>
+                            <gml:pos>2.15</gml:pos>
                         </PointLocation>
                     </location>
                     <results>
@@ -18448,7 +18485,7 @@
                 <TestResult>
                     <location>
                         <PointLocation srsDimension="1" srsName="#lsr-BH-33" gml:id="g2c_vm2_s3c">
-                            <gml:pos>5.65</gml:pos>
+                            <gml:pos>4.30</gml:pos>
                         </PointLocation>
                     </location>
                     <results>
@@ -18485,7 +18522,7 @@
                 <TestResult>
                     <location>
                         <PointLocation srsDimension="1" srsName="#lsr-BH-33" gml:id="h2c_vm2_s3c">
-                            <gml:pos>10.60</gml:pos>
+                            <gml:pos>8.07</gml:pos>
                         </PointLocation>
 
 
@@ -18525,7 +18562,7 @@
                 <TestResult>
                     <location>
                         <PointLocation srsDimension="1" srsName="#lsr-BH-33" gml:id="i2c_vm2_s3c">
-                            <gml:pos>14.14</gml:pos>
+                            <gml:pos>10.77</gml:pos>
                         </PointLocation>
 
 
@@ -18565,7 +18602,7 @@
                 <TestResult>
                     <location>
                         <PointLocation srsDimension="1" srsName="#lsr-BH-33" gml:id="j2c_vm2_s3c">
-                            <gml:pos>17.67</gml:pos>
+                            <gml:pos>13.45</gml:pos>
                         </PointLocation>
 
 
@@ -18605,7 +18642,7 @@
                 <TestResult>
                     <location>
                         <PointLocation srsDimension="1" srsName="#lsr-BH-33" gml:id="k2c_vm2_s3c">
-                            <gml:pos>21.20</gml:pos>
+                            <gml:pos>16.14</gml:pos>
                         </PointLocation>
 
 
@@ -18645,7 +18682,7 @@
                 <TestResult>
                     <location>
                         <PointLocation srsDimension="1" srsName="#lsr-BH-33" gml:id="l2c_vm2_s3c">
-                            <gml:pos>24.74</gml:pos>
+                            <gml:pos>18.84</gml:pos>
                         </PointLocation>
 
 
@@ -18685,7 +18722,7 @@
                 <TestResult>
                     <location>
                         <PointLocation srsDimension="1" srsName="#lsr-BH-33" gml:id="m2c_vm2_s3c">
-                            <gml:pos>31.10</gml:pos>
+                            <gml:pos>23.68</gml:pos>
                         </PointLocation>
 
 
@@ -18725,7 +18762,7 @@
                 <TestResult>
                     <location>
                         <PointLocation srsDimension="1" srsName="#lsr-BH-33" gml:id="n2c_vm2_s3c">
-                            <gml:pos>34.63</gml:pos>
+                            <gml:pos>26.37</gml:pos>
                         </PointLocation>
 
 
@@ -18765,7 +18802,7 @@
                 <TestResult>
                     <location>
                         <PointLocation srsDimension="1" srsName="#lsr-BH-33" gml:id="o2c_vm2_s3c">
-                            <gml:pos>38.17</gml:pos>
+                            <gml:pos>29.06</gml:pos>
                         </PointLocation>
 
 
@@ -18805,7 +18842,7 @@
                 <TestResult>
                     <location>
                         <PointLocation srsDimension="1" srsName="#lsr-BH-33" gml:id="p2c_vm2_s3c">
-                            <gml:pos>39.58</gml:pos>
+                            <gml:pos>30.14</gml:pos>
                         </PointLocation>
 
 
@@ -18862,7 +18899,7 @@
                 <TestResult>
                     <location>
                         <PointLocation srsDimension="1" srsName="#lsr-BH-33" gml:id="q2c_vm2_s3c">
-                            <gml:pos>42.41</gml:pos>
+                            <gml:pos>32.29</gml:pos>
                         </PointLocation>
                     </location>
                     <results>
@@ -18934,7 +18971,7 @@
                 <TestResult>
                     <location>
                         <PointLocation srsDimension="1" srsName="#lsr-BH-33" gml:id="r2c_vm2_s3c">
-                            <gml:pos>42.41</gml:pos>
+                            <gml:pos>32.29</gml:pos>
                         </PointLocation>
                     </location>
                     <results>

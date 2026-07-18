@@ -872,23 +872,39 @@ html,body{height:100%;font-family:var(--font-ui);background:var(--bg);color:var(
 #assoc-content {
   display:none;flex:1;overflow-y:auto;overflow-x:auto;padding:12px 16px;
 }
-/* ── SF ASSOC SECTION (badge grid + assoc panel) ───
-   Title rule mirrors .kv-section-header exactly (border-top+margin-top),
-   so each category grid gets a divider line above it, matching the
-   type-specific metadata sections. No bottom padding/border on the
-   section wrapper — the next section's own top rule provides separation,
-   so there's no extra whitespace gap below a grid. */
-.sf-assoc-section { padding:0 16px; }
-.sf-assoc-section-title {
-  font-size:10px;font-weight:700;text-transform:uppercase;
-  letter-spacing:.06em;color:var(--accent);
-  padding:8px 0 4px;border-top:1px solid #6b7280;margin-top:6px;
-  cursor:pointer;user-select:none;display:flex;align-items:center;gap:6px;
+/* ── SF ASSOC PANEL (badge category tabs + accordion body) ───────────────
+   (2026-07-16 redesign) Replaced the old stacked, independently-collapsible
+   .sf-assoc-section grids with a single bordered card: the three categories
+   sit side-by-side as a tab row, and clicking one opens a single full-width
+   accordion body below the row showing just that category's badges — see
+   toggleAssocCategory(). The bordered/shaded card deliberately looks
+   distinct from the plain KV-table sections below it, since this data is
+   linked/associated data, not direct SF properties. */
+.assoc-panel-title {
+  font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;
+  color:var(--accent);padding:0 16px 6px;
 }
-.sf-assoc-section-title:hover { color:var(--text); }
-.sf-assoc-section-title:hover .kv-tri { color:var(--accent); }
+.assoc-badge-panel {
+  margin:0 16px 0;border:2px solid var(--accent);border-radius:8px;
+  background:var(--surface2);overflow:hidden;
+}
+.assoc-cat-tabs { display:flex; }
+.assoc-cat-tab {
+  flex:1;display:flex;align-items:center;justify-content:center;gap:6px;
+  padding:9px 8px;font-size:10px;font-weight:700;text-transform:uppercase;
+  letter-spacing:.06em;color:var(--text-muted);cursor:pointer;user-select:none;
+  border-right:2px solid var(--accent);transition:background .12s,color .12s;
+}
+.assoc-cat-tab:last-child { border-right:none; }
+.assoc-cat-tab:hover { color:var(--text);background:var(--surface3); }
+.assoc-cat-tab.active { color:var(--accent);background:var(--surface3); }
+.assoc-cat-tab .assoc-cat-count {
+  font-size:10px;font-weight:500;color:var(--text-muted);font-family:var(--font-mono);
+}
+.assoc-cat-tab.active .assoc-cat-count { color:var(--accent); }
+.assoc-cat-body { border-top:2px solid var(--accent);padding:10px 12px; }
 .assoc-badge-grid {
-  display:grid;grid-template-columns:1fr 1fr;gap:6px;padding-top:2px;
+  display:grid;grid-template-columns:1fr 1fr;gap:6px;
 }
 .assoc-badge {
   display:flex;align-items:center;justify-content:space-between;
@@ -1108,7 +1124,7 @@ html,body{height:100%;font-family:var(--font-ui);background:var(--bg);color:var(
 .kv-row.kv-row-border-bottom { border-bottom:1px solid var(--border); }
 .kv-row.kv-row-no-border-bottom { border-bottom:none; }
 .kv-key {
-  color:var(--accent);font-weight:600;width:110px;flex-shrink:0;font-size:11px;padding-top:1px;
+  color:var(--text-muted);font-weight:700;width:110px;flex-shrink:0;font-size:11px;padding-top:1px;
 }
 .kv-val { color:var(--text);word-break:break-word;flex:1; }
 /* Extra HTML a `compute` row can attach under its own label (2026-07-16,
@@ -1366,8 +1382,8 @@ table.data-table tbody tr.selected {
 }
 .meta-cell { background:var(--surface);padding:10px 16px; }
 .meta-cell .meta-label {
-  font-size:10px;text-transform:uppercase;
-  letter-spacing:.5px;color:var(--accent);margin-bottom:2px;
+  font-size:10px;text-transform:uppercase;font-weight:700;
+  letter-spacing:.5px;color:var(--text-muted);margin-bottom:2px;
 }
 .meta-cell .meta-value {
   font-family:var(--font-mono);font-size:13px;color:var(--text);font-weight:500;
@@ -3011,6 +3027,20 @@ const CRS_DEFS = {"EPSG:32601":"+proj=utm +zone=1 +datum=WGS84 +units=m +no_defs
   }
 })();
 
+// True if the given horizontal EPSG code resolves to a geocentric (ECEF
+// X/Y/Z) CRS — e.g. EPSG:4978. Shared by toWGS84, coordsToLocalMeters, and
+// centerLineOrientation, all of which need to detect this case specially:
+// a geocentric CRS's raw axes are NOT locally horizontal/vertical anywhere
+// except the equator/prime-meridian intersection, so naive per-axis math
+// (treating X/Y as horizontal and Z as "up", the way it's valid for a
+// projected or geographic CRS) silently produces meaningless results — see
+// ecefToENUMeters below.
+function isGeocentricEPSG(horiz) {
+  if (!horiz) return false;
+  const def = CRS_DEFS[`EPSG:${horiz}`];
+  return !!(def && /\+proj=geocent/.test(def));
+}
+
 /**
  * Parse EPSG code(s) from any OGC srsName string.
  * Returns { horiz: number|null, vert: number|null }
@@ -3181,7 +3211,7 @@ function toWGS84(pos, srsName) {
       _PROJ_CONV_CACHE.set(key, conv);
     }
     // proj4 always returns [lon, lat, (height)] after transform to geographic
-    const [lon, lat] = conv.forward(inputCoord);
+    const [lon, lat, height] = conv.forward(inputCoord);
     // Sanity check — valid WGS84 range
     if (lat < -90 || lat > 90 || lon < -180 || lon > 180) {
       result.warning = `EPSG:${horiz} transform produced out-of-range coords (${lat.toFixed(4)}, ${lon.toFixed(4)})`;
@@ -3190,6 +3220,15 @@ function toWGS84(pos, srsName) {
     result.lat = lat;
     result.lon = lon;
     result.transformed = true;
+    // For a geocentric (ECEF) source CRS, the pos[2] passthrough set above
+    // is the raw ECEF Z component, not an elevation — overwrite it with the
+    // actual ellipsoidal height proj4's inverse transform derives from all
+    // three ECEF components together. Ordinary projected CRSs keep the
+    // pos[2] passthrough as-is (their own Z, when present, is an unrelated
+    // reported value, not something this 2D horizontal transform produces).
+    if (isGeocentricEPSG(horiz) && height !== undefined && !isNaN(height)) {
+      result.elev = height;
+    }
   } catch (e) {
     result.warning = `EPSG:${horiz} transform failed: ${e.message}`;
   }
@@ -3598,6 +3637,52 @@ function unitToMeters(unit) {
 }
 
 /**
+ * Convert geocentric (ECEF X/Y/Z) coordinate tuples to local East-North-Up
+ * meters, tangent-planed at coords[0] (every caller passes its trajectory's
+ * or ring's own first point first, matching the same "arbitrary-but-
+ * consistent local origin" convention the geographic branch below uses via
+ * its own mean-latitude tangent plane).
+ *
+ * This exists because a geocentric CRS's raw X/Y/Z axes are NOT locally
+ * horizontal/vertical anywhere except the equator/prime-meridian
+ * intersection — e.g. two ECEF points with identical X and Y but different
+ * Z are NOT "vertically" separated in any real-world sense outside that one
+ * location; naive per-axis scaling (treating X/Y as horizontal, Z as "up",
+ * the way coordsToLocalMeters's projected/geographic branches correctly do)
+ * silently produces a meaningless local frame. Total 3D distance/area math
+ * (polylineLengthMeters, Newell's-method area) is unaffected either way —
+ * ECEF is already a genuine orthonormal Cartesian frame, so raw ECEF deltas
+ * already gave correct straight-line distances — this only fixes anything
+ * that needs a horizontal/vertical *decomposition* (plunge/bearing
+ * classification, the 3D trajectory viewer's up-axis).
+ *
+ * Input/output coordinates are both in the CRS's own native linear unit
+ * (coordsToLocalMeters's caller scales the result to meters afterward, same
+ * as its other branches) — this function itself is unit-agnostic, it only
+ * rotates.
+ */
+function ecefToENUMeters(coords, horiz) {
+  const key = `EPSG:${horiz}`;
+  let conv = _PROJ_CONV_CACHE.get(key);
+  if (!conv) {
+    conv = proj4(key, 'EPSG:4326');
+    _PROJ_CONV_CACHE.set(key, conv);
+  }
+  const [X0, Y0, Z0] = coords[0];
+  const [lon0, lat0] = conv.forward([X0, Y0, Z0 || 0]);
+  const latR = lat0 * Math.PI / 180, lonR = lon0 * Math.PI / 180;
+  const sinLat = Math.sin(latR), cosLat = Math.cos(latR);
+  const sinLon = Math.sin(lonR), cosLon = Math.cos(lonR);
+  return coords.map(c => {
+    const dX = (c[0] || 0) - X0, dY = (c[1] || 0) - Y0, dZ = (c[2] || 0) - Z0;
+    const e = -sinLon * dX + cosLon * dY;
+    const n = -sinLat * cosLon * dX - sinLat * sinLon * dY + cosLat * dZ;
+    const u =  cosLat * cosLon * dX + cosLat * sinLon * dY + sinLat * dZ;
+    return [e, n, u];
+  });
+}
+
+/**
  * Convert a flat array of raw coordinate tuples (native axis order, as parsed
  * from a gml:posList) into local-metric [x, y, z] meters suitable for ordinary
  * Euclidean length/area math, regardless of the source CRS flavor. Also
@@ -3609,8 +3694,10 @@ function unitToMeters(unit) {
  *  - Geographic (lat/lon/height): local tangent-plane approximation around
  *    the coordinate set's mean latitude — accurate to a few cm at borehole/
  *    foundation project scales; not intended for regional-scale geodesy.
- *  - Projected / Geocentric: native units read from the CRS's proj4
- *    definition (falls back to 'm' if genuinely undeterminable).
+ *  - Geocentric: local East-North-Up tangent plane at the coordinate set's
+ *    own first point — see ecefToENUMeters.
+ *  - Projected: native units read from the CRS's proj4 definition (falls
+ *    back to 'm' if genuinely undeterminable).
  */
 function coordsToLocalMeters(coords, srsName) {
   const { horiz, vert } = parseEPSG(srsName);
@@ -3651,10 +3738,23 @@ function coordsToLocalMeters(coords, srsName) {
     };
   }
 
-  // Projected or geocentric — native horizontal unit comes from the CRS's own
-  // definition; the Z/height unit was already resolved above (a separate
-  // vertical CRS component, when present, always overrides the horizontal
-  // CRS's own unit).
+  if (horiz && isGeocentricEPSG(horiz)) {
+    // ECEF X/Y/Z — rotate to local East-North-Up first (see ecefToENUMeters),
+    // THEN scale to meters, since the rotation itself must operate on
+    // same-unit inputs matching what's registered with proj4 (the CRS's own
+    // native unit — always meters for every geocentric CRS in CRS_DEFS, but
+    // scaling post-rotation keeps this correct even if that ever changes).
+    const hUnit = crsDefLinearUnit(horiz) || 'm';
+    const hf = unitToMeters(hUnit) || 1;
+    return {
+      pts: ecefToENUMeters(coords, horiz).map(([e, n, u]) => [e * hf, n * hf, u * hf]),
+      nativeUnit: hUnit,
+    };
+  }
+
+  // Projected — native horizontal unit comes from the CRS's own definition;
+  // the Z/height unit was already resolved above (a separate vertical CRS
+  // component, when present, always overrides the horizontal CRS's own unit).
   const hUnit = crsDefLinearUnit(horiz) || 'm';
   const hf = unitToMeters(hUnit) || 1;
   return {
@@ -3675,21 +3775,46 @@ function polylineLengthMeters(pts) {
 
 /**
  * Extract a linear sampling feature's full centerLine trajectory as local
- * meters, for the 3D trajectory widget (see open3DTrajectoryView). Reuses
- * FORMAT_FN._centerLineTuples (all stations, not just first/last) and
- * coordsToLocalMeters (the same CRS-aware projection used everywhere else
- * in this file) rather than re-parsing the centerLine — el is the
- * sampling-feature element itself (e.g. a Borehole), matching the same
- * `evalXPath(el, 'diggs:centerLine')[0]` lookup the Orientation KV row uses.
- * Returns null if there's nothing to plot (same conditions
+ * meters, for the 3D trajectory widget (see open3DTrajectoryView). `sf` is
+ * the parsed sampling-feature object (not a DOM node) — reuses
+ * sf.centerLineRaw/sf.centerLinesRaw/sf.isMultilateral, the same
+ * primary/multilateral analysis parseSamplingFeature() already ran (see
+ * analyzeCenterLines), rather than re-parsing/re-classifying centerLine DOM
+ * here. Returns null if there's nothing to plot (same conditions
  * FORMAT_FN.centerLineOrientation treats as unclassifiable).
+ *
+ * Non-multilateral return shape (unchanged since 2026-07-16):
+ *   { pts, kind, length, maxHorizDeparture, plungeBearing }
+ * Multilateral return shape (2026-07-17, additive — `pts`/`length`/
+ * `maxHorizDeparture` still describe the PRIMARY/longest leg alone, so a
+ * caller that doesn't know about `legs` still gets a sensible single
+ * trajectory) adds:
+ *   { legs, primaryLegIndex }
+ * `legs` is an array of per-centerline [x,y,z] point arrays, ALL in one
+ * shared local frame (see centerLinesToSharedLocalMeters) so they overlay
+ * correctly relative to each other even when authored in different CRS.
  */
-function extractBoreholeTrajectory(el) {
-  const centerLineNode = evalXPath(el, 'diggs:centerLine')[0];
-  const t = FORMAT_FN._centerLineTuples(centerLineNode);
-  if (!t) return null;
-  const kind = FORMAT_FN.centerLineOrientation(centerLineNode);
+function extractBoreholeTrajectory(sf) {
+  if (!sf || !sf.centerLineRaw) return null;
+  const kind = FORMAT_FN.centerLineOrientation(sf);
   if (!kind) return null;
+
+  if (kind === 'Multilateral') {
+    const legs = centerLinesToSharedLocalMeters(sf.centerLinesRaw).map(list => list.filter(Boolean));
+    const primaryLegIndex = sf.centerLinesRaw.indexOf(sf.centerLineRaw);
+    const pts = legs[primaryLegIndex];
+    const length = polylineLengthMeters(pts);
+    const [cx, cy] = pts[0];
+    let maxHorizDeparture = 0;
+    for (const leg of legs) for (const [x, y] of leg) {
+      const d = Math.hypot(x - cx, y - cy);
+      if (d > maxHorizDeparture) maxHorizDeparture = d;
+    }
+    return { pts, kind, length, maxHorizDeparture, plungeBearing: null, legs, primaryLegIndex };
+  }
+
+  const t = FORMAT_FN._rawCLToCoords(sf.centerLineRaw);
+  if (!t) return null;
   const { pts } = coordsToLocalMeters(t.coords, t.srsName);
   const length = polylineLengthMeters(pts);
   const [cx, cy] = pts[0];
@@ -3741,6 +3866,160 @@ function computeCenterLineLength(tokensFlat, dim, srsName) {
   const valueMeters = polylineLengthMeters(pts);
   const f = unitToMeters(nativeUnit) || 1;
   return { valueMeters, nativeUnit, valueNative: valueMeters / f };
+}
+
+/**
+ * Distance from point `p` to the segment [a, b], all [x,y,z] meters.
+ */
+function pointToSegmentDist3(p, a, b) {
+  const abx = b[0] - a[0], aby = b[1] - a[1], abz = b[2] - a[2];
+  const apx = p[0] - a[0], apy = p[1] - a[1], apz = p[2] - a[2];
+  const abLenSq = abx * abx + aby * aby + abz * abz;
+  let t = abLenSq ? (apx * abx + apy * aby + apz * abz) / abLenSq : 0;
+  t = Math.max(0, Math.min(1, t));
+  const cx = a[0] + abx * t, cy = a[1] + aby * t, cz = a[2] + abz * t;
+  return Math.hypot(p[0] - cx, p[1] - cy, p[2] - cz);
+}
+
+/** Minimum distance from point `p` to any segment of polyline `pts` (both [x,y,z] meters). */
+function pointToPolylineDist(p, pts) {
+  if (!pts.length) return Infinity;
+  if (pts.length === 1) return Math.hypot(p[0] - pts[0][0], p[1] - pts[0][1], p[2] - pts[0][2]);
+  let minD = Infinity;
+  for (let i = 1; i < pts.length; i++) {
+    const d = pointToSegmentDist3(p, pts[i - 1], pts[i]);
+    if (d < minD) minD = d;
+  }
+  return minD;
+}
+
+/**
+ * Convert several centerLines' raw coordinate tuples — each independently
+ * in its own srsName/CRS, which need not match between centerlines (DIGGS
+ * explicitly allows multiple centerLines "with different reference datums
+ * for a single borehole", per core/Core.xsd's own annotation) — into ONE
+ * shared local East-North-Up meter frame, so they can be directly compared
+ * (coincidence check) or overlaid (3D trajectory viewer's multi-leg draw).
+ *
+ * Every point is first converted to WGS84 lat/lon/ellipsoidal-height via
+ * toWGS84 (already CRS-agnostic per point, including geocentric CRS — see
+ * ecefToENUMeters). Unlike coordsToLocalMeters's own geographic branch
+ * (which picks its tangent-plane latitude from only the points passed to
+ * that one call), the tangent-plane mean latitude here is computed ONCE
+ * across every point pooled from every centerLine together, so all of them
+ * land in the same frame. This intentionally trades the extra precision
+ * coordsToLocalMeters gets from a CRS's own exact projection (used for the
+ * single-centerLine case, unaffected by this function) for the ability to
+ * combine centerLines that don't share one CRS — acceptable for a
+ * classification decision and a 3D visualization aid, not exact geodesy.
+ *
+ * Returns an array (parallel to `centerLines`) of per-centerline [x,y,z]
+ * point arrays (nulls dropped) in that shared frame.
+ */
+function centerLinesToSharedLocalMeters(centerLines) {
+  const perCL = centerLines.map(cl => {
+    const n = Math.floor(cl.tokens.length / cl.dim);
+    const wgs = [];
+    for (let i = 0; i < n; i++) {
+      const tuple = cl.tokens.slice(i * cl.dim, (i + 1) * cl.dim);
+      const geo = toWGS84(tuple, cl.srsName);
+      if (geo.lat !== null && geo.lon !== null && !isNaN(geo.lat) && !isNaN(geo.lon)) {
+        wgs.push([geo.lat, geo.lon, geo.elev ?? 0]);
+      }
+    }
+    return wgs;
+  });
+  const allPts = perCL.flat();
+  if (!allPts.length) return centerLines.map(() => []);
+  const R = 6378137;   // WGS84 equatorial radius — adequate for local tangent-plane approx
+  const latMean = (allPts.reduce((s, p) => s + p[0], 0) / allPts.length) * Math.PI / 180;
+  const mPerDegLat = (Math.PI / 180) * R;
+  const mPerDegLon = (Math.PI / 180) * R * Math.cos(latMean);
+  return perCL.map(list => list.map(p => [p[1] * mPerDegLon, p[0] * mPerDegLat, p[2]]));
+}
+
+/**
+ * Classify a linear sampling feature's full set of centerLines. DIGGS
+ * allows a linear SF's centerLine to occur more than once (maxOccurs=
+ * "unbounded" on AbstractLinearSamplingFeatureType, core/Core.xsd) —
+ * "Multiple centerlines can be defined (all associated with the same
+ * reference point) to define complex objects such as a wellbore with
+ * sidetracks, or different reference datums for a single borehole." Those
+ * are two very different real-world cases that must be told apart
+ * (2026-07-17, user request):
+ *   - Same physical path, reported twice (different CRS/datum) — the
+ *     converted paths overlay almost exactly. Not a real geometric
+ *     difference; classify normally, as if only the primary existed.
+ *   - Genuinely divergent paths (a multilateral well/borehole with one or
+ *     more sidetracks) — classify as 'Multilateral' instead.
+ * In both cases, "displayed elevations and calculated depth should be the
+ * longest (deepest) of the centerlines" (2026-07-17, user request) — see
+ * `primary` below, which every existing single-centerline consumer
+ * (sf.centerLineRaw-driven TD elevation, computed-depth cross-check) picks
+ * up automatically simply by using it as sf.centerLineRaw.
+ *
+ * `centerLines`: array of { tokens, dim, srsName } (raw, one per
+ * diggs:centerLine/diggs:LinearExtent, in document order).
+ *
+ * Returns { primary, primaryLength, isMultilateral }:
+ *   - primary: the centerLines[] entry with the greatest computed 3D length,
+ *     among those whose CRS actually resolved (see `resolvable` below) —
+ *     preferred over any unresolvable one regardless of raw length.
+ *   - primaryLength: that length, in meters.
+ *   - isMultilateral: true only when 2+ centerlines exist AND at least one
+ *     point of some other centerline lies farther than tolerance from the
+ *     primary's own path (tolerance: 2%-relative — same philosophy as
+ *     computedValueMismatch() elsewhere in this file — floored to 0.5m so a
+ *     short borehole doesn't get an unreasonably tight tolerance; ordinary
+ *     coordinate-conversion/survey rounding noise between two datums
+ *     reporting the SAME physical path is typically sub-decimeter, well
+ *     under this floor).
+ *
+ * `resolvable` guard (2026-07-17, found via a real corrupted/unresolvable-
+ * CRS test instance): coordsToLocalMeters's projected-CRS fallback branch
+ * silently passes raw coordinates through as if they were already meters
+ * when the CRS's own linear unit can't be determined (crsDefLinearUnit
+ * returns null → hf defaults to 1) — reasonable as a last-resort display
+ * fallback elsewhere, but here it means a centerLine whose srsName simply
+ * doesn't resolve (not embedded, fetch failed/unavailable) can report a
+ * wildly wrong "length" from raw, unconverted coordinate deltas and win
+ * primary selection purely on that bogus number. Gate on toWGS84 actually
+ * resolving the centerLine's own first point before trusting its computed
+ * length at all; an unresolvable centerLine is treated as zero-length so a
+ * resolvable one always wins regardless of magnitude.
+ */
+function analyzeCenterLines(centerLines) {
+  const withLength = centerLines.map(cl => {
+    const resolvable = toWGS84(cl.tokens.slice(0, cl.dim), cl.srsName).lat !== null;
+    const length = resolvable
+      ? (computeCenterLineLength(cl.tokens, cl.dim, cl.srsName) || { valueMeters: 0 }).valueMeters
+      : 0;
+    return { cl, length, resolvable };
+  });
+  withLength.sort((a, b) => b.length - a.length);
+  const primary = withLength[0].cl;
+  const primaryLength = withLength[0].length;
+
+  if (centerLines.length < 2) {
+    return { primary, primaryLength, isMultilateral: false };
+  }
+
+  const sharedLocalPts = centerLinesToSharedLocalMeters(centerLines);
+  const primaryIdx = centerLines.indexOf(primary);
+  const primaryPts = sharedLocalPts[primaryIdx] || [];
+  const tolerance = Math.max(0.5, primaryLength * 0.02);
+
+  let isMultilateral = false;
+  if (primaryPts.length) {
+    for (let i = 0; i < centerLines.length && !isMultilateral; i++) {
+      if (i === primaryIdx) continue;
+      for (const p of (sharedLocalPts[i] || [])) {
+        if (pointToPolylineDist(p, primaryPts) > tolerance) { isMultilateral = true; break; }
+      }
+    }
+  }
+
+  return { primary, primaryLength, isMultilateral };
 }
 
 /**
@@ -4947,25 +5226,19 @@ const FORMAT_FN = {
     return uom ? `${val} ${escUom(uom)}` : String(val);
   },
 
-  // Shared parse step for centerLineOrientation/centerLineOrientationDetail —
-  // resolves the centerLine property wrapper (or a LinearExtent passed
-  // directly, dual-mode like locationInline) down to its raw posList tuples
-  // (each still in the element's own axis order/CRS — NOT yet meters) plus
-  // the srsName needed to convert them. Returns null if there's nothing to
-  // classify (absent element, empty posList, or a single lone point).
-  _centerLineTuples(node) {
-    if (!node) return null;
-    const el = node.localName === 'LinearExtent' ? node : resolvePropertyEl(node, 'LinearExtent');
-    if (!el) return null;
-    const posListEl = el.getElementsByTagNameNS(NS.gml, 'posList')[0];
-    if (!posListEl) return null;
-    const dim = parseInt(el.getAttribute('srsDimension') || '3') || 3;
-    const tokens = numTokens(posListEl.textContent, true);
-    const nTuples = Math.floor(tokens.length / dim);
-    if (nTuples < 2) return null;
+  // Adapter from a raw centerLine record ({ tokens, dim, srsName }, as
+  // stored on sf.centerLineRaw/sf.centerLinesRaw by parseSamplingFeature)
+  // to the { coords, srsName } shape the classification/detail logic below
+  // expects — coords is an array of per-station tuples, each still in the
+  // element's own axis order/CRS (NOT yet meters). Returns null if there's
+  // nothing to classify (absent record, or a single lone point).
+  _rawCLToCoords(cl) {
+    if (!cl) return null;
+    const n = Math.floor(cl.tokens.length / cl.dim);
+    if (n < 2) return null;
     const coords = [];
-    for (let i = 0; i < nTuples; i++) coords.push(tokens.slice(i * dim, (i + 1) * dim));
-    return { coords, srsName: el.getAttribute('srsName') || '' };
+    for (let i = 0; i < n; i++) coords.push(cl.tokens.slice(i * cl.dim, (i + 1) * cl.dim));
+    return { coords, srsName: cl.srsName };
   },
 
   // Classify a linear sampling feature's trajectory from its centerLine's
@@ -4975,11 +5248,49 @@ const FORMAT_FN = {
   // centerLine/plunge/bearing all live on that shared base type. Restored
   // (2026-07-15) from the pre-KV-rebuild app, which computed it the same way
   // for Borehole/Sounding but dropped it when the KV pipeline was forked.
-  // Returns 'Vertical' | 'Inclined' | 'Deviated' | ''.
-  centerLineOrientation(node) {
-    const t = FORMAT_FN._centerLineTuples(node);
+  // Returns 'Vertical' | 'Inclined' | 'Deviated' | 'Multilateral' | ''.
+  //
+  // `sf` is the parsed sampling-feature object (not a DOM node) — this
+  // reuses sf.centerLineRaw/sf.centerLinesRaw/sf.isMultilateral, the exact
+  // same primary/multilateral analysis parseSamplingFeature() already ran
+  // (see analyzeCenterLines), rather than re-parsing/re-classifying
+  // centerLine DOM at render time — guarantees this always agrees with
+  // sf.centerLineRaw (used elsewhere for TD elevation/computed depth).
+  //
+  // Multilateral case (2026-07-17, user request): DIGGS allows more than
+  // one centerLine per linear SF ("...to define complex objects such as a
+  // wellbore with sidetracks, or different reference datums for a single
+  // borehole" — core/Core.xsd). Two or more genuinely divergent centerlines
+  // (not just the same physical path reported under different reference
+  // datums) classify as 'Multilateral' instead of Vertical/Inclined/
+  // Deviated — see analyzeCenterLines for the coincidence-vs-divergence
+  // test itself.
+  //
+  // Geocentric (ECEF) CRS special case (2026-07-17): a geocentric CRS's raw
+  // X/Y/Z axes are NOT locally horizontal/vertical anywhere except the
+  // equator/prime-meridian intersection, so the plain raw-coordinate
+  // equality check below (correct for a projected/geographic CRS, whose raw
+  // axes genuinely are horizontal/vertical) cannot classify a geocentric
+  // centerLine — identical raw X/Y with only Z differing does NOT mean
+  // "vertical" there. Route through coordsToLocalMeters (which knows how to
+  // rotate ECEF into a true local East-North-Up frame — see
+  // ecefToENUMeters) and classify off the real horizontal departure instead.
+  centerLineOrientation(sf) {
+    if (!sf || !sf.centerLineRaw) return '';
+    if (sf.isMultilateral) return 'Multilateral';
+    const t = FORMAT_FN._rawCLToCoords(sf.centerLineRaw);
     if (!t) return '';
     if (t.coords.length >= 3) return 'Deviated';
+    const { horiz } = parseEPSG(t.srsName);
+    if (horiz && isGeocentricEPSG(horiz)) {
+      const { pts } = coordsToLocalMeters(t.coords, t.srsName);
+      const [e1, n1, u1] = pts[0], [e2, n2, u2] = pts[1];
+      const horizDist = Math.hypot(e2 - e1, n2 - n1);
+      const totalDist = Math.hypot(e2 - e1, n2 - n1, u2 - u1);
+      // Tolerance relative to path length, not exact zero — ENU rotation
+      // involves floating-point trig even for a genuinely vertical hole.
+      return (totalDist === 0 || horizDist < totalDist * 1e-6) ? 'Vertical' : 'Inclined';
+    }
     const [x1, y1] = t.coords[0], [x2, y2] = t.coords[1];
     return (x1 === x2 && y1 === y2) ? 'Vertical' : 'Inclined';
   },
@@ -5026,10 +5337,14 @@ const FORMAT_FN = {
     return { plunge, bearing };
   },
 
-  centerLineOrientationDetail(node) {
-    const kind = FORMAT_FN.centerLineOrientation(node);
+  centerLineOrientationDetail(sf) {
+    const kind = FORMAT_FN.centerLineOrientation(sf);
+    if (kind === 'Multilateral') {
+      const legCount = (sf.centerLinesRaw || []).length;
+      return `Multilateral (${legCount} legs)`;
+    }
     if (kind !== 'Inclined') return kind;
-    const t = FORMAT_FN._centerLineTuples(node);
+    const t = FORMAT_FN._rawCLToCoords(sf.centerLineRaw);
     if (!t) return kind;
     const first = t.coords[0], last = t.coords[t.coords.length - 1];
     const { pts } = coordsToLocalMeters([first, last], t.srsName);
@@ -6582,6 +6897,7 @@ OBJECT_CONFIGS.Borehole = [
   { path: 'gml:identifier', multi: true },
   { path: 'diggs:internalIdentifier', label: 'Internal Identifier' },
   { path: 'diggs:investigationTarget', multi: true, label: 'Investigation Target' },
+  { path: 'diggs:locality', label: 'Locality' },
   { path: 'diggs:boreholePurpose', label: 'Purpose' },
   { path: 'diggs:boreholeType', multi: true, label: 'Type' },
 
@@ -6595,18 +6911,27 @@ OBJECT_CONFIGS.Borehole = [
     // which may be absent or only approximate. See
     // FORMAT_FN.centerLineOrientationDetail.
     //
-    // For an Inclined or Deviated hole (2026-07-16), also attaches a "View
-    // 3D" pill UNDER the "Orientation" label itself (keyExtra, not the
-    // value text) — opens the Three.js trajectory widget in the Associated
-    // Data pane. A Vertical/unclassifiable hole gets no pill (a straight
-    // vertical path isn't worth a 3D view). See open3DTrajectoryView.
-    label: 'Orientation',
+    // For an Inclined, Deviated, or Multilateral hole (2026-07-16; Multilateral
+    // added 2026-07-17), also attaches a "View 3D" pill UNDER the
+    // "Orientation" label itself (keyExtra, not the value text) — opens the
+    // Three.js trajectory widget in the Associated Data pane. A
+    // Vertical/unclassifiable hole gets no pill (a straight vertical path
+    // isn't worth a 3D view). See open3DTrajectoryView.
+    //
+    // Looks `sf` up via DIGGS_SF (compute() only ever receives the raw DOM
+    // element, not the parsed sf object) so classification can reuse
+    // sf.centerLineRaw/centerLinesRaw/isMultilateral — the exact analysis
+    // parseSamplingFeature() already ran — instead of re-parsing centerLine
+    // DOM here. See FORMAT_FN.centerLineOrientationDetail.
+    label: 'Trajectory',
     compute: el => {
-      const kind = FORMAT_FN.centerLineOrientation(evalXPath(el, 'diggs:centerLine')[0]);
-      const detail = FORMAT_FN.centerLineOrientationDetail(evalXPath(el, 'diggs:centerLine')[0]);
+      const id = el.getAttributeNS(NS.gml, 'id') || el.getAttribute('gml:id') || el.getAttribute('id') || '';
+      const sf = (DIGGS_SF.get('Borehole') || []).find(s => s.id === id);
+      if (!sf) return '';
+      const kind = FORMAT_FN.centerLineOrientation(sf);
+      const detail = FORMAT_FN.centerLineOrientationDetail(sf);
       if (!detail) return detail;
-      if (kind === 'Inclined' || kind === 'Deviated') {
-        const id = el.getAttributeNS(NS.gml, 'id') || el.getAttribute('gml:id') || el.getAttribute('id') || '';
+      if (kind === 'Inclined' || kind === 'Deviated' || kind === 'Multilateral') {
         return {
           val: detail,
           keyExtra: `<button class="pill-3d-view" onclick="open3DTrajectoryView('${esc(id)}')">View 3D</button>`,
@@ -6637,14 +6962,12 @@ OBJECT_CONFIGS.Borehole = [
   { path: 'diggs:linearReferencing', multi: true, label: 'Linear Referencing' },
   { path: 'diggs:localCoordinates', label: 'Local Coordinates' },
 
-  { sectionHeader: '' },
-  { path: 'diggs:holeDiameter', multi: true },
+  { sectionHeader: 'Construction Info' },
 
-  { sectionHeader: 'Dates' },
   { path: 'diggs:whenConstructed', label: 'When Constructed' },
   { path: 'diggs:whenDestroyed', label: 'When Destroyed' },
+  { path: 'diggs:holeDiameter', multi: true },
 
-  { sectionHeader: '' },
   { path: 'diggs:constructionMethod', multi: true,
     // Dynamic per-instance header (2026-07-14): distinguishes multiple
     // Construction Methods by their own depth range instead of every one
@@ -6657,6 +6980,10 @@ OBJECT_CONFIGS.Borehole = [
       return loc ? `Construction from ${loc}` : null;
     },
   },
+
+  { path: 'diggs:casing', multi: true },
+
+  { path: 'diggs:backfill', multi: true },
 
   { sectionHeader: '' },
   { path: 'diggs:constructionEvent', multi: true },
@@ -6678,11 +7005,6 @@ OBJECT_CONFIGS.Borehole = [
   { sectionHeader: '' },
   { path: 'diggs:flush', multi: true },
 
- { sectionHeader: '' },
-  { path: 'diggs:casing', multi: true },
-
-  { sectionHeader: '' },
-  { path: 'diggs:backfill', multi: true },
 
   { sectionHeader: '' },
   { path: 'diggs:waterStrike', multi: true },
@@ -6692,9 +7014,6 @@ OBJECT_CONFIGS.Borehole = [
 
   { sectionHeader: 'Environment' },
   { path: 'diggs:environment', multi: true },
-
-  { sectionHeader: 'Locality' },
-  { path: 'diggs:locality', label: 'Locality' },
 
   { sectionHeader: '' },
   {
@@ -8706,22 +9025,51 @@ function parseSamplingFeature(doc, el, type) {
   let linearExtentLatLngs = null;
   let linearExtentLen     = null;
   let leAxisSwapped       = false;   // true if any centerLine point triggered axis swap
-  let centerLineRaw       = null;    // { tokens, dim, srsName } — raw, for computed-length math
+  let centerLineRaw       = null;    // primary (longest) centerLine — { tokens, dim, srsName }
+  let centerLinesRaw      = null;    // ALL centerLines' raw records — only set when there's >1
+  let isMultilateral      = false;
   {
-    // Try centerLine first (GP_Trackline), then featureExtent/LinearExtent
-    const leEl = xFirst(doc, 'diggs:centerLine/diggs:LinearExtent', el)
-              || xFirst(doc, 'diggs:linearExtent/diggs:LinearExtent', el)
-              || xFirst(doc, 'diggs:featureExtent/diggs:LinearExtent', el);
+    // diggs:centerLine is maxOccurs="unbounded" per schema (core/Core.xsd) —
+    // "Multiple centerlines can be defined ... to define complex objects
+    // such as a wellbore with sidetracks, or different reference datums for
+    // a single borehole." Collect every one (in document order) and let
+    // analyzeCenterLines() tell those two cases apart (2026-07-17) — see its
+    // own docstring. diggs:linearExtent/diggs:featureExtent (used by SF
+    // types that don't carry centerLine at all) stay maxOccurs=1 per schema,
+    // so they keep the old single-element xFirst lookup as a fallback.
+    const centerLineEls = [...el.childNodes]
+      .filter(n => n.nodeType === 1 && n.localName === 'centerLine')
+      .map(wrap => wrap.getElementsByTagNameNS(NS.diggs, 'LinearExtent')[0])
+      .filter(Boolean);
+
+    const pairs = centerLineEls.map(cEl => {
+      const posListText  = xText(doc, 'gml:posList', cEl);
+      const srsDimension = cEl.getAttribute('srsDimension') || '2';
+      const srsNameLE    = cEl.getAttribute('srsName') || '';
+      if (!posListText.trim()) return null;
+      const rawTokens = numTokens(posListText);
+      const dimNum = parseInt(srsDimension) || 2;
+      if (rawTokens.length < dimNum * 2) return null;
+      return { el: cEl, raw: { tokens: rawTokens, dim: dimNum, srsName: srsNameLE } };
+    }).filter(Boolean);
+
+    let leEl = null;
+    if (pairs.length) {
+      const analysis = analyzeCenterLines(pairs.map(p => p.raw));
+      centerLineRaw  = analysis.primary;
+      isMultilateral = analysis.isMultilateral;
+      if (pairs.length > 1) centerLinesRaw = pairs.map(p => p.raw);
+      leEl = pairs.find(p => p.raw === centerLineRaw).el;
+    } else {
+      leEl = xFirst(doc, 'diggs:linearExtent/diggs:LinearExtent', el)
+          || xFirst(doc, 'diggs:featureExtent/diggs:LinearExtent', el);
+    }
+
     if (leEl) {
       const posListText   = xText(doc, 'gml:posList', leEl);
       const srsDimension  = leEl.getAttribute('srsDimension') || '2';
       const srsNameLE     = leEl.getAttribute('srsName') || '';
       if (posListText.trim()) {
-        const rawTokens = numTokens(posListText);
-        const dimNum = parseInt(srsDimension) || 2;
-        if (rawTokens.length >= dimNum * 2) {
-          centerLineRaw = { tokens: rawTokens, dim: dimNum, srsName: srsNameLE };
-        }
         const rawLls = posListToLatLngs(posListText, srsDimension);
         if (rawLls.length >= 2) {
           // Transform each point to WGS84 so map renderer can use directly.
@@ -8735,6 +9083,15 @@ function parseSamplingFeature(doc, el, type) {
             }
           }
           if (wgsLls.length >= 2) linearExtentLatLngs = wgsLls;
+        }
+        // Only reached for the linearExtent/featureExtent fallback path —
+        // the centerLine path above already set centerLineRaw itself.
+        if (!centerLineRaw) {
+          const rawTokens = numTokens(posListText);
+          const dimNum = parseInt(srsDimension) || 2;
+          if (rawTokens.length >= dimNum * 2) {
+            centerLineRaw = { tokens: rawTokens, dim: dimNum, srsName: srsNameLE };
+          }
         }
       }
       // Optionally compute length from posList tokens
@@ -8944,7 +9301,8 @@ function parseSamplingFeature(doc, el, type) {
     crsWarning: crsInfo.warning,
     isLocalCRS: crsInfo.isLocalCRS || false, localCRSName: crsInfo.localCRSName || null,
     projectRefs,
-    purpose, linearExtentLatLngs, linearExtentLen, centerLineRaw, featureExtentRawPatches,
+    purpose, linearExtentLatLngs, linearExtentLen, centerLineRaw, centerLinesRaw, isMultilateral,
+    featureExtentRawPatches,
     parentRef, childRefs, memberRefs, dateEl };
 }
 
@@ -11321,42 +11679,69 @@ function buildAssocBadges(sf) {
 // added in buildAssocBadges() should be tagged with one of these `category`
 // keys; a category with no badges is omitted entirely (no title/grid shown).
 const ASSOC_BADGE_CATEGORIES = [
-  { key: 'samples',      title: 'Sampling and Samples' },
+  { key: 'samples',      title: 'Material Samples' },
   { key: 'observations', title: 'Observations' },
   { key: 'measurements', title: 'Measurements' },
 ];
 
-// ── renderBadgeGrid: emits one collapsible sf-assoc-section per category
-// present in badges[] (from buildAssocBadges(), plus any pre-pended badges —
-// each must carry a `category` matching ASSOC_BADGE_CATEGORIES above).
+// ── renderBadgeGrid: emits one bordered .assoc-badge-panel card with the
+// present categories from badges[] (from buildAssocBadges(), plus any
+// pre-pended badges — each must carry a `category` matching
+// ASSOC_BADGE_CATEGORIES above) laid out as a single row of tabs, each
+// followed by its own (initially hidden) badge grid. Clicking a tab
+// (toggleAssocCategory) shows just that category's grid in the shared
+// full-width accordion body below the tab row, collapsing whichever
+// category was previously open — see toggleAssocCategory().
 // sfId — gml:id of the owning SF, used in onclick handlers.
-// A category grid starts expanded when it holds ≤2 badges (i.e. one row of
-// the 2-column grid) and collapsed otherwise — mirrors the row-count rule
-// used for kv-sections in renderKVTable().
 // Returns the HTML string, or '' if badges is empty.
 function renderBadgeGrid(badges, sfId) {
   if (!badges.length) return '';
-  let html = '';
-  for (const { key, title } of ASSOC_BADGE_CATEGORIES) {
-    const group = badges.filter(b => b.category === key);
-    if (!group.length) continue;
-    const startOpen = group.length <= 2;
-    const triChar = startOpen ? '▼' : '▶';
-    const bodyStyle = startOpen ? '' : ' style="display:none"';
-    html += `<div class="sf-assoc-section">
-      <div class="sf-assoc-section-title" onclick="toggleKVSection(this)">
-        <span class="kv-tri">${triChar}</span>${esc(title)}
-      </div>
-      <div class="assoc-badge-grid"${bodyStyle}>`;
-    for (const b of group) {
+  const groups = ASSOC_BADGE_CATEGORIES
+    .map(c => ({ key: c.key, title: c.title, items: badges.filter(b => b.category === c.key) }))
+    .filter(c => c.items.length);
+  if (!groups.length) return '';
+
+  let tabs = '', bodies = '';
+  for (const g of groups) {
+    tabs += `<div class="assoc-cat-tab" onclick="toggleAssocCategory(this,'${g.key}')">
+        ${esc(g.title)}<span class="assoc-cat-count">${g.items.length}</span>
+      </div>`;
+    let gridHtml = '';
+    for (const b of g.items) {
       const countHtml = b.count ? `<span class="badge-count">${esc(b.count)}</span>` : '';
-      html += `<button class="assoc-badge" id="${b.id}"
+      gridHtml += `<button class="assoc-badge" id="${b.id}"
           onclick="showAssocBadge('${esc(sfId)}','${b.id}')"
         ><span class="badge-label">${esc(b.label)}</span>${countHtml}</button>`;
     }
-    html += `</div></div>`;
+    bodies += `<div class="assoc-badge-grid" data-cat="${g.key}" style="display:none">${gridHtml}</div>`;
   }
-  return html;
+  return `<div class="assoc-badge-panel">
+    <div class="assoc-cat-tabs">${tabs}</div>
+    <div class="assoc-cat-body" style="display:none">${bodies}</div>
+  </div>`;
+}
+
+/**
+ * toggleAssocCategory(tabEl, key) — single-open accordion toggle for the
+ * associated-data category tab row built by renderBadgeGrid(). Clicking the
+ * already-active tab collapses the body; clicking a different tab switches
+ * directly to it (no need to close the current one first).
+ */
+function toggleAssocCategory(tabEl, key) {
+  const panel = tabEl.closest('.assoc-badge-panel');
+  if (!panel) return;
+  const body = panel.querySelector('.assoc-cat-body');
+  const wasActive = tabEl.classList.contains('active');
+  panel.querySelectorAll('.assoc-cat-tab').forEach(t => t.classList.remove('active'));
+  panel.querySelectorAll('.assoc-badge-grid').forEach(g => g.style.display = 'none');
+  if (wasActive) {
+    body.style.display = 'none';
+    return;
+  }
+  tabEl.classList.add('active');
+  body.style.display = '';
+  const grid = panel.querySelector(`.assoc-badge-grid[data-cat="${key}"]`);
+  if (grid) grid.style.display = '';
 }
 
 // ── showAssoc: render content into the assoc panel ─────────
@@ -11541,7 +11926,7 @@ async function _resolveElevationTickUom(sfEl) {
 function open3DTrajectoryView(sfId) {
   const sf = (DIGGS_SF.get('Borehole') || []).find(s => s.id === sfId);
   if (!sf) return;
-  const trajectory = extractBoreholeTrajectory(sf.el);
+  const trajectory = extractBoreholeTrajectory(sf);
   if (!trajectory) return;
 
   const hostId = `traj3d-${sfId.replace(/[^a-zA-Z0-9]/g, '_')}`;
@@ -11552,6 +11937,13 @@ function open3DTrajectoryView(sfId) {
   if (trajectory.plungeBearing) {
     infoHtml += `<span>Plunge: <strong>${fmtNum(trajectory.plungeBearing.plunge, 1)}°</strong></span>
       <span>Bearing: <strong>${fmtNum(trajectory.plungeBearing.bearing, 1)}°</strong></span>`;
+  }
+  // Multilateral (2026-07-17): "Measured Length"/"Vertices" above already
+  // describe the primary/longest leg alone (extractBoreholeTrajectory's
+  // contract) — surface the total leg count too so it's clear more than
+  // one centerline is being drawn.
+  if (trajectory.legs) {
+    infoHtml += `<span>Legs: <strong>${trajectory.legs.length}</strong></span>`;
   }
 
   const html = `
@@ -11617,6 +12009,18 @@ function init3DTrajectoryViewer(host, trajectory, sfEl) {
   const originPt = pts3[0].clone();
   pts3.forEach(p => p.sub(originPt));
 
+  // ── Multilateral (2026-07-17): every OTHER leg besides the primary,
+  // re-centered by the SAME originPt so all legs share one coordinate
+  // frame and overlay correctly relative to each other (they already share
+  // one frame going in — see centerLinesToSharedLocalMeters — this is just
+  // carrying that same origin through the Three.js float32-precision fix
+  // above). Empty array for the ordinary single-leg case.
+  const otherLegsPts3 = trajectory.legs
+    ? trajectory.legs
+        .map((leg, i) => (i === trajectory.primaryLegIndex) ? null : leg.map(_trajToVec3).map(p => p.sub(originPt)))
+        .filter(Boolean)
+    : [];
+
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(0x161b22);
 
@@ -11643,7 +12047,7 @@ function init3DTrajectoryViewer(host, trajectory, sfEl) {
   // which must survive this call.
   host.insertBefore(renderer.domElement, host.firstChild);
 
-  const box    = new THREE.Box3().setFromPoints(pts3);
+  const box    = new THREE.Box3().setFromPoints(otherLegsPts3.length ? [...pts3, ...otherLegsPts3.flat()] : pts3);
   const center = box.getCenter(new THREE.Vector3());
   const size   = box.getSize(new THREE.Vector3());
   const diag   = Math.max(size.length(), 1);
@@ -11698,13 +12102,43 @@ function init3DTrajectoryViewer(host, trajectory, sfEl) {
   const tubeMesh = new THREE.Mesh(tubeGeom, tubeMat);
   scene.add(tubeMesh);
 
+  // ── Additional legs (2026-07-17, Multilateral only) — every other
+  // centerline gets its own thinner tube in a distinct color (cycled from
+  // this small palette for 3+ legs) plus its own "TD (leg N)" label at its
+  // own endpoint, so a sidetrack reads as clearly separate from the primary
+  // leg without touching the primary's own tube/label/ref-line styling
+  // above or below. Vertical/EW/NS reference lines and elevation ticks stay
+  // scoped to the primary leg only (the "deepest" reference) — extending
+  // those per-leg would multiply visual clutter for little added value.
+  const OTHER_LEG_COLORS = [0x3fb950, 0xbc6ce8, 0xf85149, 0xf0c060, 0x39c5cf];
+  const otherLegMeshes = [];   // { geom, mat } pairs, for dispose()
+  const otherLegLabels = [];   // { sprite, anchor }, updated in render()
+  otherLegsPts3.forEach((legPts3, i) => {
+    if (legPts3.length < 2) return;
+    const legCurve = legPts3.length === 2
+      ? new THREE.LineCurve3(legPts3[0], legPts3[1])
+      : new THREE.CatmullRomCurve3(legPts3, false, 'centripetal');
+    const legSegments = Math.max(legPts3.length * 40, 200);
+    const legGeom = new THREE.TubeGeometry(legCurve, legSegments, radius * 0.8, 16, false);
+    const legColor = OTHER_LEG_COLORS[i % OTHER_LEG_COLORS.length];
+    const legMat = new THREE.MeshStandardMaterial({ color: legColor, roughness: 0.85, metalness: 0 });
+    const legMesh = new THREE.Mesh(legGeom, legMat);
+    scene.add(legMesh);
+    otherLegMeshes.push({ geom: legGeom, mat: legMat });
+
+    const legLabel = _makeTrajLabelSprite(`Leg ${i + 2} TD`);
+    const legAnchor = legPts3[legPts3.length - 1].clone();
+    scene.add(legLabel);
+    otherLegLabels.push({ sprite: legLabel, anchor: legAnchor });
+  });
+
   // ── Collar / TD labels — constant screen size/offset, see
   // _updateTrajLabel (called every render(), below, since the anchor's
   // distance to the camera changes with every orbit/zoom).
   const collarLabel  = _makeTrajLabelSprite('Collar');
   const collarAnchor = pts3[0].clone();
   scene.add(collarLabel);
-  const toeLabel  = _makeTrajLabelSprite(`TD — ${fmtNum(trajectory.length, 1)} m`);
+  const toeLabel  = _makeTrajLabelSprite(trajectory.legs ? `Leg 1 TD — ${fmtNum(trajectory.length, 1)} m` : `TD — ${fmtNum(trajectory.length, 1)} m`);
   const toeAnchor = pts3[pts3.length - 1].clone();
   scene.add(toeLabel);
 
@@ -11883,6 +12317,9 @@ function init3DTrajectoryViewer(host, trajectory, sfEl) {
 
     _updateTrajLabel(collarLabel, collarAnchor, activeCamera, height, 14, 16);
     _updateTrajLabel(toeLabel, toeAnchor, activeCamera, height, 14, 16);
+    for (const { sprite, anchor } of otherLegLabels) {
+      _updateTrajLabel(sprite, anchor, activeCamera, height, 14, 16);
+    }
     // Empty until the async unit resolution (_resolveElevationTickUom)
     // completes — see the tick-building block above — so this is a no-op
     // until then, and picks the ticks up automatically once populated.
@@ -11929,6 +12366,7 @@ function init3DTrajectoryViewer(host, trajectory, sfEl) {
       controls.dispose();
       renderer.dispose();
       tubeGeom.dispose(); tubeMat.dispose();
+      otherLegMeshes.forEach(({ geom, mat }) => { geom.dispose(); mat.dispose(); });
       vertGeom.dispose(); ewGeom.dispose(); nsGeom.dispose(); refLineMat.dispose();
       grid.geometry.dispose(); grid.material.dispose();
       // Elevation ticks may not exist yet if disposed before the async unit
@@ -11937,7 +12375,7 @@ function init3DTrajectoryViewer(host, trajectory, sfEl) {
       tickGeoms.forEach(g => g.dispose());
       if (tickMat) tickMat.dispose();
       tickSprites.forEach(s => { s.material.map.dispose(); s.material.dispose(); });
-      [collarLabel, toeLabel, ...gizmoLabels].forEach(s => { s.material.map.dispose(); s.material.dispose(); });
+      [collarLabel, toeLabel, ...otherLegLabels.map(l => l.sprite), ...gizmoLabels].forEach(s => { s.material.map.dispose(); s.material.dispose(); });
       // ArrowHelper's line/cone geometries are cached+shared at the THREE
       // module level (r128), not per-instance — only their per-instance
       // materials are ours to dispose.
@@ -12123,8 +12561,10 @@ function showSFDetail(sf) {
   // associated-data badges a feature has.
   const scrollDiv = document.getElementById('detail-content-scroll');
   if (scrollDiv) {
-    scrollDiv.innerHTML = (badgeGridHtml ? `<div style="padding-top:10px">${badgeGridHtml}</div>` : '')
-      + (sfMetaHtml ? `<div class="detail-section" style="padding:10px 16px 14px">${sfMetaHtml}</div>` : '');
+    scrollDiv.innerHTML = (badgeGridHtml
+        ? `<div style="padding-top:10px"><div class="assoc-panel-title">Associated Data</div>${badgeGridHtml}</div>`
+        : '')
+      + (sfMetaHtml ? `<div class="detail-section" style="padding:${badgeGridHtml ? '0' : '10px'} 16px 14px">${sfMetaHtml}</div>` : '');
   }
 
   // ── Post-render: LTPZone CMC dot markers ──────────────────────────────────
