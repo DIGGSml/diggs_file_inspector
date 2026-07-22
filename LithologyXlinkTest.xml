@@ -1,0 +1,196 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Synthetic test file: xlink:href resolution parity for the shared
+  interval-table/dataTable column resolver (_resolvePathNodes /
+  _resolveDataColumnCell in diggs_file_inspector.html).
+
+  Each section below defines one "shared" object ONCE inline, then a second
+  sibling occurrence that references that SAME object via xlink:href instead
+  of embedding it again. Both occurrences should render an identical column
+  value for the referenced field, proving the href-following fallback
+  resolves the same data the embedded-object path already does.
+
+  1) INTERVAL TABLE — Borehole.constructionMethod's existing "Method" column
+     (OBJECT_CONFIGS.Borehole, priority path
+     'diggs:constructionMethod/diggs:Specification/gml:name[1]' | 'gml:name[1]'
+     | '.../shortMethodName'). SpecificationPropertyType legitimately
+     supports xlink:href per the 3.1-dev schema (minOccurs="0" element +
+     gml:AssociationAttributeGroup) — this case is fully schema-valid.
+
+  2) DATA TABLE — LithologyObservation.componentLithology's "Material"
+     column (dataTable, priority path
+     'diggs:lithology/diggs:ComponentLith/diggs:classificationCode' | '.../lithDescription').
+     NOTE: ComponentLithPropertyType does NOT declare xlink:href support in
+     the current 3.1-dev schema (no minOccurs="0", no
+     gml:AssociationAttributeGroup on that specific property type — verified
+     directly against core/Core.xsd). Observation B's use of
+     `<lithology xlink:href="..."/>` below is therefore intentionally beyond
+     strict schema and is EXPECTED to fail `xmllint` validation at that one
+     line. It is included anyway to prove the rendering engine's generic,
+     schema-agnostic resolveXlinkChildren/_resolvePathNodes fallback still
+     resolves it correctly — the same deliberate tolerance the engine already
+     applies elsewhere (e.g. ArrayPropertyType generic resolution), useful
+     for real-world documents that may use a reference where the schema
+     technically expects only an inline object.
+-->
+<Diggs xmlns="http://diggsml.org/schemas/3" xmlns:diggs="http://diggsml.org/schemas/3"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xlink="http://www.w3.org/1999/xlink"
+  xmlns:gml="http://www.opengis.net/gml/3.2" xmlns:glr="http://www.opengis.net/gml/3.3/lr"
+  xsi:schemaLocation="http://diggsml.org/schemas/3 https://raw.githubusercontent.com/DIGGSml/schema-dev/refs/heads/3.1-dev/Diggs.xsd"
+  gml:id="XlinkTestDoc">
+
+  <documentInformation>
+    <DocumentInformation gml:id="DocInfo-XlinkTest">
+      <creationDate>2026-07-22</creationDate>
+      <author>
+        <BusinessAssociate gml:id="Author-XlinkTest">
+          <gml:name>Test Author</gml:name>
+        </BusinessAssociate>
+      </author>
+    </DocumentInformation>
+  </documentInformation>
+
+  <project>
+    <Project gml:id="Project-XlinkTest">
+      <gml:name>xlink:href Resolution Parity Test</gml:name>
+    </Project>
+  </project>
+
+  <samplingFeature>
+    <Borehole gml:id="BH-XlinkTest">
+      <gml:name>BH-XLINK</gml:name>
+      <projectRef xlink:href="#Project-XlinkTest"/>
+
+      <referencePoint>
+        <PointLocation gml:id="refpt-XlinkTest" srsDimension="3"
+          srsName="https://www.opengis.net/def/crs-compound?1=http://www.opengis.net/def/crs/EPSG/0/4326&amp;2=http://www.opengis.net/def/crs/EPSG/0/6360"
+          uomLabels="dega dega ftUS">
+          <gml:pos>33.000000 -84.000000 100.00</gml:pos>
+        </PointLocation>
+      </referencePoint>
+
+      <centerLine>
+        <LinearExtent gml:id="cl-XlinkTest" srsDimension="3"
+          srsName="https://www.opengis.net/def/crs-compound?1=http://www.opengis.net/def/crs/EPSG/0/4326&amp;2=http://www.opengis.net/def/crs/EPSG/0/6360"
+          uomLabels="dega dega ftUS">
+          <gml:posList>33.000000 -84.000000 100.00 33.000000 -84.000000 80.00</gml:posList>
+        </LinearExtent>
+      </centerLine>
+
+      <linearReferencing>
+        <LinearSpatialReferenceSystem gml:id="lsr-XlinkTest">
+          <gml:identifier codeSpace="test">lsr-XlinkTest-id</gml:identifier>
+          <glr:linearElement xlink:href="#cl-XlinkTest"/>
+          <glr:lrm>
+            <glr:LinearReferencingMethod gml:id="lrm-XlinkTest">
+              <glr:name>depth</glr:name>
+              <glr:type>absolute</glr:type>
+              <glr:units>ft</glr:units>
+            </glr:LinearReferencingMethod>
+          </glr:lrm>
+        </LinearSpatialReferenceSystem>
+      </linearReferencing>
+
+      <!-- ═══ (1) INTERVAL TABLE xlink test — schema-valid ═══
+           Row A embeds the Specification inline; Row B references the SAME
+           Specification (gml:id="Spec-Shared-XlinkTarget") via xlink:href.
+           Expected: BOTH rows' "Method" column read
+           "Hollow Stem Auger (from Specification)" — the priority-fallback's
+           FIRST alternative (the nested Specification's own gml:name), not
+           either row's own outer gml:name (deliberately different per row,
+           so a wrong fallback would be visually obvious). -->
+      <constructionMethod>
+        <BoreholeConstructionMethod gml:id="BCM-Baseline-Inline">
+          <gml:name>Fallback Name A (should not display)</gml:name>
+          <location>
+            <LinearExtent gml:id="loc-BCM-A" srsName="#lsr-XlinkTest" srsDimension="1">
+              <gml:posList>0.0 10.0</gml:posList>
+            </LinearExtent>
+          </location>
+          <constructionMethod>
+            <Specification gml:id="Spec-Shared-XlinkTarget">
+              <gml:name>Hollow Stem Auger (from Specification)</gml:name>
+              <shortMethodName>HSA</shortMethodName>
+            </Specification>
+          </constructionMethod>
+        </BoreholeConstructionMethod>
+      </constructionMethod>
+
+      <constructionMethod>
+        <BoreholeConstructionMethod gml:id="BCM-XlinkTest">
+          <gml:name>Fallback Name B (should not display)</gml:name>
+          <location>
+            <LinearExtent gml:id="loc-BCM-B" srsName="#lsr-XlinkTest" srsDimension="1">
+              <gml:posList>10.0 20.0</gml:posList>
+            </LinearExtent>
+          </location>
+          <constructionMethod xlink:href="#Spec-Shared-XlinkTarget"/>
+        </BoreholeConstructionMethod>
+      </constructionMethod>
+    </Borehole>
+  </samplingFeature>
+
+  <observation>
+    <LithologySystem gml:id="LithSys-XlinkTest">
+      <projectRef xlink:href="#Project-XlinkTest"/>
+      <samplingFeatureRef xlink:href="#BH-XlinkTest"/>
+      <lithologyClassificationType>uscs</lithologyClassificationType>
+
+      <!-- ═══ (2) DATA TABLE xlink test — beyond strict schema, see file
+           banner comment above. Observation A embeds the ComponentLith
+           inline; Observation B references the SAME ComponentLith
+           (gml:id="CompLith-Shared-XlinkTarget") via xlink:href instead.
+           Expected: BOTH observations' Component Lithologies "Material"
+           column read "Gravel" (resolved from the shared/referenced
+           ComponentLith's classificationCode), while each observation's own
+           "Abundance" column keeps ITS OWN local abundancePercent (10% vs.
+           25%) — proving the href hop only affects the referenced object's
+           own fields, not sibling data on the referencing wrapper. -->
+      <lithologyObservation>
+        <LithologyObservation gml:id="LithObs-Baseline-Inline">
+          <location>
+            <LinearExtent gml:id="loc-LithObs-A" srsName="#lsr-XlinkTest" srsDimension="1">
+              <gml:posList>0.0 3.0</gml:posList>
+            </LinearExtent>
+          </location>
+          <primaryLithology>
+            <Lithology gml:id="Lith-Baseline-A">
+              <classificationCode>Lean Clay</classificationCode>
+            </Lithology>
+          </primaryLithology>
+          <componentLithology>
+            <ComponentLithology gml:id="CL-Baseline-A">
+              <lithology>
+                <ComponentLith gml:id="CompLith-Shared-XlinkTarget">
+                  <classificationCode>Gravel</classificationCode>
+                </ComponentLith>
+              </lithology>
+              <abundancePercent uom="%">10</abundancePercent>
+            </ComponentLithology>
+          </componentLithology>
+        </LithologyObservation>
+      </lithologyObservation>
+
+      <lithologyObservation>
+        <LithologyObservation gml:id="LithObs-XlinkTest">
+          <location>
+            <LinearExtent gml:id="loc-LithObs-B" srsName="#lsr-XlinkTest" srsDimension="1">
+              <gml:posList>3.0 6.0</gml:posList>
+            </LinearExtent>
+          </location>
+          <primaryLithology>
+            <Lithology gml:id="Lith-B">
+              <classificationCode>Silty Sand</classificationCode>
+            </Lithology>
+          </primaryLithology>
+          <componentLithology>
+            <ComponentLithology gml:id="CL-XlinkTest">
+              <lithology xlink:href="#CompLith-Shared-XlinkTarget"/>
+              <abundancePercent uom="%">25</abundancePercent>
+            </ComponentLithology>
+          </componentLithology>
+        </LithologyObservation>
+      </lithologyObservation>
+    </LithologySystem>
+  </observation>
+</Diggs>

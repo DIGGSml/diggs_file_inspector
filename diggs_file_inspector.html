@@ -1092,14 +1092,6 @@ html,body{height:100%;font-family:var(--font-ui);background:var(--bg);color:var(
 }
 .project-dropdown:focus { outline:none;box-shadow:0 0 0 2px color-mix(in srgb,var(--accent) 40%,transparent); }
 .project-dropdown option { background:var(--surface2);color:var(--text); }
-/* Collapsible project detail pane */
-#project-detail-pane {
-  display:none;overflow-y:auto;max-height:260px;
-  background:var(--surface);border-bottom:1px solid var(--border);
-  padding:10px 16px;flex-shrink:0;
-}
-#project-detail-pane.open { display:block; }
-/* .proj-detail-row/.key/.val removed — project detail pane uses .kv-row/.kv-key/.kv-val */
 
 /* ── GENERIC KV TABLE (renderKVTable) ─────────────── */
 .kv-row {
@@ -1138,6 +1130,30 @@ html,body{height:100%;font-family:var(--font-ui);background:var(--bg);color:var(
   transition:background .12s,color .12s;
 }
 .pill-3d-view:hover { background:var(--accent2);color:var(--bg); }
+/* "Show on Map" / "Hide Feature" toggle (2026-07-22) — Project geometry
+   rows (OBJECT_CONFIGS.Project's referencePoint/linearExtent/arealExtent,
+   see wrapGeometryCategoryHeader/_toggleProjGeomOnMap). Same pill shape as
+   .pill-3d-view but its own class since it lives inside a category HEADER
+   (next to the label, not under it like the 3D-view keyExtra), and its
+   .active state (currently shown on the map) uses the same cyan
+   (#00FEFC) selectSF() already uses to highlight a chosen SF's own marker,
+   so "this is the thing you're currently looking at" reads consistently
+   across both the SF table and Project geometry. */
+.pill-map-toggle {
+  display:inline-block;margin-left:8px;padding:2px 9px;border-radius:999px;
+  background:transparent;border:1px solid var(--text-muted);color:var(--text-muted);
+  font-size:10px;font-weight:600;cursor:pointer;white-space:nowrap;
+  transition:background .12s,color .12s,border-color .12s;
+}
+.pill-map-toggle:hover { border-color:#00FEFC;color:#00FEFC; }
+.pill-map-toggle.active { background:#00FEFC;border-color:#00FEFC;color:#062024; }
+.pill-map-toggle.active:hover { background:#33fffd; }
+/* General (unscoped) fallback for the triangle-column spacer — a
+   .kv-interval-row-scoped rule already existed for the interval-table
+   engine; wrapGeometryCategoryHeader's always-visible-but-not-always-
+   expandable category headers need the identical alignment outside that
+   scope too. */
+.kv-tri-spacer { display:inline-block;width:11px;text-align:center; }
 .kv-section-header {
   font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;
   color:var(--accent);padding:8px 0 4px;border-top:1px solid #6b7280;margin-top:6px;
@@ -1407,30 +1423,53 @@ table.data-table tbody tr.selected {
   color:var(--text);vertical-align:top;
 }
 .sub-table tbody tr:nth-child(even) td { background:rgba(255,255,255,.02); }
-/* ── Lithology observation table (one per LithologySystem) ──────────
-   Stretches full-width unlike the generic auto-width .sub-table default
-   (see #assoc-content .sub-table above) so the Material column has room
-   to wrap instead of forcing horizontal scroll. */
-#assoc-content .sub-table.lith-obs-table { width:100%;min-width:0; }
-.lith-material-cell { white-space:normal;word-break:break-word; }
-.lith-obs-row { cursor:pointer; }
-.lith-obs-row:hover td { background:rgba(255,255,255,.04); }
-.lith-obs-row.lith-row-selected td {
-  background:rgba(0,254,252,.14);border-left:3px solid rgba(0,254,252,.5);
+
+/* Interval-table engine (2026-07-19, renderIntervalTable). Generic to any
+   indexed repeating object — the lithology observation table (formerly its
+   own bespoke renderLithSysTable/.lith-obs-row/.lith-obs-detail-row/
+   .lith-material-cell/.lith-row-selected styling, removed 2026-07-20 when
+   that table was rebuilt on this same engine) is just one consumer among
+   many now, with no CSS of its own. Placed after .sub-table's own td/th
+   rules (not before, like a first draft of this block was) so the
+   overrides below actually win the cascade — .sub-table td and this block's
+   selectors are equal-specificity (one class + one element each), so
+   source order decides ties. */
+.kv-interval-table { width:100%;min-width:0; }
+.kv-interval-row { cursor:pointer; }
+.kv-interval-row:hover td { background:rgba(255,255,255,.04); }
+.kv-interval-row .kv-tri,
+.kv-interval-row .kv-tri-spacer { display:inline-block;width:11px;text-align:center; }
+/* Expanded-row highlight (2026-07-19) — same orange used to highlight a
+   selected feature in the summary table's top-left pane
+   (table.data-table tbody tr.selected, #e8a045/rgba(232,160,69,...)), so
+   "this row is expanded" reads consistently with "this row is selected"
+   elsewhere in the app. Toggled by toggleKVSection (see its own comment). */
+.kv-interval-row.kv-row-expanded {
+  background:rgba(232,160,69,.12);
+  outline:1px solid rgba(232,160,69,.3);
+  outline-offset:-1px;
 }
-.lith-obs-row .kv-tri,
-.lith-obs-row .kv-tri-spacer { display:inline-block;width:11px;text-align:center; }
-.lith-obs-detail-row td {
+.kv-interval-detail-row td {
   background:rgba(255,255,255,.02);padding:8px 10px 10px 24px;cursor:default;
+  /* Bright rule below the expanded KV content, separating it from the next
+     interval row — only ever visible while the row is expanded, since this
+     whole <tr> is display:none otherwise, so no extra expanded-state class
+     is needed for this half of the request. */
+  border-bottom:2px solid var(--accent);
 }
-.lith-obs-detail-group-title {
-  font-size:10px;font-weight:700;color:var(--text-muted);
-  text-transform:uppercase;letter-spacing:.06em;margin:10px 0 2px;
-}
-.lith-obs-detail-group-title:first-child { margin-top:0; }
-.lith-obs-detail-subheading {
-  font-size:11px;font-weight:600;color:var(--text);margin:6px 0 2px;
-}
+/* word-break (2026-07-20) — a text column (e.g. Lithology's "Material", or
+   any other long free-text summary) wraps instead of forcing horizontal
+   scroll on one long unbroken token; carried over from the old lithology-
+   specific .lith-material-cell this generalizes. */
+.kv-interval-val { font-family:var(--font-ui);font-size:12px;word-break:break-word; }
+/* Forces every index cell onto one line (2026-07-19; extended to every
+   index column, not just the leading one, 2026-07-20) — without this, a
+   narrow index column can wrap the inline-block .kv-tri triangle away from
+   its value (the leading cell only), or wrap a value like "36.59" mid-
+   number onto two lines (any index cell, once .kv-interval-val's own
+   word-break:break-word was added for long free-text columns like
+   Material). */
+.kv-interval-lead { white-space:nowrap; }
 /* ── LithologySystem header (classification type + optional accordion) ── */
 .lith-sys-block { margin-bottom:14px; }
 .lith-sys-block:last-child { margin-bottom:0; }
@@ -1709,13 +1748,14 @@ table.data-table tbody tr.selected {
             <!-- dropdown always used (no pills) -->
             <select id="project-dropdown" class="project-dropdown" style="display:none"
                     onchange="selectProject(this.value)"></select>
-            <!-- ⓘ info button — shown only when Project element exists in file -->
+            <!-- info button — shown only when Project element exists in file;
+                 opens the Project's detail in the central pane (same
+                 #detail-content SF Detail uses — see showProjectDetail/
+                 toggleProjectDetail), not an accordion here anymore. -->
             <button id="project-info-btn" class="project-info-btn" style="display:none"
-                    title="View project details" onclick="toggleProjectDetail(DIGGS_ACTIVE_PROJECT)">ⓘ Info</button>
+                    title="View project details" onclick="toggleProjectDetail(DIGGS_ACTIVE_PROJECT)">View Details ---&gt;</button>
           </div>
         </div>
-        <!-- COLLAPSIBLE PROJECT DETAIL PANE -->
-        <div id="project-detail-pane"></div>
 
         <div id="sf-tab-bar" class="tab-bar">
           <!-- populated dynamically by buildSFTabs() -->
@@ -4897,7 +4937,11 @@ function handleFile(file) {
 
 function resetToLoad() {
   // Tear down map, clear state
-  if (projectGeomLayer) { projectGeomLayer.remove(); projectGeomLayer = null; }
+  // (mapInstance.remove() below destroys the whole map, including any
+  // active Project geometry layer, so just reset the JS-side state —
+  // nothing to explicitly removeLayer() first.)
+  _activeProjGeomLayer = null;
+  _activeProjGeomKey = null;
   if (mapInstance) { mapInstance.remove(); mapInstance = null; }
   clearCMCMarkers();
   sfMarkers.clear();
@@ -4907,6 +4951,38 @@ function resetToLoad() {
   DIGGS_WELL_DATA = {};
   DIGGS_PROJECTS = []; DIGGS_ACTIVE_PROJECT = null; DIGGS_BA_MAP = {};
   _expandedMultiTrackId = null;
+  // LSR_UOM is keyed by srsName, which for a local `#fragment` reference is
+  // only unique WITHIN one document — a different DIGGS file can validly
+  // reuse the same LinearSpatialReferenceSystem gml:id with a different LRM
+  // unit (confirmed: inspectorMockup.xml's and InspectorTestFile.xml's both
+  // use gml:id="lsr-BH-33", declaring "m" and "ft" respectively). Without
+  // clearing this on every new file load, loading file B after file A can
+  // silently keep serving file A's stale resolved unit for a same-named
+  // fragment in file B (2026-07-19 bug fix). _REMOTE_XML_DOC_CACHE is NOT
+  // cleared here — it's keyed by absolute external URLs, which really are
+  // stable/reusable across different DIGGS files, unlike a local fragment id.
+  for (const k of Object.keys(LSR_UOM)) delete LSR_UOM[k];
+  // window._selectedFeatureId was NOT cleared here before (2026-07-19 bug,
+  // reported by the user as "old hole info" still showing after loading a
+  // new file) — several places re-open the SF Detail pane for whatever
+  // feature id is currently "selected" as soon as a matching id turns up
+  // while parsing the next file (e.g. enrichLsrUoms's post-pass, ~line
+  // 9122, plus the parse-time checks at ~3506/4287/8925) — entirely
+  // reasonable when the user re-selects the same feature in an ALREADY-
+  // loaded file (e.g. after enrichLsrUoms resolves async units), but wrong
+  // immediately after a fresh load, since test files in this repo commonly
+  // reuse the same conventional gml:id (e.g. "Location_BH-33") across
+  // different files/projects — the new file's own same-named feature would
+  // silently auto-open instead of leaving the pane blank until the user
+  // actually picks something. Clearing it here is what makes every one of
+  // those "still selected?" checks correctly no-op after a reset.
+  window._selectedFeatureId = null;
+  // Same reasoning applies to any live 3D trajectory viewer (Three.js WebGL
+  // context) — the direct innerHTML clear below bypasses showAssoc()'s own
+  // teardown call, so this must dispose it explicitly or a reset leaks a
+  // context exactly like the gap disposeTrajectoryViewer's own comment
+  // already warns about for showSFDetail()'s clear block.
+  disposeTrajectoryViewer();
   document.getElementById('sf-tab-bar').innerHTML = '';
   document.querySelectorAll('.sf-tab-panel').forEach(el => el.remove());
   document.getElementById('detail-content').innerHTML = '';
@@ -4925,8 +5001,7 @@ function resetToLoad() {
   if (sel) { sel.innerHTML = ''; sel.style.display = 'none'; }
   const ibtn = document.getElementById('project-info-btn');
   if (ibtn) ibtn.style.display = 'none';
-  const dpane = document.getElementById('project-detail-pane');
-  dpane.classList.remove('open'); dpane.innerHTML = '';
+  window._projectDetailActive = false;
   loadSpinner.style.display = 'none';
   loadError.style.display = 'none';
   fileInput.value = '';
@@ -5203,11 +5278,12 @@ const FORMAT_FN = {
     }
     if (!el) return '';
     const srsName = el.getAttribute('srsName') || '';
-    const uom = (srsName && LSR_UOM[srsName]) ? LSR_UOM[srsName] : '';
+    const lsrUom = (srsName && LSR_UOM[srsName]) ? LSR_UOM[srsName] : '';
     if (el.localName === 'LinearExtent') {
       const posListEl = el.getElementsByTagNameNS(NS.gml, 'posList')[0];
       if (!posListEl) return '';
       const dim = parseInt(el.getAttribute('srsDimension') || String(dimDefault || 1)) || (dimDefault || 1);
+      const uom = lsrUom || _axisUomLabel(el, dim);
       const tokens = numTokens(posListEl.textContent, true);
       if (!tokens.length) return '';
       const from = tokens[dim - 1];
@@ -5223,6 +5299,7 @@ const FORMAT_FN = {
     if (!tokens.length) return '';
     const val = tokens[tokens.length - 1];
     if (val == null || isNaN(val)) return '';
+    const uom = lsrUom || _axisUomLabel(el, tokens.length);
     return uom ? `${val} ${escUom(uom)}` : String(val);
   },
 
@@ -5428,6 +5505,120 @@ function resolveXlinkChildren(wrapperEl) {
   return href ? [href] : [];
 }
 
+/**
+ * _resolvePathNodes(el, path) — xlink-aware path resolver for a table
+ * column's (interval or data table) drill-down `path` (e.g.
+ * 'diggs:lithology/diggs:ComponentLith/diggs:classificationCode'). Tries a
+ * direct `evalXPath(el, path)` first — identical to a plain XPath lookup for
+ * any inline instance, so this is a zero-behavior-change superset for the
+ * common case. Only if that resolves nothing does it fall back to a
+ * step-wise walk that follows `xlink:href` at each object boundary, via the
+ * same `resolveXlinkChildren` every other single-hop reference in this file
+ * uses (inline children if present, else the `xlink:href` target) — so a
+ * multi-segment path still resolves when an INTERMEDIATE wrapper (not just
+ * the final leaf) is an empty reference element rather than holding its
+ * target inline:
+ *   <diggs:lithology xlink:href="#lith-1"/>
+ *   ...elsewhere...
+ *   <diggs:ComponentLith gml:id="lith-1">...</diggs:ComponentLith>
+ * A raw XPath expression can never cross that hop (it has no concept of
+ * `xlink:href`), which is exactly the gap this closes.
+ *
+ * A trailing `@attr` segment (e.g. '.../@rank') is read directly off the
+ * last resolved element(s) and returned as synthetic text nodes matching
+ * evalXPath's own STRING_TYPE convention (`{textContent,nodeValue,_synthetic}`)
+ * — callers already handle that shape via `nodeText()`. Not reached in
+ * practice by any current config (attribute paths are single-segment and
+ * always resolve via the direct evalXPath try above), but kept for parity
+ * with a future drill-down + attribute column.
+ *
+ * Deliberately does NOT attempt this fallback on a `'a | b'` union path —
+ * only a `column`-style priority-fallback path (a plain string or one
+ * alternative of an array) ever calls this; `index` descriptors' union
+ * paths stay on plain evalXPath via resolveIntervalIndexCells, unchanged.
+ */
+function _resolvePathNodes(el, path) {
+  const direct = evalXPath(el, path);
+  if (direct.length) return direct;
+  if (!el || !path || path.indexOf('|') !== -1) return [];
+  const segments = path.split('/').map(s => s.trim()).filter(Boolean);
+  let current = [el];
+  for (const seg of segments) {
+    if (seg.charAt(0) === '@') {
+      const attrName = seg.slice(1);
+      const localAttr = attrName.includes(':') ? attrName.split(':')[1] : attrName;
+      const out = [];
+      for (const node of current) {
+        if (!node || node.nodeType !== 1) continue;
+        let val = node.getAttribute(attrName);
+        if (val == null) {
+          for (const a of node.attributes) {
+            if (a.localName === localAttr) { val = a.value; break; }
+          }
+        }
+        if (val != null) out.push({ textContent: val, nodeValue: val, _synthetic: true });
+      }
+      return out;
+    }
+    // A segment may carry a numeric predicate (e.g. 'gml:name[1]', used by
+    // Borehole.constructionMethod's own priority-fallback column) — strip it
+    // for the localName match, then pick that 1-based position out of THIS
+    // node's own matches (mirroring real XPath: the predicate selects among
+    // the context node's matching children, whether those children came in
+    // inline or were resolved via xlink:href below). Found live (2026-07-22):
+    // without this, a bracketed final segment silently matched nothing
+    // through the href branch, so a path like this fell through to a lower-
+    // priority alternative instead of resolving the referenced object's
+    // value — same bug class the plain (no-predicate) case never hit.
+    const predMatch = seg.match(/^(.*)\[(\d+)\]$/);
+    const rawName = predMatch ? predMatch[1] : seg;
+    const predIndex = predMatch ? parseInt(predMatch[2], 10) : null;
+    const localName = rawName.includes(':') ? rawName.split(':')[1] : rawName;
+    const next = [];
+    for (const node of current) {
+      if (!node || node.nodeType !== 1) continue;
+      let matches = [...node.childNodes].filter(ch => ch.nodeType === 1 && ch.localName === localName);
+      if (!matches.length) {
+        // `node` has no inline child of this name — it may itself be a
+        // property wrapper whose only content is an xlink:href reference to
+        // the next segment's element; resolveXlinkChildren already implements
+        // that inline-else-href duality generically.
+        matches = resolveXlinkChildren(node).filter(ch => ch.nodeType === 1 && ch.localName === localName);
+      }
+      if (!matches.length) continue;
+      if (predIndex != null) {
+        const picked = matches[predIndex - 1];
+        if (picked) next.push(picked);
+      } else {
+        next.push(...matches);
+      }
+    }
+    if (!next.length) return [];
+    current = next;
+  }
+  return current;
+}
+
+/** Direct, synchronous fallback for a LinearExtent/PointLocation's own axis
+ *  unit (2026-07-19) — GML's `uomLabels` attribute (space-separated, one
+ *  token per axis, declared directly on the same element that carries
+ *  `srsName`) gives this without needing any LSR/LRM dereference at all.
+ *  Used by locationInline/resolveIntervalIndexCells only when the LSR-based
+ *  resolution (LSR_UOM, async + network-dependent — see enrichLsrUoms)
+ *  hasn't produced a unit; never overrides an LSR-resolved unit, since the
+ *  LRM is the more authoritative, borehole-wide definition — this only
+ *  fills the gap for a document with no `linearReferencing`/LSR at all, or
+ *  where async resolution hasn't completed yet. `dim` is the already-
+ *  resolved 1-based axis index (the same one used to pick the displayed
+ *  value out of posList/pos), matching the convention already used for
+ *  gml:pos's own uomLabels elsewhere (see parseSamplingFeature's elevUom). */
+function _axisUomLabel(el, dim) {
+  const attr = el.getAttribute('uomLabels');
+  if (!attr) return '';
+  const parts = attr.trim().split(/\s+/);
+  return parts[dim - 1] || parts[0] || '';
+}
+
 // ══════════════════════════════════════════════════════════════
 //  KV-TABLE RENDERING ENGINE (2026-07-13 rebuild — see "KV formatting.md")
 //
@@ -5457,6 +5648,42 @@ function resolveXlinkChildren(wrapperEl) {
 
 const _PV_SKIP_ATTRS = new Set(['uom', 'codeSpace', 'id', 'owns']);
 const _KV_EMPTY_DASH = '<span style="color:var(--text-dim,#484f58)">—</span>';
+
+/**
+ * _NAMED_ATTRS — registry of "other attribute" local names that get their
+ * name shown (`Label: value`) instead of `renderSimplePropertyCell`'s normal
+ * bare-value convention (attribute names never shown, per CLAUDE.md — fine
+ * for a codeSpace URL, a rank number, a distribution word, where the value
+ * alone is self-explanatory). A handful of attributes are genuinely
+ * misleading shown bare — found live via `byVolume="false"` on a
+ * Constituent/Color's `abundancePercent` (Constituent.xsd's
+ * AbundanceValueType), which rendered as an unlabeled "(false)" with no hint
+ * what it was describing. Add an attribute's local name here, with a human
+ * label (and `boolean:true` if it's schema-typed `xs:boolean`, to get the
+ * same Yes/No normalization an ordinary `rowCfg.boolean` row gets via
+ * `_boolYesNo` below, rather than a bare "true"/"false"), the moment a bare
+ * value proves confusing — every other attribute is unaffected.
+ */
+const _NAMED_ATTRS = {
+  byVolume: { label: 'By Volume', boolean: true },
+  // DipMeasureType's `apparent` (dipAngle/dipDirection throughout Lithology/
+  // Boundary/discontinuity types) — "Defines whether the dip angle reported
+  // is an apparent dip (true) or a true dip (false or omitted)" per
+  // MeasureTypes.xsd; a bare "(false)"/"(true)" gives no hint which.
+  apparent: { label: 'Apparent Dip', boolean: true },
+};
+
+/** Shared true/false/1/0/yes/no -> 'Yes'/'No' normalization — used by
+ *  renderSimplePropertyCell's own `isBoolean` value and by a `boolean:true`
+ *  entry in `_NAMED_ATTRS` above. Returns null (not the original text) when
+ *  the trimmed/lowercased text isn't a recognized boolean token, so a caller
+ *  can fall back to the raw value rather than displaying a wrong guess. */
+function _boolYesNo(txt) {
+  const norm = (txt || '').trim().toLowerCase();
+  if (norm === 'true' || norm === '1' || norm === 'yes') return 'Yes';
+  if (norm === 'false' || norm === '0' || norm === 'no') return 'No';
+  return null;
+}
 
 /** Auto-derive a row label from its XPath when config omits `label`. */
 function _labelFromPath(path) {
@@ -5589,6 +5816,33 @@ function wrapCategoryHeader(label, body, startOpen, categoryClass) {
     `</div>`;
 }
 
+/** Category header variant for a row whose label carries its own always-
+ *  clickable control (2026-07-22 — built for OBJECT_CONFIGS.Project's
+ *  referencePoint/linearExtent/arealExtent rows and their "Show on Map"
+ *  toggle, see rowCfg.mapToggle in renderResolvedObject) — unlike
+ *  wrapCategoryHeader, an empty body does NOT suppress the header entirely,
+ *  since the label's own button must stay visible/clickable regardless of
+ *  whether this occurrence has any additional KV detail (description/
+ *  uncertainty) to expand into. When body IS non-empty this behaves exactly
+ *  like wrapCategoryHeader (starts closed, `.kv-tri` toggles via
+ *  toggleKVSection); when empty, renders a static, non-clickable header
+ *  line with a `.kv-tri-spacer` in place of the triangle instead — the same
+ *  "no triangle when there's nothing to expand" convention
+ *  renderIntervalTable's own per-row expand column already uses. */
+function wrapGeometryCategoryHeader(label, body, categoryClass) {
+  const headerCls = categoryClass ? `kv-section-header ${categoryClass}` : 'kv-section-header';
+  if (!body) {
+    return `<div class="kv-cat">` +
+      `<div class="${headerCls}"><span class="kv-tri-spacer"></span>${label}</div>` +
+      `</div>`;
+  }
+  return `<div class="kv-cat">` +
+    `<div class="${headerCls}" onclick="toggleKVSection(this)">` +
+    `<span class="kv-tri">▶</span>${label}</div>` +
+    `<div class="kv-section-body kv-cat-body" style="display:none">${body}</div>` +
+    `</div>`;
+}
+
 /** Collapsed placeholder category for an unresolved-but-whitelisted remote
  *  xlink:href (see _resolveRemoteOrLocalHref/_isWhitelistedRemoteUrl) — a ☁
  *  badge marks it as externally-sourced data, distinct from a normal
@@ -5686,9 +5940,8 @@ function renderSimplePropertyCell(node, isBoolean, attrClass) {
   if (!txt) return null;
   let displayTxt = txt;
   if (isBoolean) {
-    const norm = txt.trim().toLowerCase();
-    if (norm === 'true' || norm === '1' || norm === 'yes') displayTxt = 'Yes';
-    else if (norm === 'false' || norm === '0' || norm === 'no') displayTxt = 'No';
+    const yn = _boolYesNo(txt);
+    if (yn) displayTxt = yn;
   }
   let valHtml;
   if (_URL_RE.test(displayTxt.trim())) {
@@ -5707,9 +5960,17 @@ function renderSimplePropertyCell(node, isBoolean, attrClass) {
     for (const attr of node.attributes) {
       if (attr.namespaceURI === NS.xlink) continue;
       if (attr.namespaceURI && attr.namespaceURI.indexOf('XMLSchema-instance') !== -1) continue;
-      if (_PV_SKIP_ATTRS.has(attr.localName || attr.name)) continue;
+      const localName = attr.localName || attr.name;
+      if (_PV_SKIP_ATTRS.has(localName)) continue;
       const val = (attr.value || '').trim();
-      if (val) otherParts.push(val);
+      if (!val) continue;
+      const named = _NAMED_ATTRS[localName];
+      if (named) {
+        const shownVal = named.boolean ? (_boolYesNo(val) || val) : val;
+        otherParts.push(`${named.label}: ${shownVal}`);
+      } else {
+        otherParts.push(val);
+      }
     }
   }
   if (otherParts.length) {
@@ -5773,13 +6034,571 @@ function renderResolvedObject(propEl, childEl, rowCfg, label, startOpen) {
     else typeName = rowCfg.configOverride;
   }
   const itemLabel = _itemLabel(rowCfg, childEl, label);
-  if (!cfgArr && SPECIAL_OBJECT_FORMATTERS[typeName]) {
+  // rowCfg.geoLocation (2026-07-21) opts a PointLocation/LinearExtent row OUT
+  // of the SPECIAL_OBJECT_FORMATTERS one-line shortcut (FORMAT_FN.locationInline)
+  // and into the normal OBJECT_CONFIGS registry/nested-KV path instead.
+  // locationInline is built for a borehole's own linear-referencing system —
+  // it shows a single axis value picked by srsDimension (the depth/measure
+  // value), which is correct for e.g. BoreholeDiameter's diameterLocation but
+  // silently wrong for a real standalone 3D geographic point/line (Project's
+  // referencePoint/linearExtent/locality, ProjectEvent's location) — those
+  // need every axis shown (easting/northing/height), not just one, and their
+  // own uncertainty child is otherwise dropped entirely. See
+  // OBJECT_CONFIGS.PointLocation/LinearExtent (added for exactly this) —
+  // every other PointLocation/LinearExtent row in the app omits this flag and
+  // keeps the existing one-line behavior unchanged.
+  if (!cfgArr && !rowCfg.geoLocation && SPECIAL_OBJECT_FORMATTERS[typeName]) {
     const html = SPECIAL_OBJECT_FORMATTERS[typeName](childEl, rowCfg.dimDefault);
     return html ? renderSimpleRow(itemLabel, html, rowCfg.labelClass, rowCfg.valueClass, rowCfg.borderTop, rowCfg.borderBottom) : '';
   }
   if (!cfgArr) cfgArr = OBJECT_CONFIGS[typeName];
   const bodyHtml = renderKVObject(childEl, cfgArr || []);
+  // rowCfg.mapToggle (2026-07-22) — Project's referencePoint/linearExtent/
+  // arealExtent rows: the label itself carries a "Show on Map" button (via
+  // a custom itemLabel, see OBJECT_CONFIGS.Project) that must stay visible
+  // and clickable for EVERY occurrence, regardless of whether that
+  // occurrence has any description/uncertainty worth expanding into — so
+  // this uses wrapGeometryCategoryHeader (never suppresses an empty body)
+  // instead of the normal wrapCategoryHeader (which renders nothing at all
+  // for an empty body — correct for every other object-valued row, wrong
+  // here since the button would vanish along with it).
+  if (rowCfg.mapToggle) return wrapGeometryCategoryHeader(itemLabel, bodyHtml, rowCfg.categoryClass);
   return wrapCategoryHeader(itemLabel, bodyHtml, startOpen, rowCfg.categoryClass);
+}
+
+// ══════════════════════════════════════════════════════════════
+//  INTERVAL TABLE ENGINE (2026-07-19 — see IntervalTableNotes.md)
+//
+//  Alternate rendering for a `multi:true` object-valued property row: a
+//  compact columnar table (index column(s) + a few summary columns) with
+//  each row expandable to an inline KV table for the object's remaining
+//  fields — instead of the default per-instance full-KV category list
+//  (renderResolvedObject/wrapCategoryHeader, still the default when
+//  `rowCfg.interval` is absent). Opted into per-property via
+//  `rowCfg.interval = { expands?, index: [...], column: [...] }` on the
+//  PARENT object's config (e.g. Borehole's `holeDiameter` row), not on the
+//  child type's own OBJECT_CONFIGS — this is a decision about how *this*
+//  property should render, the same footing as itemLabel/categoryClass/
+//  configOverride, all of which already live at that level.
+//
+//  Generalizes the row/expand-toggle pattern renderLithSysTable built for
+//  the Lithology observation table (that table's own KV-detail builder was
+//  removed pending exactly this rebuild — see its comment near
+//  renderLithSysTable). A future Lithology rebuild can reuse this engine
+//  once LithologyObservation/Lithology get real OBJECT_CONFIGS entries.
+// ══════════════════════════════════════════════════════════════
+
+/** Resolve one `interval.index` descriptor against a repeating object's
+ *  element, producing the separate cells an interval-table row needs for
+ *  that index — From/To (LinearExtent), At (PointLocation), Time/End
+ *  (TimeInterval), or a single Elapsed Time (plain duration/elapsed-time
+ *  leaf). Mirrors locationInline/timeIntervalInline's node-shape detection
+ *  but keeps each value as its own cell (with its own uom, for the column
+ *  header) instead of joining them into one display string. Returns null
+ *  if `idxCfg.path` doesn't resolve to anything on this occurrence. */
+function resolveIntervalIndexCells(childEl, idxCfg, dimDefault) {
+  const propEl = evalXPath(childEl, idxCfg.path)[0];
+  if (!propEl) return null;
+
+  const linExt = resolvePropertyEl(propEl, 'LinearExtent');
+  const point = !linExt ? resolvePropertyEl(propEl, 'PointLocation') : null;
+  const ti = (!linExt && !point) ? resolvePropertyEl(propEl, 'TimeInterval') : null;
+
+  if (linExt) {
+    const srsName = linExt.getAttribute('srsName') || '';
+    const dim = parseInt(linExt.getAttribute('srsDimension') || String(dimDefault || 1)) || (dimDefault || 1);
+    const lsrUom = (srsName && LSR_UOM[srsName]) ? LSR_UOM[srsName] : '';
+    const uom = lsrUom || _axisUomLabel(linExt, dim);
+    const posListEl = linExt.getElementsByTagNameNS(NS.gml, 'posList')[0];
+    if (!posListEl) return null;
+    const tokens = numTokens(posListEl.textContent, true);
+    if (!tokens.length) return null;
+    const from = tokens[dim - 1];
+    const to = tokens.length >= dim * 2 ? tokens[dim * 2 - 1] : null;
+    const cols = [{
+      label: idxCfg.lineLabel1 || 'From', uom,
+      value: (from == null || isNaN(from)) ? null : from,
+      sortNum: (from != null && !isNaN(from)) ? from : null,
+    }];
+    if (to != null) {
+      cols.push({ label: idxCfg.lineLabel2 || 'To', uom, value: isNaN(to) ? null : to });
+    }
+    return { cols };
+  }
+  if (point) {
+    const srsName = point.getAttribute('srsName') || '';
+    const posEl = point.getElementsByTagNameNS(NS.gml, 'pos')[0];
+    if (!posEl) return null;
+    const tokens = numTokens(posEl.textContent, true);
+    if (!tokens.length) return null;
+    const val = tokens[tokens.length - 1];
+    if (val == null || isNaN(val)) return null;
+    const lsrUom = (srsName && LSR_UOM[srsName]) ? LSR_UOM[srsName] : '';
+    const uom = lsrUom || _axisUomLabel(point, tokens.length);
+    return { cols: [{ label: idxCfg.pointLabel || 'At', uom, value: val, sortNum: val }] };
+  }
+  if (ti) {
+    const getNS = name => ti.getElementsByTagNameNS(NS.diggs, name)[0] || ti.getElementsByTagNameNS(NS.gml, name)[0];
+    const startRaw = nodeText(getNS('start'));
+    const endRaw = nodeText(getNS('end'));
+    const durEl = getNS('duration');
+    const durVal = durEl ? nodeText(durEl).trim() : '';
+    if (startRaw || endRaw) {
+      // Column label is shape-dependent (2026-07-22, per explicit user
+      // request), not a single fixed default: a lone reported time reads
+      // "Time" (nothing to distinguish it from), but the same first column
+      // reads "Start" the moment it's paired with a second value (an
+      // absolute `end`, or a `duration` — checked below) — "Time"/"End"
+      // unconditionally, regardless of shape, read wrong once a duration
+      // pairing existed at all (there was no third label for it before this
+      // change; a start+duration TimeInterval silently fell into the
+      // lone-value branch and its duration was dropped from the index
+      // entirely, not just mislabeled). Each label is still overridable per
+      // row via idxCfg (startLabel/timeLabel1/timeLabel2/durationLabel/
+      // elapsedTimeLabel), same as before — only the DEFAULT selection
+      // logic is new, and has to live here rather than in a static config,
+      // since which shape a given occurrence has is a per-instance data
+      // fact (the exact same reason idxSlots below reconciles column count
+      // per-row rather than per-config — see its own comment).
+      const startNum = startRaw ? new Date(startRaw).getTime() : NaN;
+      const hasPair = !!(endRaw || durVal);
+      const cols = [{
+        label: hasPair ? (idxCfg.startLabel || 'Start') : (idxCfg.timeLabel1 || 'Time'),
+        uom: '',
+        value: startRaw ? _stackDateTime(startRaw) : null,
+        sortNum: isNaN(startNum) ? null : startNum,
+      }];
+      if (endRaw) {
+        cols.push({ label: idxCfg.timeLabel2 || 'End', uom: '', value: _stackDateTime(endRaw) });
+      } else if (durVal) {
+        const durUom = durEl.getAttribute('uom') || '';
+        cols.push({ label: idxCfg.durationLabel || 'Duration', uom: durUom, value: durVal });
+      }
+      return { cols };
+    }
+    // No absolute start/end — a duration-only TimeInterval (real instance:
+    // Advancement's `time` choice-branch in InspectorTestFile.xml, e.g.
+    // <time><TimeInterval><start/><duration uom="min">5</duration></TimeInterval></time>)
+    // reads the same as a bare elapsedTime leaf below.
+    if (!durVal) return null;
+    const durUom = durEl.getAttribute('uom') || '';
+    const num = parseFloat(durVal);
+    return { cols: [{ label: idxCfg.elapsedTimeLabel || 'Elapsed Time', uom: durUom, value: durVal, sortNum: isNaN(num) ? null : num }] };
+  }
+  // Plain leaf — a single dateTime (gml:TimePositionType, e.g.
+  // WaterStrikeReading's bare `dateTime` choice-branch) or elapsed-time/
+  // duration measure (carries its own `uom`). A date never has a `uom`
+  // attribute, so its presence is the reliable discriminator — don't key
+  // off whether the text contains "T" (a real ISO dateTime-with-time-of-day
+  // value, e.g. "2015-06-04T23:55:00", legitimately contains "T" too; an
+  // earlier version of this check excluded exactly that case, a bug fixed
+  // 2026-07-19 before it was ever exercised against real data). Always a
+  // lone value (there's no pairing concept for a bare leaf), so this always
+  // reads "Time" — never "Start" — regardless of the TimeInterval branch's
+  // shape-dependent choice above.
+  const txt = nodeText(propEl);
+  if (!txt) return null;
+  const uom = (propEl.getAttribute && propEl.getAttribute('uom')) || '';
+  if (!uom && /^\d{4}-\d{2}-\d{2}/.test(txt.trim())) {
+    const t = new Date(txt.trim()).getTime();
+    return { cols: [{ label: idxCfg.timeLabel1 || 'Time', uom: '', value: _stackDateTime(txt), sortNum: isNaN(t) ? null : t }] };
+  }
+  const num = parseFloat(txt);
+  return { cols: [{ label: idxCfg.elapsedTimeLabel || 'Elapsed Time', uom, value: txt, sortNum: isNaN(num) ? null : num }] };
+}
+
+// ── Shared table helpers (2026-07-22) ───────────────────────────
+// Extracted out of renderIntervalTable so renderDataTable (the sibling
+// row-column table, no index) can share the same column-resolution,
+// consumed-paths, and expand-panel logic instead of duplicating it.
+// renderIntervalTable itself now calls these too — behavior is unchanged,
+// this is a pure dedup.
+
+/**
+ * _buildTableConsumedPaths(descriptors) — flattens a table's index/column
+ * descriptors into a Set of exact paths "consumed" by the table, so the
+ * per-row expand-KV panel can exclude whatever a column/index already shows
+ * (see _buildTableExpandHtml). Two forms per descriptor, both flattened:
+ *  - `path` as an ARRAY — a priority-fallback list (column only, see
+ *    _resolveDataColumnCell); every alternative is excluded, since any one
+ *    of them could have matched.
+ *  - `path` as a `'a | b'` STRING union (index only, for a schema <choice>)
+ *    — split on '|' so every branch is excluded individually. A real XPath
+ *    union only ever returns one branch's data per instance, but the child
+ *    type's own OBJECT_CONFIGS entry lists each branch as its own separate
+ *    row, not the literal union string.
+ */
+function _buildTableConsumedPaths(descriptors) {
+  const consumedPaths = new Set();
+  for (const c of descriptors) {
+    const alts = Array.isArray(c.path) ? c.path : [c.path];
+    for (const alt of alts) {
+      for (const p of alt.split('|')) consumedPaths.add(p.trim());
+    }
+  }
+  return consumedPaths;
+}
+
+/**
+ * _resolveDataColumnCell(child, colCfg, consumedPaths) — resolves one
+ * `column` descriptor (interval table's `interval.column` or a data table's
+ * `dataTable.column`) against a single repeating child element. Shared so
+ * both tables' extra summary columns behave identically:
+ *  - `path` as an ARRAY is a PRIORITY fallback list, tried in order — the
+ *    first alternative that resolves to anything wins. Deliberately NOT the
+ *    `'a | b'` union syntax `index` descriptors use: a true XPath union
+ *    returns matches from BOTH sides in document order, which only gives
+ *    "prefer A, else B" semantics when the schema guarantees at most one
+ *    side is ever populated. Here both alternatives can genuinely be
+ *    present at once and the config author wants an explicit preference
+ *    (e.g. Borehole.constructionMethod prefers the nested Specification's
+ *    own gml:name, falling back to BoreholeConstructionMethod's own
+ *    gml:name only when the Specification/name is absent).
+ *  - resolved via `_resolvePathNodes`, not raw `evalXPath`, so a drill-down
+ *    path (e.g. 'diggs:lithology/diggs:ComponentLith/diggs:classificationCode')
+ *    still matches when an intermediate wrapper is an `xlink:href` reference
+ *    rather than an inline child.
+ *  - an alternative only counts as "matched" if it actually has something to
+ *    show — an object-valued node always counts, but a plain leaf must have
+ *    non-empty text (a schema-present-but-blank element must fall through to
+ *    the next alternative, not stop the search).
+ *  - an object-valued match isn't rendered as a cell (v1 scope is simple-leaf
+ *    columns only, per IntervalTableNotes.md) — its path is re-admitted to
+ *    `consumedPaths` (removed from the exclusion Set) so it stays visible in
+ *    the expand KV instead of being dropped or duplicated.
+ *
+ * `colCfg.compute`, when a function, bypasses path resolution entirely —
+ * called as `colCfg.compute(child)`, expected to return `{html, sortVal?}`
+ * or a bare string/value (used as both html and sortVal). This is a forward
+ * seam for a future caller whose "columns" are pre-computed JS properties
+ * rather than XML paths (e.g. a possible future SF-summary-table migration);
+ * no current caller uses it.
+ *
+ * Returns `{label, html, sortVal}`. `sortVal` is the matched node's trimmed
+ * text (or compute()'s sortVal) — renderIntervalTable ignores it;
+ * renderDataTable uses it for an optional `sort:` config.
+ */
+function _resolveDataColumnCell(child, colCfg, consumedPaths) {
+  const pathAlts = Array.isArray(colCfg.path) ? colCfg.path : [colCfg.path];
+  const cellLabel = colCfg.label != null ? colCfg.label : _labelFromPath(pathAlts[0]);
+
+  if (typeof colCfg.compute === 'function') {
+    const res = colCfg.compute(child);
+    if (res && typeof res === 'object') {
+      return { label: cellLabel, html: res.html != null ? res.html : _KV_EMPTY_DASH, sortVal: res.sortVal != null ? res.sortVal : '' };
+    }
+    return { label: cellLabel, html: res != null ? res : _KV_EMPTY_DASH, sortVal: res != null ? String(res) : '' };
+  }
+
+  const isElementNode = n => n && n.nodeType === 1;
+  let matchedNode = null, matchedPath = null;
+  for (const p of pathAlts) {
+    const nodes = _resolvePathNodes(child, p);
+    if (!nodes.length) continue;
+    const n0 = nodes[0];
+    const hasXlinkChildren = isElementNode(n0) && resolveXlinkChildren(n0).length;
+    if (hasXlinkChildren || nodeText(n0).trim()) { matchedNode = n0; matchedPath = p; break; }
+  }
+  if (!matchedNode) return { label: cellLabel, html: _KV_EMPTY_DASH, sortVal: '' };
+  if (isElementNode(matchedNode) && resolveXlinkChildren(matchedNode).length) {
+    consumedPaths.delete(matchedPath);
+    return { label: cellLabel, html: _KV_EMPTY_DASH, sortVal: '' };
+  }
+  const cell = renderSimplePropertyCell(matchedNode, colCfg.boolean, colCfg.attrClass);
+  return { label: cellLabel, html: cell ? cell.valHtml : _KV_EMPTY_DASH, sortVal: nodeText(matchedNode) };
+}
+
+/**
+ * _buildTableExpandHtml(child, rowCfg, consumedPaths, expandsAllowed) —
+ * renders a repeating child element's "remaining fields" KV panel: its own
+ * OBJECT_CONFIGS (or rowCfg.configOverride) minus whatever the table's
+ * index/column descriptors already consumed. Shared by renderIntervalTable
+ * and renderDataTable.
+ *
+ * Exact-path match only (2026-07-19, reverted a same-day prefix-match
+ * attempt) — a consumed path that reaches *inside* another row's own object
+ * (e.g. an Event column falling back to
+ * `diggs:remark/diggs:Remark/diggs:content`) does NOT exclude that row here,
+ * even though it looks like a near-duplicate of a value already shown in the
+ * column. Excluding the whole row by path *prefix* was tried and reverted
+ * the same day: it silently dropped every OTHER field on that nested object
+ * too. Per explicit user direction: occasional duplication (e.g. a Remark's
+ * content appearing both in a column and again as part of its own full
+ * content+author+date line) is an acceptable, minor cost — silently hiding a
+ * real XML element's data to avoid it is not.
+ */
+function _buildTableExpandHtml(child, rowCfg, consumedPaths, expandsAllowed) {
+  if (!expandsAllowed) return '';
+  const typeName = child.localName || '';
+  const baseCfg = (rowCfg.configOverride && Array.isArray(rowCfg.configOverride)) ? rowCfg.configOverride : OBJECT_CONFIGS[typeName];
+  const remainingCfg = (baseCfg || []).filter(f => !f.path || !consumedPaths.has(f.path));
+  return renderKVObject(child, remainingCfg);
+}
+
+/** Render a `multi:true` object-valued property row as a compact interval
+ *  table — see the engine banner comment above. `resolved` is the same
+ *  `{propEl, child}` array renderPropertyRow already built via
+ *  resolveXlinkChildren. Returns '' if no row could be built (caller falls
+ *  back to the default per-instance rendering). */
+function renderIntervalTable(resolved, rowCfg, label) {
+  const cfg = rowCfg.interval;
+  const idxCfgs = cfg.index || [];
+  const colCfgs = cfg.column || [];
+  const expandsAllowed = cfg.expands !== false;
+  const consumedPaths = _buildTableConsumedPaths([...idxCfgs, ...colCfgs]);
+
+  // Two passes over `idxCfgs`: a descriptor can legitimately resolve to a
+  // DIFFERENT number of cells on different rows (a LinearExtent range vs. a
+  // single point with no "to", a TimeInterval with just a start vs. start+
+  // end, or failing to resolve at all on a row where that property simply
+  // wasn't reported) — found live (2026-07-19) on Borehole.constructionEvent
+  // real data, where some BoreholeEvent occurrences report only `location`,
+  // others only `time` (start+end), producing a real column-count mismatch
+  // that silently misaligned values under the wrong header when cells were
+  // placed positionally without first agreeing on a fixed width per
+  // descriptor. Pass 1 resolves every row's raw per-descriptor cells (still
+  // variable-width); once every row is resolved, each descriptor's width is
+  // fixed to the MOST cells any row produced for it (canonical per-slot
+  // labels are taken from that same richest row) — pass 2 (after sorting)
+  // then pads every row out to that fixed width with em-dash placeholders
+  // carrying the canonical label, so a table column always means the same
+  // thing in every row regardless of which rows happened to populate which
+  // optional sub-value.
+  const rawRows = resolved.map(({ child }) => {
+    if (!child || child.__remoteRef) return null;
+    const rawIdx = idxCfgs.map(idxCfg => resolveIntervalIndexCells(child, idxCfg, rowCfg.dimDefault));
+    const first = rawIdx[0];
+    const sortNum = (first && first.cols[0] && first.cols[0].sortNum != null) ? first.cols[0].sortNum : null;
+
+    const colCells = colCfgs.map(colCfg => _resolveDataColumnCell(child, colCfg, consumedPaths));
+    const expandHtml = _buildTableExpandHtml(child, rowCfg, consumedPaths, expandsAllowed);
+    return { rawIdx, colCells, expandHtml, sortNum, child };
+  }).filter(Boolean);
+
+  if (!rawRows.length) return '';
+
+  rawRows.sort((a, b) => {
+    if (a.sortNum != null && b.sortNum != null) return a.sortNum - b.sortNum;
+    if (a.sortNum != null) return -1;
+    if (b.sortNum != null) return 1;
+    return 0;
+  });
+
+  // Per-descriptor fixed width + canonical per-slot labels/uom, from
+  // whichever row produced the most cells for that descriptor.
+  const idxSlots = idxCfgs.map((idxCfg, i) => {
+    let best = null;
+    for (const r of rawRows) {
+      const res = r.rawIdx[i];
+      if (res && (!best || res.cols.length > best.cols.length)) best = res;
+    }
+    if (best) return best.cols;
+    // No row resolved this descriptor at all — single em-dash slot using
+    // whatever static label the config provides (see the fallback-label
+    // 2026-07-19 fix below for why every label key is checked, not just
+    // pointLabel/lineLabel1, and why _labelFromPath only ever sees the
+    // union's first branch, never the whole raw `'a | b'` string).
+    const fallbackLabel = idxCfg.label || idxCfg.pointLabel || idxCfg.lineLabel1
+      || idxCfg.timeLabel1 || idxCfg.startLabel || idxCfg.elapsedTimeLabel
+      || _labelFromPath(idxCfg.path.split('|')[0].trim());
+    return [{ label: fallbackLabel, uom: '' }];
+  });
+
+  const rows = rawRows.map(r => {
+    const idxCols = [];
+    idxCfgs.forEach((idxCfg, i) => {
+      const slots = idxSlots[i];
+      const res = r.rawIdx[i];
+      slots.forEach((slot, slotIdx) => {
+        const cell = res && res.cols[slotIdx];
+        // idxCfg.label (2026-07-19) is an explicit full override for every
+        // slot this descriptor produces — mainly for a union path
+        // (`'diggs:time | diggs:elapsedTime'`) whose resolved kind (and
+        // therefore auto-picked label: timeLabel1 vs elapsedTimeLabel) can
+        // legitimately differ from row to row, so the header itself should
+        // read as the union of both (e.g. `label: 'Time | Elapsed Time'`)
+        // rather than whichever kind happened to produce the widest row.
+        idxCols.push({
+          label: idxCfg.label || slot.label,
+          uom: slot.uom,
+          value: cell ? cell.value : null,
+        });
+      });
+    });
+    return { idxCols, colCells: r.colCells, expandHtml: r.expandHtml, child: r.child };
+  });
+
+  const idxHeaders = rows[0].idxCols.map(c => {
+    const uomSpan = c.uom ? `<br><span class="col-uom">(${escUom(c.uom)})</span>` : '';
+    return `<th>${escHtml(c.label)}${uomSpan}</th>`;
+  }).join('');
+  const colHeaders = rows[0].colCells.map(c => `<th>${escHtml(c.label)}</th>`).join('');
+  const thead = `<thead><tr>${idxHeaders}${colHeaders}</tr></thead>`;
+
+  let tbody = '<tbody>';
+  for (const r of rows) {
+    const expandable = expandsAllowed && !!r.expandHtml.trim();
+    const tri = expandable ? '<span class="kv-tri">▶</span>' : '<span class="kv-tri-spacer"></span>';
+    const idxTds = r.idxCols.map((c, ci) => {
+      // uom is shown once, in the column header (see idxHeaders above) — not
+      // repeated per cell, unlike an ordinary value column (renderSimplePropertyCell
+      // always pairs a value with its own uom); an index's uom is table-wide.
+      // Numeric values are rounded to 2 decimal places for display (2026-07-20)
+      // — a raw parsed float (e.g. 32.2912) is needlessly precise for a table
+      // meant to be scanned at a glance; a formatted date/time string (not a
+      // number) passes through unchanged.
+      const rawVal = typeof c.value === 'number' ? Math.round(c.value * 100) / 100 : c.value;
+      // .replace(...) here converts _stackDateTime's sentinel (see its own
+      // comment) into a real <br> AFTER escHtml runs — safe because escHtml
+      // only touches & < > " and a literal U+0000 can never appear in real
+      // XML text, so the sentinel always survives escaping untouched.
+      // .kv-interval-lead's white-space:nowrap (below) doesn't suppress an
+      // explicit <br> — it only stops ordinary text from wrapping at spaces —
+      // so a Start/End/Time value now renders as two lines (date, then time)
+      // instead of one long "MM/DD/YYYY, H:MM AM/PM" string, which was
+      // crowding out whatever column came after it in a narrow pane
+      // (2026-07-22).
+      const text = rawVal != null ? escHtml(String(rawVal)).replace(_DT_STACK, '<br>') : _KV_EMPTY_DASH;
+      // .kv-interval-lead (2026-07-19) forces a cell's content onto one line
+      // — without it, a narrow index column can wrap the inline-block
+      // .kv-tri away from its value (the leading cell), or wrap a value like
+      // "36.59" mid-number onto two lines (any index cell, once
+      // .kv-interval-val's word-break:break-word was added for long free-
+      // text columns like Material — found live 2026-07-20 on a "To" column,
+      // which isn't ci===0 and so wasn't covered by the original,
+      // leading-cell-only fix). Every index cell gets this now — index
+      // values are always short (a number/date), unlike Method/Material-
+      // style columns to their right, which should still wrap normally in a
+      // narrow column.
+      return `<td class="kv-interval-val kv-interval-lead">${ci === 0 ? tri : ''}${text}</td>`;
+    }).join('');
+    const colTds = r.colCells.map(c => `<td class="kv-interval-val">${c.html}</td>`).join('');
+    // rowOnClick/rowKey (2026-07-20) are optional escape hatches for a caller
+    // that needs to hang extra UI behavior off each generated row beyond the
+    // default expand toggle — e.g. Lithology's row<->graphic-log-zone sync
+    // (_lithRowClick), which needs both a lookup key (data-obs-key) and its
+    // own onclick (applied to EVERY row, even a non-expandable one, since
+    // zone-sync should still fire — _lithRowClick itself no-ops the
+    // toggleKVSection call when there's no detail sibling to toggle).
+    // rowOnClick, when set, always wins over the default
+    // toggle-only-if-expandable onclick.
+    const keyAttr = cfg.rowKey ? ` data-obs-key="${escHtml(cfg.rowKey(r.child))}"` : '';
+    const onclick = cfg.rowOnClick ? ` onclick="${cfg.rowOnClick}"`
+      : (expandable ? ' onclick="toggleKVSection(this)"' : '');
+    tbody += `<tr class="kv-interval-row"${keyAttr}${onclick}>${idxTds}${colTds}</tr>`;
+    if (expandable) {
+      const colspan = r.idxCols.length + r.colCells.length;
+      tbody += `<tr class="kv-interval-detail-row" style="display:none"><td colspan="${colspan}">${r.expandHtml}</td></tr>`;
+    }
+  }
+  tbody += '</tbody>';
+
+  const tableHtml = `<table class="sub-table kv-interval-table">${thead}${tbody}</table>`;
+  // Singular label for exactly one row (2026-07-19 fix — this always used
+  // the plural label regardless of row count, unlike every other
+  // multi-occurrence row in this engine: renderPropertyRow's default path
+  // skips the plural banner entirely for a lone occurrence unless
+  // rowCfg.alwaysGroup is set, see its own comment. Reported live: BH-34 in
+  // InspectorTestFile.xml has exactly one <casing>, and the table still
+  // headlined "CASINGS").
+  const headerLabel = (rows.length === 1 && !rowCfg.alwaysGroup)
+    ? label
+    : (rowCfg.labelPlural || (label ? label + 's' : ''));
+  // cfg.startOpen (2026-07-20, default false — matches every other category/
+  // section banner in this engine) lets a caller override the closed-by-
+  // default convention. Added for Lithology's observation table: v1 always
+  // showed it immediately (only individual rows were collapsible for their
+  // own expand detail), so hiding the whole table behind an extra "Lithology
+  // Observations" click would be a real, reported UX regression from that —
+  // not a case of matching every other interval-tabled property, which is
+  // fine starting closed since it isn't the sole reason the user opened the
+  // panel in the first place.
+  return wrapCategoryHeader(headerLabel, tableHtml, !!cfg.startOpen, rowCfg.categoryClass);
+}
+
+/**
+ * Render a `multi:true` object-valued property row as a compact row-column
+ * table — the sibling of renderIntervalTable, minus its index machinery.
+ * Opted into via `rowCfg.dataTable = { column:[...], sort?, expands?,
+ * startOpen?, rowKey?, rowOnClick? }` (see OBJECT_CONFIGS reference.md).
+ * Rows render in DOCUMENT ORDER by default (no index to sort by) unless
+ * `cfg.sort` names a column to order by instead. Every other mechanic —
+ * column resolution (_resolveDataColumnCell), the expand-KV panel
+ * (_buildTableExpandHtml), row/expand HTML structure, CSS classes, and
+ * toggleKVSection wiring — is shared byte-for-byte with the interval table.
+ * Returns '' if no row could be built (caller falls back to the default
+ * per-instance rendering).
+ */
+function renderDataTable(resolved, rowCfg, label) {
+  const cfg = rowCfg.dataTable;
+  const colCfgs = cfg.column || [];
+  const expandsAllowed = cfg.expands !== false;
+  const consumedPaths = _buildTableConsumedPaths(colCfgs);
+
+  let rows = resolved.map(({ child }) => {
+    if (!child || child.__remoteRef) return null;
+    const colCells = colCfgs.map(colCfg => _resolveDataColumnCell(child, colCfg, consumedPaths));
+    const expandHtml = _buildTableExpandHtml(child, rowCfg, consumedPaths, expandsAllowed);
+    return { colCells, expandHtml, child };
+  }).filter(Boolean);
+
+  if (!rows.length) return '';
+
+  // Optional sort — default is document order (rows are left exactly as
+  // `resolved` produced them). `cfg.sort.column` names a column either by
+  // its resolved label (colCfg.label, matching the visible header text) or
+  // by 0-based index into `column`; ties keep their relative order (Array.
+  // sort is stable per spec). `numeric:true` parses each cell's sortVal as a
+  // float (NaN sorts last, regardless of dir) instead of a string compare.
+  if (cfg.sort && cfg.sort.column != null) {
+    const sortCol = cfg.sort.column;
+    const colIdx = typeof sortCol === 'number' ? sortCol : colCfgs.findIndex(c => (c.label != null ? c.label : _labelFromPath(Array.isArray(c.path) ? c.path[0] : c.path)) === sortCol);
+    if (colIdx >= 0) {
+      const dir = cfg.sort.dir === 'desc' ? -1 : 1;
+      const key = r => (r.colCells[colIdx] ? r.colCells[colIdx].sortVal : '');
+      rows = rows.map((r, i) => ({ r, i })).sort((a, b) => {
+        if (cfg.sort.numeric) {
+          const an = parseFloat(key(a.r)), bn = parseFloat(key(b.r));
+          const aNaN = isNaN(an), bNaN = isNaN(bn);
+          if (aNaN && bNaN) return a.i - b.i;
+          if (aNaN) return 1;
+          if (bNaN) return -1;
+          return (an - bn) * dir || (a.i - b.i);
+        }
+        const cmp = String(key(a.r)).localeCompare(String(key(b.r)));
+        return cmp * dir || (a.i - b.i);
+      }).map(x => x.r);
+    }
+  }
+
+  const colHeaders = rows[0].colCells.map(c => `<th>${escHtml(c.label)}</th>`).join('');
+  const thead = `<thead><tr>${colHeaders}</tr></thead>`;
+
+  let tbody = '<tbody>';
+  for (const r of rows) {
+    const expandable = expandsAllowed && !!r.expandHtml.trim();
+    const tri = expandable ? '<span class="kv-tri">▶</span>' : '<span class="kv-tri-spacer"></span>';
+    const colTds = r.colCells.map((c, ci) =>
+      `<td class="kv-interval-val">${ci === 0 ? tri : ''}${c.html}</td>`
+    ).join('');
+    const keyAttr = cfg.rowKey ? ` data-obs-key="${escHtml(cfg.rowKey(r.child))}"` : '';
+    const onclick = cfg.rowOnClick ? ` onclick="${cfg.rowOnClick}"`
+      : (expandable ? ' onclick="toggleKVSection(this)"' : '');
+    tbody += `<tr class="kv-interval-row"${keyAttr}${onclick}>${colTds}</tr>`;
+    if (expandable) {
+      tbody += `<tr class="kv-interval-detail-row" style="display:none"><td colspan="${r.colCells.length}">${r.expandHtml}</td></tr>`;
+    }
+  }
+  tbody += '</tbody>';
+
+  const tableHtml = `<table class="sub-table kv-interval-table">${thead}${tbody}</table>`;
+  // Singular label for exactly one row, matching every other multi-
+  // occurrence row in this engine (renderPropertyRow's default path, and
+  // renderIntervalTable's own 2026-07-19 fix — see its comment).
+  const headerLabel = (rows.length === 1 && !rowCfg.alwaysGroup)
+    ? label
+    : (rowCfg.labelPlural || (label ? label + 's' : ''));
+  return wrapCategoryHeader(headerLabel, tableHtml, !!cfg.startOpen, rowCfg.categoryClass);
 }
 
 /** Render one property row from rowCfg, evaluated against context
@@ -5839,7 +6658,13 @@ function renderResolvedObject(propEl, childEl, rowCfg, label, startOpen) {
  *  automatic .kv-row border (bottom border on every row except the last
  *  child of its container, no top border ever) — only affects plain
  *  .kv-row rows, not a category/banner header's own separate divider
- *  convention. */
+ *  convention.
+ *
+ *  `rowCfg.interval` (2026-07-19, requires `multi:true` — see
+ *  IntervalTableNotes.md and renderIntervalTable's own banner comment)
+ *  swaps the default per-instance full-KV category list for a compact
+ *  columnar table (index column(s) + a few summary columns, each row
+ *  expandable to a KV table of the object's remaining fields). */
 function renderPropertyRow(el, rowCfg) {
   // `compute` is an escape hatch for a value with no schema element of its
   // own — derived from the object's context element by arbitrary JS (e.g.
@@ -5896,6 +6721,16 @@ function renderPropertyRow(el, rowCfg) {
     }
     return renderSimpleRow(label + cells[0].keyExtra,
       cells.map(c => c.valHtml).join('<div style="height:4px"></div>'), rowCfg.labelClass, rowCfg.valueClass, rowCfg.borderTop, rowCfg.borderBottom);
+  }
+
+  if (rowCfg.interval && rowCfg.multi) {
+    const tableHtml = renderIntervalTable(resolved, rowCfg, label);
+    if (tableHtml) return tableHtml;
+  }
+
+  if (rowCfg.dataTable && rowCfg.multi) {
+    const tableHtml = renderDataTable(resolved, rowCfg, label);
+    if (tableHtml) return tableHtml;
   }
 
   const blocks = resolved.map(r => renderResolvedObject(r.propEl, r.child, rowCfg, label, false));
@@ -6585,6 +7420,65 @@ OBJECT_CONFIGS.LocationUncertainty = [
   ..._COMPONENT_TRAILING,
 ];
 
+// PointLocation — PointLocationType (core/Core.xsd:7625) extends
+// AbstractGeometricPrimitiveType (gml:description?) + gml:pos + uncertainty
+// (LocationUncertaintyPropertyType). Only reached via a row that sets
+// `geoLocation: true` (see renderResolvedObject) — every other PointLocation
+// usage in the app keeps rendering through SPECIAL_OBJECT_FORMATTERS'
+// one-line FORMAT_FN.locationInline instead, unaffected by this entry.
+// No `Coordinates` text row here (2026-07-22, removed) — a row that also
+// sets `mapToggle: true` (see OBJECT_CONFIGS.Project) shows the actual
+// coordinates via the interactive "Show on Map" toggle instead of as text;
+// this config is just the *additional* detail (description/uncertainty)
+// that toggle's expand panel reveals.
+OBJECT_CONFIGS.PointLocation = [
+  { path: 'gml:description' },
+  { path: 'diggs:uncertainty', label: 'Uncertainty' },
+];
+
+// LinearExtent — LinearExtentType (core/Core.xsd:7783) extends
+// AbstractCurveType (gml:description?) + gml:posList, datumReference?,
+// anchorPoint* (Referent — reference/calibration points, skipped per the
+// engine's "Reference Property" convention), startValue?, uncertainty?.
+// Only reached via a row that sets `geoLocation: true` — see PointLocation
+// above for why (same locationInline mismatch for a real geographic line,
+// e.g. Project's linearExtent, vs. a borehole's own centerLine/diameterLocation).
+// No `Coordinates` text row here either, same reason as PointLocation above.
+OBJECT_CONFIGS.LinearExtent = [
+  { path: 'gml:description' },
+  { path: 'diggs:datumReference', label: 'Datum Reference' },
+  { path: 'diggs:startValue', label: 'Start Value' },
+  { path: 'diggs:uncertainty', label: 'Uncertainty' },
+];
+
+// PlanarSurface/MultiPlanarSurface (core/Core.xsd) and the raw (non-DIGGS-
+// namespace) gml:Shell/gml:MultiSurfaceAggregate — the four object types
+// Project's arealExtent can resolve to. Every GML geometry inherits
+// gml:description via AbstractGeometryType regardless of which of these it
+// is (see GML_3.2_Surface_Geometry_Types.md), so that's included uniformly;
+// `uncertainty` only exists on PlanarSurfaceType itself, not the other
+// three. Deliberately NOT a full nested dump of the actual ring/patch/
+// surfaceMember geometry (Shell/MultiSurfaceAggregate especially can nest
+// arbitrary curves several levels deep) — that's the same out-of-scope
+// "raw GML surface/curve rendering" gap OBJECT_CONFIGS.Project's own
+// banner comment already documents; these four entries exist only so
+// Project's arealExtent row (mapToggle: true) has real description/
+// uncertainty detail to expand into when present, matching the same
+// "additional detail" contract as PointLocation/LinearExtent above.
+OBJECT_CONFIGS.PlanarSurface = [
+  { path: 'gml:description' },
+  { path: 'diggs:uncertainty', label: 'Uncertainty' },
+];
+OBJECT_CONFIGS.MultiPlanarSurface = [
+  { path: 'gml:description' },
+];
+OBJECT_CONFIGS.Shell = [
+  { path: 'gml:description' },
+];
+OBJECT_CONFIGS.MultiSurfaceAggregate = [
+  { path: 'gml:description' },
+];
+
 // LocalCoordinate — LocalCoordinateType (core/Common.xsd:1460) extends
 // gml:AbstractMetadataPropertyType — NO gml:id, no name/description (the
 // exact type CLAUDE.md's "gml:id is not universally available" note is
@@ -6599,6 +7493,418 @@ OBJECT_CONFIGS.LocalCoordinate = [
   { path: 'diggs:elevation' },
   { path: 'diggs:location' },
   { path: 'diggs:localCoodinateUncertainty', label: 'Uncertainty' },
+];
+
+// ══════════════════════════════════════════════════════════════
+//  LITHOLOGY — phase 4 of the interval-table engine (2026-07-20). Restores
+//  the v1 Lithology observation display (name/description/identifier/
+//  status/implementationStatus/observationProcedure/role/remark/
+//  associatedFile on LithologySystem; per-observation attributes/location/
+//  primary+component classification/colors/constituents/properties;
+//  placedObservation/baseBoundary), fully config-driven via OBJECT_CONFIGS +
+//  renderIntervalTable this time, rather than the old bespoke parse+render
+//  pipeline (buildLithSystemExtraHtml/LITH_SYSTEM_EXTRA_DESCRIPTOR/
+//  buildLithObsExpandHtml/etc., all deleted when the KV engine was forked —
+//  see renderLithSysTable's own comment). Every type below was verified
+//  directly against ../diggs-schema (core/Core.xsd unless noted), walking
+//  each one's actual `extension base=`/`restriction base=` line rather than
+//  assuming a shape from a similarly-named sibling type — two shapes that
+//  look alike from a distance turned out to differ in real, small ways
+//  (e.g. ColorType and ConstituentType both ultimately provide identifier/
+//  status/remark, but via different base types with different own-sequence
+//  placement of status/remark; LithPropertiesType has no independent
+//  `status` element at all, unlike its sibling ComponentPropertiesType's
+//  otherwise-identical shape).
+//
+//  The custom parse pipeline (parseLithologyObject/parseLithologyObservation/
+//  parseColorObject/parseConstituentObject/parseLithProperties, all still
+//  defined inside loadDIGGS) is INTENTIONALLY left untouched and still runs —
+//  it feeds sys.observations, the numeric geometry (from/to/coordTuple) and
+//  resolved pattern/material key (resolveLithMaterial) drawLithLog needs for
+//  the graphic borehole log, a concern entirely separate from how the KV/
+//  table DISPLAY is built. Duplicating that parse into more OBJECT_CONFIGS
+//  rows would buy nothing (the graphic log doesn't render KV rows) and risk
+//  the two falling out of sync, so both pipelines now coexist deliberately:
+//  the custom parser for geometry+pattern-fill resolution, OBJECT_CONFIGS
+//  for everything textual/KV. See renderLithBadgeContent for where the two
+//  meet (drawLithLog still consumes sys.observations; the table now calls
+//  renderPropertyRow(sys.el, ...) against OBJECT_CONFIGS.LithologySystem).
+// ══════════════════════════════════════════════════════════════
+
+// Shared by LithologyType/ComponentLithType (ComponentObjectNoDescriptionType),
+// LithologyObservationType (AbstractObservationType -> AbstractObjectNoDescriptionType),
+// and ParticleSizeType (ObjectNoDescriptionType) — identifier?/status?/remark*,
+// deliberately no name/description (all three base types explicitly restrict
+// those away). Not the same shape as _OBJ_TYPE_TRAILING (remark only) — these
+// three also get identifier+status trailing, since none of them declare a
+// leading _OBJ_BASE_FIELDS-style block either.
+const _OBJ_NO_DESC_TRAILING = [
+  { path: 'gml:identifier', multi: true },
+  { path: 'diggs:status' },
+  { path: 'diggs:remark', multi: true, splitRows: true },
+];
+
+// ParticleSize — ParticleSizeType (core/Core.xsd:5543) extends ObjectNoDescriptionType
+// (restricts AbstractObjectType down to identifier?/status?/remark*, no name/description).
+// [choice, required: (particleSizeValue+particleSizeDescription?) | particleSizeDescription].
+OBJECT_CONFIGS.ParticleSize = [
+  { path: 'diggs:particleSizeValue', label: 'Value' },
+  { path: 'diggs:particleSizeDescription', label: 'Description' },
+  ..._OBJ_NO_DESC_TRAILING,
+];
+
+// ParticleSizeDistribution — ParticleSizeDistributionType (core/Core.xsd:5479)
+// extends AbstractComponentObjectBaseType directly (description?/identifier?
+// only — no status/remark of its own, unlike most other lithology sub-objects).
+// Each grain-size field wraps its own ParticleSize object, recursing generically
+// through the registry (no configOverride needed).
+OBJECT_CONFIGS.ParticleSizeDistribution = [
+  { path: '@howDetermined', label: 'How Determined' },
+  { path: 'diggs:meanGrainsize', label: 'Mean Grain Size' },
+  { path: 'diggs:modalGrainsize', label: 'Modal Grain Size' },
+  { path: 'diggs:equivalentDiameter', label: 'Equivalent Diameter' },
+  { path: 'diggs:minimumDiameter', label: 'Minimum Diameter' },
+  { path: 'diggs:maximumDiameter', label: 'Maximum Diameter' },
+  { path: 'gml:description' },
+  { path: 'gml:identifier', multi: true },
+];
+
+// ColorComponents — ColorComponentsType (core/Core.xsd:3688) extends
+// AbstractComponentObjectBaseType (description?/identifier? only). hue is
+// required; intensity/modifier optional.
+OBJECT_CONFIGS.ColorComponents = [
+  { path: 'diggs:intensity' },
+  { path: 'diggs:modifier' },
+  { path: 'diggs:hue' },
+  { path: 'gml:description' },
+  { path: 'gml:identifier', multi: true },
+];
+
+// Constituent — ConstituentType (core/Core.xsd:4454) extends
+// AbstractComponentObjectBaseType (description?/identifier?) + its OWN
+// status?/remark* (verified directly — NOT inherited via a NoDescription
+// restriction like Lithology/Color, so status/remark sit in this type's own
+// sequence rather than a shared trailing const). codeValue is
+// ConstituentCategoryCodeType (carries its own @category/@howDetermined,
+// plus @codeSpace via gml:CodeType) — those decorate automatically via
+// renderSimplePropertyCell's "other attributes" parenthetical, no separate
+// rows needed.
+OBJECT_CONFIGS.Constituent = [
+   { path: 'diggs:codeValue', label: 'Constituent' },
+ { path: 'gml:description' },
+   { path: 'diggs:abundanceCode', label: 'Abundance' },
+  { path: 'diggs:abundancePercent', label: 'Abundance %' },
+  { path: 'diggs:maxAbundancePercent', label: 'Max Abundance %' },
+  { path: 'diggs:distribution' },
+  { path: '@rank', label: 'Rank' },
+  { path: 'diggs:status' },
+  { path: 'diggs:remark', multi: true, splitRows: true },
+    { path: 'gml:identifier', multi: true },
+];
+
+// Color — ColorType (core/Core.xsd:3493) extends ComponentObjectNoDescriptionType
+// (identifier?/status?/remark*, no description/name — same shape as Lithology/
+// ComponentLith, confirmed via its own `extension base=` line despite an
+// annotation that ambiguously suggested AbstractComponentObjectBaseType).
+// [choice, required: colorCode | (colorName+colorCode?)].
+OBJECT_CONFIGS.Color = [
+  { path: 'diggs:colorName', label: 'Color Name' },
+  { path: 'diggs:colorCode', label: 'Color Code' },
+  { path: 'diggs:abundanceCode', label: 'Abundance' },
+  { path: 'diggs:abundancePercent', label: 'Abundance %' },
+  { path: 'diggs:maxAbundancePercent', label: 'Max Abundance %' },
+  { path: '@origin', label: 'Origin' },
+  { path: '@rank', label: 'Rank' },
+  { path: 'diggs:preface' },
+  { path: 'diggs:colorComponents', label: 'Color Components' },
+  ..._OBJ_NO_DESC_TRAILING,
+];
+
+// LithProperties — LithPropertiesType (core/Core.xsd:5021) extends
+// AbstractComponentObjectBaseType (description?/identifier?) + its own
+// remark* — NO independent status element (verified directly; unlike
+// Constituent, this type never declares diggs:status at all). [choice:
+// apparentDensity|consistency]. [choice, optional: beddingOrientation |
+// (dipAngle+dipDirection?) | dipDirection]. odor/unitRecoveryLength/unitRQD/
+// unitRQDLength/otherLithProperty are LithProperties-only (absent from
+// ComponentProperties below).
+OBJECT_CONFIGS.LithProperties = [
+  { path: 'gml:description' },
+  { path: 'gml:identifier', multi: true },
+  { path: 'diggs:consistency' },
+  { path: 'diggs:apparentDensity', label: 'Apparent Density' },
+  { path: 'diggs:moistureCondition', label: 'Moisture Condition' },
+  { path: 'diggs:plasticity' },
+  { path: 'diggs:dilatancy' },
+  { path: 'diggs:dryStrength', label: 'Dry Strength' },
+  { path: 'diggs:toughness' },
+  { path: 'diggs:cementation' },
+  { path: 'diggs:fabric' },
+  { path: 'diggs:soilStructure', label: 'Soil Structure' },
+  { path: 'diggs:particleSize', label: 'Particle Size' },
+  { path: 'diggs:particleAngularity', label: 'Particle Angularity' },
+  { path: 'diggs:particleShape', label: 'Particle Shape' },
+  { path: 'diggs:particleHardness', label: 'Particle Hardness' },
+  { path: 'diggs:particleSorting', multi: true, label: 'Particle Sorting', splitRows: true },
+  { path: 'diggs:particleSizeDistribution', label: 'Particle Size Distribution' },
+  { path: 'diggs:reactionToHCl', label: 'Reaction to HCl' },
+  { path: 'diggs:staining' },
+  { path: 'diggs:odor' },
+  { path: 'diggs:beddingOrientation', label: 'Bedding Orientation' },
+  { path: 'diggs:dipAngle', label: 'Dip Angle' },
+  { path: 'diggs:dipDirection', label: 'Dip Direction' },
+  { path: 'diggs:beddingSpacing', label: 'Bedding Spacing' },
+  { path: 'diggs:surfaceTexture', label: 'Surface Texture' },
+  { path: 'diggs:unitRecoveryLength', label: 'Unit Recovery Length' },
+  { path: 'diggs:rockGrainSize', label: 'Rock Grain Size' },
+  { path: 'diggs:rockHardness', label: 'Rock Hardness' },
+  { path: 'diggs:rockStrength', label: 'Rock Strength' },
+  { path: 'diggs:rockWeathering', label: 'Rock Weathering' },
+  { path: 'diggs:rockMass', label: 'Rock Mass' },
+  { path: 'diggs:rockSorting', label: 'Rock Sorting' },
+  { path: 'diggs:rockSlakingRate', label: 'Rock Slaking Rate' },
+  { path: 'diggs:unitRQD', label: 'Unit RQD' },
+  { path: 'diggs:unitRQDLength', label: 'Unit RQD Length' },
+  { path: 'diggs:otherLithProperty', multi: true, label: 'Other Property' },
+  { path: 'diggs:remark', multi: true, splitRows: true },
+];
+
+// ComponentProperties — ComponentPropertiesType (core/Core.xsd:4161) extends
+// AbstractComponentObjectBaseType, same base as LithProperties. Same field
+// set MINUS odor/unitRecoveryLength/unitRQD/unitRQDLength; otherComponentProperty
+// replaces otherLithProperty.
+OBJECT_CONFIGS.ComponentProperties = [
+  { path: 'gml:description' },
+  { path: 'gml:identifier', multi: true },
+  { path: 'diggs:consistency' },
+  { path: 'diggs:apparentDensity', label: 'Apparent Density' },
+  { path: 'diggs:moistureCondition', label: 'Moisture Condition' },
+  { path: 'diggs:plasticity' },
+  { path: 'diggs:dilatancy' },
+  { path: 'diggs:dryStrength', label: 'Dry Strength' },
+  { path: 'diggs:toughness' },
+  { path: 'diggs:cementation' },
+  { path: 'diggs:fabric' },
+  { path: 'diggs:soilStructure', label: 'Soil Structure' },
+  { path: 'diggs:particleSize', label: 'Particle Size' },
+  { path: 'diggs:particleAngularity', label: 'Particle Angularity' },
+  { path: 'diggs:particleShape', label: 'Particle Shape' },
+  { path: 'diggs:particleHardness', label: 'Particle Hardness' },
+  { path: 'diggs:particleSorting', multi: true, label: 'Particle Sorting', splitRows: true },
+  { path: 'diggs:particleSizeDistribution', label: 'Particle Size Distribution' },
+  { path: 'diggs:reactionToHCl', label: 'Reaction to HCl' },
+  { path: 'diggs:staining' },
+  { path: 'diggs:beddingOrientation', label: 'Bedding Orientation' },
+  { path: 'diggs:dipAngle', label: 'Dip Angle' },
+  { path: 'diggs:dipDirection', label: 'Dip Direction' },
+  { path: 'diggs:beddingSpacing', label: 'Bedding Spacing' },
+  { path: 'diggs:surfaceTexture', label: 'Surface Texture' },
+  { path: 'diggs:rockGrainSize', label: 'Rock Grain Size' },
+  { path: 'diggs:rockHardness', label: 'Rock Hardness' },
+  { path: 'diggs:rockStrength', label: 'Rock Strength' },
+  { path: 'diggs:rockWeathering', label: 'Rock Weathering' },
+  { path: 'diggs:rockMass', label: 'Rock Mass' },
+  { path: 'diggs:rockSlakingRate', label: 'Rock Slaking Rate' },
+  { path: 'diggs:rockSorting', label: 'Rock Sorting' },
+  { path: 'diggs:otherComponentProperty', multi: true, label: 'Other Property' },
+  { path: 'diggs:remark', multi: true, splitRows: true },
+];
+
+// Shared dataTable configs (2026-07-22) for the `color`/`constituent` rows
+// that appear identically on both Lithology and ComponentLith below — a
+// Color's abundance choice is `abundanceCode | (abundancePercent+
+// maxAbundancePercent?)` and its name choice is `colorCode | (colorName+
+// colorCode?)`, so preferring colorName/abundanceCode first and falling back
+// covers both branches without dropping data (maxAbundancePercent, when
+// present, stays visible in the expand KV — it's never a column).
+const _LITH_COLOR_DATATABLE = {
+  column: [
+    { path: ['diggs:colorName', 'diggs:colorCode'], label: 'Color' },
+    { path: ['diggs:abundanceCode', 'diggs:abundancePercent'], label: 'Abundance' },
+  ],
+};
+const _LITH_CONSTITUENT_DATATABLE = {
+  column: [
+    { path: 'diggs:codeValue', label: 'Constituent' },
+    { path: ['diggs:abundanceCode', 'diggs:abundancePercent'], label: 'Abundance' },
+  ],
+};
+
+// Lithology — LithologyType (core/Core.xsd:3188) extends
+// ComponentObjectNoDescriptionType (identifier?/status?/remark*, no name/
+// description). [choice, required: classificationCode(+lithDescription?) |
+// lithDescription]. Either branch's populated field(s) render as plain rows;
+// the unpopulated branch's row(s) just produce nothing, no special-casing
+// needed (same generic behavior as any other optional field).
+OBJECT_CONFIGS.Lithology = [
+  ..._OBJ_NO_DESC_TRAILING,
+  { path: 'diggs:classificationCode', label: 'Classification Code' },
+  { path: 'diggs:lithDescription', label: 'Lith Description' },
+  { path: 'diggs:classificationSymbol', label: 'Classification Symbol' },
+  { path: 'diggs:groupIndexAASHTO', label: 'Group Index (AASHTO)' },
+  { path: 'diggs:legendCode', label: 'Legend Code' },
+  { path: 'diggs:matrixType', label: 'Matrix Type' },
+  { path: 'diggs:colorCharacter', label: 'Color Character' },
+  { path: 'diggs:color', multi: true, label: 'Color', labelPlural: 'Colors', dataTable: _LITH_COLOR_DATATABLE },
+  { path: 'diggs:constituent', multi: true, label: 'Constituent', labelPlural: 'Constituents', dataTable: _LITH_CONSTITUENT_DATATABLE },
+  { path: 'diggs:lithProperties', label: 'Lith Properties' },
+];
+
+// ComponentLith — ComponentLithType (core/Core.xsd:3965) extends
+// ComponentObjectNoDescriptionType, same base as Lithology. Mirrors
+// Lithology minus legendCode/matrixType/lithProperties; adds componentProperties.
+OBJECT_CONFIGS.ComponentLith = [
+  { path: 'diggs:classificationCode', label: 'Classification Code' },
+  { path: 'diggs:lithDescription', label: 'Lith Description' },
+  { path: 'diggs:classificationSymbol', label: 'Classification Symbol' },
+  { path: 'diggs:groupIndexAASHTO', label: 'Group Index (AASHTO)' },
+  { path: 'diggs:colorCharacter', label: 'Color Character' },
+  { path: 'diggs:color', multi: true, label: 'Color', labelPlural: 'Colors', dataTable: _LITH_COLOR_DATATABLE },
+  { path: 'diggs:constituent', multi: true, label: 'Constituent', labelPlural: 'Constituents', dataTable: _LITH_CONSTITUENT_DATATABLE },
+  { path: 'diggs:componentProperties', label: 'Properties' },
+  ..._OBJ_NO_DESC_TRAILING,
+];
+
+// ComponentLithology — ComponentLithologyType (core/Core.xsd:4686) extends
+// AbstractObjectType (description?/identifier?/name*/status?/remark* —
+// matches _OBJ_BASE_FIELDS+_OBJ_TYPE_TRAILING exactly, unlike
+// Lithology/ComponentLith above). This is the abundance-bearing WRAPPER
+// object (LithologyObservation.componentLithology wraps this, which in turn
+// wraps ComponentLith via its own `lithology` property) — two distinct
+// layers, easy to conflate. [choice: abundanceCode | (abundancePercent?+
+// maxAbundancePercent?)].
+
+OBJECT_CONFIGS.ComponentLithology = [
+  ..._OBJ_BASE_FIELDS,
+  { path: 'diggs:abundanceCode', label: 'Abundance' },
+  { path: 'diggs:abundancePercent', label: 'Abundance %' },
+  { path: 'diggs:maxAbundancePercent', label: 'Max Abundance %' },
+  { path: '@association', label: 'Association' },
+  { path: '@rank', label: 'Rank' },
+  { path: 'diggs:lithology', label: 'Lithology' },
+  ..._OBJ_TYPE_TRAILING,
+];
+
+// PlacedObservation — PlacedObservationType (core/Core.xsd:2875) extends
+// AbstractComponentObjectBaseType (description?/identifier? only). location
+// is REQUIRED here (unlike LithologyObservation's own optional location).
+OBJECT_CONFIGS.PlacedObservation = [
+  { path: 'gml:description' },
+  { path: 'gml:identifier', multi: true },
+  { path: 'diggs:location', label: 'Location' },
+  { path: 'diggs:observation', label: 'Observation' },
+];
+
+// Boundary — BoundaryType (core/Common.xsd:1000) extends AbstractObjectType
+// (description?/identifier?/name*/status?/remark* — same shape as
+// ComponentLithology above). Previously unparsed anywhere in the app (see
+// CLAUDE.md's "Property/object display rework" note) — full coverage now.
+OBJECT_CONFIGS.Boundary = [
+  ..._OBJ_BASE_FIELDS,
+  { path: '@howDetermined', label: 'How Determined' },
+  { path: 'diggs:location', label: 'Location' },
+  { path: 'diggs:dipAngle', label: 'Dip Angle' },
+  { path: 'diggs:dipDirection', label: 'Dip Direction' },
+  { path: 'diggs:distinctness' },
+  { path: 'diggs:origin' },
+  { path: 'diggs:topography' },
+  ..._OBJ_TYPE_TRAILING,
+];
+
+// LithologyObservation — LithologyObservationType (core/Core.xsd:3078)
+// extends AbstractObservationType -> AbstractObjectNoDescriptionType
+// (identifier?/status?/remark*, no name/description) + measurementRef*
+// (xlink-only Reference Property — never shown, per the engine's *Ref rule)
+// /location?/trueTopObserved?/trueBaseObserved?/@howDetermined/@stratumCode.
+// `location` and the primary/lithDescription-derived "Material" summary are
+// consumed by the interval config on LithologySystem's own
+// `lithologyObservation` row below — both still listed here too (same
+// precedent as every other interval-tabled child type, e.g.
+// BoreholeDiameter) so this config stays complete if LithologyObservation
+// is ever rendered outside that context, and so the "remaining fields"
+// filter has something real to filter against.
+OBJECT_CONFIGS.LithologyObservation = [
+  { path: 'diggs:facies' },
+  { path: 'diggs:unitName', label: 'Unit Name' },
+  { path: '@howDetermined', label: 'How Determined' },
+  { path: '@stratumCode', label: 'Stratum Code' },
+  { path: 'diggs:location', label: 'Location' },
+  { path: 'diggs:trueTopObserved', label: 'True Top Observed', boolean: true },
+  { path: 'diggs:trueBaseObserved', label: 'True Base Observed', boolean: true },
+  { path: 'diggs:baseBoundary', multi: true, label: 'Base Boundary', labelPlural: 'Base Boundaries' },
+  { path: 'diggs:primaryLithology', label: 'Primary Lithology' },
+  {
+    path: 'diggs:componentLithology', multi: true, label: 'Component Lithology', labelPlural: 'Component Lithologies',
+    // dataTable (2026-07-22) — same shape as LithologySystem's own
+    // lithologyObservation interval table, minus the index: a
+    // ComponentLithology wraps a ComponentLith via its own `diggs:lithology`
+    // property (ComponentLithologyType.lithology is a
+    // ComponentLithPropertyType, per core/Core.xsd — NOT Lithology, the
+    // distinct sibling type LithologyObservation.primaryLithology uses), so
+    // the Material column drills the same
+    // classificationCode-else-lithDescription pair one level down.
+    dataTable: {
+      column: [
+        {
+          path: ['diggs:lithology/diggs:ComponentLith/diggs:classificationCode',
+                 'diggs:lithology/diggs:ComponentLith/diggs:lithDescription'],
+          label: 'Material',
+        },
+        { path: ['diggs:abundanceCode', 'diggs:abundancePercent'], label: 'Abundance' },
+      ],
+    },
+  },
+  { path: 'diggs:placedObservation', multi: true, label: 'Placed Observation', labelPlural: 'Placed Observations' },
+  ..._OBJ_NO_DESC_TRAILING,
+];
+
+// LithologySystem — LithologySystemType (core/Core.xsd:3162) extends
+// AbstractObservationSystemType -> AbstractFeatureType. projectRef/
+// programRef/samplingFeatureRef/sampleRef are Reference Properties
+// (xlink-only) — never shown, per the engine's *Ref rule.
+//
+// lithologyObservation is where the interval-table engine plugs in
+// (renderLithBadgeContent calls renderPropertyRow(sys.el, this row's own
+// config) to get the table, and a separate renderKVObject call, filtered to
+// exclude this same row plus lithologyClassificationType — both already
+// shown via the table/system-header respectively — for the "system extra
+// metadata" panel; see renderLithBadgeContent). The Material column prefers
+// the primary Lithology's classificationCode, falling back to
+// lithDescription — an ARRAY `path` (priority fallback, not a `|` union;
+// see Borehole.constructionMethod's own Specification-name column for the
+// precedent and why the distinction matters), matching the schema's own
+// classificationCode-preferred-else-lithDescription choice.
+OBJECT_CONFIGS.LithologySystem = [
+  ..._OBJ_BASE_FIELDS,
+  ..._FEATURE_LEADING,
+  { path: 'diggs:observationProcedure', label: 'Observation Procedure' },
+  { path: 'diggs:lithologyClassificationType', multi: true, label: 'Classification Type' },
+  {
+    path: 'diggs:lithologyObservation', multi: true, labelPlural: 'Lithology Observations',
+    interval: {
+      // v1 always showed this table immediately (only individual rows'
+      // own detail was collapsible) — see renderIntervalTable's own
+      // startOpen comment for why this differs from every other
+      // interval-tabled property, which is fine starting closed.
+      startOpen: true,
+      index: [{ path: 'diggs:location' }],
+      column: [{
+        path: ['diggs:primaryLithology/diggs:Lithology/diggs:classificationCode',
+               'diggs:primaryLithology/diggs:Lithology/diggs:lithDescription'],
+        label: 'Material',
+      }],
+      // Row<->graphic-log-zone sync (see _lithRowClick/_lithZoneClick, near
+      // drawLithLog) — rowKey must match exactly how the separate custom
+      // geometry parser (parseLithologyObservation) derives obs.gml_id, so
+      // a table row and its SVG zone resolve to the same key for the same
+      // observation regardless of which of the two independent pipelines
+      // produced it.
+      rowKey: el => (el.getAttribute('gml:id') || el.getAttributeNS(NS.gml, 'id') || '')
+        .replace(/[^a-zA-Z0-9_-]/g, '_'),
+      rowOnClick: '_lithRowClick(this)',
+    },
+  },
+  ..._FEATURE_TRAILING,
 ];
 
 // BackfillLayer — BackfillLayerType (core/Core.xsd:776) extends AbstractObjectType.
@@ -6616,9 +7922,19 @@ OBJECT_CONFIGS.BackfillLayer = [
 OBJECT_CONFIGS.Backfill = [
   ..._OBJ_BASE_FIELDS,
   { path: 'diggs:backfillDateTime', label: 'Date' },
-  { path: 'diggs:backfillLayer', multi: true },
-  { path: 'diggs:backfillType', label: 'Type' },
+    { path: 'diggs:backfillType', label: 'Type' },
   ..._OBJ_TYPE_TRAILING,
+  {
+    // Interval-table engine, phase 3 (2026-07-19) — backfillInterval
+    // (required LinearExtent) is the index; backfillMaterial (a plain
+    // string) is the column. whenEmplaced/isSanitarySeal/backfillVolume
+    // stay in the expand panel.
+    path: 'diggs:backfillLayer', multi: true, labelPlural: 'Backfill Layers',
+    interval: {
+      index: [{ path: 'diggs:backfillInterval' }],
+      column: [{ path: 'diggs:backfillMaterial' }],
+    },
+  },
 ];
 
 // CasingAdvancement — CasingAdvancementType (core/Core.xsd:1041) extends AbstractObjectType.
@@ -6642,7 +7958,24 @@ OBJECT_CONFIGS.Casing = [
   { path: 'diggs:numberGroutPorts', label: 'Number of Grout Ports' },
   { path: 'diggs:timeCasingInstalled', label: 'Time Installed' },
   { path: 'diggs:timeCasingRemoved', label: 'Time Removed' },
-  { path: 'diggs:casingAdvancement', multi: true },
+  {
+    // Interval-table engine, phase 3 (2026-07-19) — advancementTime
+    // (TimeInterval) plus the casing bottom's start/end positions (both
+    // PointLocation, so each is its own index descriptor rather than a
+    // "column" — column cells only support simple-leaf values) make up the
+    // index; casingBlows (a plain positiveInteger) is the one simple-leaf
+    // column. Nothing left for the expand panel besides base/trailing
+    // fields (name/description/status/remark) on this small type.
+    path: 'diggs:casingAdvancement', multi: true, labelPlural: 'Casing Advancements',
+    interval: {
+      index: [
+        { path: 'diggs:advancementTime', timeLabel1: 'Advancement Time' },
+        { path: 'diggs:casingBaseAtStart', pointLabel: 'Casing Base at Start' },
+        { path: 'diggs:casingBaseAtEnd', pointLabel: 'Casing Base at End' },
+      ],
+      column: [{ path: 'diggs:casingBlows' }],
+    },
+  },
   ..._OBJ_TYPE_TRAILING,
 ];
 
@@ -6672,15 +8005,21 @@ OBJECT_CONFIGS.BoreholeConstructionMethod = [
 // schema trace; base AbstractEventType fields, if any beyond AbstractObjectType's,
 // are a known gap for a future pass). [choice: waterDepth? | isDry?].
 OBJECT_CONFIGS.BoreholeEvent = [
-  ..._OBJ_BASE_FIELDS,
-  { path: 'diggs:location', label: 'Location' },
-  { path: 'diggs:eventTime', label: 'Time' },
-  { path: 'diggs:infoRecorded', label: 'Event Parameter', multi: true },
-  { path: 'diggs:casingBottom', label: 'Casing Bottom' },
+ { path: 'diggs:time', label: 'When' },
+  { path: 'diggs:location', label: 'Where' },
+ ..._OBJ_BASE_FIELDS,
+   { path: 'diggs:casingBottom', label: 'Casing Bottom' },
   { path: 'diggs:holeBottom', label: 'Hole Bottom' },
   { path: 'diggs:waterDepth', label: 'Water Depth' },
   { path: 'diggs:isDry', label: 'Dry Borehole', boolean: true },
   ..._OBJ_TYPE_TRAILING,
+  { path: 'diggs:infoRecorded', label: 'Event Parameter', multi: true,
+    itemLabel: el => {
+    const nameEl = evalXPath(el, 'diggs:parameterName')[0];
+    const txt = nodeText(nameEl);
+    return txt ? escHtml(txt) + _codeSpaceKeyExtra(nameEl) : null;
+  },
+},
 ];
 
 // Advancement — AdvancementType (core/Core.xsd:613) extends AbstractObjectType.
@@ -6758,7 +8097,23 @@ OBJECT_CONFIGS.WaterStrikeReading = [
   { path: 'diggs:dateTime' },
   { path: 'diggs:notEncountered', label: 'Not Encountered', boolean: true },
   { path: 'diggs:waterLocation', label: 'Water Location' },
-  { path: 'diggs:linkedReading', multi: true },
+  // Interval-table engine, phase 2 (2026-07-19) — LinkedWSReadingType has
+  // the same two <choice>s as WaterStrikeReadingType itself (core/Core.xsd:
+  // 1404): elapsedTime|dateTime (a follow-up reading's own time, optional)
+  // and notEncountered|waterLocation (the reading's value). The union path
+  // lets resolveIntervalIndexCells auto-detect whichever branch is
+  // populated per occurrence; `notEncountered` isn't given its own column —
+  // it stays in each row's expand KV (LinkedWSReading's own OBJECT_CONFIGS),
+  // which is the only place it needs to show since it's the rare case where
+  // waterLocation is absent instead of reported.
+  { path: 'diggs:linkedReading', multi: true, labelPlural: 'Linked Readings',
+    interval: {
+      index: [
+        { path: 'diggs:elapsedTime | diggs:dateTime', timeLabel1: 'Date/Time' },
+        { path: 'diggs:waterLocation', pointLabel: 'Water Depth' },
+      ],
+    },
+  },
   ..._OBJ_TYPE_TRAILING,
 ];
 
@@ -6794,16 +8149,36 @@ OBJECT_CONFIGS.Chiseling = [
 // offsetParameters (optional) is object-valued -> OBJECT_CONFIGS.OffsetParameters.
 // gml:descriptionReference omitted — see LinearSpatialReferenceSystem's own
 // comment below for why (empty-sequence, xlink-only GML property).
+//
+// name/type/units/constraint use the `'a | b'` UNION-STRING syntax (2026-07-22
+// fix), NOT an array — an array here is a silent no-op: the priority-fallback
+// ARRAY convention (`['a','b']`, first-match-wins) is only implemented inside
+// _resolveDataColumnCell, the interval/dataTable COLUMN resolver. An ordinary
+// top-level property row (this whole config) renders via renderPropertyRow,
+// which calls evalXPath(el, rowCfg.path) directly — passing it an array
+// (not a string) makes createExpression choke on the coerced
+// "diggs:name,glr:name" string, caught by evalXPath's try/catch and
+// returned as an empty match with no visible error, so EVERY row here
+// silently resolved nothing and the whole "Linear Referencing Method"
+// category vanished (wrapCategoryHeader suppresses an empty body). Union
+// syntax is also the semantically correct fix, not just a workaround: a
+// `diggs:name`/`glr:name` pair here are two ENTIRELY DIFFERENT elements
+// belonging to two mutually exclusive object shapes — the modern
+// diggs:LinearReferencingMethod vs. the deprecated glr:LinearReferencingMethod
+// (an external OGC glr-namespace type, see LinearSpatialReferenceSystem's own
+// `diggs:lrm | glr:lrm` row below, which already used union syntax
+// correctly) — never both present on the same instance, exactly the
+// condition union-safety requires.
 OBJECT_CONFIGS.LinearReferencingMethod = [
   { path: 'gml:description' },
   { path: 'gml:identifier' },
   { path: 'gml:name', multi: true, splitRows: true },
   { path: 'gml:remarks', label: 'Remarks' },
-  { path: 'diggs:name', label: 'Method Name' },
-  { path: 'diggs:type', label: 'Method Type' },
-  { path: 'diggs:units', label: 'Units' },
+  { path: 'diggs:name | glr:name', label: 'Method Name' },
+  { path: 'diggs:type | glr:type', label: 'Method Type' },
+  { path: 'diggs:units | glr:units', label: 'Units' },
   { path: 'diggs:positiveDirection', label: 'Positive Direction' },
-  { path: 'diggs:constraint', multi: true, splitRows: true, label: 'Constraint' },
+  { path: 'diggs:constraint | glr:constraint', multi: true, splitRows: true, label: 'Constraint' },
   { path: 'diggs:offsetParameters', label: 'Offset Parameters' },
 ];
 
@@ -6966,54 +8341,176 @@ OBJECT_CONFIGS.Borehole = [
 
   { path: 'diggs:whenConstructed', label: 'When Constructed' },
   { path: 'diggs:whenDestroyed', label: 'When Destroyed' },
-  { path: 'diggs:holeDiameter', multi: true },
 
-  { path: 'diggs:constructionMethod', multi: true,
-    // Dynamic per-instance header (2026-07-14): distinguishes multiple
-    // Construction Methods by their own depth range instead of every one
-    // showing the identical static "Construction Method" text. Falls back
-    // to the row's own static label (auto-derived from path) when a method
-    // has no location, or exactly one Construction Method is present (still
-    // gets its own header either way, per renderResolvedObject).
-    itemLabel: el => {
-      const loc = FORMAT_FN.locationInline(evalXPath(el, 'diggs:location')[0]);
-      return loc ? `Construction from ${loc}` : null;
+  {
+    // First real use of the interval-table engine (2026-07-19) — see
+    // IntervalTableNotes.md's own worked BoreholeDiameter example.
+    // diameterLocation (index) and diameter (column) are excluded from the
+    // per-row expand KV automatically (renderIntervalTable filters
+    // OBJECT_CONFIGS.BoreholeDiameter by path); Name/Description/Status/
+    // computed area+volume/Remark still show there since they're not
+    // otherwise surfaced.
+    path: 'diggs:holeDiameter', multi: true, labelPlural: 'Hole Diameters',
+    interval: {
+      index: [{ path: 'diggs:diameterLocation' }],
+      column: [{ path: 'diggs:diameter' }],
     },
   },
 
-  { path: 'diggs:casing', multi: true },
+  {
+    // Interval-table engine, phase 3 (2026-07-19) — superseded the
+    // 2026-07-14 dynamic itemLabel ("Construction from X - Y", derived from
+    // this same diggs:location) with a compact table; itemLabel is never
+    // consulted once `interval` is set (renderPropertyRow's interval branch
+    // takes priority), so it was removed rather than left as dead config.
+    // BoreholeConstructionMethodType (core/Core.xsd:306) declares location
+    // (required LinearExtent) and methodTime (optional TimeInterval) as its
+    // own fields. The column (2026-07-19, revised per user request — was
+    // holeStability) prefers the nested Specification's own gml:name (the
+    // actual method-name-bearing element) and only falls back to
+    // BoreholeConstructionMethod's own gml:name when no Specification (or
+    // no name on it) is present — an ARRAY `path`, tried in priority order,
+    // NOT a `'a | b'` union (see colCells's own comment in
+    // renderIntervalTable for why those two are deliberately different
+    // mechanisms). holeStability/Equipment/cuttingToolInfo/drillPipeInfo/
+    // hydraulicFluidFlowRate all still show in the expand panel.
+    path: 'diggs:constructionMethod', multi: true, labelPlural: 'Construction Methods',
+    interval: {
+      index: [{ path: 'diggs:location' }, { path: 'diggs:methodTime' }],
+      column: [{
+        path: ['diggs:constructionMethod/diggs:Specification/gml:name[1]', 'gml:name[1]', 'diggs:constructionMethod/diggs:Specification/diggs:shortMethodName'],
+        label: 'Method',
+      }],
+    },
+  },
+
+  {
+    // Interval-table engine, phase 3 (2026-07-19) — casingLocation (required
+    // LinearExtent) is the index; outside diameter + material are the two
+    // simple-leaf fields most useful at a glance (inside diameter/wall
+    // thickness/number of grout ports/time installed-removed/
+    // casingAdvancement all stay in the expand panel — see
+    // OBJECT_CONFIGS.CasingAdvancement below for its own nested interval
+    // table).
+    path: 'diggs:casing', multi: true, labelPlural: 'Casings',
+    interval: {
+      index: [{ path: 'diggs:casingLocation' }],
+      column: [{ path: 'diggs:casingOutsideDiameter' }, { path: 'diggs:casingMaterial' }],
+    },
+  },
 
   { path: 'diggs:backfill', multi: true },
 
   { sectionHeader: '' },
-  { path: 'diggs:constructionEvent', multi: true },
-
-  { sectionHeader: '' },
-  { path: 'diggs:drillAdvancement', multi: true, label: 'Drill Advancement Set',
-    labelPlural: 'Drill Advancement Sets',
-    configOverride: (setEl) => {
-      const setName = setEl.getAttribute('setName') || '';
-      const rows = evalXPath(setEl, 'diggs:Advancement');
-      const nameRow = setName ? renderSimpleRow('Set Name', escHtml(setName)) : '';
-      const rowsHtml = rows
-        .map(advEl => wrapCategoryHeader('Advancement', renderKVObject(advEl, OBJECT_CONFIGS.Advancement), false))
-        .join('');
-      return nameRow + rowsHtml;
+  {
+    // Interval-table engine, phase 3 (2026-07-19) — location and time are
+    // both independently optional on AbstractEventType (not a <choice>), so
+    // both are index descriptors; no simple-leaf column candidate (the
+    // other event fields — casingBottom/holeBottom/waterDepth — are all
+    // PointLocation-valued, not supported as a "column", so they stay in
+    // the expand panel alongside isDry/infoRecorded).
+    path: 'diggs:constructionEvent', multi: true, labelPlural: 'Construction Events',
+    interval: {
+      index: [{ path: 'diggs:location' }, { path: 'diggs:time' }],
+      column: [{ 
+        path: ['gml:name[1]', 'gml:description', 'diggs:remark/diggs:Remark/diggs:content' ],
+        label: 'Event',
+      }],
     },
   },
 
   { sectionHeader: '' },
-  { path: 'diggs:flush', multi: true },
+  { path: 'diggs:drillAdvancement', multi: true, label: 'Drill Advancement Set',
+    labelPlural: 'Drill Advancement Sets',
+    // Interval-table engine, phase 2 (2026-07-19) — location is required,
+    // schema <choice> of time-as-TimeInterval|elapsedTime is optional (see
+    // AdvancementType, core/Core.xsd:613); the union path lets
+    // resolveIntervalIndexCells auto-detect whichever branch is populated.
+    // Verified against InspectorTestFile.xml's two real Advancement
+    // instances, which exercise the duration-only TimeInterval sub-case
+    // (`<time><TimeInterval><start/><duration uom="min">5</duration>`) —
+    // this is a true DrillAdvancementArrayPropertyType wrapper (see the
+    // `configOverride`-as-function doc above), so renderIntervalTable is
+    // called directly here rather than through the normal `interval:` key
+    // dispatch in renderPropertyRow (which never sees this wrapper's own
+    // Advancement children individually).
+    configOverride: (setEl) => {
+      const setName = setEl.getAttribute('setName') || '';
+      const rows = evalXPath(setEl, 'diggs:Advancement');
+      const nameRow = setName ? renderSimpleRow('Set Name', escHtml(setName)) : '';
+      const tableHtml = renderIntervalTable(
+        rows.map(el => ({ child: el })),
+        {
+          interval: {
+            index: [
+              { path: 'diggs:location' },
+              // `label` (not timeLabel1) — this descriptor can resolve to
+              // either the TimeInterval branch (which would use timeLabel1)
+              // or the plain elapsedTime leaf branch (which would use
+              // elapsedTimeLabel) depending on which one a given Advancement
+              // populated; `label` overrides the header regardless of which
+              // branch actually resolved, so it reads consistently across
+              // every row instead of showing whichever branch's default
+              // label the first (sorted) row happened to produce.
+              { path: 'diggs:time | diggs:elapsedTime', label: 'Time | Elapsed Time' },
+            ],
+            column: [{ path: 'diggs:advancementRate' }],
+          },
+        },
+        'Advancement'
+      );
+      return nameRow + tableHtml;
+    },
+  },
+
+  { sectionHeader: '' },
+  {
+    // Interval-table engine, phase 3 (2026-07-19) — flushZoneLocation
+    // (LinearExtent) is the index; fluidType is the one simple-leaf column
+    // (min/max flush return + flushColor stay in the expand panel).
+    path: 'diggs:flush', multi: true, labelPlural: 'Flushes',
+    interval: {
+      index: [{ path: 'diggs:flushZoneLocation' }],
+      column: [{ path: 'diggs:fluidType' }],
+    },
+  },
 
 
   { sectionHeader: '' },
   { path: 'diggs:waterStrike', multi: true },
 
   { sectionHeader: '' },
-  { path: 'diggs:chiseling', multi: true, label: 'Chiseling (deprecated)' },
+  {
+    // Interval-table engine, phase 3 (2026-07-19) — chiselingLocation
+    // (required LinearExtent) + timeTaken (optional plain duration leaf,
+    // TimeMeasureType — not a TimeInterval, so it reads through
+    // resolveIntervalIndexCells's plain-leaf branch under elapsedTimeLabel)
+    // are the index; chiselingToolUsed (a plain string) is the column.
+    path: 'diggs:chiseling', multi: true, label: 'Chiseling (deprecated)',
+    labelPlural: 'Chiseling (deprecated)',
+    interval: {
+      index: [
+        { path: 'diggs:chiselingLocation' },
+        { path: 'diggs:timeTaken', elapsedTimeLabel: 'Time Taken' },
+      ],
+      column: [{ path: 'diggs:chiselingToolUsed' }],
+    },
+  },
 
   { sectionHeader: 'Environment' },
-  { path: 'diggs:environment', multi: true },
+  {
+    // Interval-table engine, phase 3 (2026-07-19) — dateTime is a bare
+    // gml:TimePositionType leaf (not a TimeInterval wrapper), so it reads
+    // through resolveIntervalIndexCells's plain-leaf branch under
+    // timeLabel1; ambientTemperature is the one simple-leaf column
+    // (barometricPressure/humidity/weather/windSpeed/
+    // otherEnvironmentalProperty stay in the expand panel).
+    path: 'diggs:environment', multi: true, labelPlural: 'Environment Readings',
+    interval: {
+      index: [{ path: 'diggs:dateTime' }],
+      column: [{ path: 'diggs:ambientTemperature' }],
+    },
+  },
 
   { sectionHeader: '' },
   {
@@ -7048,6 +8545,147 @@ OBJECT_CONFIGS.Borehole = [
     },
     ..._FEATURE_TRAILING,
 },
+];
+
+// ══════════════════════════════════════════════════════════════
+//  OBJECT_CONFIGS — Project (2026-07-21, KV rebuild). Full schema trace via
+//  ../diggs-schema: ProjectType (core/Core.xsd:139) extends AbstractProjectType
+//  (core/AbstractTypes.xsd:888) extends AbstractNamedFeatureType — the same
+//  restriction-of-AbstractFeatureType base Borehole itself uses (requires
+//  1+ gml:name instead of AbstractFeatureType's 0+; otherwise the identical
+//  description?/identifier?/name/internalIdentifier?/status?/
+//  implementationStatus?/associatedFile*/role*/remark* field set
+//  _OBJ_BASE_FIELDS + _FEATURE_LEADING + _FEATURE_TRAILING already cover).
+// ══════════════════════════════════════════════════════════════
+
+// Contract — ContractType (core/Common.xsd:1190) extends AbstractFeatureType
+// directly (same base as Calibration/Equipment above — _OBJ_BASE_FIELDS +
+// _FEATURE_LEADING + _FEATURE_TRAILING). `value` is CostType (a bare decimal
+// with a required `currency` attribute) — renders via the generic "other
+// attributes" parenthetical already built into renderSimplePropertyCell, no
+// special formatter needed.
+OBJECT_CONFIGS.Contract = [
+  ..._OBJ_BASE_FIELDS,
+  ..._FEATURE_LEADING,
+  { path: 'diggs:version' },
+  { path: 'diggs:contractDate', label: 'Contract Date' },
+  { path: 'diggs:revisionDate', label: 'Revision Date', multi: true },
+  { path: 'diggs:type' },
+  { path: 'diggs:value', label: 'Value' },
+  ..._FEATURE_TRAILING,
+];
+
+// ProjectEvent — ProjectEventType (core/Common.xsd:1876) extends
+// AbstractEventType (core/AbstractTypes.xsd:268) with an EMPTY own
+// <sequence/> — so its full field list is exactly AbstractEventType's own
+// additions (location?, time?, infoRecorded*) on top of
+// AbstractComponentObjectType's base fields (_OBJ_BASE_FIELDS covers name/
+// description/identifier/status; remark via _OBJ_TYPE_TRAILING). `location`
+// is a real geographic PointLocation in practice (a project event's site,
+// not a borehole depth) — geoLocation:true opts it into the full nested
+// coordinate+uncertainty display; see OBJECT_CONFIGS.PointLocation above
+// renderResolvedObject. `infoRecorded` is a Parameter (SPECIAL_OBJECT_FORMATTERS,
+// no name in its own inline text) — itemLabel/alwaysGroup mirrors Borehole's
+// otherSamplingFeatureProperty convention so the parameter's own name still
+// shows as the row key.
+OBJECT_CONFIGS.ProjectEvent = [
+  { path: 'diggs:time', label: 'When' },
+  { path: 'diggs:location', label: 'Where', geoLocation: true },
+  ..._OBJ_BASE_FIELDS,
+  ..._OBJ_TYPE_TRAILING,
+  {
+    path: 'diggs:infoRecorded', multi: true,
+    label: 'Event Parameter', labelPlural: 'Event Parameters', alwaysGroup: true,
+    itemLabel: el => {
+      const nameEl = evalXPath(el, 'diggs:parameterName')[0];
+      const txt = nodeText(nameEl);
+      return txt ? escHtml(txt) + _codeSpaceKeyExtra(nameEl) : null;
+    },
+  },
+];
+
+// Project — see section banner above for the full inheritance trace.
+//
+// referencePoint/linearExtent/arealExtent (2026-07-22 rebuild — see the
+// "PROJECT GEOMETRY" banner near _toggleProjGeomOnMap) each set
+// `mapToggle: true` and a custom `itemLabel` that resolves that occurrence's
+// own coordinates and, if they resolve, registers them and appends a
+// "Show on Map" pill to the category label via _projGeomItemLabel — clicking
+// it displays that geometry on the map (properly CRS-transformed via
+// toWGS84, replacing the old always-off, never-CRS-aware
+// renderProjectGeometry()) and pans/zooms to it. `mapToggle` makes
+// renderResolvedObject use wrapGeometryCategoryHeader instead of the normal
+// wrapCategoryHeader, so the label+button stay visible even when there's no
+// further KV detail (description/uncertainty) to expand into — an expand
+// triangle only appears when there actually is some.
+// referencePoint/linearExtent also keep `geoLocation: true` (unrelated to
+// mapToggle) so their body — OBJECT_CONFIGS.PointLocation/LinearExtent —
+// renders via the normal registry instead of SPECIAL_OBJECT_FORMATTERS'
+// one-line FORMAT_FN.locationInline (built for a borehole's own depth/LRM
+// context, wrong for a real standalone geographic point/line). arealExtent
+// needs no such flag — PlanarSurface/MultiPlanarSurface/Shell/
+// MultiSurfaceAggregate were never in SPECIAL_OBJECT_FORMATTERS to begin
+// with, so the default path already resolves OBJECT_CONFIGS[typeName]
+// correctly.
+// locality keeps its own simple geoLocation-only (no mapToggle) treatment —
+// not part of this redesign; LocalityPropertyType's PointLocation branch is
+// itself schema-discouraged for Projects in favor of referencePoint.
+OBJECT_CONFIGS.Project = [
+  {
+    path: 'diggs:referencePoint', label: 'Reference Point',
+    geoLocation: true, mapToggle: true,
+    itemLabel: el => {
+      const latlng = _pointLocationToLatLng(el);
+      return _projGeomItemLabel('Reference Point', latlng ? { kind: 'point', latlngs: latlng } : null);
+    },
+  },
+  {
+    path: 'diggs:linearExtent', label: 'Linear Extent', multi: true,
+    geoLocation: true, mapToggle: true,
+    itemLabel: el => {
+      const latlngs = _linearExtentToLatLngs(el);
+      return _projGeomItemLabel('Linear Extent', latlngs ? { kind: 'line', latlngs } : null);
+    },
+  },
+  {
+    path: 'diggs:arealExtent', label: 'Areal Extent', multi: true,
+    mapToggle: true,
+    itemLabel: el => {
+      const rings = _surfaceToLatLngRings(el);
+      return _projGeomItemLabel('Areal Extent', rings ? { kind: 'polygon', latlngs: rings } : null);
+    },
+  },
+    { sectionHeader: 'General Info' },
+  { path: '@gml:id', label: 'ID' },
+  { path: 'gml:name', multi: true, splitRows: true },
+  { path: 'gml:description' },
+  { path: 'gml:identifier', multi: true },
+  { path: 'diggs:internalIdentifier', label: 'Internal Identifier' },
+  { path: 'diggs:status' },
+  { path: 'diggs:implementationStatus', label: 'Implementation Status' },
+  { path: 'diggs:purpose' },
+  { path: 'diggs:locality', label: 'Locality', multi: true, geoLocation: true },
+
+  { sectionHeader: 'Dates & Events' },
+  { path: 'diggs:projectDateTimeSpan', label: 'Project Date(s)' },
+  { path: 'diggs:projectEvent', multi: true, label: 'Project Event', labelPlural: 'Project Events' },
+
+  { sectionHeader: 'Roles & Contracts' },
+  { path: 'diggs:role', multi: true, splitRows: true },
+  { path: 'diggs:contract', multi: true, label: 'Contract', labelPlural: 'Contracts' },
+
+  { sectionHeader: 'Supporting Information' },
+  { path: 'diggs:remark', multi: true, splitRows: true },
+  { path: 'diggs:associatedFile', multi: true },
+  {
+    path: 'diggs:otherProjectProperty', multi: true,
+    label: 'Other Property', labelPlural: 'Other Properties', alwaysGroup: true,
+    itemLabel: el => {
+      const nameEl = evalXPath(el, 'diggs:parameterName')[0];
+      const txt = nodeText(nameEl);
+      return txt ? escHtml(txt) + _codeSpaceKeyExtra(nameEl) : null;
+    },
+  },
 ];
 
 // 24-colour palette for LTP zone polygons (distinct, dark-theme friendly)
@@ -7180,6 +8818,10 @@ function toggleKVSection(headerEl) {
   body.style.display = isOpen ? 'none' : '';
   const tri = headerEl.querySelector('.kv-tri');
   if (tri) tri.textContent = isOpen ? '\u25B6' : '\u25BC';
+  // Expanded-state class (2026-07-19) \u2014 only .kv-interval-row has a CSS rule
+  // keyed off this (the orange "expanded" highlight), so it's a no-op for
+  // every other headerEl this function toggles (.kv-section-header divs).
+  headerEl.classList.toggle('kv-row-expanded', !isOpen);
 }
 
 // The #detail-popup markup (BusinessAssociate KV-detail popup) is now
@@ -7234,7 +8876,8 @@ function renderProjectSelector() {
 }
 
 function _updateInfoBtn() {
-  // Show/hide ⓘ info button based on whether active project has a Project element
+  // Show/hide the info button based on whether the active project has a
+  // Project element in the file.
   const btn  = document.getElementById('project-info-btn');
   const proj = DIGGS_PROJECTS.find(p => p.id === DIGGS_ACTIVE_PROJECT);
   const hasEl = !!(proj && proj.el);
@@ -7245,53 +8888,99 @@ function _updateInfoBtn() {
     return;
   }
 
-  const pane   = document.getElementById('project-detail-pane');
-  const isOpen = pane.classList.contains('open');
+  // isOpen now tracks whether the CENTRAL detail pane (#detail-content) is
+  // currently showing Project detail (2026-07-22 — moved off the old
+  // accordion `#project-detail-pane`, which no longer exists) rather than
+  // an SF's own detail. showSFDetail() clears this flag itself the moment
+  // any SF is selected, so this button and the SF detail view can never
+  // disagree about which one is showing.
+  const isOpen = !!window._projectDetailActive;
 
   btn.style.display = '';
   btn.className = 'project-info-btn' + (isOpen ? ' open' : '');
   btn.title     = isOpen ? 'Close project details' : 'View project details';
-  btn.textContent = isOpen ? '▲ Close' : 'ⓘ Info';
+  btn.textContent = isOpen ? 'Close' : 'View Details --->';
 }
 
 /**
- * Toggle the inline project detail pane open/closed.
+ * Toggle the Project detail view in the CENTRAL detail pane (2026-07-22 —
+ * replaces the old collapsible accordion above the SF table; now shares
+ * #detail-placeholder/#detail-content with showSFDetail/showDetail, so
+ * only one of {an SF, the active Project} is ever shown there at a time).
  */
 function toggleProjectDetail(id) {
-  const pane = document.getElementById('project-detail-pane');
-  if (pane.classList.contains('open')) {
-    pane.classList.remove('open');
+  if (window._projectDetailActive) {
+    window._projectDetailActive = false;
+    _clearActiveProjGeom();
+    document.getElementById('detail-content').innerHTML = '';
+    document.getElementById('detail-content').style.display = 'none';
+    document.getElementById('detail-placeholder').style.display = '';
     _updateInfoBtn();
     return;
   }
-  // Build content then open
-  pane.innerHTML = buildProjectDetailHTML(id);
-  pane.classList.add('open');
-  _updateInfoBtn();
+  showProjectDetail(id);
 }
 
 /**
- * Build the HTML content for the project detail pane.
- * KV-table display of full project metadata was removed in this fork —
- * shows only the pre-built names row.
+ * Render the Project's detail into the central pane: a header styled
+ * exactly like showSFDetail's own Section 1 (.detail-header/.detail-type/
+ * .detail-name — the project's first gml:name in large text, plus its
+ * codeSpace if any, same convention showSFDetail uses for an SF's name),
+ * followed by its full KV table (OBJECT_CONFIGS.Project, via the same
+ * renderKVObject engine SF Detail's own Section 4 uses — see CLAUDE.md's
+ * "KV-TABLE RENDERING ENGINE" note). Deselects any currently-selected SF
+ * first (clearSelections/`_selectedFeatureId`) and resets the associated-
+ * data panel to its placeholder — Project has no "associated data" concept,
+ * and the two panes are tightly coupled everywhere else in the app.
  */
-function buildProjectDetailHTML(id) {
+function showProjectDetail(id) {
   const proj = DIGGS_PROJECTS.find(p => p.id === id);
-  if (!proj || !proj.el) return '';
+  if (!proj || !proj.el) return;
 
-  // Names header — pre-rendered HTML at parse time, independent of any KV descriptor
-  return proj.namesHtml
-    ? `<div class="kv-row"><span class="kv-key">Name(s)</span><span class="kv-val">${proj.namesHtml}</span></div>`
+  window._selectedFeatureId = null;
+  clearSelections();
+  disposeTrajectoryViewer();
+
+  const firstNameEl = proj.el.getElementsByTagNameNS(NS.gml, 'name')[0];
+  const name = firstNameEl ? nodeText(firstNameEl) : (proj.label || proj.id);
+  const codeSpace = firstNameEl ? (firstNameEl.getAttribute('codeSpace') || '') : '';
+  const nameCsHtml = codeSpace
+    ? ` <span style="font-size:10px;color:var(--text-muted);font-weight:400">(${esc(codeSpace)})</span>`
     : '';
+
+  const headerHtml = `
+  <div class="detail-header">
+    <div class="detail-type">PROJECT</div>
+    <div class="detail-name">${esc(name)}${nameCsHtml}</div>
+  </div>`;
+
+  showDetail(headerHtml);
+  const scrollDiv = document.getElementById('detail-content-scroll');
+  if (scrollDiv) {
+    scrollDiv.innerHTML = `<div class="detail-section" style="padding:10px 16px 14px">${renderKVObject(proj.el, OBJECT_CONFIGS.Project)}</div>`;
+  }
+
+  // Reset the assoc panel to its placeholder — mirrors the same reset
+  // selectProject()/showSFDetail() already do; Project has nothing to show
+  // there.
+  const ph  = document.getElementById('assoc-placeholder');
+  const hdr = document.getElementById('assoc-header');
+  const cnt = document.getElementById('assoc-content');
+  if (ph)  ph.style.display  = 'flex';
+  if (hdr) { hdr.textContent = ''; hdr.style.display = 'none'; }
+  if (cnt) { cnt.innerHTML   = ''; cnt.style.display = 'none'; }
+  document.querySelectorAll('.assoc-badge').forEach(b => b.classList.remove('active'));
+
+  window._projectDetailActive = true;
+  _updateInfoBtn();
 }
 
 function selectProject(id) {
   DIGGS_ACTIVE_PROJECT = id;
 
-  // Close project detail pane when switching projects
-  const pane = document.getElementById('project-detail-pane');
-  pane.classList.remove('open');
-  pane.innerHTML = '';
+  // Close the Project detail view (if showing) when switching projects
+  window._projectDetailActive = false;
+  _clearActiveProjGeom();
 
   // Deselect any selected sampling feature before switching projects
   clearSelections();
@@ -7357,9 +9046,6 @@ function filterByProject(skipGeom) {
     if (!ids || ids.has(sfId)) mapObj.addTo(mapInstance);
     else if (mapInstance.hasLayer(mapObj)) mapInstance.removeLayer(mapObj);
   });
-
-  // ── Project geometry ─────────────────────────────────────────
-  if (!skipGeom) renderProjectGeometry();
 
   // ── Fit map to visible markers ────────────────────────────────
   if (!skipGeom) fitToActiveProject();
@@ -7461,6 +9147,27 @@ function formatDiggsDateTime(str) {
   const ampm = hr >= 12 ? 'PM' : 'AM';
   hr = hr % 12 || 12;
   return `${dateStr}, ${hr}:${min} ${ampm}`;
+}
+
+// Sentinel marking where a formatted date/time string's date and time
+// portions should stack onto two lines instead of running as one long
+// "MM/DD/YYYY, H:MM AM/PM" string — used only by renderIntervalTable's
+// index cells (2026-07-22), where that full string forced everything else
+// in the row (e.g. a construction-event's Event column) into whatever
+// horizontal space was left over, since .kv-interval-lead's
+// white-space:nowrap wouldn't let it wrap at all. A literal U+0000 can
+// never appear in real XML text content, and escHtml() only touches
+// & < > " — so this sentinel survives escaping completely untouched and
+// gets swapped for a real <br> AFTER escHtml runs, right before insertion
+// into the cell (renderIntervalTable's idxTds map). Kept as an opt-in
+// helper rather than changing formatDiggsDateTime itself, so that
+// function's own broad existing usage elsewhere (Remarks, Roles, ...) is
+// completely unaffected.
+const _DT_STACK = ' ';
+function _stackDateTime(str) {
+  const full = formatDiggsDateTime(str);
+  const i = full.indexOf(', ');
+  return i === -1 ? full : full.slice(0, i) + _DT_STACK + full.slice(i + 2);
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -8796,33 +10503,28 @@ async function resolveSrsNameUom(doc, srsName) {
 }
 
 /**
- * Async post-pass: resolve UOM for every unique srsName that appears on any
- * depth value (lith, samples, measurements, water strike) across all boreholes.
- * Populates LSR_UOM, patches the water-strike table column, and refreshes the
- * open detail panel.  Replaces enrichWaterDepthUoms().
+ * Async post-pass: resolve UOM for every unique srsName referenced anywhere
+ * in the document. Populates LSR_UOM, patches the water-strike table column,
+ * and refreshes the open detail panel. Replaces enrichWaterDepthUoms().
+ *
+ * Scans every element's own `srsName` attribute generically (2026-07-19 —
+ * was previously a hardcoded per-data-store list: lith/samples/measurements/
+ * water-strike/well-openings only). That list silently missed any other
+ * srsName-bearing property — e.g. holeDiameter/casing/backfillLayer/
+ * constructionMethod, all rendered through the interval-table engine's index
+ * columns (renderIntervalTable) — leaving their LSR never resolved (uom
+ * stays blank) unless some other, scanned property happened to reference the
+ * same LSR id. A full-document scan closes this for good instead of playing
+ * whack-a-mole with every new consumer; resolveSrsNameUom already cheaply
+ * no-ops any srsName that isn't a local/remote LSR reference (a real CRS
+ * identifier resolves to '' immediately via parseEPSG), so scanning extra,
+ * irrelevant srsName values (referencePoint, centerLine, ...) is harmless.
  */
 async function enrichLsrUoms(doc) {
-  // Collect all unique srsNames across every parsed data store
   const allSrsNames = new Set();
-
-  for (const bh of DIGGS_BH) {
-    if (bh.waterLsrSrsName) allSrsNames.add(bh.waterLsrSrsName);
-  }
-  for (const well of DIGGS_WELL) {
-    for (const o of well.openings) if (o.srsName) allSrsNames.add(o.srsName);
-  }
-  for (const systems of Object.values(DIGGS_LITH)) {
-    for (const sys of systems) {
-      for (const obs of sys.observations) if (obs.srsName) allSrsNames.add(obs.srsName);
-    }
-  }
-  for (const entries of Object.values(DIGGS_SAMPLES)) {
-    for (const e of entries) if (e.srsName) allSrsNames.add(e.srsName);
-  }
-  for (const byProc of Object.values(DIGGS_BH_MEAS)) {
-    for (const { rows } of Object.values(byProc)) {
-      for (const r of rows) if (r.srsName) allSrsNames.add(r.srsName);
-    }
+  for (const el of doc.getElementsByTagName('*')) {
+    const sn = el.getAttribute && el.getAttribute('srsName');
+    if (sn) allSrsNames.add(sn);
   }
 
   if (!allSrsNames.size) return;
@@ -10213,95 +11915,241 @@ function findAllByLocalName(el, localName) {
   return result;
 }
 
-// Parse a single posList element into lat/lon pairs
-function parsePosListEl(plEl) {
-  if (!plEl) return [];
-  const dim = parseInt(plEl.getAttribute('srsDimension') || '2');
-  return posListToLatLngs(plEl.textContent, dim);
+
+// ══════════════════════════════════════════════════════════════
+//  PROJECT GEOMETRY — on-demand "Show on Map" toggle (2026-07-22 rebuild)
+//
+//  Replaces the old renderProjectGeometry(), which auto-plotted one piece
+//  of geometry per project on every load/project-switch (arealExtent, else
+//  linearExtent, else referencePoint — first match wins) with two real
+//  bugs: (1) parsePosListEl() only ever read `srsDimension` off the literal
+//  posList element itself, never its parent geometry object (where DIGGS
+//  convention actually declares it per gml:SRSReferenceGroup), so a 3D
+//  posList silently got mis-sliced as 2D pairs whenever the file didn't
+//  redundantly repeat the attribute on posList too; (2) the resulting
+//  numbers were handed straight to L.polygon/L.polyline/L.circleMarker with
+//  NO CRS transform at all — correct only by coincidence for geometry
+//  authored directly in WGS84 degrees (EPSG:4326), silently wrong (off-map,
+//  invisible) for the far more common case of a real projected/compound CRS.
+//  Confirmed live: inspectorMockup.xml's Project arealExtent (a projected
+//  UTM-like compound CRS, srsDimension declared only on the parent
+//  PlanarSurface) hit both bugs at once and never appeared anywhere near
+//  the visible map; InspectorTestFile.xml's first project only "worked" by
+//  accident (author redundantly repeated srsDimension on posList, and used
+//  plain EPSG:4326 lat/lon so no transform was actually needed).
+//
+//  New design, driven entirely from OBJECT_CONFIGS.Project's KV rows
+//  (mapToggle: true — see renderResolvedObject/wrapGeometryCategoryHeader):
+//  no Project geometry is ever auto-displayed on load. Each geometry
+//  occurrence (Reference Point, each Linear Extent, each Areal Extent) gets
+//  its own "Show on Map" pill in its category header; clicking it hides
+//  whatever Project geometry is currently shown (only one at a time) and
+//  displays + pans/zooms to that occurrence instead, flipping the pill to
+//  "Hide Feature". Closing the project-info pane (toggleProjectDetail) or
+//  switching projects (selectProject) hides it again via
+//  _clearActiveProjGeom().
+// ══════════════════════════════════════════════════════════════
+
+/** Resolve a WGS84 [lat, lon] from a PointLocation element (gml:pos),
+ *  checking BOTH the raw coordinate element's own srsName/srsDimension AND
+ *  its parent geometry object's (the DIGGS default convention — declared
+ *  on the object, per gml:SRSReferenceGroup, not required on every child
+ *  coordinate element) — same object-then-posList fallback order
+ *  collectFeatureExtentRawPatches/_resolvePolygonRings already use
+ *  elsewhere, just applied to a single gml:pos instead of a ring's posList.
+ *  Returns null if unresolvable. Elevation is discarded — irrelevant for a
+ *  flat Leaflet map, same choice _resolvePolygonRings already makes. */
+function _pointLocationToLatLng(plEl) {
+  if (!plEl) return null;
+  const posEl = findByLocalName(plEl, 'pos');
+  if (!posEl) return null;
+  const dim = parseInt(posEl.getAttribute('srsDimension') || plEl.getAttribute('srsDimension') || '2') || 2;
+  const srsName = posEl.getAttribute('srsName') || plEl.getAttribute('srsName') || '';
+  const tokens = numTokens(posEl.textContent, true);
+  if (tokens.length < 2) return null;
+  const geo = toWGS84(tokens.slice(0, dim), srsName);
+  if (geo.lat == null || geo.lon == null || isNaN(geo.lat) || isNaN(geo.lon)) return null;
+  return [geo.lat, geo.lon];
 }
 
-let projectGeomLayer = null;
-function renderProjectGeometry() {
-  if (projectGeomLayer) { projectGeomLayer.remove(); projectGeomLayer = null; }
-  if (!mapInstance || !DIGGS_PROJECTS || DIGGS_PROJECTS.length === 0) return;
+/** Resolve a WGS84 polyline from a LinearExtent element (gml:posList),
+ *  same object-then-posList srsName/srsDimension fallback as
+ *  _pointLocationToLatLng above. Returns null if fewer than 2 vertices
+ *  resolve. */
+function _linearExtentToLatLngs(leEl) {
+  if (!leEl) return null;
+  const plEl = findByLocalName(leEl, 'posList');
+  if (!plEl) return null;
+  const dim = parseInt(plEl.getAttribute('srsDimension') || leEl.getAttribute('srsDimension') || '2') || 2;
+  const srsName = plEl.getAttribute('srsName') || leEl.getAttribute('srsName') || '';
+  const rawPairs = posListToLatLngs(plEl.textContent, dim);
+  const out = [];
+  for (const pair of rawPairs) {
+    const geo = toWGS84(pair, srsName);
+    if (geo.lat != null && geo.lon != null && !isNaN(geo.lat) && !isNaN(geo.lon)) out.push([geo.lat, geo.lon]);
+  }
+  return out.length >= 2 ? out : null;
+}
 
-  const MUTED_POLYGON_STYLE = {
-    color: '#888888', weight: 1.5, opacity: 0.7,
-    fillColor: '#888888', fillOpacity: 0.65, dashArray: '5 5'
-  };
-  const MUTED_LINE_STYLE = {
-    color: '#b85a00', weight: 4, opacity: 1.0, dashArray: '7 4'
-  };
-  const MUTED_POINT_STYLE = {
-    radius: 14, color: '#444444', weight: 2, opacity: 1.0,
-    fillColor: '#555555', fillOpacity: 1.0
-  };
+/** Resolve WGS84 polygon ring(s) from an arealExtent-resolved surface
+ *  object — PlanarSurface, MultiPlanarSurface, gml:Shell,
+ *  diggs:MultiSurfaceAggregate, or in principle any other
+ *  gml:AbstractSurface-substitutable element. Deliberately geometry-type-
+ *  agnostic (mirrors collectFeatureExtentRawPatches's own "just find every
+ *  `exterior` descendant" approach, generalized here to actually transform
+ *  to WGS84 rather than raw-meters area math) rather than hardcoding
+ *  PlanarSurface/MultiPlanarSurface the way _resolvePolygonRings does for
+ *  SF featureExtent — so a Shell or MultiSurfaceAggregate wrapper (both
+ *  legal per SurfacePropertyType's own choice, and both seen in this repo's
+ *  real Project test data) resolve here even though neither is searched by
+ *  that SF-only function. Returns an array of rings (each ring's own
+ *  exterior, then any interior/hole rings as separate entries in the same
+ *  flat array — same simplification _resolvePolygonRings already accepts:
+ *  correct for a single patch with holes, an approximation for more than
+ *  one hole-bearing patch at once) or null if nothing resolves. */
+function _surfaceToLatLngRings(surfEl) {
+  if (!surfEl) return null;
+  const rings = [];
+  const seen = new Set();
 
-  const layers = [];
-
-  for (const proj of DIGGS_PROJECTS) {
-    if (!proj.el) continue;
-    // Only render geometry for the active project (or all if no active project)
-    if (DIGGS_ACTIVE_PROJECT && proj.id !== DIGGS_ACTIVE_PROJECT) continue;
-    const el = proj.el;
-    let plotted = false;
-
-    // 1. arealExtent — find all, look for exterior > LinearRing > posList
-    const arealWrappers = [...el.childNodes].filter(n => n.nodeType === 1 && n.localName === 'arealExtent');
-    for (const ae of arealWrappers) {
-      const exteriorEl = findByLocalName(ae, 'exterior');
-      if (exteriorEl) {
-        const plEl = findByLocalName(ae, 'posList');
-        if (plEl) {
-          const lls = parsePosListEl(plEl);
-          if (lls.length >= 3) {
-            layers.push(L.polygon(lls, MUTED_POLYGON_STYLE)
-              .bindPopup(`<strong>Project:</strong> ${proj.titleHtml}`, { maxWidth: 260 }));
-            plotted = true;
-          }
-        }
-      }
+  const extractRing = (wrapperEl, srsName, dim) => {
+    const lrEl = findByLocalName(wrapperEl, 'LinearRing');
+    if (!lrEl) return null;
+    let plEl = null;
+    for (const c of lrEl.childNodes) { if (c.nodeType === 1 && c.localName === 'posList') { plEl = c; break; } }
+    if (!plEl) return null;
+    const ringDim = parseInt(plEl.getAttribute('srsDimension') || dim || '2') || 2;
+    const ringSrsName = plEl.getAttribute('srsName') || srsName;
+    const rawPairs = posListToLatLngs(plEl.textContent, ringDim);
+    const wgsRing = [];
+    for (const pair of rawPairs) {
+      const geo = toWGS84(pair, ringSrsName);
+      if (geo.lat != null && geo.lon != null && !isNaN(geo.lat) && !isNaN(geo.lon)) wgsRing.push([geo.lat, geo.lon]);
     }
-    if (plotted) continue;
+    return wgsRing.length >= 3 ? wgsRing : null;
+  };
 
-    // 2. linearExtent — find all, look for posList
-    const linearWrappers = [...el.childNodes].filter(n => n.nodeType === 1 && n.localName === 'linearExtent');
-    for (const le of linearWrappers) {
-      const plEl = findByLocalName(le, 'posList');
-      if (plEl) {
-        const lls = parsePosListEl(plEl);
-        if (lls.length >= 2) {
-          layers.push(L.polyline(lls, MUTED_LINE_STYLE)
-            .bindPopup(`<strong>Project:</strong> ${proj.titleHtml}`, { maxWidth: 260 }));
-          plotted = true;
-        }
-      }
+  for (const extEl of findAllByLocalName(surfEl, 'exterior')) {
+    const patchEl = extEl.parentNode;
+    if (seen.has(patchEl)) continue;
+    seen.add(patchEl);
+
+    // srsName/srsDimension live on the surface/patch object, which may sit
+    // several levels above the raw posList — walk up from the patch to the
+    // surface root looking for them (same walk-up convention
+    // collectFeatureExtentRawPatches uses for SF featureExtent).
+    let srsName = null, dim = null, node = patchEl;
+    while (node && node.nodeType === 1) {
+      if (!srsName) srsName = node.getAttribute('srsName');
+      if (!dim) dim = node.getAttribute('srsDimension');
+      if (srsName && dim) break;
+      node = (node === surfEl) ? null : node.parentNode;
     }
-    if (plotted) continue;
 
-    // 3. referencePoint — look for pos
-    const rpWrapper = [...el.childNodes].find(n => n.nodeType === 1 && n.localName === 'referencePoint');
-    if (rpWrapper) {
-      const posEl = findByLocalName(rpWrapper, 'pos');
-      if (posEl) {
-        const parts = numTokens(posEl.textContent, true);
-        if (parts.length >= 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
-          layers.push(L.circleMarker([parts[0], parts[1]], MUTED_POINT_STYLE)
-            .bindPopup(`<strong>Project:</strong> ${proj.titleHtml}`, { maxWidth: 260 }));
-        }
+    const extRing = extractRing(extEl, srsName, dim);
+    if (extRing) rings.push(extRing);
+    for (const child of patchEl.childNodes) {
+      if (child.nodeType === 1 && child.localName === 'interior') {
+        const holeRing = extractRing(child, srsName, dim);
+        if (holeRing) rings.push(holeRing);
       }
     }
   }
+  return rings.length ? rings : null;
+}
 
-  if (layers.length > 0) {
-    projectGeomLayer = L.layerGroup(layers).addTo(mapInstance);
-    // Bring SF point markers to front above project geometry
-    sfMarkers.forEach(({ mapObj, type }) => {
-      const geom = SF_TYPE_CONFIG[type] ? SF_TYPE_CONFIG[type].mapGeom : 'point';
-      if (geom === 'point') { try { mapObj.bringToFront(); } catch(e){} }
-      // polygon and line SFs stay in their z-order; point markers float above them
-    });
+// Registry mapping a short generated key -> { kind, latlngs, label } for a
+// single Project geometry occurrence, so the "Show on Map" button's
+// onclick string (baked into innerHTML, same as every other KV-engine
+// button) only needs to carry a small string key rather than serialized
+// geometry. Same never-cleared-across-renders convention as
+// _detailPopupMap/_registerPopup (harmless to keep growing for a
+// client-side single-session app; old keys just become unreachable once
+// their button's markup is replaced).
+const _projGeomMap = new Map();
+let _projGeomSeq = 0;
+function _registerProjGeom(kind, latlngs, label) {
+  const key = 'pg_' + (_projGeomSeq++);
+  _projGeomMap.set(key, { kind, latlngs, label });
+  return key;
+}
+
+/** Build a geometry row's category-header label HTML: the plain label plus
+ *  a "Show on Map" pill if `geom` resolved to real coordinates (registers
+ *  it first), or just the plain label with no button if it didn't (e.g. an
+ *  unresolvable/local CRS, or missing posList) — same graceful-degradation
+ *  the rest of this engine uses elsewhere rather than erroring. Called from
+ *  OBJECT_CONFIGS.Project's referencePoint/linearExtent/arealExtent
+ *  itemLabel functions. */
+function _projGeomItemLabel(label, geom) {
+  if (!geom) return escHtml(label);
+  const key = _registerProjGeom(geom.kind, geom.latlngs, label);
+  return `${escHtml(label)} <button class="pill-map-toggle" data-geom-key="${key}" ` +
+    `onclick="event.stopPropagation();_toggleProjGeomOnMap('${key}')">Show on Map</button>`;
+}
+
+// Currently-displayed Project geometry (at most one at a time).
+let _activeProjGeomKey = null;
+let _activeProjGeomLayer = null;
+
+/** Click handler for a "Show on Map"/"Hide Feature" pill. Toggling the
+ *  currently-active geometry off just clears it; toggling any other
+ *  geometry on first clears whatever was showing (only one Project
+ *  geometry is ever shown at once), then adds the new layer and pans/zooms
+ *  to it — same cyan (#00FEFC) highlight + fitBounds convention selectSF()
+ *  uses for a chosen SF's own marker/polygon/line. */
+function _toggleProjGeomOnMap(key) {
+  const wasActive = _activeProjGeomKey === key;
+  _clearActiveProjGeom();
+  if (wasActive || !mapInstance) return;
+
+  const entry = _projGeomMap.get(key);
+  if (!entry) return;
+
+  const HIGHLIGHT = { color: '#00FEFC', weight: 3, opacity: 1 };
+  let layer;
+  if (entry.kind === 'point') {
+    layer = L.circleMarker(entry.latlngs, { radius: 14, weight: 2, color: '#00FEFC', opacity: 1, fillColor: '#00FEFC', fillOpacity: 0.9 });
+  } else if (entry.kind === 'line') {
+    layer = L.polyline(entry.latlngs, { ...HIGHLIGHT, weight: 4 });
+  } else {
+    layer = L.polygon(entry.latlngs, { ...HIGHLIGHT, fillColor: '#00FEFC', fillOpacity: 0.25 });
   }
+  layer.bindPopup(`<strong>${escHtml(entry.label)}</strong>`, { maxWidth: 260 }).addTo(mapInstance);
+  _activeProjGeomLayer = layer;
+  _activeProjGeomKey = key;
+
+  if (entry.kind === 'point') {
+    mapInstance.setView(entry.latlngs, Math.max(mapInstance.getZoom() || 0, 14), { animate: true });
+  } else {
+    const b = layer.getBounds();
+    if (b.isValid()) mapInstance.fitBounds(b, { padding: [40, 40], animate: true });
+  }
+
+  _refreshProjGeomButtons();
+}
+
+/** Remove whatever Project geometry is currently shown (if any) and reset
+ *  every "Hide Feature" pill back to "Show on Map". Called on toggle-off,
+ *  on closing the project-info pane, on switching projects, and on loading
+ *  a new file entirely (resetToLoad) — the same set of places that already
+ *  tear down other per-selection UI state (clearSelections,
+ *  disposeTrajectoryViewer, etc.). */
+function _clearActiveProjGeom() {
+  if (_activeProjGeomLayer && mapInstance) {
+    try { mapInstance.removeLayer(_activeProjGeomLayer); } catch (e) {}
+  }
+  _activeProjGeomLayer = null;
+  _activeProjGeomKey = null;
+  _refreshProjGeomButtons();
+}
+
+function _refreshProjGeomButtons() {
+  document.querySelectorAll('.pill-map-toggle[data-geom-key]').forEach(btn => {
+    const active = btn.getAttribute('data-geom-key') === _activeProjGeomKey;
+    btn.textContent = active ? 'Hide Feature' : 'Show on Map';
+    btn.classList.toggle('active', active);
+  });
 }
 
 /**
@@ -10523,8 +12371,10 @@ function initMap() {
     }
   }
 
-  // ── Project geometry (muted, rendered below SF markers) ──────
-  renderProjectGeometry();
+  // Project geometry is no longer auto-rendered here (2026-07-22) — see
+  // the "PROJECT GEOMETRY" banner near _toggleProjGeomOnMap. Each occurrence
+  // is shown on demand via its own "Show on Map" pill in the Project detail
+  // pane's KV table instead.
 
   // Apply project filter to both table rows and map markers now that both exist
   // Pass true to skip geometry re-render (already done above)
@@ -11730,6 +13580,10 @@ function renderBadgeGrid(badges, sfId) {
 function toggleAssocCategory(tabEl, key) {
   const panel = tabEl.closest('.assoc-badge-panel');
   if (!panel) return;
+  // Switching (or collapsing) categories invalidates whatever badge content is
+  // currently shown in the pane — clear it back to the placeholder so a stale
+  // badge's content doesn't linger under a different category's tab.
+  clearAssocPane();
   const body = panel.querySelector('.assoc-cat-body');
   const wasActive = tabEl.classList.contains('active');
   panel.querySelectorAll('.assoc-cat-tab').forEach(t => t.classList.remove('active'));
@@ -11742,6 +13596,26 @@ function toggleAssocCategory(tabEl, key) {
   body.style.display = '';
   const grid = panel.querySelector(`.assoc-badge-grid[data-cat="${key}"]`);
   if (grid) grid.style.display = '';
+}
+
+// ── clearAssocPane: reset #assoc-content back to the placeholder ───
+// Empties the Associated Data pane's rendered content (header + body) and
+// restores the placeholder, disposing any live 3D trajectory viewer so its
+// WebGL context/listeners don't leak. Leaves the badge panel/tab row intact —
+// only the per-badge content area is cleared. Also drops any badge's active
+// highlight, since no badge content is showing after this.
+function clearAssocPane() {
+  disposeTrajectoryViewer();
+  const ph  = document.getElementById('assoc-placeholder');
+  const hdr = document.getElementById('assoc-header');
+  const cnt = document.getElementById('assoc-content');
+  // Hide (not 'flex') the placeholder: a feature is still selected, so its
+  // "…when a feature is selected" copy would mislead. This mirrors the empty
+  // pane state right after an SF is picked but before any badge is clicked.
+  if (ph)  ph.style.display  = 'none';
+  if (hdr) { hdr.textContent = ''; hdr.style.display = 'none'; }
+  if (cnt) { cnt.innerHTML   = ''; cnt.style.display = 'none'; }
+  document.querySelectorAll('.assoc-badge').forEach(b => b.classList.remove('active'));
 }
 
 // ── showAssoc: render content into the assoc panel ─────────
@@ -12489,6 +14363,16 @@ function splitCamelCase(s) {
 function showSFDetail(sf) {
   if (!sf) return;
 
+  // Selecting an SF always supersedes any Project detail view currently
+  // showing in the central pane (2026-07-22) — the two share
+  // #detail-placeholder/#detail-content and only one can occupy it at a
+  // time; see showProjectDetail/toggleProjectDetail.
+  if (window._projectDetailActive) {
+    window._projectDetailActive = false;
+    _clearActiveProjGeom();
+    _updateInfoBtn();
+  }
+
   // ── Section 1: header ────────────────────────────────────
   const cfg   = SF_TYPE_CONFIG[sf.type] || {};
   const color = (cfg.marker && cfg.marker.color) || 'var(--text-muted)';
@@ -12871,86 +14755,33 @@ function _munsellFromComponents(color) {
 }
 
 // ══════════════════════════════════════════════════════════════
-//  renderLithSysTable — build a single <table class="sub-table"> for
-//  one LithologySystem's observations: From / To (or Position, for
-//  Station SFs with no depth axis) / Material only. The row-expand
-//  scaffold (.kv-tri / .lith-obs-detail-row) is kept but currently always
-//  empty in this fork — the KV-detail builder (buildLithObsExpandHtml) that
-//  used to populate it was removed; a future KV-table rebuild reactivates
-//  this by pointing expandHtml (below) at a new detail-content builder.
-//  Every row (and its detail row, if any) is tagged with the observation's
-//  gml:id so it can be found from a graphic-log zone click (see drawLithLog /
-//  _lithRowClick / _lithZoneClick).
+//  Row <-> graphic-log zone sync (2026-07-20 rebuild) — the observation
+//  table itself is now built by the generic interval-table engine
+//  (OBJECT_CONFIGS.LithologySystem's `lithologyObservation` row, rendered
+//  via renderPropertyRow in renderLithBadgeContent) rather than a bespoke
+//  renderLithSysTable builder — deleted along with the _lithObsKey helper
+//  it alone used, both fully superseded. Row markup (`.kv-interval-row`/
+//  `.kv-interval-detail-row`, `data-obs-key`, the expand-toggle onclick) all
+//  come from that generic engine now, driven by the `rowKey`/`rowOnClick`
+//  config on that same row (see OBJECT_CONFIGS.LithologySystem).
 // ══════════════════════════════════════════════════════════════
-function _lithObsKey(obs) {
-  return (obs.gml_id || '').replace(/[^a-zA-Z0-9_-]/g, '_');
-}
 
-function renderLithSysTable(sys, sf) {
-  const obsArray = sys.observations;
-  if (!obsArray || !obsArray.length) return '';
-
-  const showPosition = sf.type === 'Station' && obsArray.some(o => o.coordTuple && o.coordTuple.length);
-
-  const sorted = [...obsArray].sort((a, b) => {
-    const fa = parseFloat(a.from), fb = parseFloat(b.from);
-    return (!isNaN(fa) && !isNaN(fb)) ? fa - fb
-      : (a.from || '').localeCompare(b.from || '');
-  });
-
-  const depthUom = depthUomForRows(obsArray);
-  const uomSpan  = depthUom ? `<br><span class="col-uom">(${escUom(depthUom)})</span>` : '';
-
-  const thead = showPosition
-    ? `<thead><tr><th colspan="2">Position</th><th>Material</th></tr></thead>`
-    : `<thead><tr><th>From${uomSpan}</th><th>To${uomSpan}</th><th>Material</th></tr></thead>`;
-
-  let tbody = '<tbody>';
-  for (const obs of sorted) {
-    const pri = obs.primary || {};
-    const material = pri.classificationCode || pri.lithDescription || '—';
-    const key = _lithObsKey(obs);
-
-    // KV-detail expand content removed in this fork (buildLithObsExpandHtml
-    // deleted) — the triangle/.lith-obs-detail-row scaffold below is left
-    // intact so a future KV-table rebuild can reactivate it by pointing
-    // expandHtml at a new detail-content builder.
-    const expandHtml = '';
-    const expandable = !!expandHtml.trim();
-    const tri = expandable ? '<span class="kv-tri">▶</span>' : '<span class="kv-tri-spacer"></span>';
-
-    const leadCells = showPosition
-      ? `<td colspan="2" class="lith-depth-val">${tri}${obs.coordTuple && obs.coordTuple.length ? esc(obs.coordTuple.join(' / ')) : '—'}</td>`
-      : `<td class="lith-depth-val">${tri}${esc(obs.from)}</td><td class="lith-depth-val">${esc(obs.to)}</td>`;
-
-    tbody += `<tr class="lith-obs-row" data-obs-key="${key}" onclick="_lithRowClick(this)">`
-      + leadCells
-      + `<td class="lith-material-cell">${esc(material)}</td></tr>`;
-
-    if (expandable) {
-      tbody += `<tr class="lith-obs-detail-row" data-obs-key="${key}" style="display:none">
-        <td colspan="3">${expandHtml}</td></tr>`;
-    }
-  }
-  tbody += '</tbody>';
-
-  return `<table class="sub-table lith-obs-table">${thead}${tbody}</table>`;
-}
-
-/** Toggle a lithology observation row's expand state (if it has one) and
- *  select it — highlighting the row and its matching graphic-log zone
- *  (scoped to the enclosing .lith-badge-layout, since a feature can have
- *  several system tables/log columns sharing the same assoc panel).
- *  Shared by direct row clicks and _lithZoneClick() (graphic-log zone → row). */
+/** Toggle a lithology observation row's expand state (if it has one, via the
+ *  unchanged toggleKVSection — which also toggles .kv-row-expanded, the same
+ *  orange highlight class every other interval table's expanded row gets;
+ *  no separate lithology-specific "selected" row color anymore) and sync the
+ *  matching graphic-log zone's highlight (scoped to the enclosing
+ *  .lith-badge-layout, since a feature can have several system tables/log
+ *  columns sharing the same assoc panel). Shared by direct row clicks
+ *  (wired via rowOnClick in OBJECT_CONFIGS.LithologySystem's interval
+ *  config) and _lithZoneClick() (graphic-log zone → row). */
 function _lithRowClick(rowEl) {
   const scope = rowEl.closest('.lith-badge-layout') || document;
   const detail = rowEl.nextElementSibling;
-  if (detail && detail.classList.contains('lith-obs-detail-row')) {
+  if (detail && detail.classList.contains('kv-interval-detail-row')) {
     toggleKVSection(rowEl);
   }
-  scope.querySelectorAll('.lith-obs-row.lith-row-selected').forEach(r => r.classList.remove('lith-row-selected'));
   scope.querySelectorAll('.lith-log-zone.lith-zone-selected').forEach(z => z.classList.remove('lith-zone-selected'));
-  rowEl.classList.add('lith-row-selected');
   const key = rowEl.getAttribute('data-obs-key');
   if (!key) return;
   const zoneEl = scope.querySelector(`.lith-log-zone[data-obs-key="${key}"]`);
@@ -12963,7 +14794,7 @@ function _lithZoneClick(zoneEl) {
   const scope = zoneEl.closest('.lith-badge-layout') || document;
   const key = zoneEl.getAttribute('data-obs-key');
   if (!key) return;
-  const rowEl = scope.querySelector(`tr.lith-obs-row[data-obs-key="${key}"]`);
+  const rowEl = scope.querySelector(`tr.kv-interval-row[data-obs-key="${key}"]`);
   if (rowEl) {
     _lithRowClick(rowEl);
     rowEl.scrollIntoView({ block: 'nearest' });
@@ -13669,10 +15500,18 @@ function renderLithBadgeContent(sfId, sf, lithSystems, allObs, drawJobs) {
     const ctLabel = sys.classificationTypes.length
       ? sys.classificationTypes.map(ct => ct.value || ct.codeSpace || 'Unknown').join(', ')
       : 'Unknown';
-    // KV-detail expand content removed in this fork (buildLithSystemExtraHtml
-    // deleted) — header always renders static now; this is the same
-    // no-extra-data fallback the code already had, just made unconditional.
-    const extraHtml = '';
+    // Interval-table engine, phase 4 (2026-07-20) — restores the "extra"
+    // system metadata panel (name/description/identifier/status/
+    // implementationStatus/observationProcedure/role/remark/associatedFile)
+    // via OBJECT_CONFIGS.LithologySystem, filtered to drop
+    // lithologyClassificationType (shown in the static header above) and
+    // lithologyObservation (its own table, built separately below) — the
+    // same exclude-by-path pattern used everywhere else in this engine, not
+    // a separately hand-maintained field list like the old
+    // LITH_SYSTEM_EXTRA_DESCRIPTOR/buildLithSystemExtraHtml this replaces.
+    const extraHtml = renderKVObject(sys.el, OBJECT_CONFIGS.LithologySystem.filter(
+      f => f.path !== 'diggs:lithologyClassificationType' && f.path !== 'diggs:lithologyObservation'
+    ));
     const expandable = !!extraHtml;
     const headerCls = expandable ? 'lith-sys-header expandable' : 'lith-sys-header';
     const headerAttrs = expandable ? ' onclick="toggleKVSection(this)"' : '';
@@ -13682,7 +15521,12 @@ function renderLithBadgeContent(sfId, sf, lithSystems, allObs, drawJobs) {
     if (expandable) {
       html += `<div class="kv-section-body lith-sys-extra" style="display:none">${extraHtml}</div>`;
     }
-    html += renderLithSysTable(sys, sf);
+    // The observation table itself — an ordinary interval-table row
+    // (diggs:lithologyObservation, see OBJECT_CONFIGS.LithologySystem)
+    // rendered through the unchanged generic engine via renderPropertyRow,
+    // exactly like every other interval-tabled property in the app.
+    const obsRowCfg = OBJECT_CONFIGS.LithologySystem.find(f => f.path === 'diggs:lithologyObservation');
+    html += renderPropertyRow(sys.el, obsRowCfg);
     html += '</div>';
   });
 

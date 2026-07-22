@@ -337,12 +337,6 @@
             <!-- ============================================================ -->
 
             <arealExtent owns="false">
-                <Shell aggregationType="sequence"
-                    srsName="https://www.opengis.net/def/crs-compound?1=http://www.opengis.net/def/crs/EPSG/0/9357%262=http://www.opengis.net/def/crs/EPSG/0/5773"
-                    srsDimension="3" axisLabels="easting northing height" uomLabels="m m m"
-                    gml:id="SH001">
-                    <surfaceMembers>
-                        <!-- PlanarSurface 1: overall site boundary with equipment exclusion zone cut-out -->
                         <PlanarSurface
                             srsName="https://www.opengis.net/def/crs-compound?1=http://www.opengis.net/def/crs/EPSG/0/9357%262=http://www.opengis.net/def/crs/EPSG/0/5773"
                             srsDimension="3" axisLabels="easting northing height" uomLabels="m m m"
@@ -372,99 +366,16 @@
                                 </gml:LinearRing>
                             </gml:interior>
                         </PlanarSurface>
-
-                        <!-- PlanarSurface 2: ancillary compound / laydown area adjacent to main site -->
-                        <PlanarSurface
-                            srsName="https://www.opengis.net/def/crs-compound?1=http://www.opengis.net/def/crs/EPSG/0/9357%262=http://www.opengis.net/def/crs/EPSG/0/5773"
-                            srsDimension="3" axisLabels="easting northing height" uomLabels="m m m"
-                            gml:id="PS002">
-                            <gml:exterior>
-                                <!-- Exterior ring: ~40m x 30m ancillary compound, CCW winding -->
-                                <gml:LinearRing>
-                                    <gml:posList> 502917.7 2443840.1 1.0 502957.7 2443840.1 1.0
-                                        502957.7 2443870.1 1.0 502917.7 2443870.1 1.0 502917.7
-                                        2443840.1 1.0 </gml:posList>
-                                </gml:LinearRing>
-                            </gml:exterior>
-                            <gml:interior>
-                                <!-- Interior ring: site office / welfare cabin footprint, CW winding -->
-                                <gml:Ring aggregationType="record">
-                                    <gml:curveMember>
-                                        <gml:OrientableCurve orientation="+"
-                                            srsName="https://www.opengis.net/def/crs-compound?1=http://www.opengis.net/def/crs/EPSG/0/9357%262=http://www.opengis.net/def/crs/EPSG/0/5773"
-                                            srsDimension="3" axisLabels="easting northing height"
-                                            uomLabels="m m m" gml:id="OC001">
-                                            <gml:baseCurve>
-                                                <gml:LineString
-                                                  srsName="https://www.opengis.net/def/crs-compound?1=http://www.opengis.net/def/crs/EPSG/0/9357%262=http://www.opengis.net/def/crs/EPSG/0/5773"
-                                                  srsDimension="3"
-                                                  axisLabels="easting northing height"
-                                                  uomLabels="m m m" gml:id="LS001">
-                                                  <gml:pointProperty>
-                                                  <gml:Point
-                                                  srsName="https://www.opengis.net/def/crs-compound?1=http://www.opengis.net/def/crs/EPSG/0/9357%262=http://www.opengis.net/def/crs/EPSG/0/5773"
-                                                  srsDimension="3"
-                                                  axisLabels="easting northing height"
-                                                  uomLabels="m m m" gml:id="PT001">
-                                                  <gml:pos>502925.0 2443845.0 1.0</gml:pos>
-                                                  </gml:Point>
-                                                  </gml:pointProperty>
-                                                  <gml:pos>502935.0 2443845.0 1.0</gml:pos>
-                                                  <gml:pointProperty>
-                                                  <gml:Point
-                                                  srsName="https://www.opengis.net/def/crs-compound?1=http://www.opengis.net/def/crs/EPSG/0/9357%262=http://www.opengis.net/def/crs/EPSG/0/5773"
-                                                  srsDimension="3"
-                                                  axisLabels="easting northing height"
-                                                  uomLabels="m m m" gml:id="PT002">
-                                                  <gml:pos>502935.0 2443855.0 1.0</gml:pos>
-                                                  </gml:Point>
-                                                  </gml:pointProperty>
-                                                  <gml:pos>502925.0 2443845.0 1.0</gml:pos>
-                                                </gml:LineString>
-                                            </gml:baseCurve>
-                                        </gml:OrientableCurve>
-                                    </gml:curveMember>
-                                    <gml:curveMember>
-                                        <!--                                <gml:LineString
-                                    srsName="https://www.opengis.net/def/crs-compound?1=http://www.opengis.net/def/crs/EPSG/0/9357%262=http://www.opengis.net/def/crs/EPSG/0/5773"
-                                    srsDimension="3"
-                                    axisLabels="easting northing height"
-                                    uomLabels="m m m"
-                                    gml:id="LS002">
-                                    <gml:posList>502925.0 2443845.0 1.0 502935.0 2443845.0 1.0 502935.0 2443855.0 1.0 502925.0 2443855.0 1.0 502925.0 2443845.0 1.0</gml:posList>
-                                </gml:LineString>-->
-                                        <gml:CompositeCurve aggregationType="sequence"
-                                            srsName="https://www.opengis.net/def/crs-compound?1=http://www.opengis.net/def/crs/EPSG/0/9357%262=http://www.opengis.net/def/crs/EPSG/0/5773"
-                                            srsDimension="3" axisLabels="easting northing height"
-                                            uomLabels="m m m" gml:id="CC001">
-                                            <gml:curveMember xlink:href="#OC001"/>
-                                            <gml:curveMember xlink:href="#OC001"/>
-                                        </gml:CompositeCurve>
-                                    </gml:curveMember>
-                                </gml:Ring>
-                            </gml:interior>
-                            <gml:interior>
-                                <gml:LinearRing>
-                                    <!-- Fuel store exclusion zone, CW winding -->
-                                    <gml:posList> 502943.0 2443843.0 1.0 502943.0 2443850.0 1.0
-                                        502950.0 2443850.0 1.0 502950.0 2443843.0 1.0 502943.0
-                                        2443843.0 1.0 </gml:posList>
-                                </gml:LinearRing>
-                            </gml:interior>
-                        </PlanarSurface>
-                    </surfaceMembers>
-                </Shell>
             </arealExtent>
 
             <!-- ============================================================ -->
             <!-- Areal Extent 2 — LTP foundation footprint                    -->
             <!-- MultiPlanarSurface: two non-contiguous LTP zones             -->
             <!-- ============================================================ -->
-
+<!--
             <arealExtent owns="false">
                 <MultiPlanarSurface gml:id="MPS001">
                     <gml:patches>
-                        <!-- LTP Zone A: northern half of substation foundation footprint -->
                         <PlanarSurfacePatch interpolation="planar">
                             <gml:exterior>
                                 <gml:Ring aggregationType="array">
@@ -490,7 +401,6 @@
                                 </gml:Ring>
                             </gml:exterior>
                             <gml:interior>
-                                <!-- Exclusion zone within LTP Zone A: existing underground utility corridor -->
                                 <gml:Ring aggregationType="sequence">
                                     <gml:curveMember>
                                         <gml:OrientableCurve orientation="+"
@@ -528,14 +438,14 @@
                                         </gml:OrientableCurve>
                                     </gml:curveMember>
                                     <gml:curveMember>
-                                        <!--                                <gml:LineString
+                               <gml:LineString
                                     srsName="https://www.opengis.net/def/crs-compound?1=http://www.opengis.net/def/crs/EPSG/0/9357%262=http://www.opengis.net/def/crs/EPSG/0/5773"
                                     srsDimension="3"
                                     axisLabels="easting northing height"
                                     uomLabels="m m m"
                                     gml:id="LS005">
                                     <gml:posList>502955.0 2443938.0 1.0 502955.0 2443948.0 1.0 502968.0 2443948.0 1.0 502968.0 2443938.0 1.0 502955.0 2443938.0 1.0</gml:posList>
-                                </gml:LineString>-->
+                                </gml:LineString>
                                         <gml:CompositeCurve aggregationType="sequence"
                                             srsName="https://www.opengis.net/def/crs-compound?1=http://www.opengis.net/def/crs/EPSG/0/9357%262=http://www.opengis.net/def/crs/EPSG/0/5773"
                                             srsDimension="3" axisLabels="easting northing height"
@@ -592,7 +502,6 @@
                             </uncertainty>
                         </PlanarSurfacePatch>
 
-                        <!-- LTP Zone B: southern half of substation foundation footprint -->
                         <PlanarSurfacePatch interpolation="planar">
                             <gml:exterior>
                                 <gml:LinearRing>
@@ -603,7 +512,6 @@
                             </gml:exterior>
                             <gml:interior>
                                 <gml:LinearRing>
-                                    <!-- Cable trench exclusion zone within LTP Zone B, CW winding -->
                                     <gml:posList> 502960.0 2443890.0 1.0 502960.0 2443900.0 1.0
                                         502975.0 2443900.0 1.0 502975.0 2443890.0 1.0 502960.0
                                         2443890.0 1.0 </gml:posList>
@@ -611,7 +519,6 @@
                             </gml:interior>
                             <gml:interior>
                                 <gml:LinearRing>
-                                    <!-- Drainage sump exclusion zone within LTP Zone B, CW winding -->
                                     <gml:posList> 502985.0 2443908.0 1.0 502985.0 2443918.0 1.0
                                         502995.0 2443918.0 1.0 502995.0 2443908.0 1.0 502985.0
                                         2443908.0 1.0 </gml:posList>
@@ -621,7 +528,7 @@
                     </gml:patches>
                 </MultiPlanarSurface>
             </arealExtent>
-
+-->
             <!-- ============================================================ -->
             <!-- Project Date / Time Span                                      -->
             <!-- ============================================================ -->
@@ -2434,7 +2341,7 @@
                     </remark>
 
                     <location>
-                        <LinearExtent gml:id="DGS8BE6-50E-3C2A-5616-1BBB7" srsName="#lsr-BH1"
+                        <LinearExtent gml:id="DGS8BE6-50E-3C2A-5616-1BBB7" srsName="#lsr-BH-33"
                             srsDimension="1">
                             <gml:posList>0.00 30.00</gml:posList>
                         </LinearExtent>
@@ -4149,13 +4056,13 @@
                         </Remark>
                     </remark>
 
-                    <!-- Location: MultiPointLocation in LSR giving the SPT test depths -->
+                    <!-- Location: LinearExtent in LSR giving this event's depth interval -->
                     <location owns="false">
-                        <MultiPointLocation gml:id="MPL-CE01-BH001" srsName="#lsr-BH-33"
+                        <LinearExtent gml:id="MPL-CE01-BH001" srsName="#lsr-BH-33"
                             srsDimension="1" axisLabels="depth" uomLabels="m">
-                            <gml:description>Depths of SPT tests conducted in BH-1 from 2.83 m to 56.54 m at 2.83 m intervals.</gml:description>
+                            <gml:description>Depth interval for this event in BH-1, from 2.15 m to 5.4 m.</gml:description>
                             <gml:posList srsName="#lsr-BH-33" srsDimension="1" axisLabels="depth"
-                                uomLabels="m" count="20">2.15 4.30 6.46 8.61 10.77 12.91 15.07 17.22 19.37 21.52 23.68 25.83 27.98 30.14 32.29 34.45 36.59 38.75 40.90 43.05</gml:posList>
+                                 uomLabels="m">2.15 5.4</gml:posList>
                             <uncertainty>
                                 <LocationUncertainty gml:id="LU-CE01-BH001">
                                     <gml:description>Depth measurement uncertainty for SPT test positions in BH-1. Depths recorded from rod tally; uncertainty estimated at ±0.05 m.</gml:description>
@@ -4306,7 +4213,7 @@
                                     </zValueUncertainty>
                                 </LocationUncertainty>
                             </uncertainty>
-                        </MultiPointLocation>
+                        </LinearExtent>
                     </location>
 
                     <time>
