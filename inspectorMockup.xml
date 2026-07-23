@@ -906,6 +906,338 @@
         </Project>
     </project>
 
+    <project>
+        <Project gml:id="Project-Mockup-1">
+            <gml:name>Project for General Mockup Tests 1</gml:name>
+        </Project>
+    </project>
+
+    <!-- ============================================================
+         Project-Mockup-1 simulated boreholes
+         Reference points within 33-34N / -118 to -117W (NAD83)
+         Horizontal CRS: UTM Zone 11N NAD83 (EPSG:26911)
+         Vertical CRS: NAVD88 meters (EPSG:5703)
+         LRM: DIGGS standard measured-depth-in-feet
+              (https://diggsml.org/def/crs/DIGGS/0.1/lrm.xml#md_ft)
+         BH-Mockup-1: vertical
+         BH-Mockup-2: inclined, plunge 70 deg to the NW
+         BH-Mockup-3: deviated - vertical, kicks south, then southeast
+         ============================================================ -->
+
+    <samplingFeature>
+        <Borehole gml:id="BH-Mockup-1">
+            <gml:name>BH-Mockup-1</gml:name>
+            <projectRef xlink:href="#Project-Mockup-1"/>
+            <referencePoint>
+                <PointLocation gml:id="pl-BH-Mockup-1"
+                    srsName="https://www.opengis.net/def/crs-compound?1=http://www.opengis.net/def/crs/EPSG/0/26911%262=http://www.opengis.net/def/crs/EPSG/0/5703"
+                    srsDimension="3" axisLabels="easting northing height" uomLabels="m m m">
+                    <gml:pos>453557.08 3706831.07 385.40</gml:pos>
+                </PointLocation>
+            </referencePoint>
+            <centerLine>
+                <LinearExtent gml:id="cl-BH-Mockup-1"
+                    srsName="https://www.opengis.net/def/crs-compound?1=http://www.opengis.net/def/crs/EPSG/0/26911%262=http://www.opengis.net/def/crs/EPSG/0/5703"
+                    srsDimension="3" axisLabels="easting northing height" uomLabels="m m m">
+                    <gml:posList>453557.08 3706831.07 385.40 453557.08 3706831.07 339.68</gml:posList>
+                </LinearExtent>
+            </centerLine>
+            <linearReferencing>
+                <LinearSpatialReferenceSystem gml:id="lsr-BH-Mockup-1">
+                    <gml:identifier codeSpace="http://www.globalgeosolutions.com/projects">lsr-BH-Mockup-1</gml:identifier>
+                    <glr:linearElement xlink:href="#cl-BH-Mockup-1"/>
+                    <lrm xlink:href="https://diggsml.org/def/crs/DIGGS/0.1/lrm.xml#md_ft"/>
+                </LinearSpatialReferenceSystem>
+            </linearReferencing>
+            <totalMeasuredDepth uom="ft" howDetermined="measured">150</totalMeasuredDepth>
+            <backfill>
+                <Backfill gml:id="BKF-BH-Mockup-1">
+                    <gml:description>Backfill placed as part of MW-1/MW-2 well construction: bentonite surface seal, cement grout annular seal, and sand packs bracketing each well's screened interval.</gml:description>
+                    <backfillLayer>
+                        <BackfillLayer gml:id="BKF-BH-Mockup-1-L1">
+                            <backfillInterval>
+                                <LinearExtent gml:id="BKF-BH-Mockup-1-L1-EXT" srsName="#lsr-BH-Mockup-1" srsDimension="1">
+                                    <gml:posList>0 10</gml:posList>
+                                </LinearExtent>
+                            </backfillInterval>
+                            <backfillMaterial>bentonite</backfillMaterial>
+                            <isSanitarySeal>true</isSanitarySeal>
+                        </BackfillLayer>
+                    </backfillLayer>
+                    <backfillLayer>
+                        <BackfillLayer gml:id="BKF-BH-Mockup-1-L2">
+                            <backfillInterval>
+                                <LinearExtent gml:id="BKF-BH-Mockup-1-L2-EXT" srsName="#lsr-BH-Mockup-1" srsDimension="1">
+                                    <gml:posList>10 35</gml:posList>
+                                </LinearExtent>
+                            </backfillInterval>
+                            <backfillMaterial>cement grout</backfillMaterial>
+                        </BackfillLayer>
+                    </backfillLayer>
+                    <backfillLayer>
+                        <BackfillLayer gml:id="BKF-BH-Mockup-1-L3">
+                            <backfillInterval>
+                                <LinearExtent gml:id="BKF-BH-Mockup-1-L3-EXT" srsName="#lsr-BH-Mockup-1" srsDimension="1">
+                                    <gml:posList>35 48</gml:posList>
+                                </LinearExtent>
+                            </backfillInterval>
+                            <backfillMaterial>sand</backfillMaterial>
+                        </BackfillLayer>
+                    </backfillLayer>
+                    <backfillLayer>
+                        <BackfillLayer gml:id="BKF-BH-Mockup-1-L4">
+                            <backfillInterval>
+                                <LinearExtent gml:id="BKF-BH-Mockup-1-L4-EXT" srsName="#lsr-BH-Mockup-1" srsDimension="1">
+                                    <gml:posList>48 105</gml:posList>
+                                </LinearExtent>
+                            </backfillInterval>
+                            <backfillMaterial>cementGrout</backfillMaterial>
+                        </BackfillLayer>
+                    </backfillLayer>
+                    <backfillLayer>
+                        <BackfillLayer gml:id="BKF-BH-Mockup-1-L5">
+                            <backfillInterval>
+                                <LinearExtent gml:id="BKF-BH-Mockup-1-L5-EXT" srsName="#lsr-BH-Mockup-1" srsDimension="1">
+                                    <gml:posList>105 128</gml:posList>
+                                </LinearExtent>
+                            </backfillInterval>
+                            <backfillMaterial>sand</backfillMaterial>
+                        </BackfillLayer>
+                    </backfillLayer>
+                    <backfillLayer>
+                        <BackfillLayer gml:id="BKF-BH-Mockup-1-L6">
+                            <backfillInterval>
+                                <LinearExtent gml:id="BKF-BH-Mockup-1-L6-EXT" srsName="#lsr-BH-Mockup-1" srsDimension="1">
+                                    <gml:posList>128 150</gml:posList>
+                                </LinearExtent>
+                            </backfillInterval>
+                            <backfillMaterial>cement grout</backfillMaterial>
+                        </BackfillLayer>
+                    </backfillLayer>
+                    <backfillType>annular space within borehole</backfillType>
+                </Backfill>
+            </backfill>
+        </Borehole>
+    </samplingFeature>
+
+    <samplingFeature>
+        <Borehole gml:id="BH-Mockup-2">
+            <gml:name>BH-Mockup-2</gml:name>
+            <projectRef xlink:href="#Project-Mockup-1"/>
+            <referencePoint>
+                <PointLocation gml:id="pl-BH-Mockup-2"
+                    srsName="https://www.opengis.net/def/crs-compound?1=http://www.opengis.net/def/crs/EPSG/0/26911%262=http://www.opengis.net/def/crs/EPSG/0/5703"
+                    srsDimension="3" axisLabels="easting northing height" uomLabels="m m m">
+                    <gml:pos>453627.08 3706831.07 384.10</gml:pos>
+                </PointLocation>
+            </referencePoint>
+            <centerLine>
+                <LinearExtent gml:id="cl-BH-Mockup-2"
+                    srsName="https://www.opengis.net/def/crs-compound?1=http://www.opengis.net/def/crs/EPSG/0/26911%262=http://www.opengis.net/def/crs/EPSG/0/5703"
+                    srsDimension="3" axisLabels="easting northing height" uomLabels="m m m">
+                    <gml:posList>453627.08 3706831.07 384.10 453612.34 3706845.81 326.82</gml:posList>
+                </LinearExtent>
+            </centerLine>
+            <linearReferencing>
+                <LinearSpatialReferenceSystem gml:id="lsr-BH-Mockup-2">
+                    <gml:identifier codeSpace="http://www.globalgeosolutions.com/projects">lsr-BH-Mockup-2</gml:identifier>
+                    <glr:linearElement xlink:href="#cl-BH-Mockup-2"/>
+                    <lrm xlink:href="https://diggsml.org/def/crs/DIGGS/0.1/lrm.xml#md_ft"/>
+                </LinearSpatialReferenceSystem>
+            </linearReferencing>
+            <plunge uom="dega" howDetermined="calculated">70</plunge>
+            <bearing uom="dega" howDetermined="calculated">315</bearing>
+            <totalMeasuredDepth uom="ft" howDetermined="measured">200</totalMeasuredDepth>
+        </Borehole>
+    </samplingFeature>
+
+    <samplingFeature>
+        <Borehole gml:id="BH-Mockup-3">
+            <gml:name>BH-Mockup-3</gml:name>
+            <projectRef xlink:href="#Project-Mockup-1"/>
+            <referencePoint>
+                <PointLocation gml:id="pl-BH-Mockup-3"
+                    srsName="https://www.opengis.net/def/crs-compound?1=http://www.opengis.net/def/crs/EPSG/0/26911%262=http://www.opengis.net/def/crs/EPSG/0/5703"
+                    srsDimension="3" axisLabels="easting northing height" uomLabels="m m m">
+                    <gml:pos>453592.08 3706891.69 386.75</gml:pos>
+                </PointLocation>
+            </referencePoint>
+            <centerLine>
+                <LinearExtent gml:id="cl-BH-Mockup-3"
+                    srsName="https://www.opengis.net/def/crs-compound?1=http://www.opengis.net/def/crs/EPSG/0/26911%262=http://www.opengis.net/def/crs/EPSG/0/5703"
+                    srsDimension="3" axisLabels="easting northing height" uomLabels="m m m">
+                    <gml:posList>453592.08 3706891.69 386.75 453592.08 3706891.69 356.27 453592.08 3706877.98 332.51 453604.55 3706865.51 311.50</gml:posList>
+                </LinearExtent>
+            </centerLine>
+            <linearReferencing>
+                <LinearSpatialReferenceSystem gml:id="lsr-BH-Mockup-3">
+                    <gml:identifier codeSpace="http://www.globalgeosolutions.com/projects">lsr-BH-Mockup-3</gml:identifier>
+                    <glr:linearElement xlink:href="#cl-BH-Mockup-3"/>
+                    <lrm xlink:href="https://diggsml.org/def/crs/DIGGS/0.1/lrm.xml#md_ft"/>
+                </LinearSpatialReferenceSystem>
+            </linearReferencing>
+            <totalMeasuredDepth uom="ft" howDetermined="measured">280</totalMeasuredDepth>
+        </Borehole>
+    </samplingFeature>
+
+    <!-- ============================================================
+         MW-1 / MW-2 — monitoring wells installed within BH-Mockup-1
+         (nested dual completion, sharing one flush-mount vault).
+         Top of casing (reference point) is 1 ft below ground surface;
+         2-inch nominal Schedule 40 PVC throughout (dimensions per
+         standard Sch 40 spec: 2.375 in OD / 2.067 in ID / 0.154 in
+         wall). All depths below (wellDepth/casingLocation/openInterval)
+         are in each well's OWN reference frame (measured from its top
+         of casing), NOT the borehole's — since TOC sits 1 ft below top
+         of hole, a depth given relative to the borehole is 1 ft less
+         relative to TOC. MW-1: originally specified as 50 ft total
+         depth / 37-47 ft screen (borehole frame) -> 49 ft total depth /
+         36-46 ft screen (well frame), 3 ft solid sump below screen.
+         MW-2: originally specified as 130 ft total depth / 107-127 ft
+         screen (borehole frame) -> 129 ft total depth / 106-126 ft
+         screen (well frame), 3 ft solid sump below screen.
+         ============================================================ -->
+    <samplingFeature>
+        <Well gml:id="Well-Mockup-1-MW1">
+            <gml:name>MW-1</gml:name>
+            <projectRef xlink:href="#Project-Mockup-1"/>
+            <referencePoint>
+                <PointLocation gml:id="pl-Well-Mockup-1-MW1"
+                    srsName="https://www.opengis.net/def/crs-compound?1=http://www.opengis.net/def/crs/EPSG/0/26911%262=http://www.opengis.net/def/crs/EPSG/0/5703"
+                    srsDimension="3" axisLabels="easting northing height" uomLabels="m m m">
+                    <gml:description>Top of casing, in a flush-mount vault, 1 ft below ground surface.</gml:description>
+                    <gml:pos>453557.08 3706831.07 385.0952</gml:pos>
+                </PointLocation>
+            </referencePoint>
+            <centerLine>
+                <LinearExtent gml:id="cl-Well-Mockup-1-MW1"
+                    srsName="https://www.opengis.net/def/crs-compound?1=http://www.opengis.net/def/crs/EPSG/0/26911%262=http://www.opengis.net/def/crs/EPSG/0/5703"
+                    srsDimension="3" axisLabels="easting northing height" uomLabels="m m m">
+                    <gml:posList>453557.08 3706831.07 385.0952 453557.08 3706831.07 370.1600</gml:posList>
+                </LinearExtent>
+            </centerLine>
+            <linearReferencing>
+                <LinearSpatialReferenceSystem gml:id="lsr-Well-Mockup-1-MW1">
+                    <gml:identifier codeSpace="http://www.globalgeosolutions.com/projects">lsr-Well-Mockup-1-MW1</gml:identifier>
+                    <glr:linearElement xlink:href="#cl-Well-Mockup-1-MW1"/>
+                    <lrm xlink:href="https://diggsml.org/def/crs/DIGGS/0.1/lrm.xml#md_ft"/>
+                </LinearSpatialReferenceSystem>
+            </linearReferencing>
+            <samplingFeatureRef xlink:href="#BH-Mockup-1"/>
+            <opening>
+                <WellOpening gml:id="WO-Well-Mockup-1-MW1">
+                    <gml:description>2-inch nominal Schedule 40 slotted PVC well screen.</gml:description>
+                    <openInterval>
+                        <LinearExtent gml:id="OI-Well-Mockup-1-MW1" srsName="#lsr-Well-Mockup-1-MW1" srsDimension="1">
+                            <gml:posList>36 46</gml:posList>
+                        </LinearExtent>
+                    </openInterval>
+                    <openingType>slotted</openingType>
+                    <openingMaterial>PVC</openingMaterial>
+                </WellOpening>
+            </opening>
+            <wellCasing>
+                <Casing gml:id="CSG-Well-Mockup-1-MW1-riser">
+                    <gml:description>2-inch nominal Schedule 40 solid PVC riser casing, top of casing to top of well screen.</gml:description>
+                    <casingLocation>
+                        <LinearExtent gml:id="CSGLOC-Well-Mockup-1-MW1-riser" srsName="#lsr-Well-Mockup-1-MW1" srsDimension="1">
+                            <gml:posList>0 36</gml:posList>
+                        </LinearExtent>
+                    </casingLocation>
+                    <casingOutsideDiameter uom="in">2.375</casingOutsideDiameter>
+                    <casingInsideDiameter uom="in">2.067</casingInsideDiameter>
+                    <casingWallThickness uom="in">0.154</casingWallThickness>
+                    <casingMaterial>PVC</casingMaterial>
+                </Casing>
+            </wellCasing>
+            <wellCasing>
+                <Casing gml:id="CSG-Well-Mockup-1-MW1-sump">
+                    <gml:description>2-inch nominal Schedule 40 solid PVC sump, below well screen.</gml:description>
+                    <casingLocation>
+                        <LinearExtent gml:id="CSGLOC-Well-Mockup-1-MW1-sump" srsName="#lsr-Well-Mockup-1-MW1" srsDimension="1">
+                            <gml:posList>46 49</gml:posList>
+                        </LinearExtent>
+                    </casingLocation>
+                    <casingOutsideDiameter uom="in">2.375</casingOutsideDiameter>
+                    <casingInsideDiameter uom="in">2.067</casingInsideDiameter>
+                    <casingWallThickness uom="in">0.154</casingWallThickness>
+                    <casingMaterial>PVC</casingMaterial>
+                </Casing>
+            </wellCasing>
+            <wellDepth uom="ft" howDetermined="measured">49</wellDepth>
+        </Well>
+    </samplingFeature>
+
+    <samplingFeature>
+        <Well gml:id="Well-Mockup-1-MW2">
+            <gml:name>MW-2</gml:name>
+            <projectRef xlink:href="#Project-Mockup-1"/>
+            <referencePoint>
+                <PointLocation gml:id="pl-Well-Mockup-1-MW2"
+                    srsName="https://www.opengis.net/def/crs-compound?1=http://www.opengis.net/def/crs/EPSG/0/26911%262=http://www.opengis.net/def/crs/EPSG/0/5703"
+                    srsDimension="3" axisLabels="easting northing height" uomLabels="m m m">
+                    <gml:description>Top of casing, in a flush-mount vault, 1 ft below ground surface.</gml:description>
+                    <gml:pos>453557.08 3706831.07 385.0952</gml:pos>
+                </PointLocation>
+            </referencePoint>
+            <centerLine>
+                <LinearExtent gml:id="cl-Well-Mockup-1-MW2"
+                    srsName="https://www.opengis.net/def/crs-compound?1=http://www.opengis.net/def/crs/EPSG/0/26911%262=http://www.opengis.net/def/crs/EPSG/0/5703"
+                    srsDimension="3" axisLabels="easting northing height" uomLabels="m m m">
+                    <gml:posList>453557.08 3706831.07 385.0952 453557.08 3706831.07 345.7760</gml:posList>
+                </LinearExtent>
+            </centerLine>
+            <linearReferencing>
+                <LinearSpatialReferenceSystem gml:id="lsr-Well-Mockup-1-MW2">
+                    <gml:identifier codeSpace="http://www.globalgeosolutions.com/projects">lsr-Well-Mockup-1-MW2</gml:identifier>
+                    <glr:linearElement xlink:href="#cl-Well-Mockup-1-MW2"/>
+                    <lrm xlink:href="https://diggsml.org/def/crs/DIGGS/0.1/lrm.xml#md_ft"/>
+                </LinearSpatialReferenceSystem>
+            </linearReferencing>
+            <samplingFeatureRef xlink:href="#BH-Mockup-1"/>
+            <opening>
+                <WellOpening gml:id="WO-Well-Mockup-1-MW2">
+                    <gml:description>2-inch nominal Schedule 40 slotted PVC well screen.</gml:description>
+                    <openInterval>
+                        <LinearExtent gml:id="OI-Well-Mockup-1-MW2" srsName="#lsr-Well-Mockup-1-MW2" srsDimension="1">
+                            <gml:posList>106 126</gml:posList>
+                        </LinearExtent>
+                    </openInterval>
+                    <openingType>slotted</openingType>
+                    <openingMaterial>PVC</openingMaterial>
+                </WellOpening>
+            </opening>
+            <wellCasing>
+                <Casing gml:id="CSG-Well-Mockup-1-MW2-riser">
+                    <gml:description>2-inch nominal Schedule 40 solid PVC riser casing, top of casing to top of well screen.</gml:description>
+                    <casingLocation>
+                        <LinearExtent gml:id="CSGLOC-Well-Mockup-1-MW2-riser" srsName="#lsr-Well-Mockup-1-MW2" srsDimension="1">
+                            <gml:posList>0 106</gml:posList>
+                        </LinearExtent>
+                    </casingLocation>
+                    <casingOutsideDiameter uom="in">2.375</casingOutsideDiameter>
+                    <casingInsideDiameter uom="in">2.067</casingInsideDiameter>
+                    <casingWallThickness uom="in">0.154</casingWallThickness>
+                    <casingMaterial>PVC</casingMaterial>
+                </Casing>
+            </wellCasing>
+            <wellCasing>
+                <Casing gml:id="CSG-Well-Mockup-1-MW2-sump">
+                    <gml:description>2-inch nominal Schedule 40 solid PVC sump, below well screen.</gml:description>
+                    <casingLocation>
+                        <LinearExtent gml:id="CSGLOC-Well-Mockup-1-MW2-sump" srsName="#lsr-Well-Mockup-1-MW2" srsDimension="1">
+                            <gml:posList>126 129</gml:posList>
+                        </LinearExtent>
+                    </casingLocation>
+                    <casingOutsideDiameter uom="in">2.375</casingOutsideDiameter>
+                    <casingInsideDiameter uom="in">2.067</casingInsideDiameter>
+                    <casingWallThickness uom="in">0.154</casingWallThickness>
+                    <casingMaterial>PVC</casingMaterial>
+                </Casing>
+            </wellCasing>
+            <wellDepth uom="ft" howDetermined="measured">129</wellDepth>
+        </Well>
+    </samplingFeature>
 
     <samplingFeature>
         <RIFoundationSystem gml:id="RIFS001">
@@ -6603,7 +6935,484 @@
             </waterStrike>
         </Borehole>
     </samplingFeature>
-    
+
+    <!-- ================================================================ -->
+    <!-- WELL 1 — Standpipe Piezometer PZ-1, installed within BH-1        -->
+    <!-- (Location_BH-33). Shallow single-zone monitoring well; exercises -->
+    <!-- the base AbstractLinearInstallation/WellType fields NOT covered  -->
+    <!-- by Well 2 below (see Well 2's own banner comment for the split). -->
+    <!-- ================================================================ -->
+    <samplingFeature>
+        <Well gml:id="Well-BH001-PZ1">
+            <gml:description>Standpipe piezometer installed within borehole BH-1 (Location_BH-33)
+                following completion of geotechnical drilling, for long-term groundwater level
+                monitoring at the site. Single screened interval spans the water-bearing silty sand
+                horizon encountered near the base of the investigation.</gml:description>
+            <gml:identifier codeSpace="Global Geoslutions">GBL-GT-24136-PZ001</gml:identifier>
+            <gml:name codeSpace="Global Geoslutions">PZ-1</gml:name>
+            <gml:name codeSpace="Jazeera-RPDA">Piezometer 1 (BH-1)</gml:name>
+            <internalIdentifier codeSpace="Global Geoslutions">PZ001</internalIdentifier>
+            <status>final</status>
+            <implementationStatus codeSpace="http://diggsml.org/def/codes/DIGGS/0.1/ImplementationStatus">actual</implementationStatus>
+            <associatedFile xlink:href="#AF001"/>
+            <role>
+                <Role owns="false">
+                    <rolePerformed codeSpace="http://diggsml.org/def/codes/DIGGS/0.1/RolePerformed">geotechnicalEngineer</rolePerformed>
+                    <businessAssociate xlink:href="#BA001"/>
+                </Role>
+            </role>
+            <remark>
+                <Remark owns="false">
+                    <content>Piezometer installed 5 March 2024 within the BH-1 borehole immediately
+                        following completion of drilling and SPT testing, prior to backfilling the
+                        remainder of the hole below the piezometer.</content>
+                    <remarkDateTime frame="#ISO-8601" indeterminatePosition="unknown"
+                        >2024-03-05</remarkDateTime>
+                </Remark>
+            </remark>
+            <investigationTarget>Ground Water</investigationTarget>
+            <projectRef xlink:href="#PRJ001"/>
+            <locality>
+                <Locality gml:id="LOC-PZ-BH001-1">
+                    <district>Al Wusta District</district>
+                    <division>Riyadh Province</division>
+                </Locality>
+            </locality>
+            <referencePoint>
+                <PointLocation gml:id="rp-WELL-BH001-PZ1"
+                    srsName="https://www.opengis.net/def/crs/EPSG/0/4979"
+                    srsDimension="3" axisLabels="latitude longitude ellipsoidal height">
+                    <gml:description>Top of PVC casing (TOC) for piezometer PZ-1, installed within the
+                        BH-1 borehole collar. Stick-up completion, TOC approximately 0.35 m above
+                        ground surface.</gml:description>
+                    <gml:pos>22.098873 39.026279 10.77</gml:pos>
+                </PointLocation>
+            </referencePoint>
+            <centerLine>
+                <LinearExtent gml:id="cl-WELL-BH001-PZ1"
+                    srsName="https://www.opengis.net/def/crs/EPSG/0/4979"
+                    srsDimension="3" axisLabels="latitude longitude ellipsoidal height">
+                    <gml:description>Centreline of piezometer PZ-1 from top of casing to base of well,
+                        coincident with the BH-1 borehole axis. Nominally vertical.</gml:description>
+                    <gml:posList>22.098873 39.026279 10.77 22.098873 39.026279 -4.43</gml:posList>
+                    <datumReference>top of casing</datumReference>
+                </LinearExtent>
+            </centerLine>
+            <linearReferencing>
+                <LinearSpatialReferenceSystem gml:id="lsr-WELL-BH001-PZ1">
+                    <gml:identifier codeSpace="OGC">lsr-WELL-BH001-PZ1</gml:identifier>
+                    <gml:name codeSpace="http://www.globalgeosolutions.com/projects">Depth reference system for PZ-1</gml:name>
+                    <glr:linearElement xlink:href="#cl-WELL-BH001-PZ1"/>
+                    <lrm xlink:href="https://diggsml.org/def/crs/DIGGS/0.1/lrm.xml#md_m"/>
+                </LinearSpatialReferenceSystem>
+            </linearReferencing>
+            <plunge uom="dega" howDetermined="measured">90</plunge>
+            <bearing uom="dega" howDetermined="measured">0</bearing>
+            <samplingFeatureRef xlink:href="#Location_BH-33"/>
+            <initialDevelopmentMethod>
+                <Specification gml:id="SPEC-PZ-BH001-1-DEV">
+                    <gml:name codeSpace="http://diggsml.org/def/codes/DIGGS/0.1/Specification">Surge and Bail Development</gml:name>
+                    <status codeSpace="http://diggsml.org/def/codes/DIGGS/0.1/Status">complete</status>
+                    <shortMethodName>Surge and Bail</shortMethodName>
+                    <standardReferenceNumber>ASTM D5521</standardReferenceNumber>
+                    <standardTitle>Standard Guide for Development of Ground-Water Monitoring Wells in Granular Aquifers</standardTitle>
+                    <standardVersion>2019</standardVersion>
+                </Specification>
+            </initialDevelopmentMethod>
+            <initialDevelopmentTime>
+                <TimeInterval gml:id="TI-PZ-BH001-1-DEV">
+                    <start frame="#ISO-8601">2024-03-05T09:00:00+03:00</start>
+                    <end frame="#ISO-8601">2024-03-05T11:00:00+03:00</end>
+                    <duration uom="h" howDetermined="calculated">2</duration>
+                </TimeInterval>
+            </initialDevelopmentTime>
+            <maintenanceEvent>
+                <InstallationEvent gml:id="ME-PZ-BH001-1-01">
+                    <gml:name codeSpace="http://www.globalgeosolutions.com/projects">PZ-1 Annual Water Level Check</gml:name>
+                    <status codeSpace="http://diggsml.org/def/codes/DIGGS/0.1/Status">complete</status>
+                    <location>
+                        <PointLocation gml:id="PL-ME-PZ-BH001-1-01" srsName="#lsr-WELL-BH001-PZ1"
+                            srsDimension="1">
+                            <gml:pos>4.35</gml:pos>
+                        </PointLocation>
+                    </location>
+                    <time>
+                        <TimeInterval gml:id="TI-ME-PZ-BH001-1-01">
+                            <start frame="#ISO-8601">2025-01-15</start>
+                            <end frame="#ISO-8601">2025-01-15</end>
+                        </TimeInterval>
+                    </time>
+                    <infoRecorded>
+                        <Parameter index="1" gml:id="ME-PZ-BH001-1-01-P1">
+                            <parameterName codeSpace="http://diggsml.org/def/codes/DIGGS/0.1/SamplingFeatureParameter">staticWaterLevel</parameterName>
+                            <parameterValue>4.35</parameterValue>
+                            <parameterUnits>m</parameterUnits>
+                        </Parameter>
+                    </infoRecorded>
+                </InstallationEvent>
+            </maintenanceEvent>
+            <opening>
+                <WellOpening gml:id="WO-PZ-BH001-1-01">
+                    <gml:name codeSpace="http://www.globalgeosolutions.com/projects">PZ-1 Screen</gml:name>
+                    <status codeSpace="http://diggsml.org/def/codes/DIGGS/0.1/Status">complete</status>
+                    <openInterval>
+                        <LinearExtent gml:id="OI-PZ-BH001-1-01" srsName="#lsr-WELL-BH001-PZ1"
+                            srsDimension="1">
+                            <gml:posList>9.20 15.20</gml:posList>
+                            <datumReference>top of casing</datumReference>
+                        </LinearExtent>
+                    </openInterval>
+                    <filterPackInterval>
+                        <LinearExtent gml:id="FP-PZ-BH001-1-01" srsName="#lsr-WELL-BH001-PZ1"
+                            srsDimension="1">
+                            <gml:posList>8.70 15.20</gml:posList>
+                            <datumReference>top of casing</datumReference>
+                        </LinearExtent>
+                    </filterPackInterval>
+                    <openingWidth uom="mm" howDetermined="reported">0.25</openingWidth>
+                    <openingType codeSpace="http://diggsml.org/def/codes/DIGGS/0.1/WellOpeningType">continuousWireWoundScreen</openingType>
+                    <openingMaterial codeSpace="http://diggsml.org/def/codes/DIGGS/0.1/CasingMaterialDef.xml">PVC</openingMaterial>
+                </WellOpening>
+            </opening>
+            <specialTreatment>Well developed by surge block and bailing until discharge water ran
+                clear (turbidity less than 5 NTU).</specialTreatment>
+            <wellCasing>
+                <Casing gml:id="CSG-PZ-BH001-1-01">
+                    <gml:description>Blank Schedule 40 PVC riser casing from top of casing to top of
+                        screen.</gml:description>
+                    <gml:name codeSpace="http://www.globalgeosolutions.com/projects">PZ-1 Riser Casing</gml:name>
+                    <status codeSpace="http://diggsml.org/def/codes/DIGGS/0.1/Status">complete</status>
+                    <casingLocation>
+                        <LinearExtent gml:id="CSGLOC-PZ-BH001-1-01" srsName="#lsr-WELL-BH001-PZ1"
+                            srsDimension="1">
+                            <gml:posList>0.00 9.20</gml:posList>
+                            <datumReference>top of casing</datumReference>
+                        </LinearExtent>
+                    </casingLocation>
+                    <casingOutsideDiameter uom="mm" howDetermined="reported">60.3</casingOutsideDiameter>
+                    <casingInsideDiameter uom="mm" howDetermined="reported">52.5</casingInsideDiameter>
+                    <casingMaterial codeSpace="http://diggsml.org/def/codes/DIGGS/0.1/CasingMaterialDef.xml">PVC</casingMaterial>
+                </Casing>
+            </wellCasing>
+            <wellCasing>
+                <Casing gml:id="CSG-PZ-BH001-1-02">
+                    <gml:description>Factory-slotted Schedule 40 PVC screen casing, 0.25 mm slot
+                        width.</gml:description>
+                    <gml:name codeSpace="http://www.globalgeosolutions.com/projects">PZ-1 Screen Casing</gml:name>
+                    <status codeSpace="http://diggsml.org/def/codes/DIGGS/0.1/Status">complete</status>
+                    <casingLocation>
+                        <LinearExtent gml:id="CSGLOC-PZ-BH001-1-02" srsName="#lsr-WELL-BH001-PZ1"
+                            srsDimension="1">
+                            <gml:posList>9.20 15.20</gml:posList>
+                            <datumReference>top of casing</datumReference>
+                        </LinearExtent>
+                    </casingLocation>
+                    <casingOutsideDiameter uom="mm" howDetermined="reported">60.3</casingOutsideDiameter>
+                    <casingInsideDiameter uom="mm" howDetermined="reported">52.5</casingInsideDiameter>
+                    <casingMaterial codeSpace="http://diggsml.org/def/codes/DIGGS/0.1/CasingMaterialDef.xml">PVC</casingMaterial>
+                </Casing>
+            </wellCasing>
+            <wellDepth uom="m" howDetermined="measured">15.20</wellDepth>
+            <wellPurpose codeSpace="http://diggsml.org/def/codes/DIGGS/0.1/WellPurposeDef.xml">groundwater level monitoring</wellPurpose>
+        </Well>
+    </samplingFeature>
+
+    <!-- ================================================================ -->
+    <!-- WELL 2 — Test/Production Well TW-1, installed within BH-1        -->
+    <!-- (Location_BH-33). Deeper dual-zone completion, later abandoned;  -->
+    <!-- exercises every WellType/AbstractLinearInstallation field Well 1 -->
+    <!-- above did not (environment, otherSamplingFeatureProperty,        -->
+    <!-- localCoordinates, installationConstructionEvent,                -->
+    <!-- installationEquipment, aquiferTested, fluidPurpose, 2x opening,  -->
+    <!-- sanitarySealLocation/Type (deprecated), wellAbandonment,         -->
+    <!-- wellFinishType). Depth (40.00 m) stays within BH-1's reported    -->
+    <!-- totalMeasuredDepth of 43.05 m per Location_BH-33's own           -->
+    <!-- totalMeasuredDepth element. -->
+    <!-- ================================================================ -->
+    <samplingFeature>
+        <Well gml:id="Well-BH001-TW1">
+            <gml:description>Dual-zone monitoring/test well constructed within the BH-1 borehole
+                (Location_BH-33) following completion of geotechnical investigation drilling, to
+                support a short-term aquifer pumping test of the upper and lower water-bearing sand
+                horizons. Well was abandoned and grouted upon completion of the test
+                program.</gml:description>
+            <gml:identifier codeSpace="Global Geoslutions">GBL-GT-24136-TW001</gml:identifier>
+            <gml:name codeSpace="Global Geoslutions">TW-1</gml:name>
+            <gml:name codeSpace="Jazeera-RPDA">Test Well 1 (BH-1)</gml:name>
+            <internalIdentifier codeSpace="Global Geoslutions">TW001</internalIdentifier>
+            <status>final</status>
+            <remark>
+                <Remark owns="false">
+                    <content>TW-1 was constructed as a dual-zone completion to allow independent
+                        aquifer testing of two water-bearing sand horizons identified during drilling
+                        of BH-1. Well was abandoned by tremie grouting upon completion of the test
+                        program on 15 June 2024.</content>
+                    <remarkDateTime frame="#ISO-8601" indeterminatePosition="unknown"
+                        >2024-06-15</remarkDateTime>
+                </Remark>
+            </remark>
+            <projectRef xlink:href="#PRJ001"/>
+            <environment>
+                <Environment gml:id="ENV-TW-BH001-1">
+                    <gml:name codeSpace="http://www.globalgeosolutions.com/projects">TW-1 Construction Conditions</gml:name>
+                    <status codeSpace="http://diggsml.org/def/codes/DIGGS/0.1/Status">complete</status>
+                    <dateTime frame="#ISO-8601" indeterminatePosition="unknown"
+                        >2024-03-06T09:00:00+03:00</dateTime>
+                    <ambientTemperature uom="degC" howDetermined="measured">30.1</ambientTemperature>
+                    <weather>Clear, light breeze</weather>
+                </Environment>
+            </environment>
+            <otherSamplingFeatureProperty>
+                <Parameter index="1" gml:id="TW-BH001-1-PROP1">
+                    <parameterName codeSpace="http://diggsml.org/def/codes/DIGGS/0.1/SamplingFeatureParameter">wellheadProtectorType</parameterName>
+                    <parameterValue>flush-mount vault, locking lid</parameterValue>
+                </Parameter>
+            </otherSamplingFeatureProperty>
+            <referencePoint>
+                <PointLocation gml:id="rp-WELL-BH001-TW1"
+                    srsName="https://www.opengis.net/def/crs/EPSG/0/4979"
+                    srsDimension="3" axisLabels="latitude longitude ellipsoidal height">
+                    <gml:description>Top of PVC casing (TOC) for test well TW-1, flush-mounted within
+                        a traffic-rated vault at the BH-1 borehole collar.</gml:description>
+                    <gml:pos>22.098873 39.026279 10.47</gml:pos>
+                </PointLocation>
+            </referencePoint>
+            <localCoordinates>
+                <LocalCoordinate>
+                    <easting uom="m">125.40</easting>
+                    <northing uom="m">88.72</northing>
+                    <elevation uom="m">10.47</elevation>
+                </LocalCoordinate>
+            </localCoordinates>
+            <centerLine>
+                <LinearExtent gml:id="cl-WELL-BH001-TW1"
+                    srsName="https://www.opengis.net/def/crs/EPSG/0/4979"
+                    srsDimension="3" axisLabels="latitude longitude ellipsoidal height">
+                    <gml:description>Centreline of test well TW-1 from top of casing to base of well,
+                        coincident with the BH-1 borehole axis. Nominally vertical.</gml:description>
+                    <gml:posList>22.098873 39.026279 10.47 22.098873 39.026279 -29.53</gml:posList>
+                    <datumReference>top of casing</datumReference>
+                </LinearExtent>
+            </centerLine>
+            <linearReferencing>
+                <LinearSpatialReferenceSystem gml:id="lsr-WELL-BH001-TW1">
+                    <gml:identifier codeSpace="OGC">lsr-WELL-BH001-TW1</gml:identifier>
+                    <gml:name codeSpace="http://www.globalgeosolutions.com/projects">Depth reference system for TW-1</gml:name>
+                    <glr:linearElement xlink:href="#cl-WELL-BH001-TW1"/>
+                    <lrm xlink:href="https://diggsml.org/def/crs/DIGGS/0.1/lrm.xml#md_m"/>
+                </LinearSpatialReferenceSystem>
+            </linearReferencing>
+            <plunge uom="dega" howDetermined="measured">90</plunge>
+            <bearing uom="dega" howDetermined="measured">0</bearing>
+            <samplingFeatureRef xlink:href="#Location_BH-33"/>
+            <installationConstructionEvent>
+                <InstallationEvent gml:id="ICE-TW-BH001-1-01">
+                    <gml:name codeSpace="http://www.globalgeosolutions.com/projects">TW-1 Well Construction</gml:name>
+                    <status codeSpace="http://diggsml.org/def/codes/DIGGS/0.1/Status">complete</status>
+                    <location>
+                        <LinearExtent gml:id="LOC-ICE-TW-BH001-1-01" srsName="#lsr-WELL-BH001-TW1"
+                            srsDimension="1">
+                            <gml:posList>0.00 40.00</gml:posList>
+                        </LinearExtent>
+                    </location>
+                    <time>
+                        <TimeInterval gml:id="TI-ICE-TW-BH001-1-01">
+                            <start frame="#ISO-8601">2024-03-06</start>
+                            <end frame="#ISO-8601">2024-03-06</end>
+                            <duration uom="d" howDetermined="measured">1</duration>
+                        </TimeInterval>
+                    </time>
+                </InstallationEvent>
+            </installationConstructionEvent>
+            <installationEquipment>
+                <Equipment gml:id="EQ-TW-BH001-1-01">
+                    <gml:name codeSpace="http://www.globalgeosolutions.com/projects">Surge Block / Development Pump</gml:name>
+                    <status codeSpace="http://diggsml.org/def/codes/DIGGS/0.1/Status">complete</status>
+                    <class codeSpace="http://diggsml.org/def/codes/DIGGS/0.1/EquipmentClass">submersiblePump</class>
+                    <make>Grundfos</make>
+                    <modelNumber>MP1</modelNumber>
+                </Equipment>
+            </installationEquipment>
+            <aquiferTested codeSpace="http://diggsml.org/def/codes/DIGGS/0.1/AquiferDef.xml">Quaternary Alluvial Aquifer</aquiferTested>
+            <fluidPurpose codeSpace="http://diggsml.org/def/codes/DIGGS/0.1/FluidPurposeDef.xml">aquifer test - temporary water supply</fluidPurpose>
+            <opening>
+                <WellOpening gml:id="WO-TW-BH001-1-01">
+                    <gml:name codeSpace="http://www.globalgeosolutions.com/projects">TW-1 Upper Zone Screen</gml:name>
+                    <status codeSpace="http://diggsml.org/def/codes/DIGGS/0.1/Status">complete</status>
+                    <openInterval>
+                        <LinearExtent gml:id="OI-TW-BH001-1-01" srsName="#lsr-WELL-BH001-TW1"
+                            srsDimension="1">
+                            <gml:posList>20.00 24.00</gml:posList>
+                        </LinearExtent>
+                    </openInterval>
+                    <openingDiameter uom="mm" howDetermined="reported">6</openingDiameter>
+                    <openingType codeSpace="http://diggsml.org/def/codes/DIGGS/0.1/WellOpeningType">roundPerforated</openingType>
+                    <openingMaterial codeSpace="http://diggsml.org/def/codes/DIGGS/0.1/CasingMaterialDef.xml">PVC</openingMaterial>
+                </WellOpening>
+            </opening>
+            <opening>
+                <WellOpening gml:id="WO-TW-BH001-1-02">
+                    <gml:name codeSpace="http://www.globalgeosolutions.com/projects">TW-1 Lower Zone Screen</gml:name>
+                    <status codeSpace="http://diggsml.org/def/codes/DIGGS/0.1/Status">complete</status>
+                    <openInterval>
+                        <LinearExtent gml:id="OI-TW-BH001-1-02" srsName="#lsr-WELL-BH001-TW1"
+                            srsDimension="1">
+                            <gml:posList>34.00 38.00</gml:posList>
+                        </LinearExtent>
+                    </openInterval>
+                    <filterPackInterval>
+                        <LinearExtent gml:id="FP-TW-BH001-1-02" srsName="#lsr-WELL-BH001-TW1"
+                            srsDimension="1">
+                            <gml:posList>33.50 38.50</gml:posList>
+                        </LinearExtent>
+                    </filterPackInterval>
+                    <openingLength uom="mm" howDetermined="reported">50</openingLength>
+                    <openingWidth uom="mm" howDetermined="reported">0.50</openingWidth>
+                    <openingType codeSpace="http://diggsml.org/def/codes/DIGGS/0.1/WellOpeningType">continuousWireWoundScreen</openingType>
+                    <openingMaterial codeSpace="http://diggsml.org/def/codes/DIGGS/0.1/CasingMaterialDef.xml">PVC</openingMaterial>
+                </WellOpening>
+            </opening>
+            <sanitarySealLocation>
+                <PointLocation gml:id="SSL-TW-BH001-1" srsName="#lsr-WELL-BH001-TW1"
+                    srsDimension="1">
+                    <gml:pos>2.00</gml:pos>
+                </PointLocation>
+            </sanitarySealLocation>
+            <sanitarySealType codeSpace="http://diggsml.org/def/codes/DIGGS/0.1/SanitarySealTypeDef.xml">bentonite chips</sanitarySealType>
+            <wellAbandonment>
+                <InstallationEvent gml:id="WA-TW-BH001-1-01">
+                    <gml:name codeSpace="http://www.globalgeosolutions.com/projects">TW-1 Well Abandonment</gml:name>
+                    <status codeSpace="http://diggsml.org/def/codes/DIGGS/0.1/Status">complete</status>
+                    <remark>
+                        <Remark owns="false">
+                            <content>Well decommissioned and grouted from base to surface with neat
+                                cement grout following completion of the aquifer testing program, in
+                                accordance with local groundwater regulations.</content>
+                            <remarkDateTime frame="#ISO-8601" indeterminatePosition="unknown"
+                                >2024-06-15</remarkDateTime>
+                        </Remark>
+                    </remark>
+                    <location>
+                        <LinearExtent gml:id="LOC-WA-TW-BH001-1-01" srsName="#lsr-WELL-BH001-TW1"
+                            srsDimension="1">
+                            <gml:posList>0.00 40.00</gml:posList>
+                        </LinearExtent>
+                    </location>
+                    <time>
+                        <TimeInterval gml:id="TI-WA-TW-BH001-1-01">
+                            <start frame="#ISO-8601">2024-06-15</start>
+                            <end frame="#ISO-8601">2024-06-15</end>
+                            <duration uom="d" howDetermined="measured">1</duration>
+                        </TimeInterval>
+                    </time>
+                </InstallationEvent>
+            </wellAbandonment>
+            <wellCasing>
+                <Casing gml:id="CSG-TW-BH001-1-01">
+                    <gml:description>Steel protective surface casing / monument.</gml:description>
+                    <gml:name codeSpace="http://www.globalgeosolutions.com/projects">TW-1 Protective Casing</gml:name>
+                    <status codeSpace="http://diggsml.org/def/codes/DIGGS/0.1/Status">complete</status>
+                    <casingLocation>
+                        <LinearExtent gml:id="CSGLOC-TW-BH001-1-01" srsName="#lsr-WELL-BH001-TW1"
+                            srsDimension="1">
+                            <gml:posList>0.00 2.00</gml:posList>
+                        </LinearExtent>
+                    </casingLocation>
+                    <casingOutsideDiameter uom="mm" howDetermined="reported">219.1</casingOutsideDiameter>
+                    <casingInsideDiameter uom="mm" howDetermined="reported">206.5</casingInsideDiameter>
+                    <casingWallThickness uom="mm" howDetermined="reported">6.3</casingWallThickness>
+                    <casingMaterial codeSpace="http://diggsml.org/def/codes/DIGGS/0.1/CasingMaterialDef.xml">steel</casingMaterial>
+                </Casing>
+            </wellCasing>
+            <wellCasing>
+                <Casing gml:id="CSG-TW-BH001-1-02">
+                    <gml:description>Blank Schedule 80 PVC riser casing, upper section.</gml:description>
+                    <gml:name codeSpace="http://www.globalgeosolutions.com/projects">TW-1 Upper Riser Casing</gml:name>
+                    <status codeSpace="http://diggsml.org/def/codes/DIGGS/0.1/Status">complete</status>
+                    <casingLocation>
+                        <LinearExtent gml:id="CSGLOC-TW-BH001-1-02" srsName="#lsr-WELL-BH001-TW1"
+                            srsDimension="1">
+                            <gml:posList>2.00 20.00</gml:posList>
+                        </LinearExtent>
+                    </casingLocation>
+                    <casingOutsideDiameter uom="mm" howDetermined="reported">114.3</casingOutsideDiameter>
+                    <casingInsideDiameter uom="mm" howDetermined="reported">102.3</casingInsideDiameter>
+                    <casingMaterial codeSpace="http://diggsml.org/def/codes/DIGGS/0.1/CasingMaterialDef.xml">PVC</casingMaterial>
+                </Casing>
+            </wellCasing>
+            <wellCasing>
+                <Casing gml:id="CSG-TW-BH001-1-03">
+                    <gml:description>Factory-slotted Schedule 80 PVC screen casing, upper
+                        zone.</gml:description>
+                    <gml:name codeSpace="http://www.globalgeosolutions.com/projects">TW-1 Upper Screen Casing</gml:name>
+                    <status codeSpace="http://diggsml.org/def/codes/DIGGS/0.1/Status">complete</status>
+                    <casingLocation>
+                        <LinearExtent gml:id="CSGLOC-TW-BH001-1-03" srsName="#lsr-WELL-BH001-TW1"
+                            srsDimension="1">
+                            <gml:posList>20.00 24.00</gml:posList>
+                        </LinearExtent>
+                    </casingLocation>
+                    <casingOutsideDiameter uom="mm" howDetermined="reported">114.3</casingOutsideDiameter>
+                    <casingInsideDiameter uom="mm" howDetermined="reported">102.3</casingInsideDiameter>
+                    <casingMaterial codeSpace="http://diggsml.org/def/codes/DIGGS/0.1/CasingMaterialDef.xml">PVC</casingMaterial>
+                </Casing>
+            </wellCasing>
+            <wellCasing>
+                <Casing gml:id="CSG-TW-BH001-1-04">
+                    <gml:description>Blank Schedule 80 PVC riser casing between screened
+                        zones.</gml:description>
+                    <gml:name codeSpace="http://www.globalgeosolutions.com/projects">TW-1 Mid Riser Casing</gml:name>
+                    <status codeSpace="http://diggsml.org/def/codes/DIGGS/0.1/Status">complete</status>
+                    <casingLocation>
+                        <LinearExtent gml:id="CSGLOC-TW-BH001-1-04" srsName="#lsr-WELL-BH001-TW1"
+                            srsDimension="1">
+                            <gml:posList>24.00 34.00</gml:posList>
+                        </LinearExtent>
+                    </casingLocation>
+                    <casingOutsideDiameter uom="mm" howDetermined="reported">114.3</casingOutsideDiameter>
+                    <casingInsideDiameter uom="mm" howDetermined="reported">102.3</casingInsideDiameter>
+                    <casingMaterial codeSpace="http://diggsml.org/def/codes/DIGGS/0.1/CasingMaterialDef.xml">PVC</casingMaterial>
+                </Casing>
+            </wellCasing>
+            <wellCasing>
+                <Casing gml:id="CSG-TW-BH001-1-05">
+                    <gml:description>Factory-slotted Schedule 80 PVC screen casing, lower
+                        zone.</gml:description>
+                    <gml:name codeSpace="http://www.globalgeosolutions.com/projects">TW-1 Lower Screen Casing</gml:name>
+                    <status codeSpace="http://diggsml.org/def/codes/DIGGS/0.1/Status">complete</status>
+                    <casingLocation>
+                        <LinearExtent gml:id="CSGLOC-TW-BH001-1-05" srsName="#lsr-WELL-BH001-TW1"
+                            srsDimension="1">
+                            <gml:posList>34.00 38.00</gml:posList>
+                        </LinearExtent>
+                    </casingLocation>
+                    <casingOutsideDiameter uom="mm" howDetermined="reported">114.3</casingOutsideDiameter>
+                    <casingInsideDiameter uom="mm" howDetermined="reported">102.3</casingInsideDiameter>
+                    <casingMaterial codeSpace="http://diggsml.org/def/codes/DIGGS/0.1/CasingMaterialDef.xml">PVC</casingMaterial>
+                </Casing>
+            </wellCasing>
+            <wellCasing>
+                <Casing gml:id="CSG-TW-BH001-1-06">
+                    <gml:description>Blank Schedule 80 PVC sump/tailpipe below lowest
+                        screen.</gml:description>
+                    <gml:name codeSpace="http://www.globalgeosolutions.com/projects">TW-1 Sump Casing</gml:name>
+                    <status codeSpace="http://diggsml.org/def/codes/DIGGS/0.1/Status">complete</status>
+                    <casingLocation>
+                        <LinearExtent gml:id="CSGLOC-TW-BH001-1-06" srsName="#lsr-WELL-BH001-TW1"
+                            srsDimension="1">
+                            <gml:posList>38.00 40.00</gml:posList>
+                        </LinearExtent>
+                    </casingLocation>
+                    <casingOutsideDiameter uom="mm" howDetermined="reported">114.3</casingOutsideDiameter>
+                    <casingInsideDiameter uom="mm" howDetermined="reported">102.3</casingInsideDiameter>
+                    <casingMaterial codeSpace="http://diggsml.org/def/codes/DIGGS/0.1/CasingMaterialDef.xml">PVC</casingMaterial>
+                </Casing>
+            </wellCasing>
+            <wellDepth uom="m" howDetermined="measured">40.00</wellDepth>
+            <wellFinishType codeSpace="http://diggsml.org/def/codes/DIGGS/0.1/WellFinishTypeDef.xml">dual-zone gravel pack with factory-slotted PVC screens</wellFinishType>
+        </Well>
+    </samplingFeature>
+
     <samplingFeature>
         <Borehole gml:id="BH002">
             <gml:description>Main investigation borehole for geotechnical characterisation of foundation
@@ -12504,6 +13313,613 @@
 
         </Sample>
     </sample>
+
+    <!-- ============================================================
+         BH-Mockup-1 Lithology — USCS soil log (ASTM D2487).
+         Top 4 units (0-48 ft) are horizontal and match BH-Mockup-3's
+         top 4 units directly. Below 48 ft, BH-Mockup-3's dipping units
+         (strike 090/E-W, dip 5 deg N) are projected south to
+         BH-Mockup-1's location — since BH-Mockup-1 is south of
+         BH-Mockup-3, the dipping sequence shallows here. BH-Mockup-3's
+         unit immediately below the 35-48 ft GPs (48-63 ft, SM) projects
+         entirely above the 48 ft unconformity at this location and is
+         fully eroded/truncated (does not appear); the next unit down
+         (BH-Mockup-3's 63-83 ft sML) is partially truncated, appearing
+         from 48-61 ft. The hole terminates at its 150 ft total depth
+         partway through the projected 128-156 ft sCL unit, so units
+         below that (BH-Mockup-3's SMg/residual-SM/Granodiorite, whose
+         projected tops are all >150 ft) are never encountered here.
+         Depths below 48 ft are geometric projections of BH-Mockup-3's
+         deviated-centerline boundary points through the dipping plane,
+         rounded to the nearest foot — see dip_project.js in session
+         scratch history for the derivation.
+         ============================================================ -->
+    <observation>
+        <LithologySystem gml:id="Litho_BH-Mockup-1">
+            <projectRef xlink:href="#Project-Mockup-1"/>
+            <samplingFeatureRef xlink:href="#BH-Mockup-1"/>
+            <lithologyClassificationType>USCS</lithologyClassificationType>
+
+            <lithologyObservation>
+                <LithologyObservation gml:id="LithObs_BH-Mockup-1_0-8">
+                    <location>
+                        <LinearExtent gml:id="LOC_BH-Mockup-1_0-8" srsName="#lsr-BH-Mockup-1" srsDimension="1">
+                            <gml:posList>0 8</gml:posList>
+                        </LinearExtent>
+                    </location>
+                    <primaryLithology>
+                        <Lithology gml:id="Lith_BH-Mockup-1_0-8">
+                            <classificationCode codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/astmD2487.xml#GWs">Well-graded gravel with sand</classificationCode>
+                            <lithDescription>Well-graded GRAVEL with sand (GW), fine to coarse grained, subangular to subrounded, brown, dry to moist, medium dense, trace cobbles; alluvial fan deposit.</lithDescription>
+                        </Lithology>
+                    </primaryLithology>
+                </LithologyObservation>
+            </lithologyObservation>
+
+            <lithologyObservation>
+                <LithologyObservation gml:id="LithObs_BH-Mockup-1_8-20">
+                    <location>
+                        <LinearExtent gml:id="LOC_BH-Mockup-1_8-20" srsName="#lsr-BH-Mockup-1" srsDimension="1">
+                            <gml:posList>8 20</gml:posList>
+                        </LinearExtent>
+                    </location>
+                    <primaryLithology>
+                        <Lithology gml:id="Lith_BH-Mockup-1_8-20">
+                            <classificationCode codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/astmD2487.xml#SWg">Well-graded sand with gravel</classificationCode>
+                            <lithDescription>Well-graded SAND with gravel (SW), fine to coarse grained, subrounded, light brown, moist, medium dense to dense.</lithDescription>
+                        </Lithology>
+                    </primaryLithology>
+                </LithologyObservation>
+            </lithologyObservation>
+
+            <lithologyObservation>
+                <LithologyObservation gml:id="LithObs_BH-Mockup-1_20-35">
+                    <location>
+                        <LinearExtent gml:id="LOC_BH-Mockup-1_20-35" srsName="#lsr-BH-Mockup-1" srsDimension="1">
+                            <gml:posList>20 35</gml:posList>
+                        </LinearExtent>
+                    </location>
+                    <primaryLithology>
+                        <Lithology gml:id="Lith_BH-Mockup-1_20-35">
+                            <classificationCode codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/astmD2487.xml#SP">Poorly graded sand</classificationCode>
+                            <lithDescription>Poorly graded SAND (SP), fine to medium grained, uniform, tan, moist, medium dense; occasional thin silt partings.</lithDescription>
+                        </Lithology>
+                    </primaryLithology>
+                </LithologyObservation>
+            </lithologyObservation>
+
+            <lithologyObservation>
+                <LithologyObservation gml:id="LithObs_BH-Mockup-1_35-48">
+                    <location>
+                        <LinearExtent gml:id="LOC_BH-Mockup-1_35-48" srsName="#lsr-BH-Mockup-1" srsDimension="1">
+                            <gml:posList>35 48</gml:posList>
+                        </LinearExtent>
+                    </location>
+                    <primaryLithology>
+                        <Lithology gml:id="Lith_BH-Mockup-1_35-48">
+                            <classificationCode codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/astmD2487.xml#GPs">Poorly graded gravel with sand</classificationCode>
+                            <lithDescription>Poorly graded GRAVEL with sand (GP), fine to coarse grained, subrounded, reddish brown, moist, dense; older alluvial terrace deposit. Base of unit is a sharp angular unconformity truncating the underlying, approximately 5 degree north-dipping sedimentary sequence.</lithDescription>
+                        </Lithology>
+                    </primaryLithology>
+                </LithologyObservation>
+            </lithologyObservation>
+
+            <lithologyObservation>
+                <LithologyObservation gml:id="LithObs_BH-Mockup-1_48-61">
+                    <location>
+                        <LinearExtent gml:id="LOC_BH-Mockup-1_48-61" srsName="#lsr-BH-Mockup-1" srsDimension="1">
+                            <gml:posList>48 61</gml:posList>
+                        </LinearExtent>
+                    </location>
+                    <primaryLithology>
+                        <Lithology gml:id="Lith_BH-Mockup-1_48-61">
+                            <classificationCode codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/astmD2487.xml#sML">Sandy silt</classificationCode>
+                            <lithDescription>Sandy SILT (ML), non-plastic to low plasticity, fine sand fraction, light brown, moist, stiff; laminated. Bedding dips approximately 5 degrees to the north; unit truncated at top by the overlying angular unconformity, with its original depositional top eroded.</lithDescription>
+                        </Lithology>
+                    </primaryLithology>
+                </LithologyObservation>
+            </lithologyObservation>
+
+            <lithologyObservation>
+                <LithologyObservation gml:id="LithObs_BH-Mockup-1_61-85">
+                    <location>
+                        <LinearExtent gml:id="LOC_BH-Mockup-1_61-85" srsName="#lsr-BH-Mockup-1" srsDimension="1">
+                            <gml:posList>61 85</gml:posList>
+                        </LinearExtent>
+                    </location>
+                    <primaryLithology>
+                        <Lithology gml:id="Lith_BH-Mockup-1_61-85">
+                            <classificationCode codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/astmD2487.xml#CLs">Lean clay with sand</classificationCode>
+                            <lithDescription>Lean CLAY with sand (CL), low plasticity, fine sand fraction, olive brown, moist, stiff to very stiff; occasional silt seams. Bedding dips approximately 5 degrees to the north.</lithDescription>
+                        </Lithology>
+                    </primaryLithology>
+                </LithologyObservation>
+            </lithologyObservation>
+
+            <lithologyObservation>
+                <LithologyObservation gml:id="LithObs_BH-Mockup-1_85-105">
+                    <location>
+                        <LinearExtent gml:id="LOC_BH-Mockup-1_85-105" srsName="#lsr-BH-Mockup-1" srsDimension="1">
+                            <gml:posList>85 105</gml:posList>
+                        </LinearExtent>
+                    </location>
+                    <primaryLithology>
+                        <Lithology gml:id="Lith_BH-Mockup-1_85-105">
+                            <classificationCode codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/astmD2487.xml#CHs">Fat clay with sand</classificationCode>
+                            <lithDescription>Fat CLAY with sand (CH), high plasticity, dark gray, moist to wet, very stiff to hard; slickensided fracture surfaces, likely old lacustrine deposit. Bedding dips approximately 5 degrees to the north.</lithDescription>
+                        </Lithology>
+                    </primaryLithology>
+                </LithologyObservation>
+            </lithologyObservation>
+
+            <lithologyObservation>
+                <LithologyObservation gml:id="LithObs_BH-Mockup-1_105-128">
+                    <location>
+                        <LinearExtent gml:id="LOC_BH-Mockup-1_105-128" srsName="#lsr-BH-Mockup-1" srsDimension="1">
+                            <gml:posList>105 128</gml:posList>
+                        </LinearExtent>
+                    </location>
+                    <primaryLithology>
+                        <Lithology gml:id="Lith_BH-Mockup-1_105-128">
+                            <classificationCode codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/astmD2487.xml#SC">Clayey sand</classificationCode>
+                            <lithDescription>Clayey SAND (SC), fine grained, moderate plasticity fines, yellowish brown, moist, dense. Bedding dips approximately 5 degrees to the north.</lithDescription>
+                        </Lithology>
+                    </primaryLithology>
+                </LithologyObservation>
+            </lithologyObservation>
+
+            <lithologyObservation>
+                <LithologyObservation gml:id="LithObs_BH-Mockup-1_128-150">
+                    <location>
+                        <LinearExtent gml:id="LOC_BH-Mockup-1_128-150" srsName="#lsr-BH-Mockup-1" srsDimension="1">
+                            <gml:posList>128 150</gml:posList>
+                        </LinearExtent>
+                    </location>
+                    <primaryLithology>
+                        <Lithology gml:id="Lith_BH-Mockup-1_128-150">
+                            <classificationCode codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/astmD2487.xml#sCL">Sandy lean clay</classificationCode>
+                            <lithDescription>Sandy lean CLAY (CL), low to medium plasticity, fine sand fraction dominant, reddish brown, moist, very stiff. Bedding dips approximately 5 degrees to the north; hole terminated at total depth (150 ft) within this unit, so the base of the unit was not encountered.</lithDescription>
+                        </Lithology>
+                    </primaryLithology>
+                </LithologyObservation>
+            </lithologyObservation>
+
+        </LithologySystem>
+    </observation>
+
+    <!-- ============================================================
+         BH-Mockup-2 Lithology — USDA classification (usda.xml). Same
+         units/sequence as BH-Mockup-1, but logged under the USDA
+         texture system, and projected onto BH-Mockup-2's INCLINED
+         (plunge 70 deg, bearing 315/NW) trajectory rather than a
+         vertical one: each dipping-unit boundary from BH-Mockup-3's
+         deviated centerline is intersected against BH-Mockup-2's own
+         straight inclined line (line-plane intersection, not a simple
+         vertical depth lookup) — see dip_project_bh2.js in session
+         scratch history. Top 4 units (0-48 ft) again reuse the same MD
+         values as BH-Mockup-1/-3 (horizontal, "approx" thickness per
+         instructions). The immediately-sub-unconformity unit (BH-3's
+         48-63 ft) again projects entirely above the 48 ft unconformity
+         here and is fully eroded; the next unit is truncated at the
+         top (48-62 ft). Because BH-Mockup-2 is both deeper (200 ft MD)
+         and inclines further into the dip direction (north) with
+         depth, it reaches noticeably deeper into the sequence than
+         BH-Mockup-1 did before running out of hole at 200 ft, midway
+         through the projected 196-238 ft residual-SM unit.
+         USDA codes follow the "matrix minus gravel, +'gravelly' in the
+         description" convention: classificationCode is always a plain
+         USDA dictionary term; any gravel content noted in the original
+         USCS unit is called out as "gravelly ..." in lithDescription
+         instead, since USDA has no gravel-bearing texture classes.
+         ============================================================ -->
+    <observation>
+        <LithologySystem gml:id="Litho_BH-Mockup-2">
+            <projectRef xlink:href="#Project-Mockup-1"/>
+            <samplingFeatureRef xlink:href="#BH-Mockup-2"/>
+            <lithologyClassificationType>USDA</lithologyClassificationType>
+
+            <lithologyObservation>
+                <LithologyObservation gml:id="LithObs_BH-Mockup-2_0-8">
+                    <location>
+                        <LinearExtent gml:id="LOC_BH-Mockup-2_0-8" srsName="#lsr-BH-Mockup-2" srsDimension="1">
+                            <gml:posList>0 8</gml:posList>
+                        </LinearExtent>
+                    </location>
+                    <primaryLithology>
+                        <Lithology gml:id="Lith_BH-Mockup-2_0-8">
+                            <classificationCode codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/usda.xml#COS">Coarse sand</classificationCode>
+                            <lithDescription>Gravelly coarse sand (well-graded gravel with sand, GW), fine to coarse grained, subangular to subrounded, brown, dry to moist, medium dense, trace cobbles; alluvial fan deposit.</lithDescription>
+                        </Lithology>
+                    </primaryLithology>
+                </LithologyObservation>
+            </lithologyObservation>
+
+            <lithologyObservation>
+                <LithologyObservation gml:id="LithObs_BH-Mockup-2_8-20">
+                    <location>
+                        <LinearExtent gml:id="LOC_BH-Mockup-2_8-20" srsName="#lsr-BH-Mockup-2" srsDimension="1">
+                            <gml:posList>8 20</gml:posList>
+                        </LinearExtent>
+                    </location>
+                    <primaryLithology>
+                        <Lithology gml:id="Lith_BH-Mockup-2_8-20">
+                            <classificationCode codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/usda.xml#COS">Coarse sand</classificationCode>
+                            <lithDescription>Gravelly coarse sand (well-graded sand with gravel, SW), fine to coarse grained, subrounded, light brown, moist, medium dense to dense.</lithDescription>
+                        </Lithology>
+                    </primaryLithology>
+                </LithologyObservation>
+            </lithologyObservation>
+
+            <lithologyObservation>
+                <LithologyObservation gml:id="LithObs_BH-Mockup-2_20-35">
+                    <location>
+                        <LinearExtent gml:id="LOC_BH-Mockup-2_20-35" srsName="#lsr-BH-Mockup-2" srsDimension="1">
+                            <gml:posList>20 35</gml:posList>
+                        </LinearExtent>
+                    </location>
+                    <primaryLithology>
+                        <Lithology gml:id="Lith_BH-Mockup-2_20-35">
+                            <classificationCode codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/usda.xml#FS">Fine sand</classificationCode>
+                            <lithDescription>Fine sand (poorly graded sand, SP), fine to medium grained, uniform, tan, moist, medium dense; occasional thin silt partings.</lithDescription>
+                        </Lithology>
+                    </primaryLithology>
+                </LithologyObservation>
+            </lithologyObservation>
+
+            <lithologyObservation>
+                <LithologyObservation gml:id="LithObs_BH-Mockup-2_35-48">
+                    <location>
+                        <LinearExtent gml:id="LOC_BH-Mockup-2_35-48" srsName="#lsr-BH-Mockup-2" srsDimension="1">
+                            <gml:posList>35 48</gml:posList>
+                        </LinearExtent>
+                    </location>
+                    <primaryLithology>
+                        <Lithology gml:id="Lith_BH-Mockup-2_35-48">
+                            <classificationCode codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/usda.xml#S">Sand</classificationCode>
+                            <lithDescription>Gravelly sand (poorly graded gravel with sand, GP), fine to coarse grained, subrounded, reddish brown, moist, dense; older alluvial terrace deposit. Base of unit is a sharp angular unconformity truncating the underlying, approximately 5 degree north-dipping sedimentary sequence.</lithDescription>
+                        </Lithology>
+                    </primaryLithology>
+                </LithologyObservation>
+            </lithologyObservation>
+
+            <lithologyObservation>
+                <LithologyObservation gml:id="LithObs_BH-Mockup-2_48-62">
+                    <location>
+                        <LinearExtent gml:id="LOC_BH-Mockup-2_48-62" srsName="#lsr-BH-Mockup-2" srsDimension="1">
+                            <gml:posList>48 62</gml:posList>
+                        </LinearExtent>
+                    </location>
+                    <primaryLithology>
+                        <Lithology gml:id="Lith_BH-Mockup-2_48-62">
+                            <classificationCode codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/usda.xml#SIL">Silt loam</classificationCode>
+                            <lithDescription>Silt loam (sandy silt, ML), non-plastic to low plasticity, fine sand fraction, light brown, moist, stiff; laminated. Bedding dips approximately 5 degrees to the north; unit truncated at top by the overlying angular unconformity, with its original depositional top eroded.</lithDescription>
+                        </Lithology>
+                    </primaryLithology>
+                </LithologyObservation>
+            </lithologyObservation>
+
+            <lithologyObservation>
+                <LithologyObservation gml:id="LithObs_BH-Mockup-2_62-88">
+                    <location>
+                        <LinearExtent gml:id="LOC_BH-Mockup-2_62-88" srsName="#lsr-BH-Mockup-2" srsDimension="1">
+                            <gml:posList>62 88</gml:posList>
+                        </LinearExtent>
+                    </location>
+                    <primaryLithology>
+                        <Lithology gml:id="Lith_BH-Mockup-2_62-88">
+                            <classificationCode codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/usda.xml#CL">Clay loam</classificationCode>
+                            <lithDescription>Clay loam (lean clay with sand, CL), low plasticity, fine sand fraction, olive brown, moist, stiff to very stiff; occasional silt seams. Bedding dips approximately 5 degrees to the north.</lithDescription>
+                        </Lithology>
+                    </primaryLithology>
+                </LithologyObservation>
+            </lithologyObservation>
+
+            <lithologyObservation>
+                <LithologyObservation gml:id="LithObs_BH-Mockup-2_88-110">
+                    <location>
+                        <LinearExtent gml:id="LOC_BH-Mockup-2_88-110" srsName="#lsr-BH-Mockup-2" srsDimension="1">
+                            <gml:posList>88 110</gml:posList>
+                        </LinearExtent>
+                    </location>
+                    <primaryLithology>
+                        <Lithology gml:id="Lith_BH-Mockup-2_88-110">
+                            <classificationCode codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/usda.xml#C">Clay</classificationCode>
+                            <lithDescription>Clay (fat clay with sand, CH), high plasticity, dark gray, moist to wet, very stiff to hard; slickensided fracture surfaces, likely old lacustrine deposit. Bedding dips approximately 5 degrees to the north.</lithDescription>
+                        </Lithology>
+                    </primaryLithology>
+                </LithologyObservation>
+            </lithologyObservation>
+
+            <lithologyObservation>
+                <LithologyObservation gml:id="LithObs_BH-Mockup-2_110-135">
+                    <location>
+                        <LinearExtent gml:id="LOC_BH-Mockup-2_110-135" srsName="#lsr-BH-Mockup-2" srsDimension="1">
+                            <gml:posList>110 135</gml:posList>
+                        </LinearExtent>
+                    </location>
+                    <primaryLithology>
+                        <Lithology gml:id="Lith_BH-Mockup-2_110-135">
+                            <classificationCode codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/usda.xml#SCL">Sandy clay loam</classificationCode>
+                            <lithDescription>Sandy clay loam (clayey sand, SC), fine grained, moderate plasticity fines, yellowish brown, moist, dense. Bedding dips approximately 5 degrees to the north.</lithDescription>
+                        </Lithology>
+                    </primaryLithology>
+                </LithologyObservation>
+            </lithologyObservation>
+
+            <lithologyObservation>
+                <LithologyObservation gml:id="LithObs_BH-Mockup-2_135-165">
+                    <location>
+                        <LinearExtent gml:id="LOC_BH-Mockup-2_135-165" srsName="#lsr-BH-Mockup-2" srsDimension="1">
+                            <gml:posList>135 165</gml:posList>
+                        </LinearExtent>
+                    </location>
+                    <primaryLithology>
+                        <Lithology gml:id="Lith_BH-Mockup-2_135-165">
+                            <classificationCode codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/usda.xml#SC">Sandy clay</classificationCode>
+                            <lithDescription>Sandy clay (sandy lean clay, CL), low to medium plasticity, fine sand fraction dominant, reddish brown, moist, very stiff. Bedding dips approximately 5 degrees to the north.</lithDescription>
+                        </Lithology>
+                    </primaryLithology>
+                </LithologyObservation>
+            </lithologyObservation>
+
+            <lithologyObservation>
+                <LithologyObservation gml:id="LithObs_BH-Mockup-2_165-196">
+                    <location>
+                        <LinearExtent gml:id="LOC_BH-Mockup-2_165-196" srsName="#lsr-BH-Mockup-2" srsDimension="1">
+                            <gml:posList>165 196</gml:posList>
+                        </LinearExtent>
+                    </location>
+                    <primaryLithology>
+                        <Lithology gml:id="Lith_BH-Mockup-2_165-196">
+                            <classificationCode codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/usda.xml#SL">Sandy loam</classificationCode>
+                            <lithDescription>Gravelly sandy loam (silty sand with gravel, SM), fine to coarse grained, angular to subangular rock fragments, tan to orange-brown, moist, dense; increasing rock fragment content with depth, transitional weathering zone above bedrock. Bedding dips approximately 5 degrees to the north.</lithDescription>
+                        </Lithology>
+                    </primaryLithology>
+                </LithologyObservation>
+            </lithologyObservation>
+
+            <lithologyObservation>
+                <LithologyObservation gml:id="LithObs_BH-Mockup-2_196-200">
+                    <location>
+                        <LinearExtent gml:id="LOC_BH-Mockup-2_196-200" srsName="#lsr-BH-Mockup-2" srsDimension="1">
+                            <gml:posList>196 200</gml:posList>
+                        </LinearExtent>
+                    </location>
+                    <primaryLithology>
+                        <Lithology gml:id="Lith_BH-Mockup-2_196-200">
+                            <classificationCode codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/usda.xml#SL">Sandy loam</classificationCode>
+                            <lithDescription>Gravelly sandy loam (silty sand, SM), fine to coarse grained, angular granodiorite rock fragments throughout, orange-brown to grayish-orange, moist, very dense; residual decomposed granodiorite (DG). Bedding dips approximately 5 degrees to the north; hole terminated at total depth (200 ft) within this unit, so the base of the unit was not encountered.</lithDescription>
+                        </Lithology>
+                    </primaryLithology>
+                </LithologyObservation>
+            </lithologyObservation>
+
+        </LithologySystem>
+    </observation>
+
+    <!-- ============================================================
+         BH-Mockup-3 Lithology — USCS soil log (ASTM D2487) over
+         Granodiorite bedrock (268-280 ft). 12 soil units of varying
+         thickness (8-48 ft), coarse alluvium/terrace gravels and sands
+         concentrated near the top, fining into clays/silts through the
+         middle depths, then a silty/gravelly decomposed-granodiorite
+         residual zone grading into fresh granodiorite bedrock.
+         ============================================================ -->
+    <observation>
+        <LithologySystem gml:id="Litho_BH-Mockup-3">
+            <projectRef xlink:href="#Project-Mockup-1"/>
+            <samplingFeatureRef xlink:href="#BH-Mockup-3"/>
+            <lithologyClassificationType>USCS</lithologyClassificationType>
+
+            <lithologyObservation>
+                <LithologyObservation gml:id="LithObs_BH-Mockup-3_0-8">
+                    <location>
+                        <LinearExtent gml:id="LOC_BH-Mockup-3_0-8" srsName="#lsr-BH-Mockup-3" srsDimension="1">
+                            <gml:posList>0 8</gml:posList>
+                        </LinearExtent>
+                    </location>
+                    <primaryLithology>
+                        <Lithology gml:id="Lith_BH-Mockup-3_0-8">
+                            <classificationCode codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/astmD2487.xml#GWs">Well-graded gravel with sand</classificationCode>
+                            <lithDescription>Well-graded GRAVEL with sand (GW), fine to coarse grained, subangular to subrounded, brown, dry to moist, medium dense, trace cobbles; alluvial fan deposit.</lithDescription>
+                        </Lithology>
+                    </primaryLithology>
+                </LithologyObservation>
+            </lithologyObservation>
+
+            <lithologyObservation>
+                <LithologyObservation gml:id="LithObs_BH-Mockup-3_8-20">
+                    <location>
+                        <LinearExtent gml:id="LOC_BH-Mockup-3_8-20" srsName="#lsr-BH-Mockup-3" srsDimension="1">
+                            <gml:posList>8 20</gml:posList>
+                        </LinearExtent>
+                    </location>
+                    <primaryLithology>
+                        <Lithology gml:id="Lith_BH-Mockup-3_8-20">
+                            <classificationCode codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/astmD2487.xml#SWg">Well-graded sand with gravel</classificationCode>
+                            <lithDescription>Well-graded SAND with gravel (SW), fine to coarse grained, subrounded, light brown, moist, medium dense to dense.</lithDescription>
+                        </Lithology>
+                    </primaryLithology>
+                </LithologyObservation>
+            </lithologyObservation>
+
+            <lithologyObservation>
+                <LithologyObservation gml:id="LithObs_BH-Mockup-3_20-35">
+                    <location>
+                        <LinearExtent gml:id="LOC_BH-Mockup-3_20-35" srsName="#lsr-BH-Mockup-3" srsDimension="1">
+                            <gml:posList>20 35</gml:posList>
+                        </LinearExtent>
+                    </location>
+                    <primaryLithology>
+                        <Lithology gml:id="Lith_BH-Mockup-3_20-35">
+                            <classificationCode codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/astmD2487.xml#SP">Poorly graded sand</classificationCode>
+                            <lithDescription>Poorly graded SAND (SP), fine to medium grained, uniform, tan, moist, medium dense; occasional thin silt partings.</lithDescription>
+                        </Lithology>
+                    </primaryLithology>
+                </LithologyObservation>
+            </lithologyObservation>
+
+            <lithologyObservation>
+                <LithologyObservation gml:id="LithObs_BH-Mockup-3_35-48">
+                    <location>
+                        <LinearExtent gml:id="LOC_BH-Mockup-3_35-48" srsName="#lsr-BH-Mockup-3" srsDimension="1">
+                            <gml:posList>35 48</gml:posList>
+                        </LinearExtent>
+                    </location>
+                    <primaryLithology>
+                        <Lithology gml:id="Lith_BH-Mockup-3_35-48">
+                            <classificationCode codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/astmD2487.xml#GPs">Poorly graded gravel with sand</classificationCode>
+                            <lithDescription>Poorly graded GRAVEL with sand (GP), fine to coarse grained, subrounded, reddish brown, moist, dense; older alluvial terrace deposit.</lithDescription>
+                        </Lithology>
+                    </primaryLithology>
+                </LithologyObservation>
+            </lithologyObservation>
+
+            <lithologyObservation>
+                <LithologyObservation gml:id="LithObs_BH-Mockup-3_48-63">
+                    <location>
+                        <LinearExtent gml:id="LOC_BH-Mockup-3_48-63" srsName="#lsr-BH-Mockup-3" srsDimension="1">
+                            <gml:posList>48 63</gml:posList>
+                        </LinearExtent>
+                    </location>
+                    <primaryLithology>
+                        <Lithology gml:id="Lith_BH-Mockup-3_48-63">
+                            <classificationCode codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/astmD2487.xml#SM">Silty sand</classificationCode>
+                            <lithDescription>Silty SAND (SM), fine grained, low plasticity fines, brown, moist, medium dense; grades with depth into finer material.</lithDescription>
+                        </Lithology>
+                    </primaryLithology>
+                </LithologyObservation>
+            </lithologyObservation>
+
+            <lithologyObservation>
+                <LithologyObservation gml:id="LithObs_BH-Mockup-3_63-83">
+                    <location>
+                        <LinearExtent gml:id="LOC_BH-Mockup-3_63-83" srsName="#lsr-BH-Mockup-3" srsDimension="1">
+                            <gml:posList>63 83</gml:posList>
+                        </LinearExtent>
+                    </location>
+                    <primaryLithology>
+                        <Lithology gml:id="Lith_BH-Mockup-3_63-83">
+                            <classificationCode codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/astmD2487.xml#sML">Sandy silt</classificationCode>
+                            <lithDescription>Sandy SILT (ML), non-plastic to low plasticity, fine sand fraction, light brown, moist, stiff; laminated.</lithDescription>
+                        </Lithology>
+                    </primaryLithology>
+                </LithologyObservation>
+            </lithologyObservation>
+
+            <lithologyObservation>
+                <LithologyObservation gml:id="LithObs_BH-Mockup-3_83-108">
+                    <location>
+                        <LinearExtent gml:id="LOC_BH-Mockup-3_83-108" srsName="#lsr-BH-Mockup-3" srsDimension="1">
+                            <gml:posList>83 108</gml:posList>
+                        </LinearExtent>
+                    </location>
+                    <primaryLithology>
+                        <Lithology gml:id="Lith_BH-Mockup-3_83-108">
+                            <classificationCode codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/astmD2487.xml#CLs">Lean clay with sand</classificationCode>
+                            <lithDescription>Lean CLAY with sand (CL), low plasticity, fine sand fraction, olive brown, moist, stiff to very stiff; occasional silt seams.</lithDescription>
+                        </Lithology>
+                    </primaryLithology>
+                </LithologyObservation>
+            </lithologyObservation>
+
+            <lithologyObservation>
+                <LithologyObservation gml:id="LithObs_BH-Mockup-3_108-130">
+                    <location>
+                        <LinearExtent gml:id="LOC_BH-Mockup-3_108-130" srsName="#lsr-BH-Mockup-3" srsDimension="1">
+                            <gml:posList>108 130</gml:posList>
+                        </LinearExtent>
+                    </location>
+                    <primaryLithology>
+                        <Lithology gml:id="Lith_BH-Mockup-3_108-130">
+                            <classificationCode codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/astmD2487.xml#CHs">Fat clay with sand</classificationCode>
+                            <lithDescription>Fat CLAY with sand (CH), high plasticity, dark gray, moist to wet, very stiff to hard; slickensided fracture surfaces, likely old lacustrine deposit.</lithDescription>
+                        </Lithology>
+                    </primaryLithology>
+                </LithologyObservation>
+            </lithologyObservation>
+
+            <lithologyObservation>
+                <LithologyObservation gml:id="LithObs_BH-Mockup-3_130-155">
+                    <location>
+                        <LinearExtent gml:id="LOC_BH-Mockup-3_130-155" srsName="#lsr-BH-Mockup-3" srsDimension="1">
+                            <gml:posList>130 155</gml:posList>
+                        </LinearExtent>
+                    </location>
+                    <primaryLithology>
+                        <Lithology gml:id="Lith_BH-Mockup-3_130-155">
+                            <classificationCode codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/astmD2487.xml#SC">Clayey sand</classificationCode>
+                            <lithDescription>Clayey SAND (SC), fine grained, moderate plasticity fines, yellowish brown, moist, dense.</lithDescription>
+                        </Lithology>
+                    </primaryLithology>
+                </LithologyObservation>
+            </lithologyObservation>
+
+            <lithologyObservation>
+                <LithologyObservation gml:id="LithObs_BH-Mockup-3_155-185">
+                    <location>
+                        <LinearExtent gml:id="LOC_BH-Mockup-3_155-185" srsName="#lsr-BH-Mockup-3" srsDimension="1">
+                            <gml:posList>155 185</gml:posList>
+                        </LinearExtent>
+                    </location>
+                    <primaryLithology>
+                        <Lithology gml:id="Lith_BH-Mockup-3_155-185">
+                            <classificationCode codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/astmD2487.xml#sCL">Sandy lean clay</classificationCode>
+                            <lithDescription>Sandy lean CLAY (CL), low to medium plasticity, fine sand fraction dominant, reddish brown, moist, very stiff.</lithDescription>
+                        </Lithology>
+                    </primaryLithology>
+                </LithologyObservation>
+            </lithologyObservation>
+
+            <lithologyObservation>
+                <LithologyObservation gml:id="LithObs_BH-Mockup-3_185-220">
+                    <location>
+                        <LinearExtent gml:id="LOC_BH-Mockup-3_185-220" srsName="#lsr-BH-Mockup-3" srsDimension="1">
+                            <gml:posList>185 220</gml:posList>
+                        </LinearExtent>
+                    </location>
+                    <primaryLithology>
+                        <Lithology gml:id="Lith_BH-Mockup-3_185-220">
+                            <classificationCode codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/astmD2487.xml#SMg">Silty sand with gravel</classificationCode>
+                            <lithDescription>Silty SAND with gravel (SM), fine to coarse grained, angular to subangular rock fragments, tan to orange-brown, moist, dense; increasing rock fragment content with depth, transitional weathering zone above bedrock.</lithDescription>
+                        </Lithology>
+                    </primaryLithology>
+                </LithologyObservation>
+            </lithologyObservation>
+
+            <lithologyObservation>
+                <LithologyObservation gml:id="LithObs_BH-Mockup-3_220-268">
+                    <location>
+                        <LinearExtent gml:id="LOC_BH-Mockup-3_220-268" srsName="#lsr-BH-Mockup-3" srsDimension="1">
+                            <gml:posList>220 268</gml:posList>
+                        </LinearExtent>
+                    </location>
+                    <primaryLithology>
+                        <Lithology gml:id="Lith_BH-Mockup-3_220-268">
+                            <classificationCode codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/astmD2487.xml#SM">Silty sand</classificationCode>
+                            <lithDescription>Silty SAND (SM), fine to coarse grained, angular granodiorite rock fragments throughout, orange-brown to grayish-orange, moist, very dense; residual decomposed granodiorite (DG) grading into competent bedrock with depth.</lithDescription>
+                        </Lithology>
+                    </primaryLithology>
+                </LithologyObservation>
+            </lithologyObservation>
+
+            <lithologyObservation>
+                <LithologyObservation gml:id="LithObs_BH-Mockup-3_268-280">
+                    <location>
+                        <LinearExtent gml:id="LOC_BH-Mockup-3_268-280" srsName="#lsr-BH-Mockup-3" srsDimension="1">
+                            <gml:posList>268 280</gml:posList>
+                        </LinearExtent>
+                    </location>
+                    <primaryLithology>
+                        <Lithology gml:id="Lith_BH-Mockup-3_268-280">
+                            <lithDescription>GRANODIORITE, medium grained, holocrystalline, light gray to pinkish-gray, moderately weathered near upper contact grading to fresh with depth, hard, massive to slightly fractured; biotite-hornblende bearing plutonic rock of the local batholith.</lithDescription>
+                        </Lithology>
+                    </primaryLithology>
+                </LithologyObservation>
+            </lithologyObservation>
+
+        </LithologySystem>
+    </observation>
 
     <observation>
         <LithologySystem gml:id="Litho_Soil_BH-33">

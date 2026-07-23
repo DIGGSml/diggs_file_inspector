@@ -3839,6 +3839,17 @@ function extractBoreholeTrajectory(sf) {
   const kind = FORMAT_FN.centerLineOrientation(sf);
   if (!kind) return null;
 
+  // Raw per-vertex coordinates of the PRIMARY centerLine, still in its own
+  // native CRS/units (not converted to meters) — used by the 3D trajectory
+  // viewer's Collar/TD/vertex callout labels, which display the actual
+  // reported coordinate (rounded to the nearest whole unit) rather than the
+  // derived local-meter plotting position. Computed unconditionally
+  // (multilateral included, since sf.centerLineRaw always refers to the
+  // primary leg — see analyzeCenterLines) so callers never need a separate
+  // multilateral-vs-not branch just to label the primary trajectory.
+  const rawT = FORMAT_FN._rawCLToCoords(sf.centerLineRaw);
+  const nativeCoords = rawT ? rawT.coords : null;
+
   if (kind === 'Multilateral') {
     const legs = centerLinesToSharedLocalMeters(sf.centerLinesRaw).map(list => list.filter(Boolean));
     const primaryLegIndex = sf.centerLinesRaw.indexOf(sf.centerLineRaw);
@@ -3850,10 +3861,10 @@ function extractBoreholeTrajectory(sf) {
       const d = Math.hypot(x - cx, y - cy);
       if (d > maxHorizDeparture) maxHorizDeparture = d;
     }
-    return { pts, kind, length, maxHorizDeparture, plungeBearing: null, legs, primaryLegIndex };
+    return { pts, kind, length, maxHorizDeparture, plungeBearing: null, legs, primaryLegIndex, nativeCoords };
   }
 
-  const t = FORMAT_FN._rawCLToCoords(sf.centerLineRaw);
+  const t = rawT;
   if (!t) return null;
   const { pts } = coordsToLocalMeters(t.coords, t.srsName);
   const length = polylineLengthMeters(pts);
@@ -3866,7 +3877,7 @@ function extractBoreholeTrajectory(sf) {
   const plungeBearing = (kind === 'Inclined')
     ? FORMAT_FN._plungeBearingFromPts(pts[0], pts[pts.length - 1])
     : null;
-  return { pts, kind, length, maxHorizDeparture, plungeBearing };
+  return { pts, kind, length, maxHorizDeparture, plungeBearing, nativeCoords };
 }
 
 /**
@@ -6832,6 +6843,7 @@ OBJECT_CONFIGS.AssociatedFile = [
   { path: 'gml:description' },
   { path: 'gml:identifier', multi: true },
   { path: 'diggs:status' },
+  { path: 'diggs:remark', multi: true, splitRows: true },
   { path: 'diggs:fileURL', label: 'File URL' },
   { path: 'diggs:fileType', label: 'File Type' },
   { path: 'diggs:creatingApplication', label: 'Creating Application' },
@@ -6842,7 +6854,6 @@ OBJECT_CONFIGS.AssociatedFile = [
   { path: 'diggs:compression' },
   { path: 'diggs:encryption' },
   { path: 'diggs:contact', multi: true },
-  { path: 'diggs:remark', multi: true, splitRows: true },
 ],
 
 // BusinessAssociate — extends BusinessAssociateBaseType (restriction of
@@ -7877,6 +7888,7 @@ OBJECT_CONFIGS.LithologyObservation = [
 OBJECT_CONFIGS.LithologySystem = [
   ..._OBJ_BASE_FIELDS,
   ..._FEATURE_LEADING,
+  ..._FEATURE_TRAILING,
   { path: 'diggs:observationProcedure', label: 'Observation Procedure' },
   { path: 'diggs:lithologyClassificationType', multi: true, label: 'Classification Type' },
   {
@@ -7904,7 +7916,6 @@ OBJECT_CONFIGS.LithologySystem = [
       rowOnClick: '_lithRowClick(this)',
     },
   },
-  ..._FEATURE_TRAILING,
 ];
 
 // BackfillLayer — BackfillLayerType (core/Core.xsd:776) extends AbstractObjectType.
@@ -8275,6 +8286,12 @@ OBJECT_CONFIGS.Borehole = [
   { path: 'diggs:locality', label: 'Locality' },
   { path: 'diggs:boreholePurpose', label: 'Purpose' },
   { path: 'diggs:boreholeType', multi: true, label: 'Type' },
+// Fixed 2026-07-22 — this used to be `..._FEATURE_TRAILING,` spread INSIDE
+  // the otherSamplingFeatureProperty row object above (object-spreading an
+  // array yields numeric keys renderPropertyRow never reads), so role/remark/
+  // associatedFile silently never rendered. See OBJECT_CONFIGS.Well/.Project/
+  // .Contract for the correct top-level-array-entry form of this spread.
+  ..._FEATURE_TRAILING,
 
   { sectionHeader: 'Geometry' },
   {
@@ -8543,8 +8560,225 @@ OBJECT_CONFIGS.Borehole = [
       const txt = nodeText(nameEl);
       return txt ? escHtml(txt) + _codeSpaceKeyExtra(nameEl) : null;
     },
-    ..._FEATURE_TRAILING,
-},
+  },
+  ];
+
+// ══════════════════════════════════════════════════════════════
+//  OBJECT_CONFIGS — Well (2026-07-22). Full schema trace via ../diggs-schema:
+//  WellType (core/Core.xsd:1939) extends AbstractLinearInstallationType
+//  (core/Core.xsd:230) extends AbstractLinearSamplingFeatureType
+//  (core/Core.xsd:171) extends AbstractSamplingFeatureType
+//  (core/AbstractTypes.xsd:1228) extends AbstractNamedFeatureType
+//  (core/AbstractTypes.xsd:531) — the SAME base chain Borehole itself uses,
+//  so General Info/Geometry below mirror OBJECT_CONFIGS.Borehole's own rows
+//  for every field the two types share (centerLine/linearReferencing/
+//  plunge/bearing/referencePoint description/localCoordinates/
+//  investigationTarget/locality/environment/otherSamplingFeatureProperty)
+//  rather than re-deriving them. Unlike Borehole's own config — which never
+//  actually renders role/remark/associatedFile; its trailing `..._FEATURE_TRAILING`
+//  is accidentally spread INSIDE the otherSamplingFeatureProperty row object
+//  instead of the outer array, a latent no-op bug, not a pattern to copy —
+//  role/remark/associatedFile are included here as real top-level array
+//  entries via `..._FEATURE_TRAILING`.
+//
+//  `diggs:samplingFeatureRef` (required, AbstractLinearInstallationType) is
+//  omitted per the engine's Reference Property convention: its navigation
+//  already happens in the sf-list table's "Parent Feature" column
+//  (buildSFTable), not as a KV row — see CLAUDE.md's own note citing this
+//  exact field as the `*Ref` omission rule's one exception.
+// ══════════════════════════════════════════════════════════════
+
+// WellOpening — WellOpeningType (core/Core.xsd:1892) extends AbstractObjectType.
+// openInterval is the screen/perforation interval itself; filterPackInterval
+// (sand/gravel pack) is independently optional. openingLength/Width/Diameter
+// are alternative ways a real instance describes the perforation geometry
+// (slotted vs. round-perforated casing) — never all populated together, but
+// all three are ordinary optional rows here regardless.
+OBJECT_CONFIGS.WellOpening = [
+  ..._OBJ_BASE_FIELDS,
+  ..._OBJ_TYPE_TRAILING,
+  { path: 'diggs:openInterval', label: 'Open Interval' },
+  { path: 'diggs:filterPackInterval', label: 'Filter Pack Interval' },
+  { path: 'diggs:openingLength', label: 'Opening Length' },
+  { path: 'diggs:openingWidth', label: 'Opening Width' },
+  { path: 'diggs:openingDiameter', label: 'Opening Diameter' },
+  { path: 'diggs:openingType', label: 'Opening Type' },
+  { path: 'diggs:openingMaterial', label: 'Opening Material' },
+];
+
+// InstallationEvent — InstallationEventType (core/Core.xsd:266) extends
+// AbstractEventType with an EMPTY own <sequence/> — so its full field list is
+// exactly AbstractEventType's own additions (location?, time?, infoRecorded*)
+// on top of _OBJ_BASE_FIELDS/_OBJ_TYPE_TRAILING (via AbstractComponentObjectType).
+// Same shape as OBJECT_CONFIGS.ProjectEvent. `location` here is the depth
+// interval/point on the WELL's own linear referencing system (per
+// AbstractEventType's own doc: "recorded in the hole's linear referencing
+// system"), not a geographic point — no geoLocation flag, matching
+// OBJECT_CONFIGS.BoreholeEvent's own `location` row. Used by Well's
+// installationConstructionEvent/maintenanceEvent/wellAbandonment below.
+OBJECT_CONFIGS.InstallationEvent = [
+  { path: 'diggs:time', label: 'When' },
+  { path: 'diggs:location', label: 'Where' },
+  ..._OBJ_BASE_FIELDS,
+  ..._OBJ_TYPE_TRAILING,
+  {
+    path: 'diggs:infoRecorded', multi: true,
+    label: 'Event Parameter', labelPlural: 'Event Parameters', alwaysGroup: true,
+    itemLabel: el => {
+      const nameEl = evalXPath(el, 'diggs:parameterName')[0];
+      const txt = nodeText(nameEl);
+      return txt ? escHtml(txt) + _codeSpaceKeyExtra(nameEl) : null;
+    },
+  },
+];
+
+OBJECT_CONFIGS.Well = [
+  { sectionHeader: 'General Info' },
+  { path: '@gml:id', label: 'ID' },
+  { path: 'gml:name', multi: true, splitRows: true },
+  { path: 'gml:description' },
+  { path: 'diggs:status' },
+  { path: 'gml:identifier', multi: true },
+  { path: 'diggs:internalIdentifier', label: 'Internal Identifier' },
+  { path: 'diggs:implementationStatus', label: 'Implementation Status' },
+  { path: 'diggs:investigationTarget', multi: true, label: 'Investigation Target' },
+  { path: 'diggs:wellPurpose', label: 'Purpose' },
+  { path: 'diggs:fluidPurpose', label: 'Fluid Purpose' },
+  { path: 'diggs:aquiferTested', label: 'Aquifer Tested' },
+  { path: 'diggs:wellFinishType', label: 'Finish Type' },
+  { path: 'diggs:locality', label: 'Locality' },
+  ..._FEATURE_TRAILING,
+
+  { sectionHeader: 'Geometry' },
+  {
+    // Same generic classification/pill as Borehole's own Trajectory row —
+    // AbstractLinearSamplingFeatureType's centerLine/plunge/bearing are a
+    // shared base and parseSamplingFeature()/extractBoreholeTrajectory() are
+    // both already type-agnostic (see CLAUDE.md's 3D trajectory viewer
+    // notes). Looks up DIGGS_SF.get('Well') instead of ('Borehole');
+    // open3DTrajectoryView() itself was widened (2026-07-22) to search every
+    // SF type rather than assuming 'Borehole', so the "View 3D" pill works
+    // here unchanged.
+    label: 'Trajectory',
+    compute: el => {
+      const id = el.getAttributeNS(NS.gml, 'id') || el.getAttribute('gml:id') || el.getAttribute('id') || '';
+      const sf = (DIGGS_SF.get('Well') || []).find(s => s.id === id);
+      if (!sf) return '';
+      const kind = FORMAT_FN.centerLineOrientation(sf);
+      const detail = FORMAT_FN.centerLineOrientationDetail(sf);
+      if (!detail) return detail;
+      if (kind === 'Inclined' || kind === 'Deviated' || kind === 'Multilateral') {
+        return {
+          val: detail,
+          keyExtra: `<button class="pill-3d-view" onclick="open3DTrajectoryView('${esc(id)}')">View 3D</button>`,
+        };
+      }
+      return detail;
+    },
+  },
+  { path: 'diggs:plunge', label: 'Reported Plunge' },
+  { path: 'diggs:bearing', label: 'Reported Bearing' },
+  {
+    path: 'diggs:referencePoint/diggs:PointLocation/gml:description',
+    label: 'Reference Point Description',
+  },
+  { path: 'diggs:linearReferencing', multi: true, label: 'Linear Referencing' },
+  { path: 'diggs:localCoordinates', label: 'Local Coordinates' },
+
+  { sectionHeader: 'Construction Info' },
+  { path: 'diggs:wellDepth', label: 'Well Depth' },
+  { path: 'diggs:initialDevelopmentMethod', label: 'Initial Development Method' },
+  { path: 'diggs:initialDevelopmentTime', label: 'Initial Development Time' },
+  { path: 'diggs:specialTreatment', label: 'Special Treatment' },
+  { path: 'diggs:sanitarySealLocation', label: 'Sanitary Seal Location (deprecated)' },
+  { path: 'diggs:sanitarySealType', label: 'Sanitary Seal Type (deprecated)' },
+
+  { sectionHeader: '' },
+  {
+    // Interval-table engine — casingLocation index + outside diameter/material
+    // columns, same shape as Borehole.casing (reuses OBJECT_CONFIGS.Casing
+    // for the expand panel; wellCasing shares CasingType with Borehole.casing).
+    path: 'diggs:wellCasing', multi: true, labelPlural: 'Well Casings',
+    interval: {
+      index: [{ path: 'diggs:casingLocation' }],
+      column: [{ path: 'diggs:casingOutsideDiameter' }, { path: 'diggs:casingMaterial' }],
+    },
+  },
+
+  { sectionHeader: '' },
+  {
+    // Interval-table engine — openInterval index; diameter/type as the two
+    // simple-leaf columns (filterPackInterval/openingLength/openingWidth/
+    // openingMaterial/name/description/status/remark stay in the expand
+    // panel via OBJECT_CONFIGS.WellOpening above).
+    path: 'diggs:opening', multi: true, label: 'Well Opening', labelPlural: 'Well Openings',
+    interval: {
+      index: [{ path: 'diggs:openInterval' }],
+      column: [{ path: 'diggs:openingDiameter' }, { path: 'diggs:openingType' }],
+    },
+  },
+
+  { sectionHeader: '' },
+  {
+    // Interval-table engine — location/time both independently optional on
+    // AbstractEventType (not a <choice>), so both are index descriptors; no
+    // simple-leaf column candidate on InstallationEventType's own (empty)
+    // sequence, so the Event column falls back to name/description/remark
+    // text, same as Borehole.constructionEvent.
+    path: 'diggs:installationConstructionEvent', multi: true, labelPlural: 'Installation Construction Events',
+    interval: {
+      index: [{ path: 'diggs:location' }, { path: 'diggs:time' }],
+      column: [{
+        path: ['gml:name[1]', 'gml:description', 'diggs:remark/diggs:Remark/diggs:content'],
+        label: 'Event',
+      }],
+    },
+  },
+  {
+    path: 'diggs:maintenanceEvent', multi: true, labelPlural: 'Maintenance Events',
+    interval: {
+      index: [{ path: 'diggs:location' }, { path: 'diggs:time' }],
+      column: [{
+        path: ['gml:name[1]', 'gml:description', 'diggs:remark/diggs:Remark/diggs:content'],
+        label: 'Event',
+      }],
+    },
+  },
+  {
+    path: 'diggs:wellAbandonment', multi: true, labelPlural: 'Well Abandonment Events',
+    interval: {
+      index: [{ path: 'diggs:location' }, { path: 'diggs:time' }],
+      column: [{
+        path: ['gml:name[1]', 'gml:description', 'diggs:remark/diggs:Remark/diggs:content'],
+        label: 'Event',
+      }],
+    },
+  },
+
+  { sectionHeader: 'Installation Equipment' },
+  { path: 'diggs:installationEquipment', multi: true, label: 'Installation Equipment', labelPlural: 'Installation Equipment' },
+
+  { sectionHeader: 'Environment' },
+  {
+    // Same shape as Borehole.environment — EnvironmentPropertyType is
+    // identical regardless of the parent SF type.
+    path: 'diggs:environment', multi: true, labelPlural: 'Environment Readings',
+    interval: {
+      index: [{ path: 'diggs:dateTime' }],
+      column: [{ path: 'diggs:ambientTemperature' }],
+    },
+  },
+
+  { sectionHeader: '' },
+  {
+    path: 'diggs:otherSamplingFeatureProperty', multi: true,
+    label: 'Other Property', labelPlural: 'Other Properties', alwaysGroup: true,
+    itemLabel: el => {
+      const nameEl = evalXPath(el, 'diggs:parameterName')[0];
+      const txt = nodeText(nameEl);
+      return txt ? escHtml(txt) + _codeSpaceKeyExtra(nameEl) : null;
+    },
+  },
 ];
 
 // ══════════════════════════════════════════════════════════════
@@ -13681,11 +13915,11 @@ function disposeTrajectoryViewer() {
 // DIGGS local-meter [x,y,z] -> Three.js Vector3, per the axis convention above.
 function _trajToVec3(p) { return new THREE.Vector3(p[0], p[2], -p[1]); }
 
-// Small canvas-texture text label sprite — used for the Collar/TD callouts
-// in the main scene. Sized in screen pixels, not world units (see
-// _updateTrajLabel) — `sprite.userData.aspect` (width/height of the source
-// canvas) is all _updateTrajLabel needs to size it correctly each render.
-function _makeTrajLabelSprite(text) {
+// Canvas-texture builder shared by _makeTrajLabelSprite (initial creation)
+// and _setTrajLabelText (in-place text swap, e.g. once the TD label's LSRS
+// unit resolves asynchronously) — a single source of truth for the label's
+// look so the two never drift apart. Returns { tex, aspect }.
+function _trajLabelTexture(text) {
   const canvas = document.createElement('canvas');
   const ctx = canvas.getContext('2d');
   const fontPx = 44;
@@ -13699,12 +13933,54 @@ function _makeTrajLabelSprite(text) {
   ctx.fillStyle = '#e6edf3';
   ctx.textBaseline = 'middle';
   ctx.fillText(text, 12, canvas.height / 2);
-  const tex = new THREE.CanvasTexture(canvas);
+  return { tex: new THREE.CanvasTexture(canvas), aspect: canvas.width / canvas.height };
+}
+
+// Small canvas-texture text label sprite — used for the Collar/TD callouts
+// in the main scene. Sized in screen pixels, not world units (see
+// _updateTrajLabel) — `sprite.userData.aspect` (width/height of the source
+// canvas) is all _updateTrajLabel needs to size it correctly each render.
+function _makeTrajLabelSprite(text) {
+  const { tex, aspect } = _trajLabelTexture(text);
   const mat = new THREE.SpriteMaterial({ map: tex, depthTest: false, transparent: true });
   const sprite = new THREE.Sprite(mat);
-  sprite.userData.aspect = canvas.width / canvas.height;
+  sprite.userData.aspect = aspect;
   sprite.renderOrder = 999;
   return sprite;
+}
+
+// Swaps an existing label sprite's text in place (disposing its old
+// texture) — used when a label's final text isn't known until an async
+// resolution completes (e.g. the TD label's LSRS unit), so the same sprite
+// instance (and its anchor/leader bookkeeping) can stay put rather than
+// being torn down and recreated.
+function _setTrajLabelText(sprite, text) {
+  const { tex, aspect } = _trajLabelTexture(text);
+  const oldMap = sprite.material.map;
+  sprite.material.map = tex;
+  sprite.material.needsUpdate = true;
+  sprite.userData.aspect = aspect;
+  if (oldMap) oldMap.dispose();
+}
+
+// A thin dynamic "leader line" connecting a label's on-screen position back
+// to the actual 3D coordinate it describes (Collar/TD/deviated-hole vertex
+// callouts — user request). Pre-allocates its position attribute ONCE with
+// DynamicDrawUsage and mutates it in place every render (see
+// _updateTrajLabel's `leader` param) rather than calling
+// BufferGeometry.setFromPoints per frame, which would allocate a brand-new
+// GPU buffer on every OrbitControls 'change' event (fired continuously
+// while dragging) and never free the old one — a real leak given how often
+// render() fires, unlike the sprite repositioning math it rides alongside.
+function _makeTrajLeader() {
+  const geom = new THREE.BufferGeometry();
+  const posAttr = new THREE.Float32BufferAttribute(new Float32Array(6), 3);
+  posAttr.setUsage(THREE.DynamicDrawUsage);
+  geom.setAttribute('position', posAttr);
+  const mat = new THREE.LineBasicMaterial({ color: 0x8b949e, transparent: true, opacity: 0.6 });
+  const line = new THREE.Line(geom, mat);
+  line.frustumCulled = false;
+  return { line, geom, mat, posAttr };
 }
 
 // Re-poses/re-scales a label sprite every render so it reads as a constant
@@ -13724,7 +14000,13 @@ const _trajRightVec = new THREE.Vector3();
 // (its frustum width/height alone determines scale) — reusing the
 // perspective formula for an orthographic camera would size labels wrong
 // (orthographic cameras have no meaningful `.fov`).
-function _updateTrajLabel(sprite, anchor, camera, viewportH, pixelHeight, offsetPixels) {
+// `leader` (optional): a _makeTrajLeader() entry to keep pinned between the
+// exact anchor coordinate and the label's near (left) edge every render —
+// the near-edge point is the same `anchor + rightVec * offsetPixels*worldPerPixel`
+// term already used for the sprite's own position, just without the extra
+// `w/2` that pushes the sprite past its own left edge to its center, so the
+// line reaches up to the label instead of running into its middle.
+function _updateTrajLabel(sprite, anchor, camera, viewportH, pixelHeight, offsetPixels, leader) {
   const worldPerPixel = camera.isOrthographicCamera
     ? (camera.top - camera.bottom) / viewportH
     : (2 * camera.position.distanceTo(anchor) * Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2)) / viewportH;
@@ -13732,7 +14014,16 @@ function _updateTrajLabel(sprite, anchor, camera, viewportH, pixelHeight, offset
   const w = h * (sprite.userData.aspect || 1);
   sprite.scale.set(w, h, 1);
   _trajRightVec.setFromMatrixColumn(camera.matrixWorld, 0).normalize();
-  sprite.position.copy(anchor).addScaledVector(_trajRightVec, offsetPixels * worldPerPixel + w / 2);
+  const nearOffset = offsetPixels * worldPerPixel;
+  sprite.position.copy(anchor).addScaledVector(_trajRightVec, nearOffset + w / 2);
+  if (leader) {
+    const arr = leader.posAttr.array;
+    arr[0] = anchor.x; arr[1] = anchor.y; arr[2] = anchor.z;
+    arr[3] = anchor.x + _trajRightVec.x * nearOffset;
+    arr[4] = anchor.y + _trajRightVec.y * nearOffset;
+    arr[5] = anchor.z + _trajRightVec.z * nearOffset;
+    leader.posAttr.needsUpdate = true;
+  }
 }
 
 // Small fixed-world-size text label for the orientation gizmo's arrow tips
@@ -13796,9 +14087,29 @@ async function _resolveElevationTickUom(sfEl) {
   return uom || 'm';
 }
 
+// Formats a raw native-CRS coordinate tuple (as stored on
+// trajectory.nativeCoords — still in the centerLine's own axis order/unit,
+// NOT the local meters used for plotting) for a Collar/TD/vertex callout
+// label: "(x, y, z)", each component rounded to the nearest whole unit per
+// user request. Returns '' if the tuple is missing (index out of range —
+// e.g. a multilateral leg whose shared-meter point count diverged from the
+// raw coordinate count because a station's CRS failed to resolve — so the
+// caller can just omit the coordinate suffix rather than show garbage).
+function _fmtTrajCoord(c) {
+  if (!c || !c.length) return '';
+  return '(' + c.map(v => Math.round(v)).join(', ') + ')';
+}
+
 // ── open3DTrajectoryView: pill onclick entry point ──────────
+// Searches every SF type, not just Borehole — any AbstractLinearSamplingFeatureType
+// descendant (Borehole, Well, ...) carries a centerLine and can attach this
+// pill (see OBJECT_CONFIGS.Borehole/.Well's own Trajectory row compute()).
 function open3DTrajectoryView(sfId) {
-  const sf = (DIGGS_SF.get('Borehole') || []).find(s => s.id === sfId);
+  let sf = null;
+  for (const arr of DIGGS_SF.values()) {
+    sf = arr.find(s => s.id === sfId);
+    if (sf) break;
+  }
   if (!sf) return;
   const trajectory = extractBoreholeTrajectory(sf);
   if (!trajectory) return;
@@ -14008,13 +14319,53 @@ function init3DTrajectoryViewer(host, trajectory, sfEl) {
 
   // ── Collar / TD labels — constant screen size/offset, see
   // _updateTrajLabel (called every render(), below, since the anchor's
-  // distance to the camera changes with every orbit/zoom).
-  const collarLabel  = _makeTrajLabelSprite('Collar');
+  // distance to the camera changes with every orbit/zoom). Each gets a
+  // thin leader line (_makeTrajLeader) pinned back to its exact centerLine
+  // coordinate, and the label text itself carries that same coordinate
+  // (raw native CRS, rounded to the nearest whole unit — user request) so
+  // the callout is legible without a leader-line lookup.
+  const nativeCoords = trajectory.nativeCoords || [];
+  const collarCoordStr = _fmtTrajCoord(nativeCoords[0]);
+  const collarLabel  = _makeTrajLabelSprite(collarCoordStr ? `Collar ${collarCoordStr}` : 'Collar');
   const collarAnchor = pts3[0].clone();
+  const collarLeader = _makeTrajLeader();
   scene.add(collarLabel);
-  const toeLabel  = _makeTrajLabelSprite(trajectory.legs ? `Leg 1 TD — ${fmtNum(trajectory.length, 1)} m` : `TD — ${fmtNum(trajectory.length, 1)} m`);
+  scene.add(collarLeader.line);
+
+  // TD's numeric depth is shown in meters until _resolveElevationTickUom's
+  // async LSRS lookup below resolves the hole's actual linear-referencing
+  // unit, at which point _setTrajLabelText swaps this same sprite's text in
+  // place (see the .then() block) — same fallback-then-upgrade pattern the
+  // elevation ticks already use, so the label never has to wait on the
+  // network before showing something.
+  const toeIdx = nativeCoords.length - 1;
+  const toeCoordStr = _fmtTrajCoord(nativeCoords[toeIdx]);
+  function _tdLabelText(valueStr) {
+    const prefix = trajectory.legs ? 'Leg 1 TD' : 'TD';
+    return `${prefix} ${valueStr}${toeCoordStr ? ' ' + toeCoordStr : ''}`;
+  }
+  const toeLabel  = _makeTrajLabelSprite(_tdLabelText(`${fmtNum(trajectory.length, 1)} m`));
   const toeAnchor = pts3[pts3.length - 1].clone();
+  const toeLeader = _makeTrajLeader();
   scene.add(toeLabel);
+  scene.add(toeLeader.line);
+
+  // ── Interior centerLine vertex labels (deviated holes only — a Vertical
+  // or Inclined trajectory is always exactly 2 points, so this loop is a
+  // no-op for those; user request) — every station between Collar and TD
+  // gets its own small leader + raw-coordinate label, same rounding
+  // convention as Collar/TD but with no prefix word (just the coordinate).
+  const vertexLabels = [];
+  for (let i = 1; i < pts3.length - 1; i++) {
+    const coordStr = _fmtTrajCoord(nativeCoords[i]);
+    if (!coordStr) continue;
+    const sprite = _makeTrajLabelSprite(coordStr);
+    const anchor = pts3[i].clone();
+    const leader = _makeTrajLeader();
+    scene.add(sprite);
+    scene.add(leader.line);
+    vertexLabels.push({ sprite, anchor, leader });
+  }
 
   // ── Reference lines (dashed, muted gray, one shared material) ────────
   // 1) vertical, collar straight down to TD elevation — makes deviation-
@@ -14075,6 +14426,13 @@ function init3DTrajectoryViewer(host, trajectory, sfEl) {
   _resolveElevationTickUom(sfEl).then(uom => {
     if (_trajViewerGen !== myGen) return; // viewer replaced/disposed meanwhile
     const factor = unitToMeters(uom) || 1;
+
+    // TD's depth, reported in the hole's own LSRS unit (user request) —
+    // upgrades the meters-fallback text set at sprite-creation time above,
+    // same sprite instance so its anchor/leader bookkeeping is untouched.
+    _setTrajLabelText(toeLabel, _tdLabelText(`${fmtNum(trajectory.length / factor, 1)} ${uom}`));
+    render();
+
     const topDisp = collarElevM / factor, bottomDisp = tdElevM / factor;
     const range = topDisp - bottomDisp;
     if (!(range > 0)) return;
@@ -14189,10 +14547,13 @@ function init3DTrajectoryViewer(host, trajectory, sfEl) {
       activeCamera = orthoCamera;
     }
 
-    _updateTrajLabel(collarLabel, collarAnchor, activeCamera, height, 14, 16);
-    _updateTrajLabel(toeLabel, toeAnchor, activeCamera, height, 14, 16);
+    _updateTrajLabel(collarLabel, collarAnchor, activeCamera, height, 14, 16, collarLeader);
+    _updateTrajLabel(toeLabel, toeAnchor, activeCamera, height, 14, 16, toeLeader);
     for (const { sprite, anchor } of otherLegLabels) {
       _updateTrajLabel(sprite, anchor, activeCamera, height, 14, 16);
+    }
+    for (const { sprite, anchor, leader } of vertexLabels) {
+      _updateTrajLabel(sprite, anchor, activeCamera, height, 11, 10, leader);
     }
     // Empty until the async unit resolution (_resolveElevationTickUom)
     // completes — see the tick-building block above — so this is a no-op
@@ -14249,7 +14610,8 @@ function init3DTrajectoryViewer(host, trajectory, sfEl) {
       tickGeoms.forEach(g => g.dispose());
       if (tickMat) tickMat.dispose();
       tickSprites.forEach(s => { s.material.map.dispose(); s.material.dispose(); });
-      [collarLabel, toeLabel, ...otherLegLabels.map(l => l.sprite), ...gizmoLabels].forEach(s => { s.material.map.dispose(); s.material.dispose(); });
+      [collarLabel, toeLabel, ...otherLegLabels.map(l => l.sprite), ...vertexLabels.map(l => l.sprite), ...gizmoLabels].forEach(s => { s.material.map.dispose(); s.material.dispose(); });
+      [collarLeader, toeLeader, ...vertexLabels.map(l => l.leader)].forEach(l => { l.geom.dispose(); l.mat.dispose(); });
       // ArrowHelper's line/cone geometries are cached+shared at the THREE
       // module level (r128), not per-instance — only their per-instance
       // materials are ours to dispose.
