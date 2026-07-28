@@ -1,0 +1,377 @@
+<Diggs xmlns="http://diggsml.org/schemas/3" xmlns:diggs="http://diggsml.org/schemas/3" xmlns:glr="http://www.opengis.net/gml/3.3/lr" xmlns:gml="http://www.opengis.net/gml/3.2" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://diggsml.org/schemas/3 https://diggsml.org/schemas/3.0.0/Diggs.xsd" gml:id="DGSA19C-1F8-1DDF-8132-16B14">
+    <documentInformation>
+        <DocumentInformation gml:id="DGS1FDD-1116-4E1F-2AD-30C29">
+            <creationDate>2026-03-08</creationDate>
+        </DocumentInformation>
+    </documentInformation>
+
+    <project>
+        <Project gml:id="project">
+            <gml:name>Example Project</gml:name>
+        </Project>
+    </project>
+
+    <samplingFeature>
+        <Sounding gml:id="Sounding_1">
+            <gml:name>Sounding 1</gml:name>
+            <projectRef xlink:href="#project"/>
+            <referencePoint>
+                <!-- Sounding location coordinates in a compound CRS with horizontal coordinates in WGS84 geographic (EPSG: 4326), and NAVD88 height in meters (EPSG: 5703) -->
+                <PointLocation gml:id="Sounding_1_rp" srsName="https://www.opengis.net/def/crs-compound?1=http://www.opengis.net/def/crs/EPSG/0/4326%262=http://www.opengis.net/def/crs/EPSG/0/5703" srsDimension="3" uomLabels="dega dega m">
+                    <gml:pos>-91.212861 30.429139 19.00</gml:pos>
+                </PointLocation>
+            </referencePoint>
+            <centerLine>
+                <!-- Sounding is vertical and 16 m deep -->
+                <LinearExtent gml:id="Sounding_1_cl" srsDimension="3" srsName="https://www.opengis.net/def/crs-compound?1=http://www.opengis.net/def/crs/EPSG/0/4326%262=http://www.opengis.net/def/crs/EPSG/0/6360" uomLabels="dega dega ft">
+                    <gml:posList>-91.212861 30.429139 19.00 -91.212861 30.429139 3.00</gml:posList>
+                </LinearExtent>
+            </centerLine>
+            <linearReferencing>
+                <!-- Linear spatial reference system for the sounding is defined here - it begins at the beginning of the centerline (linear element) and proceeds as measured depth down the sounding in meters, as defined in the lrm -->
+                <LinearSpatialReferenceSystem gml:id="Sounding_1_lrs">
+                    <gml:identifier codeSpace="G-I">lsr_B-01-lsr</gml:identifier>
+                    <glr:linearElement xlink:href="#cl-B-01"/>
+                    <lrm xlink:href="https://diggsml.org/def/crs/DIGGS/0.1/lrm.xml#md_m"/>
+
+                    <!-- DIGGS 3.0  has introduced a dictionary of common linear referencing methods that can be referenced by instances instead of having to explicitly define one each time. The URL references the following xml:
+                    <diggs:LinearReferencingMethod gml:id="md_m">
+                        <gml:description>
+                          Absolute measured depth from top of borehole or sounding in meters. Measurements are cumulative 3D distance along the borehole/sounding centerline from the first coordinate (typically top of hole
+                          or rig datum) proceeding downward through the hole. Suitable for vertical, slanted, and deviated boreholes and soundings.
+                        </gml:description>
+                        <gml:identifier codeSpace="https://diggsml.org/def/authorities.xml#DIGGS">https://diggsml.org/def/crs/DIGGS/0.1/lrm.xml#md_m</gml:identifier>
+                        <diggs:name>trueMeters</diggs:name>
+                        <diggs:type>absolute</diggs:type>
+                        <diggs:units>m</diggs:units>
+                        <diggs:positiveDirection>downward</diggs:positiveDirection>
+                    </diggs:LinearReferencingMethod>
+
+                    -->
+                </LinearSpatialReferenceSystem>
+            </linearReferencing>
+            <totalMeasuredDepth uom="m">16</totalMeasuredDepth>
+        </Sounding>
+
+    </samplingFeature>
+
+    <observation>
+        <!-- Shear wave layering interpreted from seismic cone data -->
+
+        <GeoUnitSystem gml:id="GeoUnitSystem_Sounding_1">
+            <gml:name>Shear Wave Velocity</gml:name>
+            <projectRef xlink:href="#project"/>
+            <samplingFeatureRef xlink:href="#Sounding_1"/>
+            <observationProcedure>
+                <Specification gml:id="Sounding_1_interp">
+                        <gml:description>
+                            Vs values assigned to each layer by performing linear regression on travel time vs. depth data within each designated layer and computing the Vs value from the slope of the regression lines,
+                            Travel time data obtained from seismic cone test referenced by each observation's measurementRef property.
+                        </gml:description>
+                </Specification>
+            </observationProcedure>
+            <geoUnitType codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/gp_properties.xml#shear_velocity">Shear Wave Velocity</geoUnitType>
+            <geoUnitObservation>
+                <GeoUnitObservation gml:id="GeoUnitObservation_0-8.1">
+                    <measurementRef xlink:href="#Sounding1_scpt"/>
+                    <location>
+                        <LinearExtent gml:id="LinearExtent_0-8.1" srsName="#Sounding_1_lrs" srsDimension="1">
+                            <gml:posList>0 8.1</gml:posList>
+                        </LinearExtent>
+                    </location>
+                    <unitName>Layer 1</unitName>
+                    <verticallThicknessOfUnit uom="m">8.1</verticallThicknessOfUnit>
+                    <characteristicProperty>
+                        <Parameter>
+                            <parameterName codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/gp_properties.xml#shear_velocity">Shear Wave Velocity</parameterName>
+                            <parameterValue>301</parameterValue>
+                            <parameterUnits>m/s</parameterUnits>
+                        </Parameter>
+                    </characteristicProperty>
+                </GeoUnitObservation>
+            </geoUnitObservation>
+            <geoUnitObservation>
+                <GeoUnitObservation gml:id="GeoUnitObservation_8.1-12.2">
+                    <measurementRef xlink:href="#Sounding1_cpt"/>
+                    <location>
+                        <LinearExtent gml:id="LinearExtent_8.1-12.2" srsName="#Sounding_1_lrs" srsDimension="1">
+                            <gml:posList>8.1 12.2</gml:posList>
+                        </LinearExtent>
+                    </location>
+                    <unitName>Layer 2</unitName>
+                    <verticallThicknessOfUnit uom="m">4.1</verticallThicknessOfUnit>
+                    <characteristicProperty>
+                        <Parameter>
+                            <parameterName codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/gp_properties.xml#shear_velocity">Shear Wave Velocity</parameterName>
+                            <parameterValue>415</parameterValue>
+                            <parameterUnits>m/s</parameterUnits>
+                        </Parameter>
+                    </characteristicProperty>
+                </GeoUnitObservation>
+            </geoUnitObservation>
+            <geoUnitObservation>
+                <GeoUnitObservation gml:id="GeoUnitObservation_12.2-16">
+                    <measurementRef xlink:href="#Sounding1_scpt"/>
+                    <location>
+                        <LinearExtent gml:id="LinearExtent_12.2-16" srsName="#Sounding_1_lrs" srsDimension="1">
+                            <gml:posList>12.2 16</gml:posList>
+                        </LinearExtent>
+                    </location>
+                    <unitName>Layer 3</unitName>
+                    <verticallThicknessOfUnit uom="m">3.8</verticallThicknessOfUnit>
+                    <characteristicProperty>
+                        <Parameter>
+                            <parameterName codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/gp_properties.xml#shear_velocity">Shear Wave Velocity</parameterName>
+                            <parameterValue>541</parameterValue>
+                            <parameterUnits>m/s</parameterUnits>
+                        </Parameter>
+                    </characteristicProperty>
+                </GeoUnitObservation>
+            </geoUnitObservation>
+        </GeoUnitSystem>
+    </observation>
+    <measurement>
+
+        <!-- This is where the seismic cone results (eg. the interval velocities, are reported in DIGGS. It uses a Test (just like CPT), but with a GeophysicalProcessing procedure object (instead of StaticConePenetrationTest. -->
+
+        <Test gml:id="Sounding1_scpt">
+            <role>
+                <Role>
+                    <rolePerformed codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/roles.xml#calculator">Data Processor</rolePerformed>
+                    <businessAssociate>
+                        <BusinessAssociate gml:id="jgrieg">
+                            <gml:name>James Grieg</gml:name>
+                            <title>Senior Geotechnical Engineer</title>
+                            <associatedWith xlink:href="https://www.conetec.com"/>
+                        </BusinessAssociate>
+                    </businessAssociate>
+                </Role>
+            </role>
+            <projectRef xlink:href="#project"/>
+            <samplingFeatureRef xlink:href="#Sounding_1"/>
+            <otherMeasurementProperty>
+                <Parameter>
+                    <parameterName>Source offset distance from top of sounding</parameterName>
+                    <!-- This is currently the only way to record the offset distancem unless we want to develop a customized procedure object for seismic cone -->
+                    <parameterValue>1.0</parameterValue>
+                    <parameterUnits>m</parameterUnits>
+                </Parameter>
+            </otherMeasurementProperty>
+            <samplingTime>
+                <TimeInterval gml:id="Sounding_1_SCPT_Time">
+                    <start>2026-03-29T08:00:00-05:00</start>
+                    <end>2026-03-29T13:43:00-05:00</end>
+                </TimeInterval>
+            </samplingTime>
+            <outcome>
+                <TestResult>
+                    <location>
+                        <!-- For CPT results, where locations are points instead of intervals, you use the MultiPoint geometry object; for intervals, use MultiCurve as follow. There is one curveMember (eg. LinearExtent") for each velocity measurement result -->
+                        <MultiCurve gml:id="MultiCurve_Sounding_1" srsName="#Sounding_1_lrs" srsDimension="1">
+                            <curveMembers>
+                                <LinearExtent gml:id="LinearExtent_0-1">
+                                    <gml:posList>0 1</gml:posList>
+                                    <!-- First measurement, 0 to 1 meter depth (note srsName points to the linear SRS -->
+                                </LinearExtent>
+                                <LinearExtent gml:id="LinearExtent_1-2">
+                                    <gml:posList>1 2</gml:posList>
+                                </LinearExtent>
+                                <LinearExtent gml:id="LinearExtent_2-3">
+                                    <gml:posList>2 3</gml:posList>
+                                </LinearExtent>
+                                <LinearExtent gml:id="LinearExtent_3-4">
+                                    <gml:posList>3 4</gml:posList>
+                                </LinearExtent>
+                                <LinearExtent gml:id="LinearExtent_4-5">
+                                    <gml:posList>4 5</gml:posList>
+                                </LinearExtent>
+                                <LinearExtent gml:id="LinearExtent_5-6">
+                                    <gml:posList>5 6</gml:posList>
+                                </LinearExtent>
+                                <LinearExtent gml:id="LinearExtent_6-7">
+                                    <gml:posList>6 7</gml:posList>
+                                </LinearExtent>
+                                <LinearExtent gml:id="LinearExtent_7-8">
+                                    <gml:posList>7 8</gml:posList>
+                                </LinearExtent>
+                                <LinearExtent gml:id="LinearExtent_8-9">
+                                    <gml:posList>8 9</gml:posList>
+                                </LinearExtent>
+                                <LinearExtent gml:id="LinearExtent_9-10">
+                                    <gml:posList>9 10</gml:posList>
+                                </LinearExtent>
+                                <LinearExtent gml:id="LinearExtent_10-11">
+                                    <gml:posList>10 11</gml:posList>
+                                </LinearExtent>
+                                <LinearExtent gml:id="LinearExtent_11-12">
+                                    <gml:posList>11 12</gml:posList>
+                                </LinearExtent>
+                                <LinearExtent gml:id="LinearExtent_12-13">
+                                    <gml:posList>12 13</gml:posList>
+                                </LinearExtent>
+                                <LinearExtent gml:id="LinearExtent_13-14">
+                                    <gml:posList>13 14</gml:posList>
+                                </LinearExtent>
+                                <LinearExtent gml:id="LinearExtent_14-15">
+                                    <gml:posList>14 15</gml:posList>
+                                </LinearExtent>
+                                <LinearExtent gml:id="LinearExtent_15-16">
+                                    <gml:posList>15 16</gml:posList>
+                                    <!-- Last measurement, 05 to 16 meter depth -->
+                                </LinearExtent>
+                            </curveMembers>
+                        </MultiCurve>
+                    </location>
+                    <results>
+                        <ResultSet>
+                            <parameters>
+                                <PropertyParameters>
+                                    <properties>
+                                        <!-- As with CPT, here is where the observed parameters are reported -->
+                                        <Property index="1">
+                                            <gml:description>Travel time from source to location at the bottom of the interval</gml:description>
+                                            <propertyName>Travel Time</propertyName>
+                                            <typeData>double</typeData>
+                                            <propertyClass codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/gp_properties.xml#TT">Travel Time</propertyClass>
+                                            <uom>ms</uom>
+                                        </Property>
+                                        <Property index="2">
+                                            <gml:description>Travel time between the top and bottom of the interval</gml:description>
+                                            <propertyName>Interval Travel Time</propertyName>
+                                            <typeData>double</typeData>
+                                            <propertyClass codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/gp_properties.xml#TT">Travel Time</propertyClass>
+                                            <uom>ms</uom>
+                                        </Property>
+
+                                        <!-- Note that this property and the first are both elapsed (travel) times and therefore belong to the same class. Their use is distinguised by the propertyName and can be further defined in the description. -->
+
+                                        <Property index="3">
+                                            <gml:description>Shear wave velocity between top and bottom of the interval</gml:description>
+                                            <propertyName>Interval Shear Wave Velocity</propertyName>
+                                            <typeData>double</typeData>
+                                            <propertyClass codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/gp_properties.xml#shear_velocity">Shear Velocity</propertyClass>
+                                            <uom>m/s</uom>
+                                        </Property>
+                                    </properties>
+                                </PropertyParameters>
+                            </parameters>
+                            <dataValues> <!-- As with CPT, this is the result data block, with each tuple of 3 values (whitespace separated) corresponding to a depth interval in depth interval order
+                                              and  each value in the tuple in parameter order -->
+                                4.794,4.794,295.0
+                                7.229,2.435,337.5
+                                10.432,3.203,289.2
+                                13.855,3.423,280.7
+                                17.310,3.455,282.5
+                                20.960,3.650,269.5
+                                24.232,3.272,302.0
+                                27.464,3.232,306.7
+                                29.741,2.277,436.2
+                                31.942,2.201,451.8
+                                34.499,2.557,389.3
+                                36.920,2.421,411.5
+                                38.753,1.833,543.8
+                                40.487,1.734,575.1
+                                42.455,1.968,506.9
+                                44.257,1.802,553.8
+                            </dataValues>
+                        </ResultSet>
+                    </results>
+                </TestResult>
+            </outcome>
+            
+            <procedure>
+                <GeophysicalProcessing gml:id="GeophysicalProcessing_Sounding_1_scpt">
+                    <!-- This is where metadata on the seismic cone test is entered, including description of processing steps, where applicable. This is a generic structure 
+                                                                                             designed for use for any geophysical technique but many not be ideal for seismic cone.We might want to consider a custom procedure for seismic cone-->
+                    <gml:description>
+                        Field investigation follows that of ASTM D7400-14. First arrivals manually picked from waveform data and travel times calculated using slant distance from source to receiver incorporating 1 meter source offset from sounding location.
+                    </gml:description>
+                    <geophysicalFieldSurveyRef xlink:href="@Sounding_1_scpt_field"/>
+                    <!-- Optional pointer to a GeohpysicalFieldSurvey measurement object containing metadata and optionally raw data files associated with this processed result -->
+                    <geophysicalMethod>borehole seismic surface source</geophysicalMethod>
+                  
+                    <!-- geophysicalMethod is restricted to an enumerated list. Currently seismic cone is not in the list. The above is functionally equivalent. However, if not satisfactory, you can work around the schema restriction using:
+                         <geophysicalMethod>Other: Seismic cone</geophysicalMethod>
+                         We can add seismic cone to the list in version 3.1 -->
+                    
+                </GeophysicalProcessing>
+            </procedure>
+        </Test>
+    </measurement>
+
+    <!-- The following measurement is optional, and in the case of a seismic cone, unnecessary unless you want to transfer the raw data (waveform) files and associate the file to the results in the above Test -->
+
+    <measurement>
+        <GeophysicalFieldSurvey gml:id="Sounding_1_scpt_field">
+            <role>
+                <Role>
+                    <rolePerformed codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/roles.xml#logger">Data Acquisition</rolePerformed>
+                    <businessAssociate xlink:href="#jgrieg"/>
+                    <!-- Pointer to the BusinessAssociate object above -->
+                </Role>
+            </role>
+
+            <projectRef xlink:href="#project"/>
+            <outcome>
+                <GP_SurveyResult gml:id="Sounding_1_scpt_result">
+                    <gp_Location>
+                        <!-- The gp_Location is optional. It is included so that without seeing the processed result, one can determine the location and spacing of the receivers and sources. -->
+                        <GP_Location>
+                            <receiverLocations>
+                                <MultiPointLocation gml:id="Sounding_1_scpt_receuverLocs" srsDimension="1" srsName="#Sounding_1_lrs">
+                                    <gml:posList>1 2 3 4 5 6 7 8 9 10 11 12 13 14 15
+                                        16</gml:posList>
+                                </MultiPointLocation>
+                            </receiverLocations>
+                            <sourceLocations>
+                                <PointLocation gml:id="Sounding_1_scot_sourceLoc" srsName="https://www.opengis.net/def/crs-compound?1=http://www.opengis.net/def/crs/EPSG/0/4326%262=http://www.opengis.net/def/crs/EPSG/0/5703" srsDimension="3">
+                                    <gml:pos>-91.212851 30.429139 19.00</gml:pos>
+                                    <!-- Approximate coordinate based on 1 m offset -->
+                                    <uncertainty>
+                                        <LocationUncertainty>
+                                            <horizontalUncertainty>
+                                                <Uncertainty>
+                                                  <plusUncertaintyValue>0.00000047</plusUncertaintyValue>
+                                                  <minusUncertaintyValue>0.00000047</minusUncertaintyValue>
+                                                  <uncertaintyRepresentation>estimated</uncertaintyRepresentation>
+                                                </Uncertainty>
+                                            </horizontalUncertainty>
+                                        </LocationUncertainty>
+                                    </uncertainty>
+                                </PointLocation>
+                            </sourceLocations>
+                        </GP_Location>
+                    </gp_Location>
+                    <!-- Optionally can add the dataPackage property if you want to transmit raw data (eg. waveform data), for example below) -->
+                    <dataPackage>
+                        <DataPackage>
+                            <files>
+                                <GP_FieldDataFile gml:id="fileid">
+                                    <gml:description>Raw files from SCPT survey</gml:description>
+                                    <gml:name>somefile.zip</gml:name>
+                                    <fileURL>./file.zip</fileURL> <!-- This URL implies that the data file is included with this XML file in the same directory (likely zipped with the xml) -->
+                                    <mimeType>application/zip</mimeType>
+                                </GP_FieldDataFile>
+                            </files>
+                        </DataPackage>
+                    </dataPackage>
+                </GP_SurveyResult>
+            </outcome>
+            <geophysicalMethod>borehole seismic surface source</geophysicalMethod>
+            <procedure>
+                <GP_FieldProcedure gml:id="GP_FieldProcedure_Sounding_1_scpt">
+                    <testProcedureMethod>
+                        <!-- Here is where you can specify a standard procdure, if necessary -->
+                        <Specification gml:id="Specification_ASTM_D7400-14">
+                            <gml:name>Standard Test Methods for Downhole Seismic Testing</gml:name>
+                            <accredtingBody>ASTM</accredtingBody>
+                            <standardReferenceNumber>D7400</standardReferenceNumber>
+                            <standardVersion>14</standardVersion>
+                        </Specification>
+                    </testProcedureMethod>
+                </GP_FieldProcedure>
+            </procedure>
+        </GeophysicalFieldSurvey>
+    </measurement>
+
+</Diggs>

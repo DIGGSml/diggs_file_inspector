@@ -20,6 +20,13 @@
             </author>
         </DocumentInformation>
     </documentInformation>
+
+    <project>
+        <Project gml:id="Project-Mockup-1">
+            <gml:name>Project for General Mockup Tests 1</gml:name>
+        </Project>
+    </project>
+
     <project>
         <Project gml:id="PRJ001">
             <gml:description>Geotechnical site investigation for the Jazera Royal Palace Substation, Riyadh, Saudi Arabia. Investigation includes borehole drilling, in-situ testing, laboratory testing, and rigid inclusion (CMC) foundation design support.</gml:description>
@@ -906,12 +913,6 @@
         </Project>
     </project>
 
-    <project>
-        <Project gml:id="Project-Mockup-1">
-            <gml:name>Project for General Mockup Tests 1</gml:name>
-        </Project>
-    </project>
-
     <!-- ============================================================
          Project-Mockup-1 simulated boreholes
          Reference points within 33-34N / -118 to -117W (NAD83)
@@ -1237,6 +1238,397 @@
             </wellCasing>
             <wellDepth uom="ft" howDetermined="measured">129</wellDepth>
         </Well>
+    </samplingFeature>
+
+    <!-- ============================================================
+         Project-Mockup-1 simulated soundings
+         Sounding-Mockup-1: vertical CPT push, 3 m east of BH-Mockup-1, 100 ft deep
+         Sounding-Mockup-2: DCPT, mildly deviated (plunge 82 deg, bearing 45 deg NE),
+                             7.6 m ENE of BH-Mockup-3, 80 ft deep
+         Combined, the two exercise every SoundingType field (own + inherited
+         AbstractLinearSamplingFeatureType/AbstractSamplingFeatureType/
+         AbstractNamedFeatureType fields) plus SoundingConstructionMethod's and
+         SoundingEvent's own fields.
+         ============================================================ -->
+    <samplingFeature>
+        <Sounding gml:id="Sounding-Mockup-1">
+            <gml:description>Static cone penetration test (CPT) sounding advanced adjacent to BH-Mockup-1 to confirm stratigraphy for the shallow foundation design.</gml:description>
+            <gml:identifier codeSpace="http://www.globalgeosolutions.com/projects">Sounding-Mockup-1</gml:identifier>
+            <gml:name>Sounding-Mockup-1</gml:name>
+            <gml:name codeSpace="http://www.globalgeosolutions.com/projects">CPT-1</gml:name>
+            <internalIdentifier codeSpace="http://www.globalgeosolutions.com/projects">GGL-CPT-01</internalIdentifier>
+            <status codeSpace="http://diggsml.org/def/codes/DIGGS/0.1/Status">complete</status>
+            <implementationStatus codeSpace="http://diggsml.org/def/codes/DIGGS/0.1/ImplementationStatus">actual</implementationStatus>
+            <associatedFile xlink:href="#AF001"/>
+            <role>
+                <Role>
+                    <rolePerformed codeSpace="http://diggsml.org/def/codes/DIGGS/0.1/RolePerformed">drillingContractor</rolePerformed>
+                    <businessAssociate xlink:href="#BA001"/>
+                </Role>
+            </role>
+            <remark>
+                <Remark>
+                    <content>Continuous push from ground surface to 100 ft, no rod breaks or refusal encountered.</content>
+                </Remark>
+            </remark>
+            <investigationTarget>Ground Improvement</investigationTarget>
+            <projectRef xlink:href="#Project-Mockup-1"/>
+            <environment>
+                <Environment gml:id="ENV-Sounding-Mockup-1">
+                    <gml:name codeSpace="http://www.globalgeosolutions.com/projects">Sounding-Mockup-1 Field Conditions</gml:name>
+                    <status codeSpace="http://diggsml.org/def/codes/DIGGS/0.1/Status">complete</status>
+                    <dateTime frame="#ISO-8601">2025-06-10T08:15:00-07:00</dateTime>
+                    <ambientTemperature uom="degC" howDetermined="measured">21.4</ambientTemperature>
+                    <barometricPressure uom="kPa" howDetermined="measured">101.2</barometricPressure>
+                    <humidity uom="%" howDetermined="measured">42</humidity>
+                    <weather>Clear, light westerly breeze</weather>
+                    <windSpeed uom="km/h" howDetermined="measured">8</windSpeed>
+                </Environment>
+            </environment>
+            <locality>
+                <PointLocation gml:id="loc-Sounding-Mockup-1"
+                    srsName="https://www.opengis.net/def/crs-compound?1=http://www.opengis.net/def/crs/EPSG/0/26911%262=http://www.opengis.net/def/crs/EPSG/0/5703"
+                    srsDimension="3" axisLabels="easting northing height" uomLabels="m m m">
+                    <gml:description>Non-coordinate locality note — northeast corner of the Mockup-1 test parcel, 3 m east of BH-Mockup-1.</gml:description>
+                    <gml:pos>453560.08 3706831.07 385.55</gml:pos>
+                </PointLocation>
+            </locality>
+            <referencePoint>
+                <PointLocation gml:id="pl-Sounding-Mockup-1"
+                    srsName="https://www.opengis.net/def/crs-compound?1=http://www.opengis.net/def/crs/EPSG/0/26911%262=http://www.opengis.net/def/crs/EPSG/0/5703"
+                    srsDimension="3" axisLabels="easting northing height" uomLabels="m m m">
+                    <gml:pos>453560.08 3706831.07 385.55</gml:pos>
+                </PointLocation>
+            </referencePoint>
+            <centerLine>
+                <LinearExtent gml:id="cl-Sounding-Mockup-1"
+                    srsName="https://www.opengis.net/def/crs-compound?1=http://www.opengis.net/def/crs/EPSG/0/26911%262=http://www.opengis.net/def/crs/EPSG/0/5703"
+                    srsDimension="3" axisLabels="easting northing height" uomLabels="m m m">
+                    <gml:posList>453560.08 3706831.07 385.55 453560.08 3706831.07 355.07</gml:posList>
+                </LinearExtent>
+            </centerLine>
+            <linearReferencing>
+                <LinearSpatialReferenceSystem gml:id="lsr-Sounding-Mockup-1">
+                    <gml:identifier codeSpace="http://www.globalgeosolutions.com/projects">lsr-Sounding-Mockup-1</gml:identifier>
+                    <glr:linearElement xlink:href="#cl-Sounding-Mockup-1"/>
+                    <lrm xlink:href="https://diggsml.org/def/crs/DIGGS/0.1/lrm.xml#md_ft"/>
+                </LinearSpatialReferenceSystem>
+            </linearReferencing>
+            <whenConstructed>
+                <TimeInterval gml:id="TI-Sounding-Mockup-1">
+                    <start frame="#ISO-8601">2025-06-10T08:00:00-07:00</start>
+                    <end frame="#ISO-8601">2025-06-10T09:05:00-07:00</end>
+                    <duration uom="min" howDetermined="calculated">65</duration>
+                </TimeInterval>
+            </whenConstructed>
+            <totalMeasuredDepth uom="ft" howDetermined="measured">100</totalMeasuredDepth>
+            <soundingPurpose codeSpace="https://www.diggsml.org/def/codes/DIGGS/0.1/SoundingTypeDef.xml">Cone Penetration Test (CPT)</soundingPurpose>
+            <backfill>
+                <Backfill gml:id="BKF-Sounding-Mockup-1">
+                    <gml:description>Backfill placed in the CPT pilot hole after sounding completion.</gml:description>
+                    <backfillDateTime>
+                        <TimeInterval gml:id="TI-BKF-Sounding-Mockup-1">
+                            <start frame="#ISO-8601">2025-06-10T09:05:00-07:00</start>
+                            <end frame="#ISO-8601">2025-06-10T09:20:00-07:00</end>
+                            <duration uom="min" howDetermined="calculated">15</duration>
+                        </TimeInterval>
+                    </backfillDateTime>
+                    <backfillLayer>
+                        <BackfillLayer gml:id="BKF-Sounding-Mockup-1-L1">
+                            <backfillInterval>
+                                <LinearExtent gml:id="BKF-Sounding-Mockup-1-L1-EXT" srsName="#lsr-Sounding-Mockup-1" srsDimension="1">
+                                    <gml:posList>0 3</gml:posList>
+                                </LinearExtent>
+                            </backfillInterval>
+                            <whenEmplaced>
+                                <TimeInterval gml:id="TI-BKF-Sounding-Mockup-1-L1">
+                                    <start frame="#ISO-8601">2025-06-10T09:05:00-07:00</start>
+                                    <end frame="#ISO-8601">2025-06-10T09:08:00-07:00</end>
+                                    <duration uom="min" howDetermined="calculated">3</duration>
+                                </TimeInterval>
+                            </whenEmplaced>
+                            <backfillMaterial>bentonite chips</backfillMaterial>
+                            <isSanitarySeal>true</isSanitarySeal>
+                        </BackfillLayer>
+                    </backfillLayer>
+                    <backfillLayer>
+                        <BackfillLayer gml:id="BKF-Sounding-Mockup-1-L2">
+                            <backfillInterval>
+                                <LinearExtent gml:id="BKF-Sounding-Mockup-1-L2-EXT" srsName="#lsr-Sounding-Mockup-1" srsDimension="1">
+                                    <gml:posList>3 100</gml:posList>
+                                </LinearExtent>
+                            </backfillInterval>
+                            <backfillMaterial>auger cuttings</backfillMaterial>
+                        </BackfillLayer>
+                    </backfillLayer>
+                    <backfillType>open hole</backfillType>
+                </Backfill>
+            </backfill>
+            <casing>
+                <Casing gml:id="CSG-Sounding-Mockup-1">
+                    <gml:description>Temporary steel guide casing advanced through 3 ft of asphalt pavement and base course to bypass surface obstruction prior to CPT push.</gml:description>
+                    <casingLocation>
+                        <LinearExtent gml:id="CSGLOC-Sounding-Mockup-1" srsName="#lsr-Sounding-Mockup-1" srsDimension="1">
+                            <gml:posList>0 3</gml:posList>
+                        </LinearExtent>
+                    </casingLocation>
+                    <casingOutsideDiameter uom="in">4.5</casingOutsideDiameter>
+                    <casingInsideDiameter uom="in">4.0</casingInsideDiameter>
+                    <casingWallThickness uom="in">0.25</casingWallThickness>
+                    <casingMaterial codeSpace="https://www.diggsml.org/def/codes/DIGGS/0.1/CasingMaterialDef.xml">steel</casingMaterial>
+                    <numberGroutPorts>2</numberGroutPorts>
+                    <timeCasingInstalled gml:id="TI-Sounding-Mockup-1-CSG-IN">
+                        <start frame="#ISO-8601">2025-06-10T08:00:00-07:00</start>
+                        <end frame="#ISO-8601">2025-06-10T08:20:00-07:00</end>
+                        <duration uom="min" howDetermined="calculated">20</duration>
+                    </timeCasingInstalled>
+                    <timeCasingRemoved gml:id="TI-Sounding-Mockup-1-CSG-RM">
+                        <start frame="#ISO-8601">2025-06-10T09:05:00-07:00</start>
+                        <end frame="#ISO-8601">2025-06-10T09:12:00-07:00</end>
+                        <duration uom="min" howDetermined="calculated">7</duration>
+                    </timeCasingRemoved>
+                    <casingAdvancement>
+                        <CasingAdvancement gml:id="CA-Sounding-Mockup-1">
+                            <advancementTime>
+                                <TimeInterval gml:id="TI-CA-Sounding-Mockup-1">
+                                    <start frame="#ISO-8601">2025-06-10T08:00:00-07:00</start>
+                                    <end frame="#ISO-8601">2025-06-10T08:20:00-07:00</end>
+                                    <duration uom="min" howDetermined="calculated">20</duration>
+                                </TimeInterval>
+                            </advancementTime>
+                            <casingBaseAtStart>
+                                <PointLocation gml:id="PL-CA-Sounding-Mockup-1-START" srsName="#lsr-Sounding-Mockup-1" srsDimension="1">
+                                    <gml:pos>0</gml:pos>
+                                </PointLocation>
+                            </casingBaseAtStart>
+                            <casingBaseAtEnd>
+                                <PointLocation gml:id="PL-CA-Sounding-Mockup-1-END" srsName="#lsr-Sounding-Mockup-1" srsDimension="1">
+                                    <gml:pos>3</gml:pos>
+                                </PointLocation>
+                            </casingBaseAtEnd>
+                            <casingBlows>14</casingBlows>
+                        </CasingAdvancement>
+                    </casingAdvancement>
+                </Casing>
+            </casing>
+            <constructionMethod>
+                <SoundingConstructionMethod gml:id="SCM-Sounding-Mockup-1">
+                    <gml:description>Static cone penetration test push, full profile from ground surface to termination depth.</gml:description>
+                    <gml:identifier codeSpace="http://www.globalgeosolutions.com/projects">SCM-Sounding-Mockup-1</gml:identifier>
+                    <gml:name codeSpace="http://www.globalgeosolutions.com/projects">Sounding-Mockup-1 CPT Push Method</gml:name>
+                    <status codeSpace="http://diggsml.org/def/codes/DIGGS/0.1/Status">complete</status>
+                    <role>
+                        <Role>
+                            <rolePerformed codeSpace="http://diggsml.org/def/codes/DIGGS/0.1/RolePerformed">drillingContractor</rolePerformed>
+                            <businessAssociate xlink:href="#BA001"/>
+                        </Role>
+                    </role>
+                    <remark>
+                        <Remark>
+                            <content>Continuous push, no rod breaks or refusal encountered.</content>
+                        </Remark>
+                    </remark>
+                    <location>
+                        <LinearExtent gml:id="SCMLOC-Sounding-Mockup-1" srsName="#lsr-Sounding-Mockup-1" srsDimension="1">
+                            <gml:posList>0 100</gml:posList>
+                        </LinearExtent>
+                    </location>
+                    <methodTime>
+                        <TimeInterval gml:id="TI-SCM-METHOD-Sounding-Mockup-1">
+                            <start frame="#ISO-8601">2025-06-10T08:20:00-07:00</start>
+                            <end frame="#ISO-8601">2025-06-10T09:05:00-07:00</end>
+                            <duration uom="min" howDetermined="calculated">45</duration>
+                        </TimeInterval>
+                    </methodTime>
+                    <constructionMethod>
+                        <Specification gml:id="SPEC-Sounding-Mockup-1-CPT">
+                            <gml:name codeSpace="http://diggsml.org/def/codes/DIGGS/0.1/Specification">Electronic Cone Penetration Test — ASTM D5778</gml:name>
+                            <status codeSpace="http://diggsml.org/def/codes/DIGGS/0.1/Status">complete</status>
+                            <shortMethodName>CPT</shortMethodName>
+                            <standardReferenceNumber>ASTM D5778</standardReferenceNumber>
+                            <standardTitle>Standard Test Method for Electronic Friction Cone and Piezocone Penetration Testing of Soils</standardTitle>
+                            <standardVersion>2020</standardVersion>
+                        </Specification>
+                    </constructionMethod>
+                    <constructionEquipment>
+                        <Equipment gml:id="EQ-Sounding-Mockup-1-Rig">
+                            <gml:name codeSpace="http://www.globalgeosolutions.com/equipment">GGL CPT Truck Rig No. 1</gml:name>
+                            <class codeSpace="http://diggsml.org/def/codes/DIGGS/0.1/EquipmentClass">conePenetrometerRig</class>
+                            <make>Vertek</make>
+                            <modelNumber>20-ton Truck CPT</modelNumber>
+                            <serialNumber>VTK-20T-0087</serialNumber>
+                        </Equipment>
+                    </constructionEquipment>
+                </SoundingConstructionMethod>
+            </constructionMethod>
+            <constructionEvent>
+                <SoundingEvent gml:id="SE-Sounding-Mockup-1">
+                    <gml:name codeSpace="http://www.globalgeosolutions.com/projects">Sounding-Mockup-1 Push Complete</gml:name>
+                    <status codeSpace="http://diggsml.org/def/codes/DIGGS/0.1/Status">complete</status>
+                    <remark>
+                        <Remark>
+                            <content>Push terminated at 100 ft on refusal-free advance; rods withdrawn and pilot hole backfilled.</content>
+                        </Remark>
+                    </remark>
+                    <location>
+                        <LinearExtent gml:id="SELOC-Sounding-Mockup-1" srsName="#lsr-Sounding-Mockup-1" srsDimension="1">
+                            <gml:posList>0 100</gml:posList>
+                        </LinearExtent>
+                    </location>
+                    <time>
+                        <TimeInterval gml:id="TI-SE-Sounding-Mockup-1">
+                            <start frame="#ISO-8601">2025-06-10T09:05:00-07:00</start>
+                        </TimeInterval>
+                    </time>
+                    <infoRecorded>
+                        <Parameter gml:id="PARAM-SE-Sounding-Mockup-1">
+                            <parameterName codeSpace="http://diggsml.org/def/codes/DIGGS/0.1/SamplingFeatureParameter">tipResistanceAtTermination</parameterName>
+                            <parameterValue>18.6</parameterValue>
+                            <parameterUnits>MPa</parameterUnits>
+                        </Parameter>
+                    </infoRecorded>
+                    <casingBottom>
+                        <PointLocation gml:id="PL-SE-Sounding-Mockup-1-CSGBOT" srsName="#lsr-Sounding-Mockup-1" srsDimension="1">
+                            <gml:pos>3</gml:pos>
+                        </PointLocation>
+                    </casingBottom>
+                    <soundingBottom>
+                        <PointLocation gml:id="PL-SE-Sounding-Mockup-1-SNDBOT" srsName="#lsr-Sounding-Mockup-1" srsDimension="1">
+                            <gml:pos>100</gml:pos>
+                        </PointLocation>
+                    </soundingBottom>
+                </SoundingEvent>
+            </constructionEvent>
+        </Sounding>
+    </samplingFeature>
+
+    <samplingFeature>
+        <Sounding gml:id="Sounding-Mockup-2">
+            <gml:description>Dynamic cone penetration test (DCPT) sounding advanced adjacent to BH-Mockup-3 to characterize near-surface density variation near the deviated hole's collar.</gml:description>
+            <gml:identifier codeSpace="http://www.globalgeosolutions.com/projects">Sounding-Mockup-2</gml:identifier>
+            <gml:name>Sounding-Mockup-2</gml:name>
+            <status codeSpace="http://diggsml.org/def/codes/DIGGS/0.1/Status">complete</status>
+            <role>
+                <Role>
+                    <rolePerformed codeSpace="http://diggsml.org/def/codes/DIGGS/0.1/RolePerformed">client</rolePerformed>
+                    <businessAssociate xlink:href="#BA002"/>
+                </Role>
+            </role>
+            <remark>
+                <Remark>
+                    <content>DCPT advanced 7.6 m east-northeast of the BH-Mockup-3 collar to supplement the deviated borehole's near-surface density profile.</content>
+                </Remark>
+            </remark>
+            <investigationTarget>Natural Ground</investigationTarget>
+            <investigationTarget>Earthworks</investigationTarget>
+            <projectRef xlink:href="#Project-Mockup-1"/>
+            <otherSamplingFeatureProperty>
+                <Parameter gml:id="Sounding-Mockup-2-PROP1">
+                    <parameterName codeSpace="http://diggsml.org/def/codes/DIGGS/0.1/SamplingFeatureParameter">groundSurfaceCover</parameterName>
+                    <parameterValue>asphalt pavement, 0.15 m thick</parameterValue>
+                </Parameter>
+            </otherSamplingFeatureProperty>
+            <referencePoint>
+                <PointLocation gml:id="pl-Sounding-Mockup-2"
+                    srsName="https://www.opengis.net/def/crs-compound?1=http://www.opengis.net/def/crs/EPSG/0/26911%262=http://www.opengis.net/def/crs/EPSG/0/5703"
+                    srsDimension="3" axisLabels="easting northing height" uomLabels="m m m">
+                    <gml:pos>453599.08 3706894.69 386.60</gml:pos>
+                </PointLocation>
+            </referencePoint>
+            <localCoordinates>
+                <LocalCoordinate>
+                    <easting uom="m">7.00</easting>
+                    <northing uom="m">3.00</northing>
+                    <elevation uom="m">386.60</elevation>
+                </LocalCoordinate>
+            </localCoordinates>
+            <centerLine>
+                <LinearExtent gml:id="cl-Sounding-Mockup-2"
+                    srsName="https://www.opengis.net/def/crs-compound?1=http://www.opengis.net/def/crs/EPSG/0/26911%262=http://www.opengis.net/def/crs/EPSG/0/5703"
+                    srsDimension="3" axisLabels="easting northing height" uomLabels="m m m">
+                    <gml:posList>453599.08 3706894.69 386.60 453601.48 3706897.09 362.45</gml:posList>
+                </LinearExtent>
+            </centerLine>
+            <linearReferencing>
+                <LinearSpatialReferenceSystem gml:id="lsr-Sounding-Mockup-2">
+                    <gml:identifier codeSpace="http://www.globalgeosolutions.com/projects">lsr-Sounding-Mockup-2</gml:identifier>
+                    <glr:linearElement xlink:href="#cl-Sounding-Mockup-2"/>
+                    <lrm xlink:href="https://diggsml.org/def/crs/DIGGS/0.1/lrm.xml#md_ft"/>
+                </LinearSpatialReferenceSystem>
+            </linearReferencing>
+            <plunge uom="dega" howDetermined="calculated">82</plunge>
+            <bearing uom="dega" howDetermined="calculated">45</bearing>
+            <whenConstructed>
+                <TimeInterval gml:id="TI-Sounding-Mockup-2">
+                    <start frame="#ISO-8601">2025-06-11T10:00:00-07:00</start>
+                    <end frame="#ISO-8601">2025-06-11T10:35:00-07:00</end>
+                    <duration uom="min" howDetermined="calculated">35</duration>
+                </TimeInterval>
+            </whenConstructed>
+            <totalMeasuredDepth uom="ft" howDetermined="measured">80</totalMeasuredDepth>
+            <soundingPurpose codeSpace="https://www.diggsml.org/def/codes/DIGGS/0.1/SoundingTypeDef.xml">Dynamic Cone Penetration Test (DCPT)</soundingPurpose>
+            <constructionMethod>
+                <SoundingConstructionMethod gml:id="SCM-Sounding-Mockup-2">
+                    <gml:name codeSpace="http://www.globalgeosolutions.com/projects">Sounding-Mockup-2 DCPT Method</gml:name>
+                    <status codeSpace="http://diggsml.org/def/codes/DIGGS/0.1/Status">complete</status>
+                    <location>
+                        <LinearExtent gml:id="SCMLOC-Sounding-Mockup-2" srsName="#lsr-Sounding-Mockup-2" srsDimension="1">
+                            <gml:posList>0 80</gml:posList>
+                        </LinearExtent>
+                    </location>
+                    <methodTime>
+                        <TimeInterval gml:id="TI-SCM-METHOD-Sounding-Mockup-2">
+                            <start frame="#ISO-8601">2025-06-11T10:00:00-07:00</start>
+                            <end frame="#ISO-8601">2025-06-11T10:35:00-07:00</end>
+                            <duration uom="min" howDetermined="calculated">35</duration>
+                        </TimeInterval>
+                    </methodTime>
+                    <constructionMethod>
+                        <Specification gml:id="SPEC-Sounding-Mockup-2-DCPT">
+                            <gml:name codeSpace="http://diggsml.org/def/codes/DIGGS/0.1/Specification">Dynamic Cone Penetrometer — ASTM D6951</gml:name>
+                            <status codeSpace="http://diggsml.org/def/codes/DIGGS/0.1/Status">complete</status>
+                            <shortMethodName>DCPT</shortMethodName>
+                            <standardReferenceNumber>ASTM D6951</standardReferenceNumber>
+                            <standardTitle>Standard Test Method for Use of the Dynamic Cone Penetrometer in Shallow Pavement Applications</standardTitle>
+                            <standardVersion>2018</standardVersion>
+                        </Specification>
+                    </constructionMethod>
+                    <constructionEquipment>
+                        <Equipment gml:id="EQ-Sounding-Mockup-2-Hammer">
+                            <gml:name codeSpace="http://www.globalgeosolutions.com/equipment">GGL Dynamic Cone Penetrometer No. 2</gml:name>
+                            <class codeSpace="http://diggsml.org/def/codes/DIGGS/0.1/EquipmentClass">dynamicConePenetrometer</class>
+                            <make>Kessler</make>
+                            <modelNumber>DCP-CIVIL</modelNumber>
+                            <serialNumber>KES-DCP-0142</serialNumber>
+                        </Equipment>
+                    </constructionEquipment>
+                </SoundingConstructionMethod>
+            </constructionMethod>
+            <constructionEvent>
+                <SoundingEvent gml:id="SE-Sounding-Mockup-2">
+                    <gml:description>Termination event for Sounding-Mockup-2 at 80 ft, refusal on cobble/gravel layer.</gml:description>
+                    <gml:identifier codeSpace="http://www.globalgeosolutions.com/projects">SE-Sounding-Mockup-2</gml:identifier>
+                    <gml:name codeSpace="http://www.globalgeosolutions.com/projects">Sounding-Mockup-2 Refusal</gml:name>
+                    <status codeSpace="http://diggsml.org/def/codes/DIGGS/0.1/Status">complete</status>
+                    <time>
+                        <TimeInterval gml:id="TI-SE-Sounding-Mockup-2">
+                            <start frame="#ISO-8601">2025-06-11T10:35:00-07:00</start>
+                        </TimeInterval>
+                    </time>
+                    <infoRecorded>
+                        <Parameter gml:id="PARAM-SE-Sounding-Mockup-2">
+                            <parameterName codeSpace="http://diggsml.org/def/codes/DIGGS/0.1/SamplingFeatureParameter">blowsPerLastIncrement</parameterName>
+                            <parameterValue>27</parameterValue>
+                        </Parameter>
+                    </infoRecorded>
+                    <soundingBottom>
+                        <PointLocation gml:id="PL-SE-Sounding-Mockup-2-SNDBOT" srsName="#lsr-Sounding-Mockup-2" srsDimension="1">
+                            <gml:pos>80</gml:pos>
+                        </PointLocation>
+                    </soundingBottom>
+                </SoundingEvent>
+            </constructionEvent>
+        </Sounding>
     </samplingFeature>
 
     <samplingFeature>
@@ -20343,4 +20735,1243 @@
             </procedure>
         </Test>
     </measurement>
+
+    <!-- ============================================================
+         BH-Mockup-1 Driven Penetration Test (SPT) suite
+         ASTM D1586/D1586M-18e1, one test per 10 ft starting at 25 ft,
+         continuing to 145 ft (borehole terminates at 150 ft total
+         depth). Blow counts and N-values are scaled to the logged
+         USCS lithology at each depth (see BH-Mockup-1 Lithology,
+         above): loose-to-dense granular near surface, stiff-to-hard
+         fine-grained units below 48 ft, dense clayey sand from
+         105-128 ft. Equipment/method Specification and Equipment are
+         authored once (test at 25 ft) and referenced by xlink:href
+         from every subsequent test, matching real field practice of
+         one rig/hammer set-up for the whole boring. testingEnvironment
+         cannot be referenced (EnvironmentPropertyType has no
+         AssociationAttributeGroup per core/Common.xsd:473) so it is
+         inlined twice only, once per drilling day.
+         ============================================================ -->
+    <measurement>
+        <Test gml:id="Test_SPT_BH-Mockup-1_25">
+            <gml:name>SPT-1</gml:name>
+            <internalIdentifier codeSpace="http://www.globalgeosolutions.com/projects">SPT-BH-MOCKUP-1-01</internalIdentifier>
+            <status codeSpace="http://diggsml.org/def/codes/DIGGS/0.1/Status">complete</status>
+            <implementationStatus codeSpace="http://diggsml.org/def/codes/DIGGS/0.1/ImplementationStatus">actual</implementationStatus>
+            <role>
+                <Role>
+                    <rolePerformed>Test Role at the Measurement Level</rolePerformed>
+                    <businessAssociate xlink:href="#BA002"/>
+                </Role>
+            </role>
+            <remark>
+                <Remark>
+                    <content>Test remark at the measurement level</content>
+                    <author xlink:href="#BA002"/>
+                    <remarkDateTime>2025-01-21</remarkDateTime>
+                </Remark>
+            </remark>
+            <investigationTarget>Natural Ground</investigationTarget>
+            <projectRef xlink:href="#Project-Mockup-1"/>
+            <samplingFeatureRef xlink:href="#BH-Mockup-1"/>
+            <samplingTime>
+                <TimeInterval gml:id="ST_Test_SPT_BH-Mockup-1_25">
+                    <start frame="#ISO-8601">2026-02-10</start>
+                </TimeInterval>
+            </samplingTime>
+            <outcome>
+                <TestResult>
+                    <location>
+                        <LinearExtent gml:id="TR-LOC_Test_SPT_BH-Mockup-1_25" srsName="#lsr-BH-Mockup-1" srsDimension="1">
+                            <gml:posList>25 26.5</gml:posList>
+                        </LinearExtent>
+                    </location>
+                    <results>
+                        <ResultSet>
+                            <parameters>
+                                <PropertyParameters>
+                                    <properties>
+                                        <Property index="1">
+                                            <propertyName>N-Value</propertyName>
+                                            <typeData>integer</typeData>
+                                            <propertyClass codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/properties.xml#n_value">N-Value</propertyClass>
+                                        </Property>
+                                    </properties>
+                                </PropertyParameters>
+                            </parameters>
+                            <dataValues cs="," ts=" " decimal=".">19</dataValues>
+                        </ResultSet>
+                    </results>
+                </TestResult>
+            </outcome>
+            <procedure>
+                <DrivenPenetrationTest gml:id="SPT_BH-Mockup-1_25">
+                    <role>
+                        <Role>
+                            <rolePerformed>Test Role at the Proedure Level</rolePerformed>
+                            <businessAssociate xlink:href="#BA002"/>
+                        </Role>
+                    </role>
+                    <remark>
+                        <Remark>
+                            <content>Test remark at the Procedure level</content>
+                            <author xlink:href="#BA002"/>
+                            <remarkDateTime>2025-01-21</remarkDateTime>
+                        </Remark>
+                    </remark>
+                    
+                    <testProcedureMethod>
+                        <Specification gml:id="SPEC-SPT-BH-Mockup-1">
+                            <gml:name codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/Specification">Standard Penetration Test — ASTM D1586/D1586M-18e1</gml:name>
+                            <internalIdentifier codeSpace="http://www.globalgeosolutions.com/projects">SPT-SPEC-BH-Mockup-1</internalIdentifier>
+                            <status codeSpace="http://diggsml.org/def/codes/DIGGS/0.1/Status">complete</status>
+                            <implementationStatus codeSpace="http://diggsml.org/def/codes/DIGGS/0.1/ImplementationStatus">actual</implementationStatus>
+                            <remark>
+                                <Remark>
+                                    <content>Standard Penetration Test performed at 10 ft intervals from 25 ft to 145 ft depth in BH-Mockup-1 using a 140 lb automatic trip hammer. Split-barrel sampler driven in three 6-inch increments; N-value recorded as the sum of blows for the second and third increments per ASTM D1586/D1586M-18e1.</content>
+                                </Remark>
+                            </remark>
+                            <shortMethodName>SPT</shortMethodName>
+                            <standardReferenceNumber>ASTM D1586/D1586M-18e1</standardReferenceNumber>
+                            <standardTitle>Standard Test Method for Standard Penetration Test (SPT) and Split-Barrel Sampling of Soils</standardTitle>
+                            <standardVersion>18e1</standardVersion>
+                            <otherSpecificationProperty>
+                                <Parameter index="1" gml:id="PARAM-SPEC-SPT-BH-Mockup-1-HAMMERTYPE">
+                                    <parameterName codeSpace="http://www.globalgeosolutions.com/projects">hammerType</parameterName>
+                                    <parameterValue>automatic trip hammer</parameterValue>
+                                </Parameter>
+                            </otherSpecificationProperty>
+                            <otherSpecificationProperty>
+                                <Parameter index="2" gml:id="PARAM-SPEC-SPT-BH-Mockup-1-HAMMERMASS">
+                                    <parameterName codeSpace="http://www.globalgeosolutions.com/projects">hammerMass</parameterName>
+                                    <parameterValue>140</parameterValue>
+                                    <parameterUnits>lbm</parameterUnits>
+                                </Parameter>
+                            </otherSpecificationProperty>
+                        </Specification>
+                    </testProcedureMethod>
+                    <testProcedureEquipment>
+                        <Equipment gml:id="EQ-SPT-BH-Mockup-1">
+                            <gml:name codeSpace="http://www.globalgeosolutions.com/equipment">Automatic SPT Trip Hammer System — BH-Mockup-1</gml:name>
+                            <internalIdentifier codeSpace="http://www.globalgeosolutions.com/projects">GBL-SPTHAMMER-MOCKUP-1</internalIdentifier>
+                            <status codeSpace="http://diggsml.org/def/codes/DIGGS/0.1/Status">complete</status>
+                            <implementationStatus codeSpace="http://diggsml.org/def/codes/DIGGS/0.1/ImplementationStatus">actual</implementationStatus>
+                            <class codeSpace="http://diggsml.org/def/codes/DIGGS/0.1/EquipmentClass">automaticTripHammer</class>
+                            <make>Pilcon</make>
+                            <modelNumber>Maxidrive-AT</modelNumber>
+                            <serialNumber>PIL-AT-2019-0217</serialNumber>
+                            <otherEquipmentProperty>
+                                <Parameter index="1" gml:id="PARAM-EQ-SPT-BH-Mockup-1-MASS">
+                                    <parameterName codeSpace="http://www.globalgeosolutions.com/projects">hammerMass</parameterName>
+                                    <parameterValue>140</parameterValue>
+                                    <parameterUnits>lbm</parameterUnits>
+                                </Parameter>
+                            </otherEquipmentProperty>
+                            <otherEquipmentProperty>
+                                <Parameter index="2" gml:id="PARAM-EQ-SPT-BH-Mockup-1-DROP">
+                                    <parameterName codeSpace="http://www.globalgeosolutions.com/projects">dropHeight</parameterName>
+                                    <parameterValue>30</parameterValue>
+                                    <parameterUnits>in</parameterUnits>
+                                </Parameter>
+                            </otherEquipmentProperty>
+                        </Equipment>
+                    </testProcedureEquipment>
+                    <testingEnvironment>
+                        <Environment gml:id="ENV_SPT_BH-Mockup-1_D1">
+                            <dateTime frame="#ISO-8601">2026-02-10</dateTime>
+                            <ambientTemperature uom="degC" howDetermined="measured">18.5</ambientTemperature>
+                            <barometricPressure uom="kPa" howDetermined="measured">101.8</barometricPressure>
+                            <humidity uom="%" howDetermined="measured">35</humidity>
+                            <weather>Clear and sunny, light breeze</weather>
+                            <windSpeed uom="km/h" howDetermined="measured">10</windSpeed>
+                        </Environment>
+                    </testingEnvironment>
+                    <penetrationTestType>SPT</penetrationTestType>
+                    <hammerType>Automatic trip hammer</hammerType>
+                    <hammerMass uom="lbm" howDetermined="reported">140</hammerMass>
+                    <hammerDropHeight uom="in" howDetermined="reported">30</hammerDropHeight>
+                    <hammerEfficiency uom="%" howDetermined="reported">80</hammerEfficiency>
+                    <samplerLength uom="in" howDetermined="reported">24</samplerLength>
+                    <samplerInternalDiameter uom="in" howDetermined="reported">1.375</samplerInternalDiameter>
+                    <samplerLinerDescription>No liner used; sampler barrel unlined per standard configuration.</samplerLinerDescription>
+                    <samplerRetainerDescription>Spring-type basket retainer installed in drive shoe to aid sample retention in loose granular soils.</samplerRetainerDescription>
+                    <rodType>AW rod</rodType>
+                    <rodExternalDiameter uom="in" howDetermined="reported">1.75</rodExternalDiameter>
+                    <rodSectionLength uom="ft" howDetermined="reported">10</rodSectionLength>
+                    <rodWeight uom="lbf/ft" howDetermined="reported">4.4</rodWeight>
+                    <depthCasing uom="ft" howDetermined="measured">20</depthCasing>
+                    <totalPenetration uom="ft" howDetermined="measured">1.5</totalPenetration>
+                    <driveSet>
+                        <DriveSet gml:id="DS1_SPT_BH-Mockup-1_25">
+                            <remark>
+                                <Remark>
+                                    <content>Smooth, steady advance; no obstructions encountered during seating drive.</content>
+                                </Remark>
+                            </remark>
+                            <index>1</index>
+                            <blowCount>5</blowCount>
+                            <penetration uom="ft">0.5</penetration>
+                        </DriveSet>
+                    </driveSet>
+                    <driveSet>
+                        <DriveSet gml:id="DS2_SPT_BH-Mockup-1_25">
+                            <index>2</index>
+                            <blowCount>9</blowCount>
+                            <penetration uom="ft">0.5</penetration>
+                        </DriveSet>
+                    </driveSet>
+                    <driveSet>
+                        <DriveSet gml:id="DS3_SPT_BH-Mockup-1_25">
+                            <index>3</index>
+                            <blowCount>10</blowCount>
+                            <penetration uom="ft">0.5</penetration>
+                        </DriveSet>
+                    </driveSet>
+                </DrivenPenetrationTest>
+            </procedure>
+        </Test>
+    </measurement>
+
+    <measurement>
+        <Test gml:id="Test_SPT_BH-Mockup-1_35">
+            <gml:name>SPT-2</gml:name>
+            <investigationTarget>Natural Ground</investigationTarget>
+            <projectRef xlink:href="#Project-Mockup-1"/>
+            <samplingFeatureRef xlink:href="#BH-Mockup-1"/>
+            <samplingTime>
+                <TimeInterval gml:id="ST_Test_SPT_BH-Mockup-1_35">
+                    <start frame="#ISO-8601">2026-02-10</start>
+                </TimeInterval>
+            </samplingTime>
+            <outcome>
+                <TestResult>
+                    <location>
+                        <LinearExtent gml:id="TR-LOC_Test_SPT_BH-Mockup-1_35" srsName="#lsr-BH-Mockup-1" srsDimension="1">
+                            <gml:posList>35 36.5</gml:posList>
+                        </LinearExtent>
+                    </location>
+                    <results>
+                        <ResultSet>
+                            <parameters>
+                                <PropertyParameters>
+                                    <properties>
+                                        <Property index="1">
+                                            <propertyName>N-Value</propertyName>
+                                            <typeData>integer</typeData>
+                                            <propertyClass codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/properties.xml#n_value">N-Value</propertyClass>
+                                        </Property>
+                                    </properties>
+                                </PropertyParameters>
+                            </parameters>
+                            <dataValues cs="," ts=" " decimal=".">32</dataValues>
+                        </ResultSet>
+                    </results>
+                </TestResult>
+            </outcome>
+            <procedure>
+                <DrivenPenetrationTest gml:id="SPT_BH-Mockup-1_35">
+                    <testProcedureMethod xlink:href="#SPEC-SPT-BH-Mockup-1"/>
+                    <testProcedureEquipment xlink:href="#EQ-SPT-BH-Mockup-1"/>
+                    <penetrationTestType>SPT</penetrationTestType>
+                    <hammerType>Automatic trip hammer</hammerType>
+                    <hammerMass uom="lbm" howDetermined="reported">140</hammerMass>
+                    <hammerDropHeight uom="in" howDetermined="reported">30</hammerDropHeight>
+                    <hammerEfficiency uom="%" howDetermined="reported">80</hammerEfficiency>
+                    <samplerLength uom="in" howDetermined="reported">24</samplerLength>
+                    <samplerInternalDiameter uom="in" howDetermined="reported">1.375</samplerInternalDiameter>
+                    <samplerLinerDescription>No liner used; sampler barrel unlined per standard configuration.</samplerLinerDescription>
+                    <samplerRetainerDescription>Spring-type basket retainer installed in drive shoe to aid sample retention in loose granular soils.</samplerRetainerDescription>
+                    <rodType>AW rod</rodType>
+                    <rodExternalDiameter uom="in" howDetermined="reported">1.75</rodExternalDiameter>
+                    <rodSectionLength uom="ft" howDetermined="reported">10</rodSectionLength>
+                    <rodWeight uom="lbf/ft" howDetermined="reported">4.4</rodWeight>
+                    <depthCasing uom="ft" howDetermined="measured">35</depthCasing>
+                    <totalPenetration uom="ft" howDetermined="measured">1.5</totalPenetration>
+                    <driveSet>
+                        <DriveSet gml:id="DS1_SPT_BH-Mockup-1_35">
+                            <index>1</index>
+                            <blowCount>8</blowCount>
+                            <penetration uom="ft">0.5</penetration>
+                        </DriveSet>
+                    </driveSet>
+                    <driveSet>
+                        <DriveSet gml:id="DS2_SPT_BH-Mockup-1_35">
+                            <index>2</index>
+                            <blowCount>15</blowCount>
+                            <penetration uom="ft">0.5</penetration>
+                            <delay>
+                                <DelayEvent gml:id="DE_SPT_BH-Mockup-1_35">
+                                    <timeOfDelay>
+                                        <TimeInterval gml:id="TI_DE_SPT_BH-Mockup-1_35">
+                                            <start frame="#ISO-8601">2026-02-10T09:12:00</start>
+                                            <end frame="#ISO-8601">2026-02-10T09:17:00</end>
+                                            <duration uom="min">5</duration>
+                                        </TimeInterval>
+                                    </timeOfDelay>
+                                    <delayType codeSpace="http://diggsml.org/def/codes/DIGGS/0.1/DelayType">rodAddition</delayType>
+                                </DelayEvent>
+                            </delay>
+                        </DriveSet>
+                    </driveSet>
+                    <driveSet>
+                        <DriveSet gml:id="DS3_SPT_BH-Mockup-1_35">
+                            <index>3</index>
+                            <blowCount>17</blowCount>
+                            <penetration uom="ft">0.5</penetration>
+                        </DriveSet>
+                    </driveSet>
+                </DrivenPenetrationTest>
+            </procedure>
+        </Test>
+    </measurement>
+
+    <measurement>
+        <Test gml:id="Test_SPT_BH-Mockup-1_45">
+            <gml:name>SPT-3</gml:name>
+            <investigationTarget>Natural Ground</investigationTarget>
+            <projectRef xlink:href="#Project-Mockup-1"/>
+            <samplingFeatureRef xlink:href="#BH-Mockup-1"/>
+            <samplingTime>
+                <TimeInterval gml:id="ST_Test_SPT_BH-Mockup-1_45">
+                    <start frame="#ISO-8601">2026-02-10</start>
+                </TimeInterval>
+            </samplingTime>
+            <resultTime>
+                <gml:TimeInstant gml:id="RT_Test_SPT_BH-Mockup-1_45">
+                    <gml:timePosition frame="#ISO-8601">2026-02-11</gml:timePosition>
+                </gml:TimeInstant>
+            </resultTime>
+            <outcome>
+                <TestResult>
+                    <location>
+                        <LinearExtent gml:id="TR-LOC_Test_SPT_BH-Mockup-1_45" srsName="#lsr-BH-Mockup-1" srsDimension="1">
+                            <gml:posList>45 46.5</gml:posList>
+                        </LinearExtent>
+                    </location>
+                    <results>
+                        <ResultSet>
+                            <parameters>
+                                <PropertyParameters>
+                                    <properties>
+                                        <Property index="1">
+                                            <propertyName>N-Value</propertyName>
+                                            <typeData>integer</typeData>
+                                            <propertyClass codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/properties.xml#n_value">N-Value</propertyClass>
+                                        </Property>
+                                    </properties>
+                                </PropertyParameters>
+                            </parameters>
+                            <dataValues cs="," ts=" " decimal=".">38</dataValues>
+                        </ResultSet>
+                    </results>
+                </TestResult>
+            </outcome>
+            <procedure>
+                <DrivenPenetrationTest gml:id="SPT_BH-Mockup-1_45">
+                    <testProcedureMethod xlink:href="#SPEC-SPT-BH-Mockup-1"/>
+                    <testProcedureEquipment xlink:href="#EQ-SPT-BH-Mockup-1"/>
+                    <penetrationTestType>SPT</penetrationTestType>
+                    <hammerType>Automatic trip hammer</hammerType>
+                    <hammerMass uom="lbm" howDetermined="reported">140</hammerMass>
+                    <hammerDropHeight uom="in" howDetermined="reported">30</hammerDropHeight>
+                    <hammerEfficiency uom="%" howDetermined="reported">80</hammerEfficiency>
+                    <samplerLength uom="in" howDetermined="reported">24</samplerLength>
+                    <samplerInternalDiameter uom="in" howDetermined="reported">1.375</samplerInternalDiameter>
+                    <samplerLinerDescription>No liner used; sampler barrel unlined per standard configuration.</samplerLinerDescription>
+                    <samplerRetainerDescription>Spring-type basket retainer installed in drive shoe to aid sample retention in loose granular soils.</samplerRetainerDescription>
+                    <rodType>AW rod</rodType>
+                    <rodExternalDiameter uom="in" howDetermined="reported">1.75</rodExternalDiameter>
+                    <rodSectionLength uom="ft" howDetermined="reported">10</rodSectionLength>
+                    <rodWeight uom="lbf/ft" howDetermined="reported">4.4</rodWeight>
+                    <totalPenetration uom="ft" howDetermined="measured">1.5</totalPenetration>
+                    <driveSet>
+                        <DriveSet gml:id="DS1_SPT_BH-Mockup-1_45">
+                            <index>1</index>
+                            <blowCount>9</blowCount>
+                            <penetration uom="ft">0.5</penetration>
+                        </DriveSet>
+                    </driveSet>
+                    <driveSet>
+                        <DriveSet gml:id="DS2_SPT_BH-Mockup-1_45">
+                            <index>2</index>
+                            <blowCount>18</blowCount>
+                            <penetration uom="ft">0.5</penetration>
+                        </DriveSet>
+                    </driveSet>
+                    <driveSet>
+                        <DriveSet gml:id="DS3_SPT_BH-Mockup-1_45">
+                            <index>3</index>
+                            <blowCount>20</blowCount>
+                            <penetration uom="ft">0.5</penetration>
+                            <torque uom="lbf.ft" howDetermined="measured">45</torque>
+                        </DriveSet>
+                    </driveSet>
+                </DrivenPenetrationTest>
+            </procedure>
+        </Test>
+    </measurement>
+
+    <measurement>
+        <Test gml:id="Test_SPT_BH-Mockup-1_55">
+            <gml:name>SPT-4</gml:name>
+            <investigationTarget>Natural Ground</investigationTarget>
+            <projectRef xlink:href="#Project-Mockup-1"/>
+            <samplingFeatureRef xlink:href="#BH-Mockup-1"/>
+            <samplingTime>
+                <TimeInterval gml:id="ST_Test_SPT_BH-Mockup-1_55">
+                    <start frame="#ISO-8601">2026-02-10</start>
+                </TimeInterval>
+            </samplingTime>
+            <outcome>
+                <TestResult>
+                    <location>
+                        <LinearExtent gml:id="TR-LOC_Test_SPT_BH-Mockup-1_55" srsName="#lsr-BH-Mockup-1" srsDimension="1">
+                            <gml:posList>55 56.5</gml:posList>
+                        </LinearExtent>
+                    </location>
+                    <results>
+                        <ResultSet>
+                            <parameters>
+                                <PropertyParameters>
+                                    <properties>
+                                        <Property index="1">
+                                            <propertyName>N-Value</propertyName>
+                                            <typeData>integer</typeData>
+                                            <propertyClass codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/properties.xml#n_value">N-Value</propertyClass>
+                                        </Property>
+                                    </properties>
+                                </PropertyParameters>
+                            </parameters>
+                            <dataValues cs="," ts=" " decimal=".">16</dataValues>
+                        </ResultSet>
+                    </results>
+                </TestResult>
+            </outcome>
+            <procedure>
+                <DrivenPenetrationTest gml:id="SPT_BH-Mockup-1_55">
+                    <testProcedureMethod xlink:href="#SPEC-SPT-BH-Mockup-1"/>
+                    <testProcedureEquipment xlink:href="#EQ-SPT-BH-Mockup-1"/>
+                    <testEvent>
+                        <InSituTestEvent gml:id="ITE_SPT_BH-Mockup-1_55">
+                            <gml:name>Borehole condition check during SPT</gml:name>
+                            <status codeSpace="http://diggsml.org/def/codes/DIGGS/0.1/Status">complete</status>
+                            <location>
+                                <PointLocation gml:id="ITE-LOC_SPT_BH-Mockup-1_55" srsName="#lsr-BH-Mockup-1" srsDimension="1">
+                                    <gml:pos>55</gml:pos>
+                                </PointLocation>
+                            </location>
+                            <time>
+                                <TimeInterval gml:id="TI_ITE_SPT_BH-Mockup-1_55">
+                                    <start frame="#ISO-8601">2026-02-10</start>
+                                </TimeInterval>
+                            </time>
+                            <infoRecorded>
+                                <Parameter index="1" gml:id="PARAM_ITE_SPT_BH-Mockup-1_55_CAVING">
+                                    <parameterName codeSpace="http://www.globalgeosolutions.com/projects">cavingObserved</parameterName>
+                                    <parameterValue>none</parameterValue>
+                                </Parameter>
+                            </infoRecorded>
+                        </InSituTestEvent>
+                    </testEvent>
+                    <penetrationTestType>SPT</penetrationTestType>
+                    <hammerType>Automatic trip hammer</hammerType>
+                    <hammerMass uom="lbm" howDetermined="reported">140</hammerMass>
+                    <hammerDropHeight uom="in" howDetermined="reported">30</hammerDropHeight>
+                    <hammerEfficiency uom="%" howDetermined="reported">80</hammerEfficiency>
+                    <samplerLength uom="in" howDetermined="reported">24</samplerLength>
+                    <samplerInternalDiameter uom="in" howDetermined="reported">1.375</samplerInternalDiameter>
+                    <samplerLinerDescription>No liner used; sampler barrel unlined per standard configuration.</samplerLinerDescription>
+                    <samplerRetainerDescription>Spring-type basket retainer installed in drive shoe to aid sample retention in loose granular soils.</samplerRetainerDescription>
+                    <rodType>AW rod</rodType>
+                    <rodExternalDiameter uom="in" howDetermined="reported">1.75</rodExternalDiameter>
+                    <rodSectionLength uom="ft" howDetermined="reported">10</rodSectionLength>
+                    <rodWeight uom="lbf/ft" howDetermined="reported">4.4</rodWeight>
+                    <totalPenetration uom="ft" howDetermined="measured">1.5</totalPenetration>
+                    <driveSet>
+                        <DriveSet gml:id="DS1_SPT_BH-Mockup-1_55">
+                            <index>1</index>
+                            <blowCount>5</blowCount>
+                            <penetration uom="ft">0.5</penetration>
+                        </DriveSet>
+                    </driveSet>
+                    <driveSet>
+                        <DriveSet gml:id="DS2_SPT_BH-Mockup-1_55">
+                            <index>2</index>
+                            <blowCount>7</blowCount>
+                            <penetration uom="ft">0.5</penetration>
+                        </DriveSet>
+                    </driveSet>
+                    <driveSet>
+                        <DriveSet gml:id="DS3_SPT_BH-Mockup-1_55">
+                            <index>3</index>
+                            <blowCount>9</blowCount>
+                            <penetration uom="ft">0.5</penetration>
+                        </DriveSet>
+                    </driveSet>
+                </DrivenPenetrationTest>
+            </procedure>
+        </Test>
+    </measurement>
+
+    <measurement>
+        <Test gml:id="Test_SPT_BH-Mockup-1_65">
+            <gml:name>SPT-5</gml:name>
+            <investigationTarget>Natural Ground</investigationTarget>
+            <projectRef xlink:href="#Project-Mockup-1"/>
+            <samplingFeatureRef xlink:href="#BH-Mockup-1"/>
+            <samplingTime>
+                <TimeInterval gml:id="ST_Test_SPT_BH-Mockup-1_65">
+                    <start frame="#ISO-8601">2026-02-10</start>
+                </TimeInterval>
+            </samplingTime>
+            <outcome>
+                <TestResult>
+                    <location>
+                        <LinearExtent gml:id="TR-LOC_Test_SPT_BH-Mockup-1_65" srsName="#lsr-BH-Mockup-1" srsDimension="1">
+                            <gml:posList>65 66.5</gml:posList>
+                        </LinearExtent>
+                    </location>
+                    <results>
+                        <ResultSet>
+                            <parameters>
+                                <PropertyParameters>
+                                    <properties>
+                                        <Property index="1">
+                                            <propertyName>N-Value</propertyName>
+                                            <typeData>integer</typeData>
+                                            <propertyClass codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/properties.xml#n_value">N-Value</propertyClass>
+                                        </Property>
+                                    </properties>
+                                </PropertyParameters>
+                            </parameters>
+                            <dataValues cs="," ts=" " decimal=".">18</dataValues>
+                        </ResultSet>
+                    </results>
+                </TestResult>
+            </outcome>
+            <procedure>
+                <DrivenPenetrationTest gml:id="SPT_BH-Mockup-1_65">
+                    <testProcedureMethod xlink:href="#SPEC-SPT-BH-Mockup-1"/>
+                    <testProcedureEquipment xlink:href="#EQ-SPT-BH-Mockup-1"/>
+                    <penetrationTestType>SPT</penetrationTestType>
+                    <hammerType>Automatic trip hammer</hammerType>
+                    <hammerMass uom="lbm" howDetermined="reported">140</hammerMass>
+                    <hammerDropHeight uom="in" howDetermined="reported">30</hammerDropHeight>
+                    <hammerEfficiency uom="%" howDetermined="reported">80</hammerEfficiency>
+                    <samplerLength uom="in" howDetermined="reported">24</samplerLength>
+                    <samplerInternalDiameter uom="in" howDetermined="reported">1.375</samplerInternalDiameter>
+                    <samplerLinerDescription>No liner used; sampler barrel unlined per standard configuration.</samplerLinerDescription>
+                    <samplerRetainerDescription>Spring-type basket retainer installed in drive shoe to aid sample retention in loose granular soils.</samplerRetainerDescription>
+                    <rodType>AW rod</rodType>
+                    <rodExternalDiameter uom="in" howDetermined="reported">1.75</rodExternalDiameter>
+                    <rodSectionLength uom="ft" howDetermined="reported">10</rodSectionLength>
+                    <rodWeight uom="lbf/ft" howDetermined="reported">4.4</rodWeight>
+                    <selfWeightPenetration uom="ft" howDetermined="measured">0.2</selfWeightPenetration>
+                    <totalPenetration uom="ft" howDetermined="measured">1.5</totalPenetration>
+                    <driveSet>
+                        <DriveSet gml:id="DS1_SPT_BH-Mockup-1_65">
+                            <index>1</index>
+                            <blowCount>6</blowCount>
+                            <penetration uom="ft">0.5</penetration>
+                        </DriveSet>
+                    </driveSet>
+                    <driveSet>
+                        <DriveSet gml:id="DS2_SPT_BH-Mockup-1_65">
+                            <index>2</index>
+                            <blowCount>8</blowCount>
+                            <penetration uom="ft">0.5</penetration>
+                        </DriveSet>
+                    </driveSet>
+                    <driveSet>
+                        <DriveSet gml:id="DS3_SPT_BH-Mockup-1_65">
+                            <index>3</index>
+                            <blowCount>10</blowCount>
+                            <penetration uom="ft">0.5</penetration>
+                        </DriveSet>
+                    </driveSet>
+                </DrivenPenetrationTest>
+            </procedure>
+        </Test>
+    </measurement>
+
+    <measurement>
+        <Test gml:id="Test_SPT_BH-Mockup-1_75">
+            <gml:name>SPT-6</gml:name>
+            <investigationTarget>Natural Ground</investigationTarget>
+            <projectRef xlink:href="#Project-Mockup-1"/>
+            <samplingFeatureRef xlink:href="#BH-Mockup-1"/>
+            <samplingTime>
+                <TimeInterval gml:id="ST_Test_SPT_BH-Mockup-1_75">
+                    <start frame="#ISO-8601">2026-02-10</start>
+                </TimeInterval>
+            </samplingTime>
+            <outcome>
+                <TestResult>
+                    <location>
+                        <LinearExtent gml:id="TR-LOC_Test_SPT_BH-Mockup-1_75" srsName="#lsr-BH-Mockup-1" srsDimension="1">
+                            <gml:posList>75 76.5</gml:posList>
+                        </LinearExtent>
+                    </location>
+                    <results>
+                        <ResultSet>
+                            <parameters>
+                                <PropertyParameters>
+                                    <properties>
+                                        <Property index="1">
+                                            <propertyName>N-Value</propertyName>
+                                            <typeData>integer</typeData>
+                                            <propertyClass codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/properties.xml#n_value">N-Value</propertyClass>
+                                        </Property>
+                                    </properties>
+                                </PropertyParameters>
+                            </parameters>
+                            <dataValues cs="," ts=" " decimal=".">22</dataValues>
+                        </ResultSet>
+                    </results>
+                </TestResult>
+            </outcome>
+            <procedure>
+                <DrivenPenetrationTest gml:id="SPT_BH-Mockup-1_75">
+                    <testProcedureMethod xlink:href="#SPEC-SPT-BH-Mockup-1"/>
+                    <testProcedureEquipment xlink:href="#EQ-SPT-BH-Mockup-1"/>
+                    <otherTestProperty>
+                        <Parameter index="1" gml:id="PARAM_SPT_BH-Mockup-1_75_CREW">
+                            <parameterName codeSpace="http://www.globalgeosolutions.com/projects">drillCrew</parameterName>
+                            <parameterValue>Crew B - AM shift</parameterValue>
+                        </Parameter>
+                    </otherTestProperty>
+                    <penetrationTestType>SPT</penetrationTestType>
+                    <hammerType>Automatic trip hammer</hammerType>
+                    <hammerMass uom="lbm" howDetermined="reported">140</hammerMass>
+                    <hammerDropHeight uom="in" howDetermined="reported">30</hammerDropHeight>
+                    <hammerEfficiency uom="%" howDetermined="reported">80</hammerEfficiency>
+                    <samplerLength uom="in" howDetermined="reported">24</samplerLength>
+                    <samplerInternalDiameter uom="in" howDetermined="reported">1.375</samplerInternalDiameter>
+                    <samplerLinerDescription>No liner used; sampler barrel unlined per standard configuration.</samplerLinerDescription>
+                    <samplerRetainerDescription>Spring-type basket retainer installed in drive shoe to aid sample retention in loose granular soils.</samplerRetainerDescription>
+                    <rodType>AW rod</rodType>
+                    <rodExternalDiameter uom="in" howDetermined="reported">1.75</rodExternalDiameter>
+                    <rodSectionLength uom="ft" howDetermined="reported">10</rodSectionLength>
+                    <rodWeight uom="lbf/ft" howDetermined="reported">4.4</rodWeight>
+                    <totalPenetration uom="ft" howDetermined="measured">1.5</totalPenetration>
+                    <driveSet>
+                        <DriveSet gml:id="DS1_SPT_BH-Mockup-1_75">
+                            <index>1</index>
+                            <blowCount>7</blowCount>
+                            <penetration uom="ft">0.5</penetration>
+                        </DriveSet>
+                    </driveSet>
+                    <driveSet>
+                        <DriveSet gml:id="DS2_SPT_BH-Mockup-1_75">
+                            <index>2</index>
+                            <blowCount>10</blowCount>
+                            <penetration uom="ft">0.5</penetration>
+                        </DriveSet>
+                    </driveSet>
+                    <driveSet>
+                        <DriveSet gml:id="DS3_SPT_BH-Mockup-1_75">
+                            <index>3</index>
+                            <blowCount>12</blowCount>
+                            <penetration uom="ft">0.5</penetration>
+                        </DriveSet>
+                    </driveSet>
+                </DrivenPenetrationTest>
+            </procedure>
+        </Test>
+    </measurement>
+
+    <measurement>
+        <Test gml:id="Test_SPT_BH-Mockup-1_85">
+            <gml:name>SPT-7</gml:name>
+            <investigationTarget>Natural Ground</investigationTarget>
+            <projectRef xlink:href="#Project-Mockup-1"/>
+            <samplingFeatureRef xlink:href="#BH-Mockup-1"/>
+            <samplingTime>
+                <TimeInterval gml:id="ST_Test_SPT_BH-Mockup-1_85">
+                    <start frame="#ISO-8601">2026-02-10</start>
+                </TimeInterval>
+            </samplingTime>
+            <outcome>
+                <TestResult>
+                    <location>
+                        <LinearExtent gml:id="TR-LOC_Test_SPT_BH-Mockup-1_85" srsName="#lsr-BH-Mockup-1" srsDimension="1">
+                            <gml:posList>85 86.5</gml:posList>
+                        </LinearExtent>
+                    </location>
+                    <results>
+                        <ResultSet>
+                            <parameters>
+                                <PropertyParameters>
+                                    <properties>
+                                        <Property index="1">
+                                            <propertyName>N-Value</propertyName>
+                                            <typeData>integer</typeData>
+                                            <propertyClass codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/properties.xml#n_value">N-Value</propertyClass>
+                                        </Property>
+                                    </properties>
+                                </PropertyParameters>
+                            </parameters>
+                            <dataValues cs="," ts=" " decimal=".">27</dataValues>
+                        </ResultSet>
+                    </results>
+                </TestResult>
+            </outcome>
+            <procedure>
+                <DrivenPenetrationTest gml:id="SPT_BH-Mockup-1_85">
+                    <testProcedureMethod xlink:href="#SPEC-SPT-BH-Mockup-1"/>
+                    <testProcedureEquipment xlink:href="#EQ-SPT-BH-Mockup-1"/>
+                    <penetrationTestType>SPT</penetrationTestType>
+                    <hammerType>Automatic trip hammer</hammerType>
+                    <hammerMass uom="lbm" howDetermined="reported">140</hammerMass>
+                    <hammerDropHeight uom="in" howDetermined="reported">30</hammerDropHeight>
+                    <hammerEfficiency uom="%" howDetermined="reported">80</hammerEfficiency>
+                    <samplerLength uom="in" howDetermined="reported">24</samplerLength>
+                    <samplerInternalDiameter uom="in" howDetermined="reported">1.375</samplerInternalDiameter>
+                    <samplerLinerDescription>No liner used; sampler barrel unlined per standard configuration.</samplerLinerDescription>
+                    <samplerRetainerDescription>Spring-type basket retainer installed in drive shoe to aid sample retention in loose granular soils.</samplerRetainerDescription>
+                    <rodType>AW rod</rodType>
+                    <rodExternalDiameter uom="in" howDetermined="reported">1.75</rodExternalDiameter>
+                    <rodSectionLength uom="ft" howDetermined="reported">10</rodSectionLength>
+                    <rodWeight uom="lbf/ft" howDetermined="reported">4.4</rodWeight>
+                    <waterDepth uom="ft" howDetermined="measured">92</waterDepth>
+                    <totalPenetration uom="ft" howDetermined="measured">1.5</totalPenetration>
+                    <driveSet>
+                        <DriveSet gml:id="DS1_SPT_BH-Mockup-1_85">
+                            <index>1</index>
+                            <blowCount>8</blowCount>
+                            <penetration uom="ft">0.5</penetration>
+                        </DriveSet>
+                    </driveSet>
+                    <driveSet>
+                        <DriveSet gml:id="DS2_SPT_BH-Mockup-1_85">
+                            <index>2</index>
+                            <blowCount>12</blowCount>
+                            <penetration uom="ft">0.5</penetration>
+                        </DriveSet>
+                    </driveSet>
+                    <driveSet>
+                        <DriveSet gml:id="DS3_SPT_BH-Mockup-1_85">
+                            <index>3</index>
+                            <blowCount>15</blowCount>
+                            <penetration uom="ft">0.5</penetration>
+                        </DriveSet>
+                    </driveSet>
+                </DrivenPenetrationTest>
+            </procedure>
+        </Test>
+    </measurement>
+
+    <measurement>
+        <Test gml:id="Test_SPT_BH-Mockup-1_95">
+            <gml:name>SPT-8</gml:name>
+            <investigationTarget>Natural Ground</investigationTarget>
+            <projectRef xlink:href="#Project-Mockup-1"/>
+            <samplingFeatureRef xlink:href="#BH-Mockup-1"/>
+            <otherMeasurementProperty>
+                <Parameter index="1" gml:id="PARAM_Test_SPT_BH-Mockup-1_95_LOGGEDBY">
+                    <parameterName codeSpace="http://www.globalgeosolutions.com/projects">loggedBy</parameterName>
+                    <parameterValue>J. Alvarez, Staff Geologist</parameterValue>
+                </Parameter>
+            </otherMeasurementProperty>
+            <samplingTime>
+                <TimeInterval gml:id="ST_Test_SPT_BH-Mockup-1_95">
+                    <start frame="#ISO-8601">2026-02-10</start>
+                </TimeInterval>
+            </samplingTime>
+            <outcome>
+                <TestResult>
+                    <location>
+                        <LinearExtent gml:id="TR-LOC_Test_SPT_BH-Mockup-1_95" srsName="#lsr-BH-Mockup-1" srsDimension="1">
+                            <gml:posList>95 96.5</gml:posList>
+                        </LinearExtent>
+                    </location>
+                    <results>
+                        <ResultSet>
+                            <parameters>
+                                <PropertyParameters>
+                                    <properties>
+                                        <Property index="1">
+                                            <propertyName>N-Value</propertyName>
+                                            <typeData>integer</typeData>
+                                            <propertyClass codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/properties.xml#n_value">N-Value</propertyClass>
+                                        </Property>
+                                    </properties>
+                                </PropertyParameters>
+                            </parameters>
+                            <dataValues cs="," ts=" " decimal=".">33</dataValues>
+                        </ResultSet>
+                    </results>
+                </TestResult>
+            </outcome>
+            <procedure>
+                <DrivenPenetrationTest gml:id="SPT_BH-Mockup-1_95">
+                    <testProcedureMethod xlink:href="#SPEC-SPT-BH-Mockup-1"/>
+                    <testProcedureEquipment xlink:href="#EQ-SPT-BH-Mockup-1"/>
+                    <penetrationTestType>SPT</penetrationTestType>
+                    <hammerType>Automatic trip hammer</hammerType>
+                    <hammerMass uom="lbm" howDetermined="reported">140</hammerMass>
+                    <hammerDropHeight uom="in" howDetermined="reported">30</hammerDropHeight>
+                    <hammerEfficiency uom="%" howDetermined="reported">80</hammerEfficiency>
+                    <samplerLength uom="in" howDetermined="reported">24</samplerLength>
+                    <samplerInternalDiameter uom="in" howDetermined="reported">1.375</samplerInternalDiameter>
+                    <samplerLinerDescription>No liner used; sampler barrel unlined per standard configuration.</samplerLinerDescription>
+                    <samplerRetainerDescription>Spring-type basket retainer installed in drive shoe to aid sample retention in loose granular soils.</samplerRetainerDescription>
+                    <rodType>AW rod</rodType>
+                    <rodExternalDiameter uom="in" howDetermined="reported">1.75</rodExternalDiameter>
+                    <rodSectionLength uom="ft" howDetermined="reported">10</rodSectionLength>
+                    <rodWeight uom="lbf/ft" howDetermined="reported">4.4</rodWeight>
+                    <totalPenetration uom="ft" howDetermined="measured">1.5</totalPenetration>
+                    <driveSet>
+                        <DriveSet gml:id="DS1_SPT_BH-Mockup-1_95">
+                            <index>1</index>
+                            <blowCount>10</blowCount>
+                            <penetration uom="ft">0.5</penetration>
+                        </DriveSet>
+                    </driveSet>
+                    <driveSet>
+                        <DriveSet gml:id="DS2_SPT_BH-Mockup-1_95">
+                            <index>2</index>
+                            <blowCount>15</blowCount>
+                            <penetration uom="ft">0.5</penetration>
+                        </DriveSet>
+                    </driveSet>
+                    <driveSet>
+                        <DriveSet gml:id="DS3_SPT_BH-Mockup-1_95">
+                            <index>3</index>
+                            <blowCount>18</blowCount>
+                            <penetration uom="ft">0.5</penetration>
+                        </DriveSet>
+                    </driveSet>
+                </DrivenPenetrationTest>
+            </procedure>
+        </Test>
+    </measurement>
+
+    <measurement>
+        <Test gml:id="Test_SPT_BH-Mockup-1_105">
+            <gml:name>SPT-9</gml:name>
+            <investigationTarget>Natural Ground</investigationTarget>
+            <projectRef xlink:href="#Project-Mockup-1"/>
+            <samplingFeatureRef xlink:href="#BH-Mockup-1"/>
+            <samplingTime>
+                <TimeInterval gml:id="ST_Test_SPT_BH-Mockup-1_105">
+                    <start frame="#ISO-8601">2026-02-11</start>
+                </TimeInterval>
+            </samplingTime>
+            <outcome>
+                <TestResult>
+                    <location>
+                        <LinearExtent gml:id="TR-LOC_Test_SPT_BH-Mockup-1_105" srsName="#lsr-BH-Mockup-1" srsDimension="1">
+                            <gml:posList>105 106.5</gml:posList>
+                        </LinearExtent>
+                    </location>
+                    <results>
+                        <ResultSet>
+                            <parameters>
+                                <PropertyParameters>
+                                    <properties>
+                                        <Property index="1">
+                                            <propertyName>N-Value</propertyName>
+                                            <typeData>integer</typeData>
+                                            <propertyClass codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/properties.xml#n_value">N-Value</propertyClass>
+                                        </Property>
+                                    </properties>
+                                </PropertyParameters>
+                            </parameters>
+                            <dataValues cs="," ts=" " decimal=".">36</dataValues>
+                        </ResultSet>
+                    </results>
+                </TestResult>
+            </outcome>
+            <procedure>
+                <DrivenPenetrationTest gml:id="SPT_BH-Mockup-1_105">
+                    <testProcedureMethod xlink:href="#SPEC-SPT-BH-Mockup-1"/>
+                    <testProcedureEquipment xlink:href="#EQ-SPT-BH-Mockup-1"/>
+                    <testingEnvironment>
+                        <Environment gml:id="ENV_SPT_BH-Mockup-1_D2">
+                            <dateTime frame="#ISO-8601">2026-02-11</dateTime>
+                            <ambientTemperature uom="degC" howDetermined="measured">14.0</ambientTemperature>
+                            <barometricPressure uom="kPa" howDetermined="measured">100.9</barometricPressure>
+                            <humidity uom="%" howDetermined="measured">62</humidity>
+                            <weather>Overcast, intermittent light rain</weather>
+                            <windSpeed uom="km/h" howDetermined="measured">18</windSpeed>
+                        </Environment>
+                    </testingEnvironment>
+                    <penetrationTestType>SPT</penetrationTestType>
+                    <hammerType>Automatic trip hammer</hammerType>
+                    <hammerMass uom="lbm" howDetermined="reported">140</hammerMass>
+                    <hammerDropHeight uom="in" howDetermined="reported">30</hammerDropHeight>
+                    <hammerEfficiency uom="%" howDetermined="reported">80</hammerEfficiency>
+                    <samplerLength uom="in" howDetermined="reported">24</samplerLength>
+                    <samplerInternalDiameter uom="in" howDetermined="reported">1.375</samplerInternalDiameter>
+                    <samplerLinerDescription>No liner used; sampler barrel unlined per standard configuration.</samplerLinerDescription>
+                    <samplerRetainerDescription>Spring-type basket retainer installed in drive shoe to aid sample retention in loose granular soils.</samplerRetainerDescription>
+                    <rodType>AW rod</rodType>
+                    <rodExternalDiameter uom="in" howDetermined="reported">1.75</rodExternalDiameter>
+                    <rodSectionLength uom="ft" howDetermined="reported">10</rodSectionLength>
+                    <rodWeight uom="lbf/ft" howDetermined="reported">4.4</rodWeight>
+                    <totalPenetration uom="ft" howDetermined="measured">1.5</totalPenetration>
+                    <driveSet>
+                        <DriveSet gml:id="DS1_SPT_BH-Mockup-1_105">
+                            <index>1</index>
+                            <blowCount>10</blowCount>
+                            <penetration uom="ft">0.5</penetration>
+                        </DriveSet>
+                    </driveSet>
+                    <driveSet>
+                        <DriveSet gml:id="DS2_SPT_BH-Mockup-1_105">
+                            <index>2</index>
+                            <blowCount>16</blowCount>
+                            <penetration uom="ft">0.5</penetration>
+                            <delay>
+                                <DelayEvent gml:id="DE_SPT_BH-Mockup-1_105">
+                                    <delayDuration uom="min">8</delayDuration>
+                                    <delayType codeSpace="http://diggsml.org/def/codes/DIGGS/0.1/DelayType">obstruction</delayType>
+                                </DelayEvent>
+                            </delay>
+                        </DriveSet>
+                    </driveSet>
+                    <driveSet>
+                        <DriveSet gml:id="DS3_SPT_BH-Mockup-1_105">
+                            <index>3</index>
+                            <blowCount>20</blowCount>
+                            <penetration uom="ft">0.5</penetration>
+                        </DriveSet>
+                    </driveSet>
+                </DrivenPenetrationTest>
+            </procedure>
+        </Test>
+    </measurement>
+
+    <measurement>
+        <Test gml:id="Test_SPT_BH-Mockup-1_115">
+            <gml:name>SPT-10</gml:name>
+            <investigationTarget>Natural Ground</investigationTarget>
+            <projectRef xlink:href="#Project-Mockup-1"/>
+            <samplingFeatureRef xlink:href="#BH-Mockup-1"/>
+            <samplingTime>
+                <TimeInterval gml:id="ST_Test_SPT_BH-Mockup-1_115">
+                    <start frame="#ISO-8601">2026-02-11</start>
+                </TimeInterval>
+            </samplingTime>
+            <validTime>
+                <TimeInterval gml:id="VT_Test_SPT_BH-Mockup-1_115">
+                    <start frame="#ISO-8601">2026-02-11</start>
+                    <end frame="#ISO-8601">2028-02-10</end>
+                </TimeInterval>
+            </validTime>
+            <outcome>
+                <TestResult>
+                    <location>
+                        <LinearExtent gml:id="TR-LOC_Test_SPT_BH-Mockup-1_115" srsName="#lsr-BH-Mockup-1" srsDimension="1">
+                            <gml:posList>115 116.5</gml:posList>
+                        </LinearExtent>
+                    </location>
+                    <results>
+                        <ResultSet>
+                            <parameters>
+                                <PropertyParameters>
+                                    <properties>
+                                        <Property index="1">
+                                            <propertyName>N-Value</propertyName>
+                                            <typeData>integer</typeData>
+                                            <propertyClass codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/properties.xml#n_value">N-Value</propertyClass>
+                                        </Property>
+                                    </properties>
+                                </PropertyParameters>
+                            </parameters>
+                            <dataValues cs="," ts=" " decimal=".">41</dataValues>
+                        </ResultSet>
+                    </results>
+                </TestResult>
+            </outcome>
+            <procedure>
+                <DrivenPenetrationTest gml:id="SPT_BH-Mockup-1_115">
+                    <testProcedureMethod xlink:href="#SPEC-SPT-BH-Mockup-1"/>
+                    <testProcedureEquipment xlink:href="#EQ-SPT-BH-Mockup-1"/>
+                    <penetrationTestType>SPT</penetrationTestType>
+                    <hammerType>Automatic trip hammer</hammerType>
+                    <hammerMass uom="lbm" howDetermined="reported">140</hammerMass>
+                    <hammerDropHeight uom="in" howDetermined="reported">30</hammerDropHeight>
+                    <hammerEfficiency uom="%" howDetermined="reported">80</hammerEfficiency>
+                    <samplerLength uom="in" howDetermined="reported">24</samplerLength>
+                    <samplerInternalDiameter uom="in" howDetermined="reported">1.375</samplerInternalDiameter>
+                    <samplerLinerDescription>No liner used; sampler barrel unlined per standard configuration.</samplerLinerDescription>
+                    <samplerRetainerDescription>Spring-type basket retainer installed in drive shoe to aid sample retention in loose granular soils.</samplerRetainerDescription>
+                    <rodType>AW rod</rodType>
+                    <rodExternalDiameter uom="in" howDetermined="reported">1.75</rodExternalDiameter>
+                    <rodSectionLength uom="ft" howDetermined="reported">10</rodSectionLength>
+                    <rodWeight uom="lbf/ft" howDetermined="reported">4.4</rodWeight>
+                    <totalPenetration uom="ft" howDetermined="measured">1.5</totalPenetration>
+                    <driveSet>
+                        <DriveSet gml:id="DS1_SPT_BH-Mockup-1_115">
+                            <index>1</index>
+                            <blowCount>12</blowCount>
+                            <penetration uom="ft">0.5</penetration>
+                        </DriveSet>
+                    </driveSet>
+                    <driveSet>
+                        <DriveSet gml:id="DS2_SPT_BH-Mockup-1_115">
+                            <index>2</index>
+                            <blowCount>18</blowCount>
+                            <penetration uom="ft">0.5</penetration>
+                        </DriveSet>
+                    </driveSet>
+                    <driveSet>
+                        <DriveSet gml:id="DS3_SPT_BH-Mockup-1_115">
+                            <index>3</index>
+                            <blowCount>23</blowCount>
+                            <penetration uom="ft">0.5</penetration>
+                        </DriveSet>
+                    </driveSet>
+                </DrivenPenetrationTest>
+            </procedure>
+        </Test>
+    </measurement>
+
+    <measurement>
+        <Test gml:id="Test_SPT_BH-Mockup-1_125">
+            <gml:name>SPT-11</gml:name>
+            <investigationTarget>Natural Ground</investigationTarget>
+            <projectRef xlink:href="#Project-Mockup-1"/>
+            <samplingFeatureRef xlink:href="#BH-Mockup-1"/>
+            <samplingTime>
+                <TimeInterval gml:id="ST_Test_SPT_BH-Mockup-1_125">
+                    <start frame="#ISO-8601">2026-02-11</start>
+                </TimeInterval>
+            </samplingTime>
+            <outcome>
+                <TestResult>
+                    <location>
+                        <LinearExtent gml:id="TR-LOC_Test_SPT_BH-Mockup-1_125" srsName="#lsr-BH-Mockup-1" srsDimension="1">
+                            <gml:posList>125 126.5</gml:posList>
+                        </LinearExtent>
+                    </location>
+                    <results>
+                        <ResultSet>
+                            <parameters>
+                                <PropertyParameters>
+                                    <properties>
+                                        <Property index="1">
+                                            <propertyName>N-Value</propertyName>
+                                            <typeData>integer</typeData>
+                                            <propertyClass codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/properties.xml#n_value">N-Value</propertyClass>
+                                        </Property>
+                                    </properties>
+                                </PropertyParameters>
+                            </parameters>
+                            <dataValues cs="," ts=" " decimal=".">46</dataValues>
+                        </ResultSet>
+                    </results>
+                </TestResult>
+            </outcome>
+            <procedure>
+                <DrivenPenetrationTest gml:id="SPT_BH-Mockup-1_125">
+                    <testProcedureMethod xlink:href="#SPEC-SPT-BH-Mockup-1"/>
+                    <testProcedureEquipment xlink:href="#EQ-SPT-BH-Mockup-1"/>
+                    <penetrationTestType>SPT</penetrationTestType>
+                    <hammerType>Automatic trip hammer</hammerType>
+                    <hammerMass uom="lbm" howDetermined="reported">140</hammerMass>
+                    <hammerDropHeight uom="in" howDetermined="reported">30</hammerDropHeight>
+                    <hammerEfficiency uom="%" howDetermined="reported">80</hammerEfficiency>
+                    <samplerLength uom="in" howDetermined="reported">24</samplerLength>
+                    <samplerInternalDiameter uom="in" howDetermined="reported">1.375</samplerInternalDiameter>
+                    <samplerLinerDescription>No liner used; sampler barrel unlined per standard configuration.</samplerLinerDescription>
+                    <samplerRetainerDescription>Spring-type basket retainer installed in drive shoe to aid sample retention in loose granular soils.</samplerRetainerDescription>
+                    <rodType>AW rod</rodType>
+                    <rodExternalDiameter uom="in" howDetermined="reported">1.75</rodExternalDiameter>
+                    <rodSectionLength uom="ft" howDetermined="reported">10</rodSectionLength>
+                    <rodWeight uom="lbf/ft" howDetermined="reported">4.4</rodWeight>
+                    <totalPenetration uom="ft" howDetermined="measured">1.5</totalPenetration>
+                    <driveSet>
+                        <DriveSet gml:id="DS1_SPT_BH-Mockup-1_125">
+                            <index>1</index>
+                            <blowCount>13</blowCount>
+                            <penetration uom="ft">0.5</penetration>
+                        </DriveSet>
+                    </driveSet>
+                    <driveSet>
+                        <DriveSet gml:id="DS2_SPT_BH-Mockup-1_125">
+                            <index>2</index>
+                            <blowCount>21</blowCount>
+                            <penetration uom="ft">0.5</penetration>
+                        </DriveSet>
+                    </driveSet>
+                    <driveSet>
+                        <DriveSet gml:id="DS3_SPT_BH-Mockup-1_125">
+                            <remark>
+                                <Remark>
+                                    <content>Possible cemented sand lens; increased resistance over final 2 in of drive.</content>
+                                </Remark>
+                            </remark>
+                            <index>3</index>
+                            <blowCount>25</blowCount>
+                            <penetration uom="ft">0.5</penetration>
+                        </DriveSet>
+                    </driveSet>
+                </DrivenPenetrationTest>
+            </procedure>
+        </Test>
+    </measurement>
+
+    <measurement>
+        <Test gml:id="Test_SPT_BH-Mockup-1_135">
+            <gml:name>SPT-12</gml:name>
+            <investigationTarget>Natural Ground</investigationTarget>
+            <projectRef xlink:href="#Project-Mockup-1"/>
+            <samplingFeatureRef xlink:href="#BH-Mockup-1"/>
+            <samplingTime>
+                <TimeInterval gml:id="ST_Test_SPT_BH-Mockup-1_135">
+                    <start frame="#ISO-8601">2026-02-11</start>
+                </TimeInterval>
+            </samplingTime>
+            <outcome>
+                <TestResult>
+                    <location>
+                        <LinearExtent gml:id="TR-LOC_Test_SPT_BH-Mockup-1_135" srsName="#lsr-BH-Mockup-1" srsDimension="1">
+                            <gml:posList>135 136.5</gml:posList>
+                        </LinearExtent>
+                    </location>
+                    <results>
+                        <ResultSet>
+                            <parameters>
+                                <PropertyParameters>
+                                    <properties>
+                                        <Property index="1">
+                                            <propertyName>N-Value</propertyName>
+                                            <typeData>integer</typeData>
+                                            <propertyClass codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/properties.xml#n_value">N-Value</propertyClass>
+                                        </Property>
+                                    </properties>
+                                </PropertyParameters>
+                            </parameters>
+                            <dataValues cs="," ts=" " decimal=".">34</dataValues>
+                        </ResultSet>
+                    </results>
+                </TestResult>
+            </outcome>
+            <procedure>
+                <DrivenPenetrationTest gml:id="SPT_BH-Mockup-1_135">
+                    <testProcedureMethod xlink:href="#SPEC-SPT-BH-Mockup-1"/>
+                    <testProcedureEquipment xlink:href="#EQ-SPT-BH-Mockup-1"/>
+                    <penetrationTestType>SPT</penetrationTestType>
+                    <hammerType>Automatic trip hammer</hammerType>
+                    <hammerMass uom="lbm" howDetermined="reported">140</hammerMass>
+                    <hammerDropHeight uom="in" howDetermined="reported">30</hammerDropHeight>
+                    <hammerEfficiency uom="%" howDetermined="reported">80</hammerEfficiency>
+                    <samplerLength uom="in" howDetermined="reported">24</samplerLength>
+                    <samplerInternalDiameter uom="in" howDetermined="reported">1.375</samplerInternalDiameter>
+                    <samplerLinerDescription>No liner used; sampler barrel unlined per standard configuration.</samplerLinerDescription>
+                    <samplerRetainerDescription>Spring-type basket retainer installed in drive shoe to aid sample retention in loose granular soils.</samplerRetainerDescription>
+                    <rodType>AW rod</rodType>
+                    <rodExternalDiameter uom="in" howDetermined="reported">1.75</rodExternalDiameter>
+                    <rodSectionLength uom="ft" howDetermined="reported">10</rodSectionLength>
+                    <rodWeight uom="lbf/ft" howDetermined="reported">4.4</rodWeight>
+                    <totalPenetration uom="ft" howDetermined="measured">1.5</totalPenetration>
+                    <driveSet>
+                        <DriveSet gml:id="DS1_SPT_BH-Mockup-1_135">
+                            <index>1</index>
+                            <blowCount>10</blowCount>
+                            <penetration uom="ft">0.5</penetration>
+                        </DriveSet>
+                    </driveSet>
+                    <driveSet>
+                        <DriveSet gml:id="DS2_SPT_BH-Mockup-1_135">
+                            <index>2</index>
+                            <blowCount>15</blowCount>
+                            <penetration uom="ft">0.5</penetration>
+                        </DriveSet>
+                    </driveSet>
+                    <driveSet>
+                        <DriveSet gml:id="DS3_SPT_BH-Mockup-1_135">
+                            <index>3</index>
+                            <blowCount>19</blowCount>
+                            <penetration uom="ft">0.5</penetration>
+                        </DriveSet>
+                    </driveSet>
+                </DrivenPenetrationTest>
+            </procedure>
+        </Test>
+    </measurement>
+
+    <measurement>
+        <Test gml:id="Test_SPT_BH-Mockup-1_145">
+            <gml:name>SPT-13</gml:name>
+            <investigationTarget>Natural Ground</investigationTarget>
+            <projectRef xlink:href="#Project-Mockup-1"/>
+            <samplingFeatureRef xlink:href="#BH-Mockup-1"/>
+            <samplingTime>
+                <TimeInterval gml:id="ST_Test_SPT_BH-Mockup-1_145">
+                    <start frame="#ISO-8601">2026-02-11</start>
+                </TimeInterval>
+            </samplingTime>
+            <outcome>
+                <TestResult>
+                    <location>
+                        <LinearExtent gml:id="TR-LOC_Test_SPT_BH-Mockup-1_145" srsName="#lsr-BH-Mockup-1" srsDimension="1">
+                            <gml:posList>145 146.5</gml:posList>
+                        </LinearExtent>
+                    </location>
+                    <results>
+                        <ResultSet>
+                            <parameters>
+                                <PropertyParameters>
+                                    <properties>
+                                        <Property index="1">
+                                            <propertyName>N-Value</propertyName>
+                                            <typeData>integer</typeData>
+                                            <propertyClass codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/properties.xml#n_value">N-Value</propertyClass>
+                                        </Property>
+                                    </properties>
+                                </PropertyParameters>
+                            </parameters>
+                            <dataValues cs="," ts=" " decimal=".">39</dataValues>
+                        </ResultSet>
+                    </results>
+                </TestResult>
+            </outcome>
+            <procedure>
+                <DrivenPenetrationTest gml:id="SPT_BH-Mockup-1_145">
+                    <testProcedureMethod xlink:href="#SPEC-SPT-BH-Mockup-1"/>
+                    <testProcedureEquipment xlink:href="#EQ-SPT-BH-Mockup-1"/>
+                    <penetrationTestType>SPT</penetrationTestType>
+                    <hammerType>Automatic trip hammer</hammerType>
+                    <hammerMass uom="lbm" howDetermined="reported">140</hammerMass>
+                    <hammerDropHeight uom="in" howDetermined="reported">30</hammerDropHeight>
+                    <hammerEfficiency uom="%" howDetermined="reported">80</hammerEfficiency>
+                    <samplerLength uom="in" howDetermined="reported">24</samplerLength>
+                    <samplerInternalDiameter uom="in" howDetermined="reported">1.375</samplerInternalDiameter>
+                    <samplerLinerDescription>No liner used; sampler barrel unlined per standard configuration.</samplerLinerDescription>
+                    <samplerRetainerDescription>Spring-type basket retainer installed in drive shoe to aid sample retention in loose granular soils.</samplerRetainerDescription>
+                    <rodType>AW rod</rodType>
+                    <rodExternalDiameter uom="in" howDetermined="reported">1.75</rodExternalDiameter>
+                    <rodSectionLength uom="ft" howDetermined="reported">10</rodSectionLength>
+                    <rodWeight uom="lbf/ft" howDetermined="reported">4.4</rodWeight>
+                    <totalPenetration uom="ft" howDetermined="measured">1.5</totalPenetration>
+                    <driveSet>
+                        <DriveSet gml:id="DS1_SPT_BH-Mockup-1_145">
+                            <index>1</index>
+                            <blowCount>11</blowCount>
+                            <penetration uom="ft">0.5</penetration>
+                        </DriveSet>
+                    </driveSet>
+                    <driveSet>
+                        <DriveSet gml:id="DS2_SPT_BH-Mockup-1_145">
+                            <index>2</index>
+                            <blowCount>18</blowCount>
+                            <penetration uom="ft">0.5</penetration>
+                        </DriveSet>
+                    </driveSet>
+                    <driveSet>
+                        <DriveSet gml:id="DS3_SPT_BH-Mockup-1_145">
+                            <index>3</index>
+                            <blowCount>21</blowCount>
+                            <penetration uom="ft">0.5</penetration>
+                        </DriveSet>
+                    </driveSet>
+                </DrivenPenetrationTest>
+            </procedure>
+        </Test>
+    </measurement>
+
 </Diggs>
