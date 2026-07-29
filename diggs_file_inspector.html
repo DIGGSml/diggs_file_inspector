@@ -1488,27 +1488,9 @@ table.data-table tbody tr.selected {
 .lith-color-row {
   display:flex;align-items:center;gap:4px;margin-bottom:2px;
 }
-.cpt-plots-section { padding:12px 16px; overflow:visible; }
-/* .cpt-plots-title is identical to .section-title — use that class instead */
-.cpt-plots-title { font-size:11px;font-weight:600;text-transform:uppercase;
-  letter-spacing:.8px;color:var(--text-muted);margin-bottom:10px;
-  display:flex;align-items:center;gap:8px; }
-.cpt-plots-title::after { content:'';flex:1;height:1px;background:var(--surface3); }
-#cpt-canvas-area, #cpt-canvas-area-assoc {
-  display:flex;flex-direction:row;gap:10px;
-  width:100%;
-  overflow-x:auto;overflow-y:auto;
-  padding-bottom:8px;
-  scrollbar-width:thin;
-  scrollbar-color:var(--accent) var(--surface2);
-}
-#cpt-canvas-area::-webkit-scrollbar, #cpt-canvas-area-assoc::-webkit-scrollbar { height:6px; }
-#cpt-canvas-area::-webkit-scrollbar-track, #cpt-canvas-area-assoc::-webkit-scrollbar-track { background:var(--surface2); border-radius:3px; }
-#cpt-canvas-area::-webkit-scrollbar-thumb, #cpt-canvas-area-assoc::-webkit-scrollbar-thumb { background:var(--accent); border-radius:3px; }
 .cpt-plot-wrapper { flex:0 0 calc(20% - 8px);min-width:150px;position:relative; }
 
-/* .meas-plot-row — flex-row scroller for a depth-vertical plot lineup (the
-   generic measurement-display equivalent of #cpt-canvas-area/-assoc above).
+/* .meas-plot-row — flex-row scroller for a depth-vertical plot lineup.
    Without a flex-row parent, .cpt-plot-wrapper's `flex:0 0 20%` has no effect
    (flex-basis only applies inside a flex container), so each SVG's `width:100%`
    fills the full pane width — and since its viewBox aspect ratio locks
@@ -1576,13 +1558,7 @@ table.data-table tbody tr.selected {
 .meas-vsplit-handle:hover, .meas-vsplit-handle.dragging { background:var(--accent); }
 
 /* ── Well SVG plot styles ─────────────────────────── */
-.well-plots-area { padding:4px 0 8px 0; overflow-x:auto; }
 .well-plot-svg { border-radius:6px; overflow:hidden; min-width:80%; width:80%; display:block; }
-.meas-meta-row { display:flex;flex-wrap:wrap;gap:6px;padding:6px 10px 8px 10px; }
-.meas-meta-chip {
-  font-size:11px;padding:2px 8px;border-radius:10px;
-  background:var(--surface2);color:var(--text-muted);border:1px solid var(--border);
-}
 .cpt-plot-toolbar {
   display:flex;align-items:center;gap:6px;
   font-size:11px;font-family:monospace;color:#8b949e;
@@ -1640,21 +1616,6 @@ table.data-table tbody tr.selected {
 .well-link { color:var(--accent); cursor:pointer; text-decoration:underline; font-size:11.5px; white-space:nowrap; }
 .well-link:hover { color:#79c0ff; }
 .well-links-cell { font-size:11.5px; line-height:1.7; }
-
-/* ── Measurement procedure blocks ─────────────────────────────── */
-.meas-section { padding-top:4px; }
-.meas-proc-block { margin-bottom:10px; border:1px solid rgba(255,255,255,.07); border-radius:6px; overflow:hidden; }
-.meas-proc-header {
-  display:flex; align-items:center; gap:8px;
-  padding:8px 12px; background:rgba(255,255,255,.04);
-  cursor:pointer; user-select:none;
-  border-bottom:1px solid rgba(255,255,255,.06);
-}
-.meas-proc-header:hover { background:rgba(255,255,255,.07); }
-.meas-proc-arrow { color:var(--accent);font-size:11px;width:12px;flex-shrink:0; }
-.meas-proc-name  { font-weight:600;font-size:13px;color:var(--text-bright);flex:1; }
-.meas-proc-count { font-size:11px;color:var(--text-muted);flex-shrink:0; }
-.meas-proc-body  { padding:8px 8px 4px; overflow-x:auto; }
 
 /* Measurement table tweaks */
 .meas-table th { white-space:nowrap; text-transform:none; letter-spacing:0; }
@@ -4878,11 +4839,13 @@ let DIGGS_CPT = [];  // alias for DIGGS_SF.get('Sounding') ?? []
 let DIGGS_WELL = []; // alias for DIGGS_SF.get('Well') ?? []
 
 let DIGGS_LITH = {};    // keyed by sf gml:id
-let DIGGS_SAMPLES = {}; // keyed by sf gml:id (via samplingFeatureRef)
-let DIGGS_BH_MEAS = {}; // keyed by bh id → { procType → { procObj, rows[] } }
-let DIGGS_CPT_DATA = {};// keyed by sounding gml:id
-let DIGGS_CPT_MEAS = {};// keyed by sounding id → { procType → { procObj, rows[] } }
-let DIGGS_WELL_DATA = {};// keyed by well gml:id → array of Monitor objects
+let DIGGS_SAMPLES = {}; // keyed by sf gml:id (via samplingFeatureRef) -> SamplingActivity elements
+// DIGGS_SAMPLE_BY_SP — reverse index for the Sample<->SamplingActivity join
+// (Sample only carries a reverse xlink:href — sampleProducedRef — back to its
+// producing SampleProduced; there is no forward link). Keyed by SampleProduced
+// gml:id -> array of Sample elements referencing it. See
+// renderSamplingBadgeContent / _buildSamplingActivityRows.
+let DIGGS_SAMPLE_BY_SP = new Map();
 // DIGGS_MEASUREMENTS — unified measurement registry (the config-driven rebuild's
 // data layer). Keyed by owning SF gml:id → array of records:
 //   { measType, el, sfId, procType, procObjs[], domain, resultSet }
@@ -5306,8 +5269,7 @@ function resetToLoad() {
   sfMarkers.clear();
   DIGGS_SF = new Map();
   DIGGS_BH = []; DIGGS_CPT = []; DIGGS_WELL = [];
-  DIGGS_LITH = {}; DIGGS_SAMPLES = {}; DIGGS_CPT_DATA = {}; DIGGS_BH_MEAS = {}; DIGGS_CPT_MEAS = {};
-  DIGGS_WELL_DATA = {};
+  DIGGS_LITH = {}; DIGGS_SAMPLES = {}; DIGGS_SAMPLE_BY_SP = new Map();
   DIGGS_PROJECTS = []; DIGGS_ACTIVE_PROJECT = null; DIGGS_BA_MAP = {};
   _expandedMultiTrackId = null;
   // LSR_UOM is keyed by srsName, which for a local `#fragment` reference is
@@ -7835,7 +7797,21 @@ OBJECT_CONFIGS.Equipment = [
   { path: 'diggs:modelNumber', label: 'Model Number' },
   { path: 'diggs:serialNumber', label: 'Serial Number' },
   { path: 'diggs:calibrationAuditTrail', multi: true, label: 'Calibration' },
-  { path: 'diggs:otherEquipmentProperty', multi: true, label: 'Other Property' },
+  {
+    path: 'diggs:otherEquipmentProperty', multi: true,
+    label: 'Other Property', labelPlural: 'Other Properties', alwaysGroup: true,
+    // itemLabel receives the already-resolved Parameter object (childEl),
+    // not the otherEquipmentProperty wrapper — see renderResolvedObject.
+    // Same convention as OBJECT_CONFIGS.Borehole's otherSamplingFeatureProperty:
+    // any row resolving to a Parameter object needs this, since
+    // renderParameterInline (SPECIAL_OBJECT_FORMATTERS.Parameter) deliberately
+    // omits parameterName from its own value text.
+    itemLabel: el => {
+      const nameEl = evalXPath(el, 'diggs:parameterName')[0];
+      const txt = nodeText(nameEl);
+      return txt ? escHtml(txt) + _codeSpaceKeyExtra(nameEl) : null;
+    },
+  },
   ..._FEATURE_TRAILING,
 ];
 
@@ -7904,7 +7880,21 @@ const _EQUIPMENT_SUBTYPE_CONFIGS = {
     { path: 'diggs:maxHydPressure', label: 'Max Hydraulic Pressure' },
     { path: 'diggs:maxTorque', label: 'Max Torque' },
     { path: 'diggs:mastLength', label: 'Mast Length' },
-    { path: 'diggs:otherEquipmentProperty', multi: true, label: 'Other Property' },
+    {
+    path: 'diggs:otherEquipmentProperty', multi: true,
+    label: 'Other Property', labelPlural: 'Other Properties', alwaysGroup: true,
+    // itemLabel receives the already-resolved Parameter object (childEl),
+    // not the otherEquipmentProperty wrapper — see renderResolvedObject.
+    // Same convention as OBJECT_CONFIGS.Borehole's otherSamplingFeatureProperty:
+    // any row resolving to a Parameter object needs this, since
+    // renderParameterInline (SPECIAL_OBJECT_FORMATTERS.Parameter) deliberately
+    // omits parameterName from its own value text.
+    itemLabel: el => {
+      const nameEl = evalXPath(el, 'diggs:parameterName')[0];
+      const txt = nodeText(nameEl);
+      return txt ? escHtml(txt) + _codeSpaceKeyExtra(nameEl) : null;
+    },
+  },
     ..._FEATURE_TRAILING,
   ],
 
@@ -7930,7 +7920,21 @@ const _EQUIPMENT_SUBTYPE_CONFIGS = {
     { path: 'diggs:shoeLength', label: 'Shoe Length' },
     { path: 'diggs:shoeOuterDiameter', label: 'Shoe Outer Diameter' },
     { path: 'diggs:shoeType', label: 'Shoe Type' },
-    { path: 'diggs:otherEquipmentProperty', multi: true, label: 'Other Property' },
+    {
+    path: 'diggs:otherEquipmentProperty', multi: true,
+    label: 'Other Property', labelPlural: 'Other Properties', alwaysGroup: true,
+    // itemLabel receives the already-resolved Parameter object (childEl),
+    // not the otherEquipmentProperty wrapper — see renderResolvedObject.
+    // Same convention as OBJECT_CONFIGS.Borehole's otherSamplingFeatureProperty:
+    // any row resolving to a Parameter object needs this, since
+    // renderParameterInline (SPECIAL_OBJECT_FORMATTERS.Parameter) deliberately
+    // omits parameterName from its own value text.
+    itemLabel: el => {
+      const nameEl = evalXPath(el, 'diggs:parameterName')[0];
+      const txt = nodeText(nameEl);
+      return txt ? escHtml(txt) + _codeSpaceKeyExtra(nameEl) : null;
+    },
+  },
     ..._FEATURE_TRAILING,
   ],
 
@@ -7949,7 +7953,21 @@ const _EQUIPMENT_SUBTYPE_CONFIGS = {
     { path: 'diggs:mixerVolume', multi: true, splitRows: true, label: 'Mixer Volume' },
     { path: 'diggs:agitatorSpeed', label: 'Agitator Speed' },
     { path: 'diggs:impellerSpeed', label: 'Impeller Speed' },
-    { path: 'diggs:otherEquipmentProperty', multi: true, label: 'Other Property' },
+    {
+    path: 'diggs:otherEquipmentProperty', multi: true,
+    label: 'Other Property', labelPlural: 'Other Properties', alwaysGroup: true,
+    // itemLabel receives the already-resolved Parameter object (childEl),
+    // not the otherEquipmentProperty wrapper — see renderResolvedObject.
+    // Same convention as OBJECT_CONFIGS.Borehole's otherSamplingFeatureProperty:
+    // any row resolving to a Parameter object needs this, since
+    // renderParameterInline (SPECIAL_OBJECT_FORMATTERS.Parameter) deliberately
+    // omits parameterName from its own value text.
+    itemLabel: el => {
+      const nameEl = evalXPath(el, 'diggs:parameterName')[0];
+      const txt = nodeText(nameEl);
+      return txt ? escHtml(txt) + _codeSpaceKeyExtra(nameEl) : null;
+    },
+  },
     ..._FEATURE_TRAILING,
   ],
 
@@ -7996,7 +8014,21 @@ const _EQUIPMENT_SUBTYPE_CONFIGS = {
         return idx ? `Point ${idx}` : null;
       },
     },
-    { path: 'diggs:otherEquipmentProperty', multi: true, label: 'Other Property' },
+    {
+    path: 'diggs:otherEquipmentProperty', multi: true,
+    label: 'Other Property', labelPlural: 'Other Properties', alwaysGroup: true,
+    // itemLabel receives the already-resolved Parameter object (childEl),
+    // not the otherEquipmentProperty wrapper — see renderResolvedObject.
+    // Same convention as OBJECT_CONFIGS.Borehole's otherSamplingFeatureProperty:
+    // any row resolving to a Parameter object needs this, since
+    // renderParameterInline (SPECIAL_OBJECT_FORMATTERS.Parameter) deliberately
+    // omits parameterName from its own value text.
+    itemLabel: el => {
+      const nameEl = evalXPath(el, 'diggs:parameterName')[0];
+      const txt = nodeText(nameEl);
+      return txt ? escHtml(txt) + _codeSpaceKeyExtra(nameEl) : null;
+    },
+  },
     ..._FEATURE_TRAILING,
   ],
 
@@ -8013,7 +8045,21 @@ const _EQUIPMENT_SUBTYPE_CONFIGS = {
     { path: 'diggs:calibrationAuditTrail', multi: true, label: 'Calibration' },
     { path: 'diggs:mixer', label: 'Mixer' },
     { path: 'diggs:pump', label: 'Pump' },
-    { path: 'diggs:otherEquipmentProperty', multi: true, label: 'Other Property' },
+    {
+    path: 'diggs:otherEquipmentProperty', multi: true,
+    label: 'Other Property', labelPlural: 'Other Properties', alwaysGroup: true,
+    // itemLabel receives the already-resolved Parameter object (childEl),
+    // not the otherEquipmentProperty wrapper — see renderResolvedObject.
+    // Same convention as OBJECT_CONFIGS.Borehole's otherSamplingFeatureProperty:
+    // any row resolving to a Parameter object needs this, since
+    // renderParameterInline (SPECIAL_OBJECT_FORMATTERS.Parameter) deliberately
+    // omits parameterName from its own value text.
+    itemLabel: el => {
+      const nameEl = evalXPath(el, 'diggs:parameterName')[0];
+      const txt = nodeText(nameEl);
+      return txt ? escHtml(txt) + _codeSpaceKeyExtra(nameEl) : null;
+    },
+  },
     ..._FEATURE_TRAILING,
   ],
 
@@ -8040,7 +8086,21 @@ const _EQUIPMENT_SUBTYPE_CONFIGS = {
     { path: 'diggs:sealType', label: 'Seal Type' },
     { path: 'diggs:tubeInnerDiameter', label: 'Tube Inner Diameter' },
     { path: 'diggs:tubeType', label: 'Tube Type' },
-    { path: 'diggs:otherEquipmentProperty', multi: true, label: 'Other Property' },
+    {
+    path: 'diggs:otherEquipmentProperty', multi: true,
+    label: 'Other Property', labelPlural: 'Other Properties', alwaysGroup: true,
+    // itemLabel receives the already-resolved Parameter object (childEl),
+    // not the otherEquipmentProperty wrapper — see renderResolvedObject.
+    // Same convention as OBJECT_CONFIGS.Borehole's otherSamplingFeatureProperty:
+    // any row resolving to a Parameter object needs this, since
+    // renderParameterInline (SPECIAL_OBJECT_FORMATTERS.Parameter) deliberately
+    // omits parameterName from its own value text.
+    itemLabel: el => {
+      const nameEl = evalXPath(el, 'diggs:parameterName')[0];
+      const txt = nodeText(nameEl);
+      return txt ? escHtml(txt) + _codeSpaceKeyExtra(nameEl) : null;
+    },
+  },
     ..._FEATURE_TRAILING,
   ],
 
@@ -8068,7 +8128,21 @@ const _EQUIPMENT_SUBTYPE_CONFIGS = {
     { path: 'diggs:innerDiameterOfFluid_3Nozzles', label: 'Fluid-3 Nozzle Inner Diameter' },
     { path: 'diggs:outerDiameterOfFluid_3Nozzles', label: 'Fluid-3 Nozzle Outer Diameter' },
     { path: 'diggs:xJet', label: 'X-Jet Configuration', boolean: true },
-    { path: 'diggs:otherEquipmentProperty', multi: true, label: 'Other Property' },
+    {
+    path: 'diggs:otherEquipmentProperty', multi: true,
+    label: 'Other Property', labelPlural: 'Other Properties', alwaysGroup: true,
+    // itemLabel receives the already-resolved Parameter object (childEl),
+    // not the otherEquipmentProperty wrapper — see renderResolvedObject.
+    // Same convention as OBJECT_CONFIGS.Borehole's otherSamplingFeatureProperty:
+    // any row resolving to a Parameter object needs this, since
+    // renderParameterInline (SPECIAL_OBJECT_FORMATTERS.Parameter) deliberately
+    // omits parameterName from its own value text.
+    itemLabel: el => {
+      const nameEl = evalXPath(el, 'diggs:parameterName')[0];
+      const txt = nodeText(nameEl);
+      return txt ? escHtml(txt) + _codeSpaceKeyExtra(nameEl) : null;
+    },
+  },
     ..._FEATURE_TRAILING,
   ],
 
@@ -8085,7 +8159,21 @@ const _EQUIPMENT_SUBTYPE_CONFIGS = {
     { path: 'diggs:diameterCuttingWheels', label: 'Cutting Wheel Diameter' },
     { path: 'diggs:panelLength', label: 'Panel Length' },
     { path: 'diggs:panelWidth', label: 'Panel Width' },
-    { path: 'diggs:otherEquipmentProperty', multi: true, label: 'Other Property' },
+    {
+    path: 'diggs:otherEquipmentProperty', multi: true,
+    label: 'Other Property', labelPlural: 'Other Properties', alwaysGroup: true,
+    // itemLabel receives the already-resolved Parameter object (childEl),
+    // not the otherEquipmentProperty wrapper — see renderResolvedObject.
+    // Same convention as OBJECT_CONFIGS.Borehole's otherSamplingFeatureProperty:
+    // any row resolving to a Parameter object needs this, since
+    // renderParameterInline (SPECIAL_OBJECT_FORMATTERS.Parameter) deliberately
+    // omits parameterName from its own value text.
+    itemLabel: el => {
+      const nameEl = evalXPath(el, 'diggs:parameterName')[0];
+      const txt = nodeText(nameEl);
+      return txt ? escHtml(txt) + _codeSpaceKeyExtra(nameEl) : null;
+    },
+  },
     ..._FEATURE_TRAILING,
   ],
 
@@ -8105,7 +8193,21 @@ const _EQUIPMENT_SUBTYPE_CONFIGS = {
     { path: 'diggs:mixingToolHeight', label: 'Mixing Tool Height' },
     { path: 'diggs:panelLength', label: 'Panel Length' },
     { path: 'diggs:panelWidth', label: 'Panel Width' },
-    { path: 'diggs:otherEquipmentProperty', multi: true, label: 'Other Property' },
+    {
+    path: 'diggs:otherEquipmentProperty', multi: true,
+    label: 'Other Property', labelPlural: 'Other Properties', alwaysGroup: true,
+    // itemLabel receives the already-resolved Parameter object (childEl),
+    // not the otherEquipmentProperty wrapper — see renderResolvedObject.
+    // Same convention as OBJECT_CONFIGS.Borehole's otherSamplingFeatureProperty:
+    // any row resolving to a Parameter object needs this, since
+    // renderParameterInline (SPECIAL_OBJECT_FORMATTERS.Parameter) deliberately
+    // omits parameterName from its own value text.
+    itemLabel: el => {
+      const nameEl = evalXPath(el, 'diggs:parameterName')[0];
+      const txt = nodeText(nameEl);
+      return txt ? escHtml(txt) + _codeSpaceKeyExtra(nameEl) : null;
+    },
+  },
     ..._FEATURE_TRAILING,
   ],
 
@@ -8125,7 +8227,21 @@ const _EQUIPMENT_SUBTYPE_CONFIGS = {
     { path: 'diggs:referencePoint', label: 'Reference Point' },
     { path: 'diggs:dateInstalled', label: 'Date Installed' },
     { path: 'diggs:detector', multi: true, label: 'Detector' },
-    { path: 'diggs:otherEquipmentProperty', multi: true, label: 'Other Property' },
+    {
+    path: 'diggs:otherEquipmentProperty', multi: true,
+    label: 'Other Property', labelPlural: 'Other Properties', alwaysGroup: true,
+    // itemLabel receives the already-resolved Parameter object (childEl),
+    // not the otherEquipmentProperty wrapper — see renderResolvedObject.
+    // Same convention as OBJECT_CONFIGS.Borehole's otherSamplingFeatureProperty:
+    // any row resolving to a Parameter object needs this, since
+    // renderParameterInline (SPECIAL_OBJECT_FORMATTERS.Parameter) deliberately
+    // omits parameterName from its own value text.
+    itemLabel: el => {
+      const nameEl = evalXPath(el, 'diggs:parameterName')[0];
+      const txt = nodeText(nameEl);
+      return txt ? escHtml(txt) + _codeSpaceKeyExtra(nameEl) : null;
+    },
+  },
     ..._FEATURE_TRAILING,
   ],
 
@@ -8145,7 +8261,21 @@ const _EQUIPMENT_SUBTYPE_CONFIGS = {
     { path: 'diggs:pistonDiameter', label: 'Piston Diameter' },
     { path: 'diggs:poreWaterPressureDeviceMeetsUndrainedSpecs', label: 'Pore Water Pressure Device Meets Undrained Specs', boolean: true },
     { path: 'diggs:pressureTransducerType', label: 'Pressure Transducer Type' },
-    { path: 'diggs:otherEquipmentProperty', multi: true, label: 'Other Property' },
+    {
+    path: 'diggs:otherEquipmentProperty', multi: true,
+    label: 'Other Property', labelPlural: 'Other Properties', alwaysGroup: true,
+    // itemLabel receives the already-resolved Parameter object (childEl),
+    // not the otherEquipmentProperty wrapper — see renderResolvedObject.
+    // Same convention as OBJECT_CONFIGS.Borehole's otherSamplingFeatureProperty:
+    // any row resolving to a Parameter object needs this, since
+    // renderParameterInline (SPECIAL_OBJECT_FORMATTERS.Parameter) deliberately
+    // omits parameterName from its own value text.
+    itemLabel: el => {
+      const nameEl = evalXPath(el, 'diggs:parameterName')[0];
+      const txt = nodeText(nameEl);
+      return txt ? escHtml(txt) + _codeSpaceKeyExtra(nameEl) : null;
+    },
+  },
     ..._FEATURE_TRAILING,
   ],
 };
@@ -8246,6 +8376,156 @@ OBJECT_CONFIGS.Environment = [
   { path: 'diggs:weather' },
   { path: 'diggs:windSpeed', label: 'Wind Speed' },
   { path: 'diggs:otherEnvironmentalProperty', multi: true, label: 'Other Property' },
+  ..._COMPONENT_TRAILING,
+];
+
+// ══════════════════════════════════════════════════════════════
+//  SamplingActivity / Sample configs (2026-07-29) — full schema trace via
+//  ../diggs-schema, built for the SamplingActivity+Sample joined interval
+//  table (renderSamplingBadgeContent, near renderLithBadgeContent). Also
+//  used standalone (each type's own config renders the full object) —
+//  consumed-by-table fields (samplingLocation on SamplingActivity; gml:name/
+//  type on Sample) stay listed here per the same precedent as
+//  LithologyObservation's own `location` row.
+// ══════════════════════════════════════════════════════════════
+
+// SamplingActivity — SamplingActivityType (core/Core.xsd:2064) extends
+// AbstractSamplingActivityType (core/AbstractTypes.xsd:1006), which extends
+// AbstractFeatureType directly (own <sequence> is empty — adds nothing
+// beyond the abstract base) — same _OBJ_BASE_FIELDS/_FEATURE_LEADING/
+// _FEATURE_TRAILING shape Borehole/LithologySystem use. The *Ref properties
+// (projectRef/programRef/constructionActivityRef/samplingFeatureRef/
+// associatedProjectRef/originalProjectRef/sourceSampleRef) are all omitted
+// per the Reference-Property convention.
+OBJECT_CONFIGS.SamplingActivity = [
+  ..._OBJ_BASE_FIELDS,
+  ..._FEATURE_LEADING,
+  { path: 'diggs:investigationTarget', multi: true, label: 'Investigation Target', labelPlural: 'Investigation Targets' },
+  { path: 'diggs:samplingLocation', label: 'Sampling Location' },
+  { path: 'diggs:activityType', label: 'Activity Type' },
+  { path: 'diggs:lengthLongestPortion', label: 'Length of Longest Portion' },
+  { path: 'diggs:purpose' },
+  { path: 'diggs:rockQualityDesignationLength', label: 'Rock Quality Designation Length' },
+  { path: 'diggs:samplingActivityRQD', label: 'Sampling Activity RQD' },
+  { path: 'diggs:sampleProduced', multi: true, label: 'Sample Produced', labelPlural: 'Samples Produced' },
+  { path: 'diggs:samplerInsertionMethod', label: 'Sampler Insertion Method' },
+  { path: 'diggs:samplingDate', label: 'Sampling Date' },
+  { path: 'diggs:samplingEnvironment', multi: true, label: 'Sampling Environment', labelPlural: 'Sampling Environments' },
+  { path: 'diggs:samplingEquipment', multi: true, label: 'Sampling Equipment' },
+  { path: 'diggs:samplingMethod', multi: true, label: 'Sampling Method', labelPlural: 'Sampling Methods' },
+  { path: 'diggs:solidCoreRecoveryLength', label: 'Solid Core Recovery Length' },
+  { path: 'diggs:totalSampleRecoveryLength', label: 'Total Sample Recovery Length' },
+  { path: 'diggs:totalSampleRecovery', label: 'Total Sample Recovery' },
+  { path: 'diggs:mixingTime', label: 'Mixing Time' },
+  {
+    path: 'diggs:otherSamplingActivityProperty', multi: true,
+    label: 'Other Property', labelPlural: 'Other Properties', alwaysGroup: true,
+    itemLabel: el => {
+      const nameEl = evalXPath(el, 'diggs:parameterName')[0];
+      const txt = nodeText(nameEl);
+      return txt ? escHtml(txt) + _codeSpaceKeyExtra(nameEl) : null;
+    },
+  },
+  { path: 'diggs:coringPushPressure', label: 'Coring Push Pressure' },
+  { path: 'diggs:coringPushPressureMin', label: 'Coring Push Pressure (Min)' },
+  { path: 'diggs:coringPushPressureMax', label: 'Coring Push Pressure (Max)' },
+  ..._FEATURE_TRAILING,
+];
+
+// Sample — SampleType (core/Core.xsd:2127) extends AbstractSampleType
+// (core/AbstractTypes.xsd:978), which extends AbstractNamedFeatureType —
+// same base shape as SamplingActivity above. projectRef/samplingActivityRef/
+// sampleProducedRef (AbstractSampleType's own sequence) are all *Ref
+// properties, omitted per the Reference-Property convention —
+// samplingActivityRef/sampleProducedRef are exactly the two links
+// renderSamplingBadgeContent's join uses to pair a Sample back to its
+// SamplingActivity/SampleProduced, so they're already surfaced structurally
+// (the joined table row itself) rather than as a raw href row.
+// `coreDistkurbance` is a verbatim schema typo (SampleType's own element
+// name) — path preserves it, label reads "Core Disturbance" (same
+// preserve-path/fix-label precedent as OBJECT_CONFIGS.Locality's "parceI").
+OBJECT_CONFIGS.Sample = [
+  ..._OBJ_BASE_FIELDS,
+  ..._FEATURE_LEADING,
+  { path: 'diggs:relativeReferencingSystem', label: 'Relative Referencing System' },
+  { path: 'diggs:relativeReferenceSystemOrigin', label: 'Relative Reference System Origin' },
+  { path: 'diggs:classification' },
+  { path: 'diggs:type', label: 'Type' },
+  { path: 'diggs:condition' },
+  { path: 'diggs:extrusionMethod', label: 'Extrusion Method' },
+  { path: 'diggs:initialContainer', label: 'Initial Container' },
+  { path: 'diggs:purpose' },
+  { path: 'diggs:sampleWeight', label: 'Sample Weight' },
+  { path: 'diggs:sampleVolume', label: 'Sample Volume' },
+  { path: 'diggs:sampleDimensions', label: 'Sample Dimensions' },
+  { path: 'diggs:sampleMatrix', label: 'Sample Matrix' },
+  { path: 'diggs:initialPreservationMethod', label: 'Initial Preservation Method' },
+  { path: 'diggs:chainOfCustodyEvent', multi: true, label: 'Chain of Custody Event', labelPlural: 'Chain of Custody Events' },
+  {
+    path: 'diggs:otherSampleProperty', multi: true,
+    label: 'Other Property', labelPlural: 'Other Properties', alwaysGroup: true,
+    itemLabel: el => {
+      const nameEl = evalXPath(el, 'diggs:parameterName')[0];
+      const txt = nodeText(nameEl);
+      return txt ? escHtml(txt) + _codeSpaceKeyExtra(nameEl) : null;
+    },
+  },
+  { path: 'diggs:coreDistkurbance', label: 'Core Disturbance' },
+  ..._FEATURE_TRAILING,
+];
+
+// SampleProduced — SampleProducedType (core/Common.xsd:2267) extends
+// AbstractObjectType: _OBJ_BASE_FIELDS + own {location, sampleTime} (a
+// <choice> of location+sampleTime? or sampleTime alone — both listed as
+// plain optional rows, same as every other choice branch in this engine)
+// + _OBJ_TYPE_TRAILING.
+OBJECT_CONFIGS.SampleProduced = [
+  ..._OBJ_BASE_FIELDS,
+  { path: 'diggs:location', label: 'Location' },
+  { path: 'diggs:sampleTime', label: 'Sample Time' },
+  ..._OBJ_TYPE_TRAILING,
+];
+
+// Container — ContainerType (core/Core.xsd:2405) extends AbstractObjectType.
+OBJECT_CONFIGS.Container = [
+  ..._OBJ_BASE_FIELDS,
+  { path: 'diggs:containerLabel', label: 'Container Label' },
+  { path: 'diggs:containerType', label: 'Container Type' },
+  { path: 'diggs:containerMaterial', label: 'Container Material' },
+  { path: 'diggs:containerHeight', label: 'Container Height' },
+  { path: 'diggs:containerLength', label: 'Container Length' },
+  { path: 'diggs:containerVolume', label: 'Container Volume' },
+  { path: 'diggs:containerWeight', label: 'Container Weight' },
+  { path: 'diggs:containerWidth', label: 'Container Width' },
+  { path: 'diggs:preservativeAdded', label: 'Preservative Added' },
+  ..._OBJ_TYPE_TRAILING,
+];
+
+// SampleDimensions — SampleDimensionsType (core/Core.xsd:2492) extends
+// AbstractComponentObjectBaseType (a RESTRICTION — only description?/
+// identifier?, no name/status; own remark* declared directly in its own
+// sequence, ahead of diameter/height/length/width per schema order).
+OBJECT_CONFIGS.SampleDimensions = [
+  { path: 'gml:description' },
+  { path: 'gml:identifier', multi: true },
+  { path: 'diggs:remark', multi: true, splitRows: true },
+  { path: 'diggs:diameter', label: 'Diameter' },
+  { path: 'diggs:height', label: 'Height' },
+  { path: 'diggs:length', label: 'Length' },
+  { path: 'diggs:width', label: 'Width' },
+];
+
+// ChainOfCustodyEvent — ChainOfCustodyEventType (core/Core.xsd:2329) extends
+// AbstractComponentObjectType — _OBJ_BASE_FIELDS + _COMPONENT_TRAILING.
+OBJECT_CONFIGS.ChainOfCustodyEvent = [
+  ..._OBJ_BASE_FIELDS,
+  { path: 'diggs:sourceCustodian', label: 'Source Custodian' },
+  { path: 'diggs:destinationCustodian', label: 'Destination Custodian' },
+  { path: 'diggs:dateInitiated', label: 'Date Initiated' },
+  { path: 'diggs:dateCompleted', label: 'Date Completed' },
+  { path: 'diggs:sampleContainer', label: 'Sample Container' },
+  { path: 'diggs:shippingContainer', label: 'Shipping Container' },
+  { path: 'diggs:storageLocation', label: 'Storage Location' },
   ..._COMPONENT_TRAILING,
 ];
 
@@ -8760,7 +9040,7 @@ OBJECT_CONFIGS.LithologySystem = [
   ..._OBJ_BASE_FIELDS,
   ..._FEATURE_LEADING,
   ..._FEATURE_TRAILING,
-  { path: 'diggs:observationProcedure', label: 'Observation Procedure' },
+  { path: 'diggs:observationProcedure', multi: true,label: 'Observation Procedure' },
   { path: 'diggs:lithologyClassificationType', multi: true, label: 'Classification Type' },
   {
     path: 'diggs:lithologyObservation', multi: true, labelPlural: 'Lithology Observations',
@@ -8880,7 +9160,7 @@ OBJECT_CONFIGS.BoreholeConstructionMethod = [
   { path: 'diggs:methodTime', label: 'Time' },
   { path: 'diggs:holeStability', label: 'Hole Stability' },
   { path: 'diggs:constructionMethod', multi: true, label: 'Specification', labelPlural: 'Specifications' },
-  { path: 'diggs:constructionEquipment', multi: true, label: 'Equipment', labelPlural: 'Equipment' },
+  { path: 'diggs:constructionEquipment', multi: true, label: 'Equipment', labelPlural: 'Equipment', itemLabel: n => diggsLabel(n.localName) },
   { path: 'diggs:cuttingToolInfo', multi: true, label: 'Cutting Tool', labelPlural: 'Cutting Tools' },
   { path: 'diggs:drillPipeInfo', multi: true, label: 'Drill Pipe', labelPlural: 'Drill Pipes' },
   { path: 'diggs:hydraulicFluidFlowRate', label: 'Hydraulic Fluid Flow Rate' },
@@ -9644,7 +9924,7 @@ OBJECT_CONFIGS.Well = [
   },
 
   { sectionHeader: 'Installation Equipment' },
-  { path: 'diggs:installationEquipment', multi: true, label: 'Installation Equipment', labelPlural: 'Installation Equipment' },
+  { path: 'diggs:installationEquipment', multi: true, label: 'Installation Equipment', labelPlural: 'Installation Equipment', itemLabel: n => diggsLabel(n.localName) },
 
   { sectionHeader: 'Environment' },
   {
@@ -9709,7 +9989,7 @@ OBJECT_CONFIGS.SoundingConstructionMethod = [
   { path: 'diggs:location' },
   { path: 'diggs:methodTime', label: 'Time' },
   { path: 'diggs:constructionMethod', multi: true, label: 'Specification', labelPlural: 'Specifications' },
-  { path: 'diggs:constructionEquipment', multi: true, label: 'Equipment', labelPlural: 'Equipment' },
+  { path: 'diggs:constructionEquipment', multi: true, label: 'Equipment', labelPlural: 'Equipment', itemLabel: n => diggsLabel(n.localName) },
   ..._NAMED_ROLE_TRAILING,
 ];
 
@@ -10301,7 +10581,7 @@ OBJECT_CONFIGS.LoadTransferPlatform = [
   // constructionMethod (RIConstructionMethodPropertyType), so this is a
   // plain object row, not an interval table.
   { path: 'diggs:constructionMethod', label: 'Construction Method' },
-  { path: 'diggs:constructionEquipment', multi: true, label: 'Equipment', labelPlural: 'Equipment' },
+  { path: 'diggs:constructionEquipment', multi: true, label: 'Equipment', labelPlural: 'Equipment', itemLabel: n => diggsLabel(n.localName) },
   { path: 'diggs:materialType', label: 'Material' },
   { path: 'diggs:elevationTopLTP', label: 'Elevation Top LTP' },
   { path: 'diggs:impliedLTPThickness', label: 'Implied LTP Thickness' },
@@ -10364,7 +10644,7 @@ OBJECT_CONFIGS.RIConstructionMethod = [
   { path: 'diggs:methodTime', label: 'Time' },
   { path: 'diggs:holeStability', label: 'Hole Stability' },
   { path: 'diggs:constructionMethod', multi: true, label: 'Specification', labelPlural: 'Specifications' },
-  { path: 'diggs:constructionEquipment', multi: true, label: 'Equipment', labelPlural: 'Equipment' },
+  { path: 'diggs:constructionEquipment', multi: true, label: 'Equipment', labelPlural: 'Equipment', itemLabel: n => diggsLabel(n.localName) },
   { path: 'diggs:cuttingToolInfo', multi: true, label: 'Cutting Tool', labelPlural: 'Cutting Tools' },
   { path: 'diggs:drillPipeInfo', multi: true, label: 'Drill Pipe', labelPlural: 'Drill Pipes' },
   { path: 'diggs:hydraulicFluidFlowRate', label: 'Hydraulic Fluid Flow Rate' },
@@ -11437,289 +11717,31 @@ function loadDIGGS(doc, filename) {
     DIGGS_LITH[href].push(sysObj);
   }
 
-  // ── SAMPLES (from SamplingActivity) ──────────────
+  // ── SAMPLES (SamplingActivity + Sample) ──────────────
+  // DIGGS_SAMPLES groups raw SamplingActivity elements by owning SF id — the
+  // actual SamplingActivity<->Sample join (one row per SampleProduced, via
+  // DIGGS_SAMPLE_BY_SP) happens lazily at render time in
+  // _buildSamplingActivityRows, not here — see renderSamplingBadgeContent.
   DIGGS_SAMPLES = {};
   for (const sa of xNodes(doc, '//diggs:samplingActivity/diggs:SamplingActivity')) {
     const href = xText(doc, 'diggs:samplingFeatureRef/@xlink:href', sa).replace('#','');
     if (!href) continue;
-    // Primary: SampleProduced/location — reflects actual recovered sample position
-    // Handles both inline LinearExtent and xlink:href reference patterns.
-    let sampLeEl = null;
-    {
-      // Try inline child first, then follow xlink:href
-      const spLocEl = xFirst(doc, 'diggs:sampleProduced/diggs:SampleProduced/diggs:location', sa);
-      if (spLocEl) sampLeEl = resolveXlinkEl(spLocEl);
-      // Only accept it if it's a LinearExtent with a posList
-      if (sampLeEl && (sampLeEl.localName !== 'LinearExtent'
-          || !xText(doc, 'gml:posList', sampLeEl).trim())) {
-        sampLeEl = null;
-      }
-    }
-    // Fallback: samplingLocation — the sampled interval
-    if (!sampLeEl) {
-      const slLocEl = xFirst(doc, 'diggs:samplingLocation', sa);
-      if (slLocEl) {
-        const candidate = resolveXlinkEl(slLocEl);
-        if (candidate && candidate.localName === 'LinearExtent') sampLeEl = candidate;
-      }
-      // Also try direct inline path for compatibility
-      if (!sampLeEl) sampLeEl = xFirst(doc, 'diggs:samplingLocation/diggs:LinearExtent', sa);
-    }
-    const posListText = sampLeEl ? xText(doc, 'gml:posList', sampLeEl) : '';
-    const tokens = posListText.trim().split(/\s+/);
-    const sampSrsName = sampLeEl ? (sampLeEl.getAttribute('srsName') || '') : '';
-
-    // Resolve sampling method: prefer embedded Specification/gml:name;
-    // fall back to following xlink:href to the referenced procedure object's gml:name
-    // or, if gml:name is absent, use the procedure element type name itself.
-    let method = xText(doc, 'diggs:samplingMethod/diggs:Specification/gml:name', sa);
-    if (!method) {
-      const smEl = xFirst(doc, 'diggs:samplingMethod', sa);
-      if (smEl) {
-        const smHref = smEl.getAttributeNS(NS.xlink, 'href');
-        if (smHref) {
-          const targetId = smHref.replace(/^#/, '');
-          const target = getIdIndex(doc).get(targetId) || null;
-          if (target) {
-            const nameEl = target.getElementsByTagNameNS(NS.gml, 'name')[0];
-            method = (nameEl && nameEl.textContent.trim()) ||
-                     target.localName;   // use element type (e.g. "DrivenPenetrationTest") as fallback
-          }
-        }
-        // Also check for an embedded procedure object that isn't a Specification
-        if (!method) {
-          const firstChild = smEl.children[0];
-          if (firstChild) {
-            const nameEl = firstChild.getElementsByTagNameNS(NS.gml, 'name')[0];
-            method = (nameEl && nameEl.textContent.trim()) || firstChild.localName;
-          }
-        }
-      }
-    }
-
-    const entry = {
-      name:    xText(doc, 'gml:name', sa),
-      from:    tokens[0] ?? '',
-      to:      tokens[1] ?? '',
-      srsName: sampSrsName,
-      method:  method || ''
-    };
     if (!DIGGS_SAMPLES[href]) DIGGS_SAMPLES[href] = [];
-    DIGGS_SAMPLES[href].push(entry);
+    DIGGS_SAMPLES[href].push(sa);
   }
-
-  // ── CPT DATA ─────────────────────────────────────
-  DIGGS_CPT_DATA = {};
-  for (const test of xNodes(doc, '//diggs:measurement/diggs:Test')) {
-    // Only process StaticConePenetrationTest
-    const scptEl = xFirst(doc, './/diggs:StaticConePenetrationTest', test);
-    if (!scptEl) continue;
-    const sfHref = xText(doc, 'diggs:samplingFeatureRef/@xlink:href', test).replace('#','');
-    if (!sfHref) continue;
-
-    // Collect procedure metadata fields
-    function _cptAttr(el, path) {
-      const node = xFirst(doc, path, el);
-      return node ? { val: node.textContent.trim(), uom: node.getAttribute('uom') || '' } : null;
-    }
-    const procMeta = {
-      procName:          'StaticConePenetrationTest',
-      penetrometerType:  xText(doc, 'diggs:penetrometerType',      scptEl) || null,
-      distTipToSleeve:   _cptAttr(scptEl, 'diggs:distanceTipToSleeve'),
-      netAreaRatio:      xText(doc, 'diggs:netAreaRatioCorrection', scptEl) || null,
-      penetrationRate:   _cptAttr(scptEl, 'diggs:penetrationRate'),
-      tipArea:           _cptAttr(scptEl, 'diggs:tipArea'),
-    };
-
-    const rs = xFirst(doc, './/diggs:ResultSet', test);
-    if (!rs) continue;
-
-    // Property definitions
-    const props = [];
-    for (const p of xNodes(doc, './/diggs:Property', rs)) {
-      props.push({
-        name:     xText(doc, 'diggs:propertyName', p),
-        uom:      xText(doc, 'diggs:uom', p),
-        className:xText(doc, 'diggs:propertyClass', p),
-        nullVal:  parseFloat(xText(doc, 'diggs:nullValue', p)) || 9999
-      });
-    }
-
-    // Depths (MultiPointLocation posList)
-    const depthText = xText(doc, './/diggs:MultiPointLocation/gml:posList', test);
-    const depths = numTokens(depthText, true);
-
-    // Data values
-    const dvEl = xFirst(doc, './/diggs:dataValues', rs);
-    const cs = dvEl ? (dvEl.getAttribute('cs') || ',') : ',';
-    const dvText = dvEl ? dvEl.textContent.trim() : '';
-    const values = dvText.split(/\s+/).map(row =>
-      row.split(cs).map(v => { const n = parseFloat(v); return isNaN(n) ? null : n; })
-    );
-
-    const _cptSnd = DIGGS_CPT.find(c => c.id === sfHref);
-    DIGGS_CPT_DATA[sfHref] = { depths, props, values, depthUom: _cptSnd ? _cptSnd.depthUom : '', procMeta };
-  }
-
-  // ── BH MEASUREMENT DATA (Test/Monitor/MaterialTest/MeasurementWhileDrilling) ──
-  DIGGS_BH_MEAS = {};
-  const MEAS_TYPES = ['Test','Monitor','MaterialTest','MeasurementWhileDrilling'];
-  for (const measType of MEAS_TYPES) {
-    for (const measEl of xNodes(doc, `//diggs:measurement/diggs:${measType}`)) {
-      const sfHref = xText(doc, 'diggs:samplingFeatureRef/@xlink:href', measEl).replace('#','');
-      if (!sfHref) continue;
-
-      // Resolve procedure object (embedded or by xlink:href reference)
-      const procWrapper = xFirst(doc, 'diggs:procedure', measEl);
-      let procObj = procWrapper && procWrapper.children[0] ? procWrapper.children[0] : null;
-      if (!procObj && procWrapper) {
-        const procHref = procWrapper.getAttributeNS(NS.xlink, 'href');
-        if (procHref) {
-          const targetId = procHref.replace(/^#/, '');
-          procObj = doc.querySelector('[id="' + targetId + '"]') ||
-                    doc.querySelector('[*|id="' + targetId + '"]');
-        }
-      }
-      const procType = procObj ? procObj.localName : 'Unknown';
-      // SCPT is handled separately by the CPT DATA loop above — skip here to avoid duplication
-      if (procType === 'StaticConePenetrationTest') continue;
-
-      // Collect TestResult rows from outcome
-      const outcome = xFirst(doc, 'diggs:outcome', measEl);
-      if (!outcome) continue;
-
-      for (const tr of Array.from(outcome.getElementsByTagNameNS(NS.diggs, 'TestResult'))) {
-        // Location: prefer LinearExtent posList (interval), else PointLocation pos (single)
-        // Capture srsName from the parent geometry element for depth unit lookup.
-        const locEl     = tr.getElementsByTagNameNS(NS.diggs, 'location')[0];
-        const leEl2     = locEl ? (locEl.getElementsByTagNameNS(NS.diggs, 'LinearExtent')[0]
-                                || locEl.getElementsByTagNameNS(NS.diggs, 'PointLocation')[0]) : null;
-        const measSrsName = leEl2 ? (leEl2.getAttribute('srsName') || '') : '';
-        const posListEl = tr.getElementsByTagNameNS(NS.gml, 'posList')[0];
-        const posEl     = tr.getElementsByTagNameNS(NS.gml, 'pos')[0];
-        let depthFrom = '', depthTo = '';
-        if (posListEl) {
-          const toks = posListEl.textContent.trim().split(/\s+/);
-          depthFrom = toks[0] ?? ''; depthTo = toks[1] ?? '';
-        } else if (posEl) {
-          depthFrom = posEl.textContent.trim();
-        }
-
-        // Properties and data
-        const props = [];
-        const rs = tr.getElementsByTagNameNS(NS.diggs, 'ResultSet')[0];
-        if (rs) {
-          for (const p of Array.from(rs.getElementsByTagNameNS(NS.diggs, 'Property'))) {
-            const pNameEl  = p.getElementsByTagNameNS(NS.diggs, 'propertyName')[0];
-            const pClassEl = p.getElementsByTagNameNS(NS.diggs, 'propertyClass')[0];
-            const pUomEl   = p.getElementsByTagNameNS(NS.diggs, 'uom')[0] ||
-                             p.getElementsByTagNameNS(NS.diggs, 'unitOfMeasure')[0];
-            const pName  = (pNameEl  && pNameEl.textContent.trim())  || '';
-            const pClass = (pClassEl && pClassEl.textContent.trim()) || '';
-            const pUom   = (pUomEl   && pUomEl.textContent.trim())   || '';
-            props.push({ name: pName || pClass || '?', uom: pUom });
-          }
-        }
-
-        // Data values: ts=space is the DIGGS convention but text values often contain spaces.
-        // For borehole tests each TestResult is a single logical row; use full text split by cs.
-        const dvEl = rs ? rs.getElementsByTagNameNS(NS.diggs, 'dataValues')[0] : null;
-        const cs = dvEl ? (dvEl.getAttribute('cs') || ',') : ',';
-        const ts = dvEl ? (dvEl.getAttribute('ts') || ' ') : ' ';
-        const rawText = dvEl ? dvEl.textContent.trim() : '';
-        // Helper: CSV-aware split of a dataValues row by cs.
-        // Respects double-quoted fields so that a delimiter inside quotes (e.g.
-        // "loose, fine gravel") is not treated as a field boundary.
-        // Surrounding quotes are removed from the resulting token.
-        const _splitDvRow = (str) => {
-          const tokens = [];
-          let cur = '', inQ = false;
-          for (let i = 0; i < str.length; i++) {
-            const ch = str[i];
-            if (ch === '"') {
-              inQ = !inQ;            // toggle; quotes are consumed, not added to token
-            } else if (ch === cs && !inQ) {
-              tokens.push(cur.trim());
-              cur = '';
-            } else {
-              cur += ch;
-            }
-          }
-          tokens.push(cur.trim());
-          return tokens;
-        };
-
-        let rowValues;
-        if (!rawText) {
-          rowValues = [[]];
-        } else if (ts !== ' ' && ts !== '') {
-          rowValues = rawText.split(ts).map(r => _splitDvRow(r));
-        } else {
-          // ts is space — treat whole text content as one row (don't split on spaces)
-          rowValues = [_splitDvRow(rawText)];
-        }
-
-        // ── PPD TemporalResult (dissipation time-series) ──────────────────
-        let ppdTimeSeries = null;
-        if (procType === 'PorePressureDissipationTest' && procObj) {
-          const trEl = procObj.getElementsByTagNameNS(NS.diggs, 'TemporalResult')[0];
-          if (trEl) {
-            // Time values — from TimeIntervalList/timeIntervalList (space-delimited)
-            const tilEl = trEl.getElementsByTagNameNS(NS.diggs, 'TimeIntervalList')[0]
-                       || trEl.getElementsByTagNameNS(NS.gml,   'TimeIntervalList')[0];
-            const tilListEl = tilEl
-              ? (tilEl.getElementsByTagNameNS(NS.diggs, 'timeIntervalList')[0]
-              || tilEl.getElementsByTagNameNS(NS.gml,   'timeIntervalList')[0])
-              : null;
-            const timeUnit = tilEl ? (tilEl.getAttribute('unit') || 's') : 's';
-            const timeToks = tilListEl
-              ? tilListEl.textContent.trim().split(/\s+/).filter(Boolean).map(Number)
-              : [];
-
-            // Properties and values from inner ResultSet
-            const trRs = trEl.getElementsByTagNameNS(NS.diggs, 'ResultSet')[0];
-            const trProps = [];
-            if (trRs) {
-              for (const p of Array.from(trRs.getElementsByTagNameNS(NS.diggs, 'Property'))) {
-                const nm  = (p.getElementsByTagNameNS(NS.diggs, 'propertyName')[0]  || {}).textContent || '';
-                const uom = (p.getElementsByTagNameNS(NS.diggs, 'uom')[0]           || {}).textContent || '';
-                const cls = (p.getElementsByTagNameNS(NS.diggs, 'propertyClass')[0] || {}).textContent || '';
-                trProps.push({ name: nm.trim() || cls.trim() || '?', uom: uom.trim() });
-              }
-            }
-            const trDvEl  = trRs ? trRs.getElementsByTagNameNS(NS.diggs, 'dataValues')[0] : null;
-            const trToks  = trDvEl ? trDvEl.textContent.trim().split(/\s+/).filter(Boolean).map(Number) : [];
-
-            // estimatedIr from procedure element
-            const irEl  = procObj.getElementsByTagNameNS(NS.diggs, 'estimatedIr')[0];
-            const irVal = irEl ? irEl.textContent.trim() : null;
-            const irUom = irEl ? (irEl.getAttribute('uom') || '') : '';
-
-            ppdTimeSeries = { timeToks, timeUnit, trProps, trToks, irVal, irUom };
-          }
-        }
-
-        const entry = { depthFrom, depthTo, srsName: measSrsName, props, rowValues, procObj, ppdTimeSeries };
-
-        // Route to CPT or BH dict based on which feature set owns sfHref
-        const cptIds = new Set(DIGGS_CPT.map(s => s.id));
-        const targetMeas = cptIds.has(sfHref) ? DIGGS_CPT_MEAS : DIGGS_BH_MEAS;
-
-        if (!targetMeas[sfHref]) targetMeas[sfHref] = {};
-        if (!targetMeas[sfHref][procType]) {
-          targetMeas[sfHref][procType] = { procObj: null, rows: [] };
-        }
-        if (!targetMeas[sfHref][procType].procObj && procObj) {
-          targetMeas[sfHref][procType].procObj = procObj;
-        }
-        targetMeas[sfHref][procType].rows.push(entry);
-      }
-    }
+  // Reverse index: a Sample only carries a reverse xlink:href
+  // (sampleProducedRef) back to its producing SampleProduced — there is no
+  // forward link from SamplingActivity/SampleProduced to Sample.
+  DIGGS_SAMPLE_BY_SP = new Map();
+  for (const sampleEl of xNodes(doc, '//diggs:sample/diggs:Sample')) {
+    const spHref = xText(doc, 'diggs:sampleProducedRef/@xlink:href', sampleEl).replace('#','');
+    if (!spHref) continue;
+    if (!DIGGS_SAMPLE_BY_SP.has(spHref)) DIGGS_SAMPLE_BY_SP.set(spHref, []);
+    DIGGS_SAMPLE_BY_SP.get(spHref).push(sampleEl);
   }
 
   // ── WELLS ─────────────────────────────────────────
   DIGGS_WELL = [];
-  DIGGS_WELL_DATA = {};
   for (const wellEl of xNodes(doc, '//diggs:samplingFeature/diggs:Well')) {
     // Shared sampling-feature fields (id, name, referencePoint, projectRefs, etc.)
     const sf = parseSamplingFeature(doc, wellEl, 'Well');
@@ -11755,7 +11777,7 @@ function loadDIGGS(doc, filename) {
     DIGGS_WELL.push({ ...sf, wellDepth, wellDepthUom, sfRefHref, openings, screenTop, screenBot });
   }
 
-  // ── WELL MONITOR DATA ─────────────────────────────
+  // ── SHARED ID LOOKUPS (feed the unified measurement ingest below) ──
   // Build lookup: opening LinearExtent gml:id -> well gml:id
   // Handles the common case where Monitor.monitorLocation refs a WellOpening interval
   const openingIdToWellId = {};
@@ -11770,114 +11792,12 @@ function loadDIGGS(doc, filename) {
   const bhIds  = new Set(DIGGS_BH.map(b => b.id));
   const cptIds = new Set(DIGGS_CPT.map(s => s.id));
 
-  for (const monEl of xNodes(doc, '//diggs:measurement/diggs:Monitor')) {
-    // Strategy 1: samplingFeatureRef directly references any known feature gml:id
-    const sfHref = xText(doc, 'diggs:samplingFeatureRef/@xlink:href', monEl).replace('#','');
-    // Strategy 2: monitorLocation references a WellOpening LinearExtent gml:id (Well-specific)
-    const monLocHrefRaw = xText(doc, 'diggs:monitorLocation/@xlink:href', monEl).replace('#','');
-
-    let sfHrefForKey = null;
-    if (wellIds.has(sfHref))   sfHrefForKey = sfHref;       // points to a Well
-    else if (bhIds.has(sfHref))  sfHrefForKey = sfHref;     // points to a Borehole
-    else if (cptIds.has(sfHref)) sfHrefForKey = sfHref;     // points to a Sounding
-    else sfHrefForKey = openingIdToWellId[monLocHrefRaw] || null; // WellOpening fallback
-    if (!sfHrefForKey) continue;
-
-    // Resolve procedure object
-    const procWrapper = xFirst(doc, 'diggs:procedure', monEl);
-    let procObj = procWrapper && procWrapper.children[0] ? procWrapper.children[0] : null;
-    if (!procObj && procWrapper) {
-      const procHref = procWrapper.getAttributeNS(NS.xlink, 'href');
-      if (procHref) {
-        const targetId = procHref.replace(/^#/, '');
-        procObj = doc.querySelector('[id="' + targetId + '"]') ||
-                  doc.querySelector('[*|id="' + targetId + '"]');
-      }
-    }
-    const procType = procObj ? procObj.localName : 'Monitor';
-
-    // monitorLocation (response zone href)
-    const monLocHref = xText(doc, 'diggs:monitorLocation/@xlink:href', monEl).replace('#','');
-
-    // Sensor/equipment metadata
-    const sensors = [];
-    for (const sensorEl of xNodes(doc, 'diggs:procedure//diggs:Sensor', monEl)) {
-      const sClass = xText(doc, 'diggs:class', sensorEl) ||
-                     xText(doc, 'diggs:sensorType', sensorEl) || '';
-      const sId    = sensorEl.getAttribute('id') || sensorEl.getAttributeNS(NS.gml, 'id') || '';
-      if (sClass || sId) sensors.push({ id: sId, class: sClass });
-    }
-    if (!sensors.length && procObj) {
-      // Try fetching from procObj directly
-      for (const sensorEl of Array.from(procObj.getElementsByTagNameNS(NS.diggs, 'Sensor'))) {
-        const sClass = sensorEl.getElementsByTagNameNS(NS.diggs, 'class')[0]?.textContent?.trim() ||
-                       sensorEl.getElementsByTagNameNS(NS.diggs, 'sensorType')[0]?.textContent?.trim() || '';
-        const sId    = sensorEl.getAttribute('id') || sensorEl.getAttributeNS(NS.gml, 'id') || '';
-        if (sClass || sId) sensors.push({ id: sId, class: sClass });
-      }
-    }
-
-    // Parse TemporalResult
-    const trEl = xFirst(doc, 'diggs:outcome/diggs:TemporalResult', monEl);
-    if (!trEl) continue;
-
-    // Time positions
-    // timePositionList — search from trEl (TemporalResult) first, then monEl fallbacks
-    const tplEl = xFirst(doc, 'diggs:timeDomain/diggs:TimePositionList/diggs:timePositionList', trEl)
-                || xFirst(doc, 'diggs:timeDomain/diggs:TimePositionList/diggs:timePositionList', monEl)
-                || xFirst(doc, 'diggs:outcome/diggs:TemporalResult/diggs:timeDomain/diggs:TimePositionList/diggs:timePositionList', monEl);
-    const tplParent = xFirst(doc, 'diggs:timeDomain/diggs:TimePositionList', trEl)
-                   || xFirst(doc, 'diggs:timeDomain/diggs:TimePositionList', monEl);
-    const timeText = (tplEl ? tplEl.textContent : (tplParent ? tplParent.textContent : '')).trim();
-    const times = timeText ? timeText.split(/\s+/).filter(t => /^\d{4}-\d{2}-\d{2}/.test(t)) : [];
-
-    // Property definitions
-    const props = [];
-    for (const pEl of xNodes(doc, 'diggs:results/diggs:ResultSet/diggs:parameters/diggs:PropertyParameters/diggs:properties/diggs:Property', trEl)) {
-      const pName = xText(doc, 'diggs:propertyName', pEl);
-      const pUom  = xText(doc, 'diggs:uom', pEl);
-      const pIdx  = parseInt(pEl.getAttribute('index') || '0', 10);
-      props.push({ name: pName, uom: pUom, index: pIdx });
-    }
-    // Sort by index so columns align with data values
-    props.sort((a, b) => a.index - b.index);
-
-    // Data values (CSV rows, one per time step)
-    // DIGGS defaults when attributes absent: cs=comma, ts=any whitespace, decimal=period
-    const dvEl   = xFirst(doc, 'diggs:results/diggs:ResultSet/diggs:dataValues', trEl);
-    const cs_raw = dvEl ? dvEl.getAttribute('cs') : null;
-    const ts_raw = dvEl ? dvEl.getAttribute('ts') : null;
-    const cs     = cs_raw !== null ? cs_raw : ',';
-    const dvText = dvEl ? dvEl.textContent.trim() : '';
-    let rows = [];
-    if (dvText) {
-      let rowTexts;
-      if (ts_raw === null) {
-        // DIGGS default: whitespace separates tuples; cs separates values within a tuple.
-        rowTexts = dvText.split(/\s+/).filter(t => t.length > 0);
-      } else {
-        const splitRe = (ts_raw === '\n' || ts_raw === '\\n') ? /\r?\n/ : null;
-        rowTexts = splitRe ? dvText.split(splitRe) : dvText.split(ts_raw);
-      }
-      rows = rowTexts
-        .map(r => r.trim().split(cs).map(v => { const n = parseFloat(v); return isNaN(n) ? null : n; }))
-        .filter(r => r.length > 0 && r.some(v => v !== null));
-    }
-    // Times in XML are newest-first; reverse both so index 0 = oldest.
-    rows.reverse();
-    const timesAsc = times.slice().reverse();
-
-    const monitorObj = { procType, procObj, monLocHref, sensors, times: timesAsc, props, rows };
-    if (!DIGGS_WELL_DATA[sfHrefForKey]) DIGGS_WELL_DATA[sfHrefForKey] = [];
-    DIGGS_WELL_DATA[sfHrefForKey].push(monitorObj);
-  }
-
   // ── UNIFIED MEASUREMENT INGEST → DIGGS_MEASUREMENTS ────────────
   // Single generic pass over all four measurement flavors, feeding the
-  // config-driven display rebuild. Runs alongside (not yet replacing) the
-  // legacy per-type loops above; parseResultSet/parseDomain do the parsing.
+  // config-driven display rebuild. parseResultSet/parseDomain do the parsing.
   // Reuses the wellIds/bhIds/cptIds/openingIdToWellId lookups built above.
   DIGGS_MEASUREMENTS = {};
+  const MEAS_TYPES = ['Test','Monitor','MaterialTest','MeasurementWhileDrilling'];
   const _MEAS_RESULT_ELEM = {
     Test: 'TestResult', Monitor: 'TemporalResult',
     MaterialTest: 'MaterialTestResult', MeasurementWhileDrilling: 'MWDResult',
@@ -15317,40 +15237,21 @@ function buildAssocBadges(sf) {
     });
   }
 
-  // ── Samples ──────────────────────────────────────────────
-  const samps = DIGGS_SAMPLES[sfId] || [];
-  if (samps.length) {
+  // ── Samples (SamplingActivity + Sample, joined) ───────────
+  const samplingRows = DIGGS_SAMPLES[sfId] ? _buildSamplingActivityRows(sfId) : [];
+  if (samplingRows.length) {
     badges.push({
       id: `assoc-samp-${sfId.replace(/[^a-zA-Z0-9]/g,'_')}`,
       label: 'Samples',
-      count: `${samps.length} sample${samps.length !== 1 ? 's' : ''}`,
-      contentFn: () => {
-        const sampUom = depthUomForRows(samps);
-        const sampUomTxt = sampUom ? `<br><span class="col-uom">(${escUom(sampUom)})</span>` : '';
-        let t = `<table class="sub-table"><thead><tr>
-          <th>From${sampUomTxt}</th><th>To${sampUomTxt}</th>
-          <th>Sample ID</th><th>Method</th>
-        </tr></thead><tbody>`;
-        const sorted = [...samps].sort((a,b) => {
-          const fa=parseFloat(a.from), fb=parseFloat(b.from);
-          return (!isNaN(fa)&&!isNaN(fb)) ? fa-fb : (a.from||'').localeCompare(b.from||'');
-        });
-        sorted.forEach(s => { t += `<tr>
-          <td class="mono">${esc(s.from)}</td>
-          <td class="mono">${esc(s.to)}</td>
-          <td style="color:var(--accent2)">${esc(s.name)}</td>
-          <td style="color:var(--text-muted)">${esc(s.method)}</td>
-        </tr>`; });
-        return t + '</tbody></table>';
-      },
+      count: `${samplingRows.length} record${samplingRows.length !== 1 ? 's' : ''}`,
+      contentFn: () => renderSamplingBadgeContent(sfId),
       category: 'samples',
     });
   }
 
   // ── Measurements (Test / Monitor / MaterialTest / MWD) ───
   // One badge per procedure type, built by the config-driven assembler from
-  // the unified DIGGS_MEASUREMENTS registry (replaces the former separate
-  // BH-meas / CPT-meas / Monitor badge paths and buildMeasTable).
+  // the unified DIGGS_MEASUREMENTS registry.
   for (const b of buildMeasurementDisplay(sf)) badges.push(b);
 
   return badges;
@@ -16725,20 +16626,6 @@ function showAssocBadge(sfId, badgeId) {
   // Post-render: invoke afterRender callback if present (e.g. PPD plot drawing)
   const cnt = document.getElementById('assoc-content');
   if (badge.afterRender) badge.afterRender(cnt);
-
-  if (badge.monDraw && badge.monDraw.length) {
-    renderMonitorPlots(badge.monDraw);
-  }
-  // Post-render: draw CPT depth plots for CPT profile badge
-  if (badge._isCPTProfile && badge._sfId) {
-    const data = DIGGS_CPT_DATA[badge._sfId];
-    if (data && data.depths.length > 0) {
-      requestAnimationFrame(() => requestAnimationFrame(() => {
-        const area = document.getElementById('cpt-canvas-area-assoc');
-        if (area) drawCPTPlots(data, area);
-      }));
-    }
-  }
 }
 
 // ── splitCamelCase: 'DrivenPenetrationTest' → 'Driven Penetration Test' ────
@@ -16899,165 +16786,6 @@ function showDetail(html) {
 }
 
 // ── Helper: get a child element text value by local name (namespace-safe) ────
-function childText(el, localName, ns) {
-  if (!el) return '';
-  const found = el.getElementsByTagNameNS(ns || NS.diggs, localName)[0];
-  return found ? found.textContent.trim() : '';
-}
-
-// ── Helper: get attribute by local name across possible namespace prefixes ───
-function getAttrUom(el) {
-  return el ? (el.getAttribute('uom') || '') : '';
-}
-
-// ── Build a single measurement table section for one procedure type ──────────
-function buildMeasTable(procType, procObj, rows, depthUom) {
-  const isDPT  = procType === 'DrivenPenetrationTest';
-
-  // ── Determine the union of result property columns across all rows ─────────
-  // Use a Map keyed by property name to preserve insertion order and collect uoms
-  const propMap = new Map(); // name → uom
-  for (const r of rows) {
-    for (const p of r.props) {
-      if (!propMap.has(p.name)) propMap.set(p.name, p.uom);
-    }
-  }
-  const resultCols = [...propMap.entries()]; // [{name,uom}] in order
-
-  // ── For DrivenPenetrationTest: collect procedure-level fields ─────────────
-  // Determine max drive-set count across all rows so columns are consistent
-  let dptProcCols = []; // extra columns from procedure object level
-  let maxDriveSets = 0;
-  if (isDPT && procObj) {
-    // Procedure-level scalar fields to show as columns
-    const dptFields = [
-      { key: 'penetrationTestType', label: 'Test Type',     uom: '' },
-      { key: 'totalPenetration',    label: 'Total Pen.',    uom: null },  // uom from element attr
-      { key: 'waterDepth',          label: 'Water Depth',   uom: null },
-      { key: 'hammerType',          label: 'Hammer Type',   uom: '' },
-      { key: 'hammerEfficiency',    label: 'Hammer Eff.',   uom: null },
-    ];
-    // Only include fields that appear in at least one measurement
-    for (const f of dptFields) {
-      // Check across all proc objects stored (only one stored per procType group,
-      // but for referenced procedures each row may reference a different object)
-      dptProcCols.push(f);
-    }
-    // Determine max drive sets across all rows' procedure objects
-    for (const r of rows) {
-      const po = r.procObj || procObj;
-      if (!po) continue;
-      const dsets = po.getElementsByTagNameNS(NS.diggs, 'DriveSet');
-      if (dsets.length > maxDriveSets) maxDriveSets = dsets.length;
-    }
-  }
-
-  // ── Determine if any row has an interval location (two depths) ───────────
-  const hasInterval = rows.some(r => r.depthTo !== '');
-
-  // ── Build header ──────────────────────────────────────────────────────────
-  const depthUomTxt = depthUom ? `<br><span class="col-uom">(${escUom(depthUom)})</span>` : '';
-  let thead = '<thead><tr>';
-  thead += `<th>Depth${hasInterval ? ' From' : ''}${depthUomTxt}</th>`;
-  if (hasInterval) thead += `<th>Depth To${depthUomTxt}</th>`;
-
-  if (isDPT) {
-    for (const f of dptProcCols) {
-      thead += `<th>${esc(f.label)}</th>`;
-    }
-    for (let i = 1; i <= maxDriveSets; i++) {
-      thead += `<th>Set ${i} (blows)</th>`;
-    }
-  }
-
-  for (const [name, uom] of resultCols) {
-    thead += `<th>${esc(name)}${uom ? `<br><span class="col-uom">(${escUom(uom)})</span>` : ''}</th>`;
-  }
-  thead += '</tr></thead>';
-
-  // ── Build body ────────────────────────────────────────────────────────────
-  let tbody = '<tbody>';
-  // Sort rows by depthFrom numerically
-  const sorted = [...rows].sort((a, b) => {
-    const fa = parseFloat(a.depthFrom), fb = parseFloat(b.depthFrom);
-    if (!isNaN(fa) && !isNaN(fb)) return fa - fb;
-    return (a.depthFrom || '').localeCompare(b.depthFrom || '');
-  });
-
-  for (const r of sorted) {
-    // Resolve the actual procedure object for this row (may differ per DPT reference)
-    const po = isDPT ? (r.procObj || procObj) : null;
-
-    tbody += '<tr>';
-    tbody += `<td class="mono">${esc(r.depthFrom) || '—'}</td>`;
-    if (hasInterval) tbody += `<td class="mono">${esc(r.depthTo) || '—'}</td>`;
-
-    if (isDPT && po) {
-      for (const f of dptProcCols) {
-        const el = po.getElementsByTagNameNS(NS.diggs, f.key)[0];
-        if (el) {
-          const val = el.textContent.trim();
-          const uom = f.uom === null ? (el.getAttribute('uom') || '') : f.uom;
-          tbody += `<td class="mono">${esc(val)}${uom ? ' <span class="col-uom">('+escUom(uom)+')</span>' : ''}</td>`;
-        } else {
-          tbody += `<td class="muted-dash">—</td>`;
-        }
-      }
-      // Drive set blow counts
-      const dsets = Array.from(po.getElementsByTagNameNS(NS.diggs, 'DriveSet'));
-      // Sort by index
-      dsets.sort((a, b) => {
-        const ia = parseInt((a.getElementsByTagNameNS(NS.diggs,'index')[0]||{}).textContent||'0');
-        const ib = parseInt((b.getElementsByTagNameNS(NS.diggs,'index')[0]||{}).textContent||'0');
-        return ia - ib;
-      });
-      for (let i = 0; i < maxDriveSets; i++) {
-        const ds = dsets[i];
-        if (ds) {
-          const bc  = (ds.getElementsByTagNameNS(NS.diggs,'blowCount')[0]  || {}).textContent || '';
-          const pen = ds.getElementsByTagNameNS(NS.diggs,'penetration')[0];
-          const penVal = pen ? pen.textContent.trim() : '';
-          const penUom = pen ? (pen.getAttribute('uom') || '') : '';
-          const tip = penVal ? ` (${penVal}${penUom ? ' '+penUom : ''})` : '';
-          tbody += `<td class="mono" title="penetration${tip}">${esc(bc) || '—'}</td>`;
-        } else {
-          tbody += `<td class="muted-dash">—</td>`;
-        }
-      }
-    } else if (isDPT) {
-      // No procedure object resolved — fill blanks
-      const blankCols = dptProcCols.length + maxDriveSets;
-      for (let i = 0; i < blankCols; i++) tbody += `<td class="muted-dash">—</td>`;
-    }
-
-    // Result property values — align by column position (prop index in this row)
-    // Build a quick lookup: propName → value from this row's data
-    const rowData = (r.rowValues && r.rowValues[0]) || [];
-    const localPropNames = r.props.map(p => p.name);
-    const valByName = new Map();
-    localPropNames.forEach((n, i) => {
-      let v = (rowData[i] || '').trim();
-      // Strip surrounding double-quotes from quoted text values (e.g. "Loose Sand" → Loose Sand)
-      if (v.length >= 2 && v.startsWith('"') && v.endsWith('"')) v = v.slice(1, -1).trim();
-      valByName.set(n, v);
-    });
-
-    for (const [colName] of resultCols) {
-      const val = valByName.has(colName) ? valByName.get(colName) : '';
-      tbody += val !== '' && val !== undefined
-        ? `<td class="mono">${esc(val)}</td>`
-        : `<td class="muted-dash">—</td>`;
-    }
-
-    tbody += '</tr>';
-  }
-  tbody += '</tbody>';
-
-  return `<div style="overflow-x:auto;margin-top:6px">
-    <table class="sub-table meas-table">${thead}${tbody}</table>
-  </div>`;
-}
-
 /** Return the depth UOM for an array of rows/entries that each carry a srsName.
  *  Uses the first non-empty srsName found; falls back to ''. */
 function depthUomForRows(rows) {
@@ -17113,23 +16841,6 @@ function munsellToCSS(code) {
   const sat = chroma > 0 ? Math.min(100, Math.round(chroma * 10)) : 0;
 
   return `hsl(${(h + 360) % 360},${sat}%,${l}%)`;
-}
-
-/** Attempt to build a CSS color from colorComponents (intensity/modifier/hue strings).
- *  Very approximate — assembles a synthetic Munsell-like string and delegates. */
-function _munsellFromComponents(color) {
-  // If we have all three components, try to build a Munsell code from them
-  if (color.hue && color.intensity && color.modifier) {
-    // Treat intensity as value, modifier rough proxy for chroma (fallback)
-    const chromaProxy = color.modifier === 'strong' ? 8 :
-                        color.modifier === 'moderate' ? 5 :
-                        color.modifier === 'weak' ? 2 : 0;
-    const valueProxy  = color.intensity === 'dark' ? 3 :
-                        color.intensity === 'medium' ? 5 :
-                        color.intensity === 'light' ? 7 : 5;
-    return munsellToCSS(`5${color.hue.toUpperCase()} ${valueProxy}/${chromaProxy}`);
-  }
-  return '';
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -17826,6 +17537,276 @@ function drawLithLog(container, obsArray, sf, opts = {}) {
  * LithologySystem with real depth intervals. Returns [] when there's
  * nothing to show — callers just skip the extra column(s) entirely.
  */
+// ══════════════════════════════════════════════════════════════
+//  renderSamplingBadgeContent — SamplingActivity+Sample joined table
+//  (2026-07-29) for the "Material Samples" associated-data badge.
+//  Analogous to the Lithology observation table below, but the join is
+//  JS-level rather than a schema-nested property: a Sample only carries a
+//  REVERSE xlink:href (sampleProducedRef) back to its producing
+//  SampleProduced — there is no forward child relationship a plain
+//  interval:/dataTable: config's XPath resolution could walk — so this is
+//  bespoke code (like the measurement engine's renderResultTable) rather
+//  than an OBJECT_CONFIGS interval row, reusing the same low-level pieces
+//  (resolveIntervalIndexCells, _resolveDataColumnCell, _buildTableExpandHtml,
+//  the kv-interval-table CSS/markup convention) instead of duplicating them.
+// ══════════════════════════════════════════════════════════════
+
+/** One row per SamplingActivity/SampleProduced/Sample triple — a
+ *  SamplingActivity with no sampleProduced children still gets exactly one
+ *  row (sp/sample both null, per spec: "no samples" still gets a row); a
+ *  sampleProduced with no matching Sample element still gets a row (sample
+ *  null); a sampleProduced matched by more than one Sample element (not
+ *  expected in practice, but not disallowed by the schema) gets one row per
+ *  match. */
+function _buildSamplingActivityRows(sfId) {
+  const saEls = DIGGS_SAMPLES[sfId] || [];
+  const rows = [];
+  for (const sa of saEls) {
+    const spEls = evalXPath(sa, 'diggs:sampleProduced/diggs:SampleProduced');
+    if (!spEls.length) { rows.push({ sa, sp: null, sample: null }); continue; }
+    for (const sp of spEls) {
+      const spId = sp.getAttributeNS(NS.gml, 'id') || sp.getAttribute('id') || '';
+      const samples = (spId && DIGGS_SAMPLE_BY_SP.get(spId)) || [];
+      if (!samples.length) { rows.push({ sa, sp, sample: null }); continue; }
+      for (const sample of samples) rows.push({ sa, sp, sample });
+    }
+  }
+  return rows;
+}
+
+/** Resolves a SamplingActivity's samplingMethod[1] to a display label —
+ *  prefers an embedded Specification's (or any embedded procedure object's)
+ *  gml:name, following xlink:href when samplingMethod is a reference rather
+ *  than inline (resolveXlinkEl handles both), falling back to the resolved
+ *  object's own element name when it has no gml:name. */
+function _samplingMethodLabel(saEl) {
+  const smEl = evalXPath(saEl, 'diggs:samplingMethod[1]')[0];
+  if (!smEl) return '';
+  const target = resolveXlinkEl(smEl);
+  if (!target) return '';
+  const nameEl = target.getElementsByTagNameNS(NS.gml, 'name')[0];
+  return (nameEl && nodeText(nameEl)) || target.localName || '';
+}
+
+/** Resolves a LocationPropertyType wrapper (SamplingActivity.samplingLocation
+ *  or SampleProduced.location) to a raw interval length in meters, for
+ *  Recovery % math — deliberately independent of resolveIntervalIndexCells'
+ *  own (rounded, display-formatted) cell values, since a percentage ratio
+ *  needs full precision. Returns null if the geometry/unit can't be
+ *  resolved; { lenM, isPoint } otherwise (isPoint when from===to or a bare
+ *  PointLocation, i.e. no real interval to recover a percentage of). */
+function _locationLengthMeters(propEl) {
+  if (!propEl) return null;
+  const linExt = resolvePropertyEl(propEl, 'LinearExtent');
+  if (linExt) {
+    const posListEl = linExt.getElementsByTagNameNS(NS.gml, 'posList')[0];
+    if (!posListEl) return null;
+    const dim = parseInt(linExt.getAttribute('srsDimension') || '1') || 1;
+    const tokens = numTokens(posListEl.textContent, true);
+    const from = tokens[dim - 1];
+    if (from == null || isNaN(from)) return null;
+    const to = tokens.length >= dim * 2 ? tokens[dim * 2 - 1] : null;
+    if (to == null || isNaN(to)) return { lenM: 0, isPoint: true };
+    const srsName = linExt.getAttribute('srsName') || '';
+    const uom = (srsName && LSR_UOM[srsName]) || _axisUomLabel(linExt, dim) || '';
+    const m = unitToMeters(uom);
+    if (m == null) return null;
+    return { lenM: Math.abs(to - from) * m, isPoint: Math.abs(to - from) < 1e-9 };
+  }
+  if (resolvePropertyEl(propEl, 'PointLocation')) return { lenM: 0, isPoint: true };
+  return null;
+}
+
+/** Recovery % for one joined row — priority chain per project spec:
+ *  1. SamplingActivity/totalSampleRecovery, if reported (uom '%' used as-is;
+ *     observed convention in real DIGGS instances is always uom="%" with a
+ *     plain 0-100+ value — a non-'%' fractional value <=1 is defensively
+ *     scaled to percent in case a producer reports a bare ratio instead).
+ *  2. totalSampleRecoveryLength / SamplingActivity interval length.
+ *  3. Sample's own SampleProduced interval length / SamplingActivity
+ *     interval length (only when both resolve to a real length).
+ *  4. A point-shaped SamplingActivity (no interval to recover a % OF)
+ *     defaults to 100%, per spec.
+ *  5. Otherwise (interval-shaped, no recovery data at all) defaults to 0%,
+ *     per spec ("no sample recovery" still gets a row, at 0%).
+ */
+function _samplingRecoveryPct(saEl, spEl) {
+  const saGeom = _locationLengthMeters(evalXPath(saEl, 'diggs:samplingLocation')[0]);
+  const spGeom = spEl ? _locationLengthMeters(evalXPath(spEl, 'diggs:location')[0]) : null;
+
+  const trEl = evalXPath(saEl, 'diggs:totalSampleRecovery')[0];
+  if (trEl) {
+    const v = parseFloat(nodeText(trEl));
+    if (!isNaN(v)) {
+      const uom = trEl.getAttribute('uom') || '';
+      return (uom && uom !== '%' && v <= 1) ? v * 100 : v;
+    }
+  }
+  const trlEl = evalXPath(saEl, 'diggs:totalSampleRecoveryLength')[0];
+  if (trlEl && saGeom && saGeom.lenM > 0) {
+    const v = parseFloat(nodeText(trlEl));
+    const m = unitToMeters(trlEl.getAttribute('uom') || '');
+    if (!isNaN(v) && m != null) return (v * m / saGeom.lenM) * 100;
+  }
+  if (saGeom && saGeom.lenM > 0 && spGeom) return (spGeom.lenM / saGeom.lenM) * 100;
+  if (saGeom && saGeom.isPoint) return 100;
+  return 0;
+}
+
+/** Same LinearExtent/PointLocation/none classification Lithology's own
+ *  geometry gate uses — see renderSamplingBadgeContent's own gate below. */
+function _resolveLocationType(propEl) {
+  if (!propEl) return 'none';
+  if (resolvePropertyEl(propEl, 'LinearExtent')) return 'LinearExtent';
+  if (resolvePropertyEl(propEl, 'PointLocation')) return 'PointLocation';
+  return 'other';
+}
+
+/** renderSamplingBadgeContent — orchestrator for the "Material Samples"
+ *  badge (buildAssocBadges). Builds one interval-style table joining each
+ *  SamplingActivity to its produced Sample(s), sorted in SamplingActivity
+ *  depth order; each row expands to the remaining Sample fields then the
+ *  remaining SamplingActivity fields (renderKVObject against
+ *  OBJECT_CONFIGS.Sample/.SamplingActivity, per explicit user-specified
+ *  order). The visualization aid (graphic log, analogous to Lithology's) is
+ *  deliberately not built here yet — table first, per user direction. */
+function renderSamplingBadgeContent(sfId) {
+  const rows = _buildSamplingActivityRows(sfId);
+  if (!rows.length) return '<div style="color:var(--text-muted);font-size:12px;padding:8px">No sampling activity data.</div>';
+
+  // Geometry gate — this joined depth-ordered table is for 1D sampling
+  // features only (boreholes, transects, ...), same convention as
+  // Lithology's own gate (_lithColumnGroupsForSF/renderLithBadgeContent
+  // below). A 2D/3D sampling feature (e.g. grab samples across a
+  // TrenchWall's planar extent) needs its own spatial display, not a
+  // depth-ordered table — that display isn't built yet; this early-return
+  // is the intentional hook for it, mirroring Lithology's deferred-2D/3D
+  // placeholder exactly.
+  const nonLinear = rows.some(r => {
+    const t = _resolveLocationType(evalXPath(r.sa, 'diggs:samplingLocation')[0]);
+    return t !== 'LinearExtent' && t !== 'PointLocation' && t !== 'none';
+  });
+  if (nonLinear) {
+    return `<div style="color:var(--text-muted);padding:12px;font-size:12px">
+      Sampling Activity / Sample display for 2D/3D sampling features is not yet implemented.</div>`;
+  }
+
+  // Two index groups, each anchored on a DIFFERENT real element per row
+  // (group 0 always on the SamplingActivity; group 1 on that row's own
+  // SampleProduced, when one exists) — resolveIntervalIndexCells itself is
+  // reused unchanged, just called twice per row with two different anchors
+  // instead of renderIntervalTable's single-anchor-per-row model.
+  const idxCfgs = [
+    { path: 'diggs:samplingLocation', lineLabel1: 'From', lineLabel2: 'To', pointLabel: 'At' },
+    { path: 'diggs:location', lineLabel1: 'Sample From', lineLabel2: 'Sample To', pointLabel: 'Sample At' },
+  ];
+  const idxAnchor = [r => r.sa, r => r.sp];
+
+  // Two-pass width reconciliation per index group — same algorithm as
+  // renderIntervalTable (see its own comment): a group can resolve to a
+  // different cell count row to row (a From/To range vs. a single point, or
+  // failing to resolve at all when e.g. no sample was produced), so cells
+  // are resolved per-row first, then each group's width is fixed to the
+  // widest row it produced, padding narrower rows with em-dash.
+  const rawRows = rows.map(r => {
+    const rawIdx = idxCfgs.map((idxCfg, gi) => {
+      const anchor = idxAnchor[gi](r);
+      return anchor ? resolveIntervalIndexCells(anchor, idxCfg, 1) : null;
+    });
+    const first = rawIdx[0];
+    const sortNum = (first && first.cols[0] && first.cols[0].sortNum != null) ? first.cols[0].sortNum : null;
+    return { r, rawIdx, sortNum };
+  });
+
+  // Sorted in SamplingActivity location (depth) order, per spec.
+  rawRows.sort((a, b) => {
+    if (a.sortNum != null && b.sortNum != null) return a.sortNum - b.sortNum;
+    if (a.sortNum != null) return -1;
+    if (b.sortNum != null) return 1;
+    return 0;
+  });
+
+  const idxSlots = idxCfgs.map((idxCfg, gi) => {
+    let best = null;
+    for (const rr of rawRows) {
+      const res = rr.rawIdx[gi];
+      if (res && (!best || res.cols.length > best.cols.length)) best = res;
+    }
+    if (best) return best.cols;
+    return [{ label: idxCfg.label || idxCfg.pointLabel || idxCfg.lineLabel1 || _labelFromPath(idxCfg.path), uom: '' }];
+  });
+
+  // Fields the table itself already shows unambiguously, excluded from each
+  // element's own expand panel — same exact-path-consumption convention as
+  // every other interval/data table (occasional cosmetic duplication of a
+  // NON-excluded field, e.g. a 2nd samplingMethod occurrence, is an accepted
+  // cost — see _buildTableExpandHtml's own comment).
+  const consumedSA = new Set(['diggs:samplingLocation']);
+  const consumedSample = new Set(['gml:name', 'diggs:type']);
+
+  const builtRows = rawRows.map(({ r, rawIdx }) => {
+    const idxGroups = idxCfgs.map((idxCfg, gi) => {
+      const slots = idxSlots[gi];
+      const res = rawIdx[gi];
+      return slots.map((slot, slotIdx) => {
+        const cell = res && res.cols[slotIdx];
+        return { label: slot.label, uom: slot.uom, value: cell ? cell.value : null };
+      });
+    });
+
+    const methodCell = _resolveDataColumnCell(r.sa, { label: 'Method', compute: sa => escHtml(_samplingMethodLabel(sa)) }, consumedSA);
+    const nameCell = r.sample
+      ? _resolveDataColumnCell(r.sample, { path: 'gml:name[1]', label: 'Sample' }, consumedSample)
+      : { label: 'Sample', html: _KV_EMPTY_DASH };
+    const typeCell = r.sample
+      ? _resolveDataColumnCell(r.sample, { path: 'diggs:type', label: 'Type' }, consumedSample)
+      : { label: 'Type', html: _KV_EMPTY_DASH };
+    const pct = _samplingRecoveryPct(r.sa, r.sp);
+    const recoveryCell = { html: escHtml(String(Math.round(pct * 100) / 100)) + '%' };
+
+    const saExpand = _buildTableExpandHtml(r.sa, {}, consumedSA, true);
+    const sampleExpand = r.sample ? _buildTableExpandHtml(r.sample, {}, consumedSample, true) : '';
+    // Sample fields first, then SamplingActivity fields — explicit user
+    // spec order.
+    const expandHtml = sampleExpand + saExpand;
+
+    return { idxGroups, methodCell, nameCell, typeCell, recoveryCell, expandHtml };
+  });
+
+  const colHeader = (label, uom) => `<th>${escHtml(label)}${uom ? `<br><span class="col-uom">(${escUom(uom)})</span>` : ''}</th>`;
+  const saHeaders = idxSlots[0].map(c => colHeader(c.label, c.uom)).join('');
+  const sampleLocHeaders = idxSlots[1].map(c => colHeader(c.label, c.uom)).join('');
+  const thead = `<thead><tr>${saHeaders}<th>Method</th><th>Sample</th>${sampleLocHeaders}<th>Type</th><th>Recovery %</th></tr></thead>`;
+
+  const idxCellHtml = (c, leadHtml) => {
+    const rawVal = typeof c.value === 'number' ? Math.round(c.value * 100) / 100 : c.value;
+    const text = rawVal != null ? escHtml(String(rawVal)).replace(_DT_STACK, '<br>') : _KV_EMPTY_DASH;
+    return `<td class="kv-interval-val kv-interval-lead">${leadHtml || ''}${text}</td>`;
+  };
+
+  let tbody = '<tbody>';
+  for (const row of builtRows) {
+    const expandable = !!row.expandHtml.trim();
+    const tri = expandable ? '<span class="kv-tri">▶</span>' : '<span class="kv-tri-spacer"></span>';
+    const saTds = row.idxGroups[0].map((c, ci) => idxCellHtml(c, ci === 0 ? tri : '')).join('');
+    const sampleLocTds = row.idxGroups[1].map(c => idxCellHtml(c)).join('');
+    const colTds = `<td class="kv-interval-val">${row.methodCell.html}</td>`
+      + `<td class="kv-interval-val">${row.nameCell.html}</td>`
+      + sampleLocTds
+      + `<td class="kv-interval-val">${row.typeCell.html}</td>`
+      + `<td class="kv-interval-val">${row.recoveryCell.html}</td>`;
+    const onclick = expandable ? ' onclick="toggleKVSection(this)"' : '';
+    tbody += `<tr class="kv-interval-row"${onclick}>${saTds}${colTds}</tr>`;
+    if (expandable) {
+      const colspan = row.idxGroups[0].length + 1 + 1 + row.idxGroups[1].length + 1 + 1;
+      tbody += `<tr class="kv-interval-detail-row" style="display:none"><td colspan="${colspan}">${row.expandHtml}</td></tr>`;
+    }
+  }
+  tbody += '</tbody>';
+
+  return `<table class="sub-table kv-interval-table">${thead}${tbody}</table>`;
+}
+
 function _lithColumnGroupsForSF(sf) {
   const lithSystems = DIGGS_LITH[sf.id] || [];
   if (!lithSystems.length) return [];
@@ -18040,81 +18021,13 @@ function renderLithBadgeContent(sfId, sf, lithSystems, allObs, drawJobs) {
 }
 
 // ══════════════════════════════════════════════════════════════
-//  SHARED MONITOR SECTION BUILDER
-//  Works for Boreholes, Soundings, and Wells alike.
-//  Returns { html, drawFns } where drawFns is an array of
-//  { secId, mon } objects to render plots after DOM insertion.
-// ══════════════════════════════════════════════════════════════
-// Returns an array of { procType, html, drawFns } — one entry per unique procType.
-// Callers build one badge per entry, labelled with diggsLabel(procType).
-function buildMonitorSections(featureId) {
-  const monitors = DIGGS_WELL_DATA[featureId] || [];
-  // Group monitors by procType, preserving insertion order.
-  const byType = new Map(); // procType → { html, drawFns }
-  const featureIdSafe = featureId.replace(/[^a-zA-Z0-9]/g,'_');
-
-  monitors.forEach((mon, mi) => {
-    if (!byType.has(mon.procType)) byType.set(mon.procType, { html: '', drawFns: [] });
-    const entry  = byType.get(mon.procType);
-    const secId  = `mon-${featureIdSafe}-${mi}`;
-    const iconId = `icon-${secId}`;
-    entry.html += `
-  <div class="meas-section">
-    <div class="meas-section-header" onclick="toggleMeasSec('${secId}')">
-      <span class="toggle-icon" id="${iconId}">▸</span>
-      ${esc(mon.procType)}
-    </div>
-    <div class="meas-section-body" id="${secId}" style="display:none">`;
-
-    // Sensor metadata chips
-    if (mon.sensors.length > 0) {
-      entry.html += `<div class="meas-meta-row">`;
-      for (const s of mon.sensors) {
-        if (s.class) entry.html += `<span class="meas-meta-chip"><strong>Sensor:</strong> ${esc(s.class)}</span>`;
-        if (s.id)    entry.html += `<span class="meas-meta-chip"><strong>ID:</strong> ${esc(s.id)}</span>`;
-      }
-      entry.html += `</div>`;
-    }
-
-    if (mon.times.length > 0 && mon.props.length > 0) {
-      entry.html += `<div id="${secId}-plots" class="well-plots-area"></div>`;
-      entry.drawFns.push({ secId, mon });
-    } else {
-      entry.html += `<div class="empty-state" style="padding:20px">No time-series data available.</div>`;
-    }
-
-    entry.html += `</div></div>`;
-  });
-
-  return [...byType.entries()].map(([procType, { html, drawFns }]) => ({ procType, html, drawFns }));
-}
-
-// After calling showDetail(html), call this to expand sections and draw plots.
-function renderMonitorPlots(drawFns) {
-  drawFns.forEach(({ secId, mon }) => {
-    const body = document.getElementById(secId);
-    const icon = document.getElementById(`icon-${secId}`);
-    if (body) body.style.display = '';
-    if (icon) icon.textContent = '▾';
-    requestAnimationFrame(() => drawWellPlots(mon, `${secId}-plots`));
-  });
-}
-
-function toggleMeasSec(id) {
-  const body = document.getElementById(id);
-  const arr  = document.getElementById('arr-' + id);
-  if (!body) return;
-  const open = body.style.display !== 'none';
-  body.style.display = open ? 'none' : '';
-  if (arr) arr.textContent = open ? '▸' : '▾';
-}
-
-// ══════════════════════════════════════════════════════════════
 //  GENERIC SVG PLOT ENGINE — drawPlot(container, spec)
-//  One interactive line plot (zoom / pan / crosshair-tooltip), the shared
-//  ~85% scaffolding the three former plotters (drawCPTPlots / drawPPDPlot /
-//  drawWellPlots) each copy-pasted. Everything that genuinely differed
-//  between them is a `spec` field:
+//  One interactive line plot (zoom / pan / crosshair-tooltip). Originally
+//  extracted as the shared ~85% scaffolding of three per-type plotters
+//  (CPT depth profiles, well time-series, PPD dissipation time-series),
+//  each copy-pasted; those three were superseded by the config-driven
+//  drawResultPlots() path and removed. Everything that genuinely differs
+//  between plot kinds is a `spec` field:
 //   • orientation 'x-ind' — the INDEPENDENT axis (the one zoom/pan act on)
 //     runs HORIZONTAL, dependent vertical  (time-series: PPD, Well).
 //   • orientation 'y-ind' — independent runs VERTICAL (a depth profile: CPT),
@@ -18490,14 +18403,6 @@ function _wrapWordTokens(words, maxWidth, font) {
   return lines;
 }
 
-/** Greedy word-wrap of a plain `text` string into as many joined lines as
- *  needed to fit `maxWidth` px at the given canvas font string (single-style
- *  convenience wrapper over `_wrapWordTokens`). */
-function _wrapTextLines(text, maxWidth, font) {
-  const words = (text || '').split(/\s+/).filter(Boolean);
-  return _wrapWordTokens(words, maxWidth, font).map(line => line.join(' '));
-}
-
 /**
  * drawResultPlots(container, model, opts) — the generic bridge from a
  * buildResultTableModel() output to the drawPlot engine: one line plot per
@@ -18713,162 +18618,6 @@ function drawResultPlots(container, model, opts) {
   }
 
   return drawn;
-}
-
-// ══════════════════════════════════════════════════════════════
-//  PPD DISSIPATION TIME-SERIES PLOT
-//  Interactive SVG u(t) plot with zoom/pan/tooltip,
-//  matching the style of drawWellPlots.
-// ══════════════════════════════════════════════════════════════
-function drawPPDPlot(container, ts) {
-  container.innerHTML = '';
-  if (!ts || !ts.timeToks.length || !ts.trToks.length) {
-    container.innerHTML = '<div style="color:var(--text-muted);padding:8px 0;font-size:12px">No time-series data</div>';
-    return;
-  }
-  const n = Math.min(ts.timeToks.length, ts.trToks.length);
-  if (n < 2) {
-    container.innerHTML = '<div style="color:var(--text-muted);padding:8px 0;font-size:12px">Insufficient data points</div>';
-    return;
-  }
-
-  const COL   = '#58a6ff';
-  const prop  = ts.trProps[0] || { name: 'u', uom: '' };
-  const xUnit = ts.timeUnit || 's';
-
-  const pts = [];
-  for (let i = 0; i < n; i++) {
-    const v = ts.trToks[i];
-    if (!isNaN(v)) pts.push({ i: ts.timeToks[i], p: v });
-  }
-  if (!pts.length) return;
-  const iRange = (Math.max(...pts.map(p => p.i)) - Math.min(...pts.map(p => p.i))) || 1;
-  const fmtT = (t, span) => {
-    span = span == null ? iRange : span;
-    if (span < 10)  return t.toFixed(2) + ' ' + xUnit;
-    if (span < 600) return t.toFixed(1) + ' ' + xUnit;
-    return Math.round(t) + ' ' + xUnit;
-  };
-  const depName = prop.name + (prop.uom ? ' (' + prop.uom + ')' : '');
-
-  drawPlot(container, {
-    points: pts, orientation: 'x-ind',
-    viewport: { VW: 800, VH: 220, PAD: { top: 20, bottom: 46, left: 66, right: 20 } },
-    clipPrefix: 'ppd',
-    ind: { ticks: 5, fmtTick: (v, span) => fmtT(v, span), fmtTip: v => fmtT(v, iRange) },
-    dep: { color: COL, ticks: 5, flip: false, padFrac: 0.08, padAbsFrac: 0.05, padConst: 0.5,
-           fmtTick: v => Number(v.toPrecision(5)).toString(),
-           fmtTip: v => Number(v.toPrecision(6)).toString() + (prop.uom ? ' ' + prop.uom : '') },
-    leftLabel:   { text: depName, color: COL, size: 10 },
-    bottomLabel: { text: 'Time (' + xUnit + ')', color: '#8b949e', size: 11 },
-    svg: { widthAttr: '100%', heightAttr: true, style: 'display:block; cursor:crosshair; user-select:none;' },
-    extraChipHtml: ts.irVal !== null
-      ? 'Estimated Ir: <strong style="color:#c9d1d9">' + ts.irVal + '</strong>' + (ts.irUom ? ' ' + ts.irUom : '')
-      : null,
-  });
-}
-
-// ══════════════════════════════════════════════════════════════
-//  WELL SVG TIME-SERIES PLOTS
-// ══════════════════════════════════════════════════════════════
-function drawWellPlots(mon, containerId) {
-  const container = document.getElementById(containerId);
-  if (!container) return;
-  container.innerHTML = '';
-
-  const { times, props, rows } = mon;
-  if (!times.length || !props.length || !rows.length) return;
-
-  const COLORS = ['#58a6ff','#3fb950','#f0883e','#bc8cff','#f78166','#79c0ff','#56d364'];
-  const dates = times.map(t => new Date(t));
-
-  function fmtTime(d, spanMs) {
-    const spanDays = spanMs / 86400000;
-    if (spanDays <= 1)   return d.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
-    if (spanDays <= 90)  return (d.getMonth()+1)+'/'+d.getDate();
-    if (spanDays <= 730) return (d.getMonth()+1)+'/'+d.getDate()+'/'+String(d.getFullYear()).slice(2);
-    return d.getFullYear()+'/'+(d.getMonth()+1);
-  }
-
-  props.forEach((prop, pi) => {
-    const isDepth = /depth/i.test(prop.name);
-    const col = COLORS[pi % COLORS.length];
-
-    const pts = [];
-    for (let i = 0; i < rows.length && i < dates.length; i++) {
-      const v = rows[i][pi];
-      if (v !== null && v !== undefined && !isNaN(v)) pts.push({ i: dates[i].getTime(), p: v });
-    }
-    if (!pts.length) return;
-    const depName = prop.name + (prop.uom ? ` (${prop.uom})` : '');
-
-    drawPlot(container, {
-      points: pts, orientation: 'x-ind',
-      viewport: { VW: 800, VH: 220, PAD: { top: 20, bottom: 46, left: 66, right: 20 } },
-      clipPrefix: `wclip-${containerId}-${pi}`.replace(/[^a-zA-Z0-9_-]/g, '_'),
-      infoText: `n=${pts.length}`,
-      ind: { ticks: 5, minSpanAbs: 60000,
-             fmtTick: (v, span) => fmtTime(new Date(v), span),
-             fmtTip: v => new Date(v).toLocaleString([], {year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}) },
-      dep: { color: col, ticks: 5, flip: isDepth, padFrac: 0.08, padAbsFrac: 0.05, padConst: 0.5,
-             fmtTick: v => Number(v.toPrecision(5)).toString(),
-             fmtTip: v => Number(v.toPrecision(6)).toString() + (prop.uom ? ' ' + prop.uom : '') },
-      leftLabel: { text: depName, color: col, size: 10 },
-      titleParts: [{ text: `${prop.name}${prop.uom ? ' ('+prop.uom+')' : ''}  n=${pts.length}`, color: col }],
-      svg: { className: 'well-plot-svg', widthAttr: false, heightAttr: true, style: 'cursor:crosshair; user-select:none;' },
-    });
-  });
-}
-// ══════════════════════════════════════════════════════════════
-//  CPT CANVAS PLOTS
-// ══════════════════════════════════════════════════════════════
-function drawCPTPlots(data, areaEl) {
-  const area = areaEl || document.getElementById('cpt-canvas-area');
-  if (!area) return;
-  area.innerHTML = '';
-
-  const depths   = data.depths;
-  const depthUom = data.depthUom || '';
-  const COLORS   = ['#58a6ff','#3fb950','#f0883e','#bc8cff','#f78166','#79c0ff','#56d364'];
-  const FONT_UI  = "DM Sans,'Helvetica Neue',Arial,sans-serif";
-  const FONT_MONO = "DM Mono,'JetBrains Mono',monospace";
-  const VW = 200, VH = 420, PAD = { top: 22, bottom: 42, left: 44, right: 6 };
-  const fmtVal = v => Math.abs(v) >= 100 ? v.toFixed(1) : Math.abs(v) >= 10 ? v.toFixed(2) : v.toFixed(3);
-
-  data.props.forEach((prop, pi) => {
-    const nullVal = prop.nullVal || 9999;
-    const pts = [];
-    for (let i = 0; i < depths.length; i++) {
-      const v = data.values[i] ? data.values[i][pi] : undefined;
-      if (v !== null && v !== undefined && Math.abs(v - nullVal) >= 0.001) pts.push({ i: depths[i], p: v });
-    }
-    if (!pts.length) return;
-    const col = COLORS[pi % COLORS.length];
-
-    const titleParts = [{ text: prop.name, color: col }];
-    if (prop.uom) titleParts.push({ text: ` (${prop.uom})`, color: '#8b949e', weight: 'normal', size: 11 });
-
-    drawPlot(area, {
-      points: pts, orientation: 'y-ind',
-      viewport: { VW, VH, PAD },
-      clipPrefix: `cclip-${pi}`,
-      infoText: `n=${pts.length}`,
-      fonts: { ui: FONT_UI, mono: FONT_MONO },
-      axisFontFamily: FONT_UI, axisFontSize: 11,
-      ind: { ticks: 5, minSpanAbs: 0.5,
-             fmtTick: v => v.toFixed(1),
-             fmtTip: v => v.toFixed(3) + (depthUom ? ' ' + depthUom : '') },
-      dep: { color: col, ticks: 3, flip: false, padFrac: 0.05, padAbsFrac: 0.02, padConst: 0.1,
-             fmtTick: v => fmtVal(v),
-             fmtTip: v => fmtVal(v) + (prop.uom ? ' ' + prop.uom : '') },
-      leftLabel: { text: 'Depth' + (depthUom ? ` (${depthUom})` : ''), color: '#8b949e', size: 11 },
-      titleParts, titleSize: 13,
-      tooltipFont: FONT_UI, tooltipFontSize: 11, tooltipH: 36, tooltipPad: 4,
-      wrapper: { className: 'cpt-plot-wrapper', style: '' },
-      toolbar: { className: 'cpt-plot-toolbar', style: '', paddingLeftPct: (PAD.left * 100 / VW).toFixed(2) + '%' },
-      svg: { widthAttr: '100%', style: 'display:block;cursor:crosshair;user-select:none;' },
-    });
-  });
 }
 
 // ══════════════════════════════════════════════════════════════
