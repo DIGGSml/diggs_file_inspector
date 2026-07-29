@@ -2822,7 +2822,7 @@
                     <!-- SPT test method specification -->
                     <constructionMethod xlink:href="http://diggsml.org/def/codes/DIGGS/0.1/BoreholeConstructionMethod/SPT" owns="false">
                         <Specification gml:id="SPEC-BH001-B-SPT">
-                            <gml:name codeSpace="DIGGS">Standard Penetration Test — ASTM D1586</gml:name>
+                            <gml:name codeSpace="DIGGS">Standard Penetration Test</gml:name>
                             <internalIdentifier codeSpace="http://www.globalgeosolutions.com/projects/GBL-GT-24136">GBL-GT-24136-SPT-SPEC-B</internalIdentifier>
                             <status>complete</status>
                             <implementationStatus>actual</implementationStatus>
@@ -12581,7 +12581,7 @@
             </samplingEquipment>
             <samplingMethod>
                 <Specification gml:id="SPEC-PITCHER-BH-Mockup-1">
-                    <gml:name codeSpace="DIGGS">Thin-Walled Tube Sampling (Pitcher Barrel) — ASTM D1587/D1587M-15</gml:name>
+                    <gml:name codeSpace="DIGGS">Pitcher Sampler</gml:name>
                     <internalIdentifier codeSpace="http://www.globalgeosolutions.com/projects">PITCHER-SPEC-BH-Mockup-1</internalIdentifier>
                     <status>complete</status>
                     <implementationStatus>actual</implementationStatus>
@@ -13028,7 +13028,7 @@
             <samplingActivityRef xlink:href="#SPT_SA_BH-Mockup-1_25"/>
             <sampleProducedRef xlink:href="#SampleProduced_BH-Mockup-1_25_SPT"/>
             <classification>Soil</classification>
-            <type>Split-spoon (SPT) sample</type>
+            <type>SPT</type>
             <condition>Disturbed</condition>
             <extrusionMethod>Sampler opened lengthwise in the field; material transferred directly to sample jar, no mechanical extrusion required.</extrusionMethod>
             <initialContainer>
@@ -13083,7 +13083,7 @@
             <samplingActivityRef xlink:href="#SPT_SA_BH-Mockup-1_45"/>
             <sampleProducedRef xlink:href="#SampleProduced_BH-Mockup-1_45_SPT"/>
             <classification>Soil</classification>
-            <type>Split-spoon (SPT) sample</type>
+            <type>SPT</type>
             <condition>Disturbed</condition>
         </Sample>
     </sample>
@@ -13095,7 +13095,7 @@
             <samplingActivityRef xlink:href="#SPT_SA_BH-Mockup-1_55"/>
             <sampleProducedRef xlink:href="#SampleProduced_BH-Mockup-1_55_SPT"/>
             <classification>Soil</classification>
-            <type>Split-spoon (SPT) sample</type>
+            <type>SPT</type>
             <condition>Disturbed</condition>
         </Sample>
     </sample>
@@ -13107,7 +13107,7 @@
             <samplingActivityRef xlink:href="#SPT_SA_BH-Mockup-1_65"/>
             <sampleProducedRef xlink:href="#SampleProduced_BH-Mockup-1_65_SPT"/>
             <classification>Soil</classification>
-            <type>Split-spoon (SPT) sample</type>
+            <type>SPT</type>
             <condition>Disturbed</condition>
         </Sample>
     </sample>
@@ -13119,7 +13119,7 @@
             <samplingActivityRef xlink:href="#SPT_SA_BH-Mockup-1_75"/>
             <sampleProducedRef xlink:href="#SampleProduced_BH-Mockup-1_75_SPT"/>
             <classification>Soil</classification>
-            <type>Split-spoon (SPT) sample</type>
+            <type>SPT</type>
             <condition>Disturbed</condition>
         </Sample>
     </sample>
@@ -13138,7 +13138,7 @@
             <samplingActivityRef xlink:href="#SPT_SA_BH-Mockup-1_85"/>
             <sampleProducedRef xlink:href="#SampleProduced_BH-Mockup-1_85_SPT"/>
             <classification>Soil</classification>
-            <type>Split-spoon (SPT) sample</type>
+            <type>SPT</type>
             <condition>Disturbed</condition>
             <coreDistkurbance>Swelling/expansion of high plasticity clay within the sampler barrel; recovered length exceeds the driven interval.</coreDistkurbance>
         </Sample>
@@ -13151,7 +13151,7 @@
             <samplingActivityRef xlink:href="#SPT_SA_BH-Mockup-1_95"/>
             <sampleProducedRef xlink:href="#SampleProduced_BH-Mockup-1_95_SPT"/>
             <classification>Soil</classification>
-            <type>Split-spoon (SPT) sample</type>
+            <type>SPT</type>
             <condition>Disturbed</condition>
         </Sample>
     </sample>
@@ -13170,7 +13170,7 @@
             <samplingActivityRef xlink:href="#SPT_SA_BH-Mockup-1_105"/>
             <sampleProducedRef xlink:href="#SampleProduced_BH-Mockup-1_105.0_106.0_SPT"/>
             <classification>Soil</classification>
-            <type>Split-spoon (SPT) sample</type>
+            <type>SPT</type>
             <condition>Disturbed</condition>
         </Sample>
     </sample>
@@ -13189,7 +13189,7 @@
             <samplingActivityRef xlink:href="#SPT_SA_BH-Mockup-1_105"/>
             <sampleProducedRef xlink:href="#SampleProduced_BH-Mockup-1_106.0_106.5_SPT"/>
             <classification>Soil</classification>
-            <type>Split-spoon (SPT) sample - clay lens</type>
+            <type>SPT</type>
             <condition>Disturbed</condition>
         </Sample>
     </sample>
@@ -13201,7 +13201,7 @@
             <samplingActivityRef xlink:href="#SPT_SA_BH-Mockup-1_115"/>
             <sampleProducedRef xlink:href="#SampleProduced_BH-Mockup-1_115_SPT"/>
             <classification>Soil</classification>
-            <type>Split-spoon (SPT) sample</type>
+            <type>SPT</type>
             <condition>Disturbed</condition>
         </Sample>
     </sample>
@@ -13213,7 +13213,7 @@
             <samplingActivityRef xlink:href="#SPT_SA_BH-Mockup-1_125"/>
             <sampleProducedRef xlink:href="#SampleProduced_BH-Mockup-1_125_SPT"/>
             <classification>Soil</classification>
-            <type>Split-spoon (SPT) sample</type>
+            <type>SPT</type>
             <condition>Disturbed</condition>
         </Sample>
     </sample>
@@ -13225,7 +13225,7 @@
             <samplingActivityRef xlink:href="#SPT_SA_BH-Mockup-1_135"/>
             <sampleProducedRef xlink:href="#SampleProduced_BH-Mockup-1_135_SPT"/>
             <classification>Soil</classification>
-            <type>Split-spoon (SPT) sample</type>
+            <type>SPT</type>
             <condition>Disturbed</condition>
         </Sample>
     </sample>
@@ -13237,7 +13237,7 @@
             <samplingActivityRef xlink:href="#SPT_SA_BH-Mockup-1_145"/>
             <sampleProducedRef xlink:href="#SampleProduced_BH-Mockup-1_145_SPT"/>
             <classification>Soil</classification>
-            <type>Split-spoon (SPT) sample</type>
+            <type>SPT</type>
             <condition>Disturbed</condition>
         </Sample>
     </sample>
@@ -13265,7 +13265,7 @@
             <samplingActivityRef xlink:href="#PITCHER_SA_BH-Mockup-1_20"/>
             <sampleProducedRef xlink:href="#SampleProduced_BH-Mockup-1_20_PITCHER"/>
             <classification>Soil</classification>
-            <type>Shelby tube sample (Pitcher barrel)</type>
+            <type>Shelby tube</type>
             <condition>Undisturbed</condition>
             <extrusionMethod>Not extruded in the field; tube ends trimmed, waxed, and capped for intact shipment and laboratory extrusion.</extrusionMethod>
             <initialContainer>
@@ -13328,7 +13328,7 @@
             <samplingActivityRef xlink:href="#PITCHER_SA_BH-Mockup-1_40"/>
             <sampleProducedRef xlink:href="#SampleProduced_BH-Mockup-1_40_PITCHER"/>
             <classification>Soil</classification>
-            <type>Shelby tube sample (Pitcher barrel)</type>
+            <type>Shelby tube</type>
             <condition>Disturbed</condition>
             <coreDistkurbance>Fractured/disturbed lower portion from driving against coarse gravel; upper portion intact.</coreDistkurbance>
         </Sample>
@@ -13348,7 +13348,7 @@
             <samplingActivityRef xlink:href="#PITCHER_SA_BH-Mockup-1_60"/>
             <sampleProducedRef xlink:href="#SampleProduced_BH-Mockup-1_60.0_61.0_PITCHER"/>
             <classification>Soil</classification>
-            <type>Shelby tube sample (Pitcher barrel)</type>
+            <type>Shelby tube</type>
             <condition>Undisturbed</condition>
         </Sample>
     </sample>
@@ -13367,7 +13367,7 @@
             <samplingActivityRef xlink:href="#PITCHER_SA_BH-Mockup-1_60"/>
             <sampleProducedRef xlink:href="#SampleProduced_BH-Mockup-1_61.0_62.5_PITCHER"/>
             <classification>Soil</classification>
-            <type>Shelby tube sample (Pitcher barrel)</type>
+            <type>Shelby tube</type>
             <condition>Undisturbed</condition>
         </Sample>
     </sample>
@@ -13379,7 +13379,7 @@
             <samplingActivityRef xlink:href="#PITCHER_SA_BH-Mockup-1_80"/>
             <sampleProducedRef xlink:href="#SampleProduced_BH-Mockup-1_80_PITCHER"/>
             <classification>Soil</classification>
-            <type>Shelby tube sample (Pitcher barrel)</type>
+            <type>Shelby tube</type>
             <condition>Undisturbed</condition>
             <sampleDimensions>
                 <SampleDimensions gml:id="SD-Sample_BH-Mockup-1_80_ST-4">
@@ -13397,7 +13397,7 @@
             <samplingActivityRef xlink:href="#PITCHER_SA_BH-Mockup-1_100"/>
             <sampleProducedRef xlink:href="#SampleProduced_BH-Mockup-1_100_PITCHER"/>
             <classification>Soil</classification>
-            <type>Shelby tube sample (Pitcher barrel)</type>
+            <type>Shelby tube</type>
             <condition>Undisturbed</condition>
         </Sample>
     </sample>
@@ -13409,7 +13409,7 @@
             <samplingActivityRef xlink:href="#PITCHER_SA_BH-Mockup-1_120"/>
             <sampleProducedRef xlink:href="#SampleProduced_BH-Mockup-1_120_PITCHER"/>
             <classification>Soil</classification>
-            <type>Shelby tube sample (Pitcher barrel)</type>
+            <type>Shelby tube</type>
             <condition>Disturbed</condition>
         </Sample>
     </sample>
@@ -13421,7 +13421,7 @@
             <samplingActivityRef xlink:href="#PITCHER_SA_BH-Mockup-1_140"/>
             <sampleProducedRef xlink:href="#SampleProduced_BH-Mockup-1_140_PITCHER"/>
             <classification>Soil</classification>
-            <type>Shelby tube sample (Pitcher barrel)</type>
+            <type>Shelby tube</type>
             <condition>Undisturbed</condition>
         </Sample>
     </sample>
@@ -20467,7 +20467,7 @@
                     
                     <testProcedureMethod>
                         <Specification gml:id="SPEC-SPT-BH-Mockup-1">
-                            <gml:name codeSpace="DIGGS">Standard Penetration Test — ASTM D1586/D1586M-18e1</gml:name>
+                            <gml:name codeSpace="DIGGS">Standard Penetration Test</gml:name>
                             <internalIdentifier codeSpace="http://www.globalgeosolutions.com/projects">SPT-SPEC-BH-Mockup-1</internalIdentifier>
                             <status>complete</status>
                             <implementationStatus>actual</implementationStatus>

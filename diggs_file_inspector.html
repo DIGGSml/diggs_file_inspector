@@ -986,8 +986,15 @@ html,body{height:100%;font-family:var(--font-ui);background:var(--bg);color:var(
 #lith-pattern-defs .sf { fill:#141414; stroke:none; }
 #lith-pattern-defs .wk { stroke:#ffffff; fill:none; }
 #lith-pattern-defs .wf { fill:#ffffff; stroke:none; }
-.lith-badge-layout { display:flex; gap:6px; align-items:flex-start; }
-.lith-log-col   { flex:0 0 auto; position:sticky; top:0; align-self:flex-start; }
+/* .lith-badge-layout (2026-07-29, converted from a position:sticky log to a
+   genuinely FIXED-height graphic pane — same pattern .sample-badge-layout
+   below uses, and initBadgeGraphic now sizes both) beside an INDEPENDENTLY
+   scrolling table with a sticky header: the graphic never needs its own
+   scrollbar (initBadgeGraphic reserves exactly the legend's own real height
+   so the log/marker row plus legend always fit the available space), while
+   .lith-table-col scrolls its own overflow, decoupled from the graphic. */
+.lith-badge-layout { display:flex; gap:6px; align-items:stretch; }
+.lith-log-col   { flex:0 0 auto; overflow-y:auto; overflow-x:hidden; }
 .lith-log-row   { display:flex; gap:12px; }
 .lith-log-axis-label {
   flex:0 0 auto; display:flex; align-items:center; justify-content:center;
@@ -996,25 +1003,121 @@ html,body{height:100%;font-family:var(--font-ui);background:var(--bg);color:var(
   white-space:nowrap;
 }
 .lith-log-col-item  { flex:0 0 auto; }
-.lith-log-col-title {
-  font-size:11px; color:var(--text); font-weight:600; text-align:center;
-  margin-bottom:4px; line-height:1.25; overflow:hidden; text-overflow:ellipsis;
-  display:-webkit-box; -webkit-line-clamp:2; line-clamp:2; -webkit-box-orient:vertical;
-}
 .lith-log-host  { line-height:0; }
-.lith-table-col { flex:1 1 auto; min-width:0; }
+/* Caption row (2026-07-30) — sits BELOW the log/marker row, not above each
+   column's own SVG (a prior design). Every column's SVG host now starts at
+   the same y=0 with nothing of variable height above it, so there's no
+   column-to-column alignment hazard regardless of how long any one
+   caption's text is or how many lines it wraps to — found live: a per-
+   column title ABOVE its SVG made a column's depth scale start exactly one
+   line-height higher whenever ITS OWN caption text happened to be short
+   enough to fit on one line while a sibling column's (longer) caption
+   wrapped to two (block flow only adds slack at the BOTTOM of a stretched
+   flex item, not the top) — e.g. inspectorMockup.xml's BH-33, whose
+   combined "USCS, USDA, ROCK" caption wraps to 2 lines, rendered every
+   sample marker ~13.75px (about 0.77 m on that borehole's depth scale)
+   shallower than its real depth, while BH-Mockup-1's shorter single-line
+   caption happened not to trigger it. .lith-log-caption-row (Lithology,
+   gap:12px matching .lith-log-row) and .sample-graphic-caption-row
+   (Samples, gap:5px matching .sample-graphic-row) both hold
+   .lith-log-caption items width-matched 1:1 to their own column above, plus
+   one invisible .lith-log-axis-label spacer (same text/class as the real
+   one, so it reserves the exact same width) so the log captions land under
+   their own columns rather than shifted by the real axis label's column
+   not existing in this row. */
+.lith-log-caption-row { display:flex; gap:12px; margin-top:4px; }
+.sample-graphic-caption-row { display:flex; gap:5px; margin-top:4px; }
+.lith-log-caption {
+  flex:0 0 auto; font-size:11px; color:var(--text); font-weight:600; text-align:center;
+  line-height:1.25; overflow:hidden; text-overflow:ellipsis;
+  display:-webkit-box; -webkit-line-clamp:2; line-clamp:2; -webkit-box-orient:vertical;
+  /* max-height (2 lines: 11px * 1.25) — the legacy -webkit-line-clamp trick
+     visually clips text to 2 lines via overflow:hidden, but this Chrome
+     resolves the element's computed `display` to `flow-root` rather than
+     the true multicol/box internal model line-clamp relies on, so its
+     LAYOUT height stays at the full unclamped ~4-line height even though
+     the extra lines are invisibly clipped — found live, 2026-07-30: a long
+     classification label (BH-33's "USCS, USDA, ROCK") left a large blank
+     gap between the visible 2 lines of text and the Legend header below,
+     while a short one-line label (BH-Mockup-1's "USCS") happened not to
+     show it. Pin the box height explicitly so it can't drift from the
+     visual clamp regardless of this quirk. */
+  max-height:27.5px;
+}
+.lith-table-col { flex:1 1 auto; min-width:0; overflow-y:auto; }
+/* Sticky header for the Lithology observation table(s) — scoped via
+   ancestor selector (not a blanket .kv-interval-table change, same
+   precedent as .meas-result-table/.sample-result-table) so only a table
+   inside this specific badge's own scroll column is affected. */
+.lith-table-col .kv-interval-table thead th { position:sticky; top:0; z-index:2; }
 .lith-log-zone .lith-zone-fill { transition:opacity .1s; }
 .lith-log-zone:hover .lith-zone-fill { opacity:.82; }
 /* Selection highlight — thick white border, toggled by clicking the zone
    or its matching table row (see _lithRowClick/_lithZoneClick). */
 .lith-log-zone .lith-zone-highlight { display:none; }
 .lith-log-zone.lith-zone-selected .lith-zone-highlight { display:block; }
-.lith-legend       { margin-top:12px; max-width:150px; }
-.lith-legend-title { padding:5px 0; }
-.lith-legend-body  { padding-top:4px; }
+/* margin-top reduced 12px->4px (2026-07-29) — initBadgeGraphic fits the
+   legend's own real height into the fixed graphic pane, so the gap above it
+   is pure cosmetic spacing, not a place to reclaim scroll room; shaving it
+   leaves more of the pane for the log/marker row itself. */
+.lith-legend       { margin-top:2px; max-width:150px; }
+.lith-legend-body  { padding-top:2px; }
 .lith-legend-item  { display:flex; align-items:center; gap:7px; padding:2px 0; font-size:11px; color:var(--text-muted); min-width:0; }
 .lith-legend-item span { white-space:normal; line-height:1.2; }
 .lith-legend-sw    { flex:0 0 auto; border:1px solid var(--border); border-radius:2px; }
+/* Compact override for the legend's own collapsible header (2026-07-29,
+   shared by both Lithology and Sample legends — see .sample-legend-title
+   below) — .kv-section-header's own base rule (padding:8px 0 4px;
+   border-top:1px solid;margin-top:6px) is meant for a full top-level KV
+   category divider; inside a graphic pane whose whole point is fitting
+   everything without a scrollbar, that's needless chrome eating into the
+   log/marker row's own height (initBadgeGraphic reserves this header's
+   real measured height). Two classes beats .kv-section-header's one on
+   specificity, so this wins regardless of the two rules' source order. */
+.kv-section-header.lith-legend-title,
+.kv-section-header.sample-legend-title { padding:2px 0; margin-top:2px; border-top:none; }
+
+/* ── Sample graphic (SamplingActivity/Sample badge, 2026-07-29) ─────
+   Same fixed-height-graphic-pane + independently-scrolling-table pattern as
+   .lith-badge-layout above (both now sized by the shared initBadgeGraphic):
+   .sample-badge-layout's own height is set in px (same measure-against-
+   #assoc-content technique as initMeasSplit), align-items:stretch (the flex
+   default) gives both children that exact height, and .sample-table-col
+   scrolls its own overflow, decoupled from the graphic column. */
+.sample-badge-layout { display:flex; gap:10px; align-items:stretch; }
+.sample-graphic-col  { flex:0 0 auto; overflow-y:auto; overflow-x:hidden; }
+/* gap:5px (2026-07-29) — this is the ENTIRE margin between one column's
+   rectangle and the next (every log/fallback column is drawn with its own
+   trailing pad zeroed — see renderSamplingBadgeContent's pad override — so
+   none of that 5px is eaten by SVG-internal padding on either side). */
+.sample-graphic-row  { display:flex; gap:5px; }
+.sample-marker-col-item { flex:0 0 auto; }
+.sample-table-col    { flex:1 1 auto; min-width:0; overflow-y:auto; }
+/* Sticky header — same scoped-class precedent as .meas-result-table (see its
+   own comment): not a blanket .kv-interval-table change. */
+.sample-result-table thead th { position:sticky; top:0; z-index:2; }
+.sample-legend       { margin-top:2px; max-width:170px; }
+/* .sample-legend-title is now a .kv-section-header (expandable, starts
+   closed — see renderSamplingBadgeContent) matching buildLithLegend's own
+   pattern; its compact padding/margin override lives with
+   .lith-legend-title's own, above. */
+.sample-legend-body  { padding-top:2px; }
+.sample-legend-item  { display:flex; align-items:center; gap:7px; padding:2px 0; font-size:11px; color:var(--text-muted); min-width:0; }
+.sample-legend-sw    { flex:0 0 auto; width:14px; height:14px; border:1px solid var(--border); border-radius:2px; }
+/* Marker selection (click a table row, or the marker itself) — solid white
+   fill/stroke + widened, growing rightward from a fixed left edge so a
+   point marker's depth-encoding tip never shifts (see drawSampleMarkers).
+   Presentation attributes (fill=/stroke= on the SVG elements, not inline
+   style) always lose to any CSS rule regardless of specificity, so no
+   !important is needed here to win over the per-method color. */
+.sample-marker { cursor:pointer; }
+.sample-marker.sample-marker-selected {
+  transform:scaleX(1.5); transform-box:fill-box; transform-origin:left;
+}
+.sample-marker.sample-marker-selected .sm-fill,
+.sample-marker.sample-marker-selected .sm-sa-outline,
+.sample-marker.sample-marker-selected .sm-triangle { fill:#ffffff; stroke:#ffffff; }
+
 /* tile-pane filter removed — it was desaturating all basemaps and turning satellite greyscale */
 .leaflet-container { font-family:var(--font-ui); }
 .leaflet-popup-content-wrapper {
@@ -15218,20 +15321,14 @@ function buildAssocBadges(sf) {
     // Graphic-log draw jobs — populated by renderLithBadgeContent when its
     // HTML is built, then drawn here after that HTML is injected.
     const lithDrawJobs = [];
+    const lithScopeId = `lith-badge-${sfId.replace(/[^a-zA-Z0-9]/g,'_')}`;
     badges.push({
       id: `assoc-lith-${sfId.replace(/[^a-zA-Z0-9]/g,'_')}`,
       label: 'Lithology',
       count: `${totalObs} interval${totalObs !== 1 ? 's' : ''}`,
       contentFn: () => renderLithBadgeContent(sfId, sf, lithSystems, allObs, lithDrawJobs),
       afterRender: () => {
-        requestAnimationFrame(() => {
-          for (const job of lithDrawJobs) {
-            const c = document.getElementById(job.containerId);
-            if (c) drawLithLog(c, job.obs, job.sf, {
-              dMin: job.dMin, dMax: job.dMax,
-            });
-          }
-        });
+        requestAnimationFrame(() => initBadgeGraphic(lithScopeId, lithDrawJobs));
       },
       category: 'observations',
     });
@@ -15240,11 +15337,16 @@ function buildAssocBadges(sf) {
   // ── Samples (SamplingActivity + Sample, joined) ───────────
   const samplingRows = DIGGS_SAMPLES[sfId] ? _buildSamplingActivityRows(sfId) : [];
   if (samplingRows.length) {
+    const sampleScopeId = `sample-badge-${sfId.replace(/[^a-zA-Z0-9]/g,'_')}`;
+    const sampleDrawJobs = [];
     badges.push({
       id: `assoc-samp-${sfId.replace(/[^a-zA-Z0-9]/g,'_')}`,
       label: 'Samples',
       count: `${samplingRows.length} record${samplingRows.length !== 1 ? 's' : ''}`,
-      contentFn: () => renderSamplingBadgeContent(sfId),
+      contentFn: () => renderSamplingBadgeContent(sfId, sf, sampleDrawJobs),
+      afterRender: () => {
+        requestAnimationFrame(() => initBadgeGraphic(sampleScopeId, sampleDrawJobs));
+      },
       category: 'samples',
     });
   }
@@ -16863,14 +16965,24 @@ function munsellToCSS(code) {
  *  .lith-badge-layout, since a feature can have several system tables/log
  *  columns sharing the same assoc panel). Shared by direct row clicks
  *  (wired via rowOnClick in OBJECT_CONFIGS.LithologySystem's interval
- *  config) and _lithZoneClick() (graphic-log zone → row). */
+ *  config) and _lithZoneClick() (graphic-log zone → row).
+ *
+ *  Re-highlighting only happens when the row was just OPENED, not
+ *  unconditionally (2026-07-29 fix) — collapsing an already-expanded row
+ *  (whether by clicking the row again, or by clicking its already-
+ *  highlighted zone, which delegates here) must leave the zone
+ *  de-highlighted; a caller-blind "clear then always re-add" here made both
+ *  of those cases wrongly leave the zone highlighted after closing. */
 function _lithRowClick(rowEl) {
   const scope = rowEl.closest('.lith-badge-layout') || document;
   const detail = rowEl.nextElementSibling;
-  if (detail && detail.classList.contains('kv-interval-detail-row')) {
-    toggleKVSection(rowEl);
-  }
+  const hasDetail = detail && detail.classList.contains('kv-interval-detail-row');
+  const wasOpen = hasDetail && detail.style.display !== 'none';
+  if (hasDetail) toggleKVSection(rowEl);
+
   scope.querySelectorAll('.lith-log-zone.lith-zone-selected').forEach(z => z.classList.remove('lith-zone-selected'));
+  if (hasDetail && wasOpen) return; // just collapsed -- stay de-highlighted
+
   const key = rowEl.getAttribute('data-obs-key');
   if (!key) return;
   const zoneEl = scope.querySelector(`.lith-log-zone[data-obs-key="${key}"]`);
@@ -17374,8 +17486,9 @@ function _lithLabelColors(hex) {
  * Draw a vertical, depth-scaled graphic log of LithologyObservation zones
  * into `container`. One patterned <rect> per numeric-depth interval; clicking
  * a zone opens the same Classification popup as the table's classification
- * cell. The SVG height is sized to fill the assoc-panel viewport so the log
- * uses the full frame height (it sits sticky beside the scrolling table).
+ * cell. The SVG height is sized to fill the badge's fixed-height graphic
+ * pane (see initBadgeGraphic), which itself sits beside the independently
+ * scrolling table.
  *
  * `opts` supports rendering multiple spatially-overlapping LithologySystems
  * as separate side-by-side log columns sharing one universal depth scale
@@ -17385,7 +17498,8 @@ function _lithLabelColors(hex) {
  * `obsArray`'s zone boundaries, positioned via the shared `dMin`/`dMax`
  * scale) — the shared "Depth (uom)" axis title and each column's
  * classification-type caption are both rendered as HTML outside this SVG
- * (see `.lith-log-axis-label`/`.lith-log-col-title` in renderLithBadgeContent),
+ * (see `.lith-log-axis-label`/`.lith-log-caption` in renderLithBadgeContent —
+ * the caption sits in its own row BELOW the log row, not above this SVG),
  * not drawn in-canvas here.
  *
  * `opts.height`/`opts.pad` override the auto-sized-to-viewport `H`/the
@@ -17574,18 +17688,42 @@ function _buildSamplingActivityRows(sfId) {
   return rows;
 }
 
-/** Resolves a SamplingActivity's samplingMethod[1] to a display label —
- *  prefers an embedded Specification's (or any embedded procedure object's)
- *  gml:name, following xlink:href when samplingMethod is a reference rather
- *  than inline (resolveXlinkEl handles both), falling back to the resolved
- *  object's own element name when it has no gml:name. */
+/** Resolves a SamplingActivity's samplingMethod[1] to a display label — the
+ *  rule is deliberately different depending on the resolved target's own
+ *  type, not just whether samplingMethod embeds it inline or references it
+ *  by xlink:href:
+ *  - **Specification** (embedded inline OR referenced by href — Specification
+ *    objects are schema-designed to always carry a real, method-describing
+ *    name, e.g. an `xlink:href` shared by several occurrences of the same
+ *    method that only embeds the Specification inline once): that object's
+ *    OWN gml:name (a direct child only — see below), falling back to its
+ *    split-case humanized element name if it somehow has none.
+ *  - **Any other referenced procedure object** (an xlink:href to something
+ *    other than a Specification, e.g. a DrivenPenetrationTest): ALWAYS the
+ *    split-case humanized element name of the referenced object (e.g.
+ *    "DrivenPenetrationTest" -> "Driven Penetration Test") — never a
+ *    gml:name found within it. Such an object's own gml:name, when it has
+ *    one, can belong to something unrelated to the method itself (found
+ *    live, 2026-07-29, on inspectorMockup.xml's depth-55 SPT: samplingMethod
+ *    resolved correctly to DrivenPenetrationTest by id, but an earlier
+ *    version of this function showed "Borehole condition check during
+ *    SPT" — the name of its nested testEvent/InSituTestEvent, not the
+ *    method) — so this case deliberately never looks inside the target for
+ *    a name at all, per explicit design decision.
+ *
+ *  The Specification-branch name lookup is `gml:name` (a plain XPath step —
+ *  direct children only), not `getElementsByTagNameNS` (searches every
+ *  descendant) — same reasoning as the other branch, just scoped to one
+ *  level. */
 function _samplingMethodLabel(saEl) {
   const smEl = evalXPath(saEl, 'diggs:samplingMethod[1]')[0];
   if (!smEl) return '';
   const target = resolveXlinkEl(smEl);
   if (!target) return '';
-  const nameEl = target.getElementsByTagNameNS(NS.gml, 'name')[0];
-  return (nameEl && nodeText(nameEl)) || target.localName || '';
+  if (target.localName !== 'Specification') return humanizeSFType(target.localName) || '';
+  const nameEl = evalXPath(target, 'gml:name')[0];
+  const ownName = nameEl && nodeText(nameEl);
+  return ownName || humanizeSFType(target.localName) || '';
 }
 
 /** Resolves a LocationPropertyType wrapper (SamplingActivity.samplingLocation
@@ -17662,15 +17800,437 @@ function _resolveLocationType(propEl) {
   return 'other';
 }
 
+// ══════════════════════════════════════════════════════════════
+//  Sample graphic (2026-07-29) — visualization aid for the Samples badge,
+//  built the same way the Lithology graphic log is: a fixed-width SVG
+//  column per depth-scaled row, drawn via afterRender once the badge's HTML
+//  is actually in the DOM (see initBadgeGraphic / buildAssocBadges).
+// ══════════════════════════════════════════════════════════════
+
+/** Raw numeric [from,to] for a LocationPropertyType wrapper (SamplingActivity
+ *  .samplingLocation or SampleProduced.location) in the LRS's own native
+ *  unit — the graphic's y(d) scale needs real unrounded coordinates, not the
+ *  table's already-rounded display cells (resolveIntervalIndexCells) nor
+ *  _locationLengthMeters's meters-only output (built for the Recovery %
+ *  ratio, not for plotting). `isPoint` is true for a bare PointLocation or a
+ *  zero-length LinearExtent (from===to) — the point-vs-interval marker shape
+ *  gate in drawSampleMarkers. */
+function _rawLocationFromTo(propEl, dimDefault) {
+  if (!propEl) return null;
+  const linExt = resolvePropertyEl(propEl, 'LinearExtent');
+  if (linExt) {
+    const posListEl = linExt.getElementsByTagNameNS(NS.gml, 'posList')[0];
+    if (!posListEl) return null;
+    const dim = parseInt(linExt.getAttribute('srsDimension') || String(dimDefault || 1)) || (dimDefault || 1);
+    const tokens = numTokens(posListEl.textContent, true);
+    const from = tokens[dim - 1];
+    if (from == null || isNaN(from)) return null;
+    const toRaw = tokens.length >= dim * 2 ? tokens[dim * 2 - 1] : null;
+    const to = (toRaw != null && !isNaN(toRaw)) ? toRaw : from;
+    return { from, to, isPoint: Math.abs(to - from) < 1e-9 };
+  }
+  const point = resolvePropertyEl(propEl, 'PointLocation');
+  if (point) {
+    const posEl = point.getElementsByTagNameNS(NS.gml, 'pos')[0];
+    if (!posEl) return null;
+    const tokens = numTokens(posEl.textContent, true);
+    if (!tokens.length) return null;
+    const val = tokens[tokens.length - 1];
+    if (val == null || isNaN(val)) return null;
+    return { from: val, to: val, isPoint: true };
+  }
+  return null;
+}
+
+/** The SF's own reported total depth (getReportedGeomValue), converted into
+ *  `targetUom` when the two units differ — for the no-lithology fallback
+ *  rectangle, which needs "the total length of the SF" on the same axis the
+ *  sample rows are plotted on. Returns null if unresolvable (no reported
+ *  depth, or an unconvertible unit pair) — caller falls back to the sample
+ *  rows' own range in that case. */
+function _sfTotalDepthInUom(sf, targetUom) {
+  const g = getReportedGeomValue(sf);
+  if (!g || g.val == null || isNaN(g.val)) return null;
+  if (!targetUom || !g.unit || targetUom === g.unit) return g.val;
+  const mSrc = unitToMeters(g.unit), mDst = unitToMeters(targetUom);
+  if (mSrc == null || mDst == null) return null;
+  return g.val * mSrc / mDst;
+}
+
+/** A "nice" round tick step (1/2/5 x a power of ten) for `range`, aiming for
+ *  roughly `targetCount` ticks — used only by the no-lithology fallback log
+ *  (drawSampleLogFallback), which has no natural zone boundaries to tick off
+ *  the way drawLithLog's real zones do, per explicit spec ("a depth axis
+ *  with regular ticks"). */
+function _niceTickStep(range, targetCount) {
+  if (!(range > 0)) return 1;
+  const rough = range / (targetCount || 8);
+  const mag = Math.pow(10, Math.floor(Math.log10(rough)));
+  const norm = rough / mag;
+  const step = norm < 1.5 ? 1 : norm < 3 ? 2 : norm < 7 ? 5 : 10;
+  return step * mag;
+}
+
+// 8-hue categorical palette (dark-mode steps), fixed order — dataviz skill's
+// validated default: worst adjacent CVD ΔE 8.4, worst adjacent normal-vision
+// ΔE 19.3 (OKLab ×100), both clearing the adjacent-pairlist gates this app's
+// dark-only theme needs. A 9th+ distinct method folds into one shared
+// "Other" bucket rather than generating a new hue, per the palette's own
+// rule — SAMPLE_METHOD_OTHER_COLOR (muted gray, matches --text-muted).
+const SAMPLE_METHOD_COLORS = ['#3987e5', '#d95926', '#199e70', '#c98500', '#d55181', '#008300', '#9085e9', '#e66767'];
+const SAMPLE_METHOD_OTHER_COLOR = '#898781';
+// The sample-fill and SamplingActivity-outline rects are the exact same
+// width (2026-07-29, was a narrower fill inset within a wider outline) and
+// left-justified at x=0 within the marker SVG — the whole 5px margin from
+// the preceding log/fallback column's own rectangle comes from
+// .sample-graphic-row's flex gap plus that column's own pad.right:0 (see
+// renderSamplingBadgeContent), not from any padding inside this SVG, so
+// SAMPLE_MARKER_COL_W (the SVG's own width) equals the rect width exactly —
+// no leftover margin on either side.
+const SAMPLE_MARKER_COL_W = 20;
+// Stroke width for every "hollow extent" outline in the sample graphic — the
+// SamplingActivity outline over a recovered/partial sample AND the
+// no-lithology fallback's hollow SF rectangle share this one value so the
+// two read as the same visual convention (both drawSampleMarkers and
+// drawSampleLogFallback reference this constant, not a literal).
+const SAMPLE_OUTLINE_STROKE_W = 0.75;
+
+/** Assigns each distinct sampling-method label a fixed-order categorical
+ *  color (first-seen order), capped at SAMPLE_METHOD_COLORS.length — beyond
+ *  that, every further distinct method shares one "Other" legend entry/color
+ *  instead of generating a new hue. An empty method label buckets as
+ *  "Unknown Method" (still gets its own real slot, not lumped with Other,
+ *  since it's common — not overflow). Returns { colorOf: Map(label->hex),
+ *  legend: [{label,color}] }. */
+function _assignSampleMethodColors(methodLabels) {
+  const seen = [];
+  const seenSet = new Set();
+  for (const raw of methodLabels) {
+    const key = raw || '';
+    if (!seenSet.has(key)) { seenSet.add(key); seen.push(key); }
+  }
+  const colorOf = new Map();
+  const legend = [];
+  seen.forEach((key, i) => {
+    const color = i < SAMPLE_METHOD_COLORS.length ? SAMPLE_METHOD_COLORS[i] : SAMPLE_METHOD_OTHER_COLOR;
+    colorOf.set(key, color);
+    if (i < SAMPLE_METHOD_COLORS.length) legend.push({ label: key || 'Unknown Method', color });
+  });
+  if (seen.length > SAMPLE_METHOD_COLORS.length) legend.push({ label: 'Other', color: SAMPLE_METHOD_OTHER_COLOR });
+  return { colorOf, legend };
+}
+
+/** Lithology graphic-log column groups + captions for the sample badge's
+ *  log column — same combined-vs-separate-by-depth-overlap decision
+ *  renderLithBadgeContent's own log uses (independent small duplicate, same
+ *  convention as _lithColumnGroupsForSF — see its own comment: low value,
+ *  real regression risk to refactor the already-working badge). Unlike
+ *  _lithColumnGroupsForSF (obs arrays only, built for a plot's reference
+ *  column with no caption), this also returns each group's classification
+ *  label, since the sample badge's log column needs the same per-column
+ *  title renderLithBadgeContent shows. Returns [] when there's no
+ *  LithologySystem to show (caller falls back to drawSampleLogFallback). */
+function _sampleLogColumnsForSF(sf) {
+  const lithSystems = DIGGS_LITH[sf.id] || [];
+  if (!lithSystems.length) return [];
+  const hasDepth = arr => arr.some(o =>
+    isFinite(parseFloat(o.from)) && isFinite(parseFloat(o.to)) && parseFloat(o.to) > parseFloat(o.from));
+
+  function sysRange(sys) {
+    const froms = sys.observations.map(o => parseFloat(o.from)).filter(v => !isNaN(v));
+    const tos = sys.observations.map(o => parseFloat(o.to)).filter(v => !isNaN(v));
+    return { min: froms.length ? Math.min(...froms) : Infinity, max: tos.length ? Math.max(...tos) : -Infinity };
+  }
+  function rangesOverlap(a, b) { return a.min < b.max && b.min < a.max; }
+  const ranges = lithSystems.map(sysRange);
+  let combined = sf.type === 'Station';
+  if (!combined) {
+    let hasOverlap = false;
+    outer: for (let i = 0; i < ranges.length; i++) {
+      for (let j = i + 1; j < ranges.length; j++) {
+        if (rangesOverlap(ranges[i], ranges[j])) { hasOverlap = true; break outer; }
+      }
+    }
+    combined = !hasOverlap;
+  }
+
+  if (combined) {
+    const allObs = lithSystems.flatMap(sys => sys.observations);
+    if (!hasDepth(allObs)) return [];
+    const ctVals = [...new Set(lithSystems.flatMap(sys => sys.classificationTypes)
+      .map(ct => ct.value || ct.codeSpace || 'Unknown'))];
+    return [{ obs: allObs, label: ctVals.length ? ctVals.join(', ') : 'Unknown' }];
+  }
+  return lithSystems.map((sys, idx) => {
+    if (!hasDepth(sys.observations)) return null;
+    const label = sys.classificationTypes.length
+      ? sys.classificationTypes.map(ct => ct.value || ct.codeSpace || 'Unknown').join(', ')
+      : `Log ${idx + 1}`;
+    return { obs: sys.observations, label };
+  }).filter(Boolean);
+}
+
+/** No-lithology fallback for the sample badge's log column: a hollow
+ *  rectangle spanning the SF's own total reported depth (`opts.sfFrom`/
+ *  `opts.sfTo`), plus a depth axis with REGULARLY-spaced ticks (_niceTickStep)
+ *  — unlike drawLithLog's zone-boundary ticks, there are no zones here to
+ *  tick off. Structurally mirrors drawLithLog (same mk() helper, same PAD/W
+ *  convention, same C_MUTED/C_TEXT/C_BORDER) so it sits pixel-compatible
+ *  beside it when both appear (never simultaneously in practice — this is
+ *  the no-LithologySystem branch — but keeping the geometry identical means
+ *  a later multi-SF comparison view could mix them without surprises). */
+function drawSampleLogFallback(container, sf, opts = {}) {
+  container.innerHTML = '';
+  const NS_SVG = 'http://www.w3.org/2000/svg';
+  const dMin = opts.dMin, dMax = opts.dMax;
+  if (!(isFinite(dMin) && isFinite(dMax) && dMax > dMin)) {
+    container.innerHTML = '<div style="color:var(--text-muted);font-size:11px;padding:6px 2px">No depth range to plot.</div>';
+    return;
+  }
+  const dRange = dMax - dMin;
+  const H = isFinite(opts.height) ? opts.height : 340;
+  const W = opts.width || LITH_LOG_W;
+  const PAD = opts.pad || LITH_LOG_PAD;
+  const barX = PAD.left, barW = W - PAD.left - PAD.right;
+  const plotTop = PAD.top, plotH = H - PAD.top - PAD.bottom;
+  const y = d => plotTop + ((d - dMin) / dRange) * plotH;
+  const C_MUTED = '#7d8590', C_TEXT = '#e6edf3';
+
+  const svg = document.createElementNS(NS_SVG, 'svg');
+  svg.setAttribute('width', W);
+  svg.setAttribute('height', H);
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  svg.style.cssText = 'display:block;font-family:var(--font-mono)';
+  const mk = (tag, attrs) => {
+    const e = document.createElementNS(NS_SVG, tag);
+    for (const k in attrs) e.setAttribute(k, attrs[k]);
+    return e;
+  };
+
+  const sfFrom = isFinite(opts.sfFrom) ? opts.sfFrom : dMin;
+  const sfTo = isFinite(opts.sfTo) ? opts.sfTo : dMax;
+  const ry0 = y(sfFrom), ry1 = y(sfTo);
+  // Same white, same stroke width as the sample markers' own SamplingActivity
+  // outline (SAMPLE_OUTLINE_STROKE_W) — this rectangle plays the same
+  // "hollow extent" role at the whole-SF level.
+  svg.appendChild(mk('rect', {
+    x: barX, y: ry0, width: barW, height: Math.max(ry1 - ry0, 1),
+    fill: 'none', stroke: '#ffffff', 'stroke-width': String(SAMPLE_OUTLINE_STROKE_W),
+  }));
+  const tt = mk('title', {});
+  const uomTxt = opts.uom ? ` ${opts.uom}` : '';
+  tt.textContent = `${_fmtLithDepth(sfFrom)}–${_fmtLithDepth(sfTo)}${uomTxt}`;
+  svg.appendChild(tt);
+
+  svg.appendChild(mk('line', { x1: barX, y1: plotTop, x2: barX, y2: plotTop + plotH, stroke: C_MUTED, 'stroke-width': '0.75' }));
+  const step = _niceTickStep(dRange, 8);
+  const ticks = [];
+  for (let d = Math.ceil(dMin / step) * step; d <= dMax + 1e-9; d += step) ticks.push(Math.round(d * 1e6) / 1e6);
+  if (!ticks.length || ticks[0] > dMin + 1e-9) ticks.unshift(dMin);
+  if (ticks[ticks.length - 1] < dMax - 1e-9) ticks.push(dMax);
+  for (const d of ticks) {
+    const yy = y(d);
+    svg.appendChild(mk('line', { x1: barX - 4, y1: yy, x2: barX, y2: yy, stroke: C_MUTED, 'stroke-width': '0.75' }));
+    const tl = mk('text', { x: barX - 6, y: yy + 4, 'text-anchor': 'end', fill: C_TEXT, 'font-size': '12', 'font-family': 'var(--font-ui)' });
+    tl.textContent = _fmtLithDepth(d);
+    svg.appendChild(tl);
+  }
+  container.appendChild(svg);
+}
+
+/** Draws the per-SamplingActivity/Sample marker column, one shape per row
+ *  (`rows` = renderSamplingBadgeContent's builtRows, already depth-sorted):
+ *  - Point (row.saFT.isPoint): a left-pointing triangle, tip at the SA's own
+ *    depth — hollow (outline only) when no sample was produced (row.sp
+ *    null), solid (method-colored fill) when one was.
+ *  - Interval: the Sample's own recovered extent (row.spFT) as a filled
+ *    method-colored rect, THEN the SamplingActivity's full driven/attempted
+ *    extent (row.saFT) as a white hollow rect drawn over it — full recovery
+ *    (Sample extent == SA extent) reads as a solid fill with a white border;
+ *    partial recovery leaves the un-recovered portion of the SA's own
+ *    interval hollow; no sample (row.sp null) skips the fill rect entirely,
+ *    leaving just the hollow SA outline.
+ *  Each marker's <g> carries data-sample-key (matches the table row's own
+ *  attribute — see renderSamplingBadgeContent) and a click handler
+ *  (_sampleMarkerClick) that selects + scrolls the matching row into view. */
+function drawSampleMarkers(container, rows, colorOf, opts = {}) {
+  container.innerHTML = '';
+  const NS_SVG = 'http://www.w3.org/2000/svg';
+  const dMin = opts.dMin, dMax = opts.dMax;
+  const H = isFinite(opts.height) ? opts.height : 340;
+  const W = opts.width || SAMPLE_MARKER_COL_W;
+  const PAD = opts.pad || { top: LITH_LOG_PAD.top, bottom: LITH_LOG_PAD.bottom };
+  const plotTop = PAD.top, plotH = H - PAD.top - PAD.bottom;
+  const dRange = (dMax - dMin) || 1;
+  const y = d => plotTop + ((d - dMin) / dRange) * plotH;
+  const mk = (tag, attrs) => {
+    const e = document.createElementNS(NS_SVG, tag);
+    for (const k in attrs) e.setAttribute(k, attrs[k]);
+    return e;
+  };
+
+  const svg = document.createElementNS(NS_SVG, 'svg');
+  svg.setAttribute('width', W);
+  svg.setAttribute('height', H);
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  svg.style.cssText = 'display:block';
+  // Left-justified at the SVG's own left edge — no inset — so the whole
+  // margin from the preceding column comes from the flex gap (see
+  // .sample-graphic-row), not from padding on this side too.
+  const barX = 0, barW = W;
+
+  for (const row of rows) {
+    if (!row.saFT) continue;
+    const color = colorOf.get(row.methodKey) || SAMPLE_METHOD_OTHER_COLOR;
+    const g = mk('g', { class: 'sample-marker', 'data-sample-key': row.key });
+    g.style.cursor = 'pointer';
+
+    if (row.saFT.isPoint) {
+      const cy = y(row.saFT.from);
+      const halfH = 6, tipX = barX, baseX = barX + barW;
+      const hasSample = !!row.sp;
+      g.appendChild(mk('polygon', {
+        points: `${tipX},${cy} ${baseX},${cy - halfH} ${baseX},${cy + halfH}`,
+        class: 'sm-triangle', fill: hasSample ? color : 'none',
+        stroke: color, 'stroke-width': '1.5',
+      }));
+    } else {
+      // Sample fill and SamplingActivity outline share the exact same x/width
+      // (2026-07-29, per explicit request) — full recovery (the two Y-extents
+      // equal too) reads as a solid fill with a clean white border all the
+      // way around, not just top/bottom.
+      const saY0 = y(row.saFT.from), saY1 = y(row.saFT.to);
+      if (row.spFT) {
+        const spY0 = y(row.spFT.from), spY1 = y(row.spFT.to);
+        g.appendChild(mk('rect', { x: barX, y: spY0, width: barW, height: Math.max(spY1 - spY0, 1), class: 'sm-fill', fill: color }));
+      }
+      g.appendChild(mk('rect', {
+        x: barX, y: saY0, width: barW, height: Math.max(saY1 - saY0, 1),
+        class: 'sm-sa-outline', fill: 'none', stroke: '#ffffff', 'stroke-width': String(SAMPLE_OUTLINE_STROKE_W),
+      }));
+    }
+
+    const tt = mk('title', {});
+    tt.textContent = row.tooltip || '';
+    g.appendChild(tt);
+    g.addEventListener('click', () => _sampleMarkerClick(g));
+    svg.appendChild(g);
+  }
+  container.appendChild(svg);
+}
+
+/** Sizes a graphic-pane badge layout (.sample-badge-layout OR
+ *  .lith-badge-layout — both now share this one function, 2026-07-29) to
+ *  the visible space left in #assoc-content (same measure-against-scroll-
+ *  container technique as initMeasSplit) so align-items:stretch gives the
+ *  graphic column and the table column the same fixed height, then runs
+ *  every queued draw job (lith/fallback/samples) at whatever height is left
+ *  AFTER reserving room for the legend's own real (already-rendered) height
+ *  — the graphic column is meant to never need its own scrollbar, so the
+ *  log/marker row has to shrink to make room for the legend below it,
+ *  rather than the two competing for space. Called from afterRender once
+ *  the badge's HTML is actually in the DOM (drawing into a container id
+ *  requires the element to exist first). */
+function initBadgeGraphic(scopeId, jobs) {
+  const container = document.getElementById(scopeId);
+  if (!container || !jobs || !jobs.length) return;
+  const assocContent = document.getElementById('assoc-content');
+  let available = 400;
+  if (assocContent) {
+    const contRect = container.getBoundingClientRect();
+    const assocRect = assocContent.getBoundingClientRect();
+    available = Math.max(260, Math.round(assocContent.clientHeight - (contRect.top - assocRect.top) - 12));
+  }
+  container.style.height = available + 'px';
+
+  // Reserve room for everything in the graphic column OTHER than the SVGs
+  // themselves: the caption row below the log/marker row (see
+  // .lith-log-caption-row's own comment) and the legend. Measured as the
+  // total span from the row's own top (stable regardless of draw state) to
+  // the bottom of whichever chrome element comes last (the legend if
+  // present, else the caption row) — the row's own pre-draw height is ~0
+  // (its SVG hosts are still empty, line-height:0, and the row no longer
+  // holds any per-column caption of its own), so this one span IS the total
+  // non-SVG overhead, without having to separately reason about the gaps/
+  // margins between each piece.
+  const legend = container.querySelector('.sample-legend, .lith-legend');
+  const captionRow = container.querySelector('.lith-log-caption-row, .sample-graphic-caption-row');
+  const row = container.querySelector('.sample-graphic-row, .lith-log-row');
+  let svgH = available;
+  if (row) {
+    const rowRect = row.getBoundingClientRect();
+    const lastEl = legend || captionRow;
+    const overhead = lastEl ? (lastEl.getBoundingClientRect().bottom - rowRect.top) : rowRect.height;
+    if (overhead > 0) svgH = Math.max(120, Math.round(available - overhead));
+  }
+
+  for (const job of jobs) {
+    const el = document.getElementById(job.containerId);
+    if (!el) continue;
+    if (job.kind === 'lith') {
+      drawLithLog(el, job.obs, job.sf, { dMin: job.dMin, dMax: job.dMax, height: svgH, pad: job.pad });
+    } else if (job.kind === 'fallback') {
+      drawSampleLogFallback(el, job.sf, { dMin: job.dMin, dMax: job.dMax, sfFrom: job.sfFrom, sfTo: job.sfTo, height: svgH, uom: job.uom, pad: job.pad });
+    } else if (job.kind === 'samples') {
+      drawSampleMarkers(el, job.rows, job.colorOf, { dMin: job.dMin, dMax: job.dMax, height: svgH });
+    }
+  }
+}
+
+/** Table row click -> toggle its expand (if any) + highlight the matching
+ *  graphic marker, scoped to the enclosing .sample-badge-layout (a feature
+ *  could in principle host more than one badge instance). Mirrors
+ *  _lithRowClick exactly, including its 2026-07-29 fix: re-highlighting only
+ *  happens when the row was just OPENED, not unconditionally — collapsing
+ *  an already-expanded row (whether by clicking the row again, or by
+ *  clicking its already-highlighted marker, which delegates here) must
+ *  leave the marker de-highlighted. */
+function _sampleRowClick(rowEl) {
+  const scope = rowEl.closest('.sample-badge-layout') || document;
+  const detail = rowEl.nextElementSibling;
+  const hasDetail = detail && detail.classList.contains('kv-interval-detail-row');
+  const wasOpen = hasDetail && detail.style.display !== 'none';
+  if (hasDetail) toggleKVSection(rowEl);
+
+  scope.querySelectorAll('.sample-marker.sample-marker-selected').forEach(m => m.classList.remove('sample-marker-selected'));
+  if (hasDetail && wasOpen) return; // just collapsed -- stay de-highlighted
+
+  const key = rowEl.getAttribute('data-sample-key');
+  if (!key) return;
+  const markerEl = scope.querySelector(`.sample-marker[data-sample-key="${key}"]`);
+  if (markerEl) markerEl.classList.add('sample-marker-selected');
+}
+
+/** Graphic marker click -> find and select/expand the matching table row,
+ *  scrolling it into view (the table row lives inside .sample-table-col's
+ *  own scroll region now, not #assoc-content directly, but scrollIntoView
+ *  handles a nested scrolling ancestor transparently). Mirrors
+ *  _lithZoneClick. */
+function _sampleMarkerClick(markerEl) {
+  const scope = markerEl.closest('.sample-badge-layout') || document;
+  const key = markerEl.getAttribute('data-sample-key');
+  if (!key) return;
+  const rowEl = scope.querySelector(`tr.kv-interval-row[data-sample-key="${key}"]`);
+  if (rowEl) {
+    _sampleRowClick(rowEl);
+    rowEl.scrollIntoView({ block: 'nearest' });
+  }
+}
+
 /** renderSamplingBadgeContent — orchestrator for the "Material Samples"
  *  badge (buildAssocBadges). Builds one interval-style table joining each
  *  SamplingActivity to its produced Sample(s), sorted in SamplingActivity
  *  depth order; each row expands to the remaining Sample fields then the
  *  remaining SamplingActivity fields (renderKVObject against
  *  OBJECT_CONFIGS.Sample/.SamplingActivity, per explicit user-specified
- *  order). The visualization aid (graphic log, analogous to Lithology's) is
- *  deliberately not built here yet — table first, per user direction. */
-function renderSamplingBadgeContent(sfId) {
+ *  order); plus the graphic column (lithology log, or a hollow-rectangle
+ *  fallback, beside one marker per row) — see the "Sample graphic" section
+ *  above. `drawJobs` (optional out-param, same convention as
+ *  renderLithBadgeContent) is populated with the SVG draw jobs to run once
+ *  this HTML is actually injected into the DOM — see initBadgeGraphic /
+ *  buildAssocBadges's afterRender. */
+function renderSamplingBadgeContent(sfId, sf, drawJobs) {
+  if (drawJobs) drawJobs.length = 0;
   const rows = _buildSamplingActivityRows(sfId);
   if (!rows.length) return '<div style="color:var(--text-muted);font-size:12px;padding:8px">No sampling activity data.</div>';
 
@@ -17715,7 +18275,13 @@ function renderSamplingBadgeContent(sfId) {
     });
     const first = rawIdx[0];
     const sortNum = (first && first.cols[0] && first.cols[0].sortNum != null) ? first.cols[0].sortNum : null;
-    return { r, rawIdx, sortNum };
+    // Raw (unrounded) depths + method label, for the graphic column — see
+    // _rawLocationFromTo's own comment on why this can't reuse rawIdx's
+    // already-rounded display cells.
+    const saFT = _rawLocationFromTo(evalXPath(r.sa, 'diggs:samplingLocation')[0], 1);
+    const spFT = r.sp ? _rawLocationFromTo(evalXPath(r.sp, 'diggs:location')[0], 1) : null;
+    const methodLabel = _samplingMethodLabel(r.sa);
+    return { r, rawIdx, sortNum, saFT, spFT, methodLabel };
   });
 
   // Sorted in SamplingActivity location (depth) order, per spec.
@@ -17744,7 +18310,7 @@ function renderSamplingBadgeContent(sfId) {
   const consumedSA = new Set(['diggs:samplingLocation']);
   const consumedSample = new Set(['gml:name', 'diggs:type']);
 
-  const builtRows = rawRows.map(({ r, rawIdx }) => {
+  const builtRows = rawRows.map(({ r, rawIdx, saFT, spFT, methodLabel }, i) => {
     const idxGroups = idxCfgs.map((idxCfg, gi) => {
       const slots = idxSlots[gi];
       const res = rawIdx[gi];
@@ -17754,7 +18320,7 @@ function renderSamplingBadgeContent(sfId) {
       });
     });
 
-    const methodCell = _resolveDataColumnCell(r.sa, { label: 'Method', compute: sa => escHtml(_samplingMethodLabel(sa)) }, consumedSA);
+    const methodCell = _resolveDataColumnCell(r.sa, { label: 'Method', compute: () => escHtml(methodLabel) }, consumedSA);
     const nameCell = r.sample
       ? _resolveDataColumnCell(r.sample, { path: 'gml:name[1]', label: 'Sample' }, consumedSample)
       : { label: 'Sample', html: _KV_EMPTY_DASH };
@@ -17762,7 +18328,8 @@ function renderSamplingBadgeContent(sfId) {
       ? _resolveDataColumnCell(r.sample, { path: 'diggs:type', label: 'Type' }, consumedSample)
       : { label: 'Type', html: _KV_EMPTY_DASH };
     const pct = _samplingRecoveryPct(r.sa, r.sp);
-    const recoveryCell = { html: escHtml(String(Math.round(pct * 100) / 100)) + '%' };
+    const pctRounded = Math.round(pct * 100) / 100;
+    const recoveryCell = { html: escHtml(String(pctRounded)) + '%' };
 
     const saExpand = _buildTableExpandHtml(r.sa, {}, consumedSA, true);
     const sampleExpand = r.sample ? _buildTableExpandHtml(r.sample, {}, consumedSample, true) : '';
@@ -17770,7 +18337,21 @@ function renderSamplingBadgeContent(sfId) {
     // spec order.
     const expandHtml = sampleExpand + saExpand;
 
-    return { idxGroups, methodCell, nameCell, typeCell, recoveryCell, expandHtml };
+    // Row key for the table<->graphic sync (_sampleRowClick/_sampleMarkerClick)
+    // — the row's own SampleProduced gml:id when one exists (unique per
+    // row), else the owning SamplingActivity's gml:id + this row's position
+    // (safe for the "no sample produced" case, which is always exactly one
+    // row per SamplingActivity).
+    const spId = r.sp ? (r.sp.getAttributeNS(NS.gml, 'id') || r.sp.getAttribute('id') || '') : '';
+    const saId = r.sa.getAttributeNS(NS.gml, 'id') || r.sa.getAttribute('id') || '';
+    const key = (spId || (saId ? `${saId}_${i}` : `row_${i}`)).replace(/[^a-zA-Z0-9_-]/g, '_');
+
+    const sampleName = r.sample ? nodeText(evalXPath(r.sample, 'gml:name[1]')[0]) : '';
+    const depthTxt = saFT ? (saFT.isPoint ? _fmtLithDepth(saFT.from) : `${_fmtLithDepth(saFT.from)}–${_fmtLithDepth(saFT.to)}`) : '';
+    const tooltip = [depthTxt, methodLabel, sampleName || (r.sp ? '' : 'no sample recovered')].filter(Boolean).join(' — ')
+      + (r.sp ? ` (${pctRounded}% recovery)` : '');
+
+    return { idxGroups, methodCell, nameCell, typeCell, recoveryCell, expandHtml, saFT, spFT, methodKey: methodLabel || '', key, tooltip, hasSp: !!r.sp };
   });
 
   const colHeader = (label, uom) => `<th>${escHtml(label)}${uom ? `<br><span class="col-uom">(${escUom(uom)})</span>` : ''}</th>`;
@@ -17795,8 +18376,11 @@ function renderSamplingBadgeContent(sfId) {
       + sampleLocTds
       + `<td class="kv-interval-val">${row.typeCell.html}</td>`
       + `<td class="kv-interval-val">${row.recoveryCell.html}</td>`;
-    const onclick = expandable ? ' onclick="toggleKVSection(this)"' : '';
-    tbody += `<tr class="kv-interval-row"${onclick}>${saTds}${colTds}</tr>`;
+    // Always wired to _sampleRowClick (not just when expandable) — matching
+    // _lithRowClick's convention, since a row click also needs to sync the
+    // graphic marker's selection highlight even on a row with nothing left
+    // to expand.
+    tbody += `<tr class="kv-interval-row" data-sample-key="${row.key}" onclick="_sampleRowClick(this)">${saTds}${colTds}</tr>`;
     if (expandable) {
       const colspan = row.idxGroups[0].length + 1 + 1 + row.idxGroups[1].length + 1 + 1;
       tbody += `<tr class="kv-interval-detail-row" style="display:none"><td colspan="${colspan}">${row.expandHtml}</td></tr>`;
@@ -17804,7 +18388,130 @@ function renderSamplingBadgeContent(sfId) {
   }
   tbody += '</tbody>';
 
-  return `<table class="sub-table kv-interval-table">${thead}${tbody}</table>`;
+  const tableHtml = `<table class="sub-table kv-interval-table sample-result-table">${thead}${tbody}</table>`;
+
+  // ── Graphic column: lithology log (if any) or a hollow-rectangle
+  // fallback representing the SF's total depth, plus one marker per row.
+  const scopeId = `sample-badge-${sfId.replace(/[^a-zA-Z0-9]/g, '_')}`;
+  const depthUom = idxSlots[0].map(c => c.uom).find(Boolean) || '';
+  const logGroups = _sampleLogColumnsForSF(sf);
+
+  let dMin = Infinity, dMax = -Infinity;
+  for (const row of builtRows) {
+    if (row.saFT) { dMin = Math.min(dMin, row.saFT.from, row.saFT.to); dMax = Math.max(dMax, row.saFT.from, row.saFT.to); }
+    if (row.spFT) { dMin = Math.min(dMin, row.spFT.from, row.spFT.to); dMax = Math.max(dMax, row.spFT.from, row.spFT.to); }
+  }
+  for (const g of logGroups) {
+    for (const o of g.obs) {
+      const f = parseFloat(o.from), t = parseFloat(o.to);
+      if (isFinite(f)) dMin = Math.min(dMin, f);
+      if (isFinite(t)) dMax = Math.max(dMax, t);
+    }
+  }
+  let sfFrom = null, sfTo = null;
+  if (!logGroups.length) {
+    // No LithologySystem — the fallback rect needs "the total length of the
+    // SF", unioned with whatever the sample rows themselves already span so
+    // nothing gets clipped if the reported SF depth is missing/inconsistent.
+    const baseMin = dMin === Infinity ? 0 : dMin;
+    const baseMax = dMax === -Infinity ? 0 : dMax;
+    const sfDepth = _sfTotalDepthInUom(sf, depthUom);
+    sfFrom = Math.min(0, baseMin);
+    sfTo = sfDepth != null ? Math.max(sfDepth, baseMax) : baseMax;
+    dMin = Math.min(dMin === Infinity ? sfFrom : dMin, sfFrom);
+    dMax = Math.max(dMax === -Infinity ? sfTo : dMax, sfTo);
+  }
+
+  let graphicHtml = '';
+  if (isFinite(dMin) && isFinite(dMax) && dMax > dMin) {
+    // Captions live in their own row BELOW the log/marker row now (2026-07-30,
+    // replaces a per-column title ABOVE each SVG) — every column's SVG then
+    // starts at the exact same y=0 regardless of any column's own caption
+    // text length, so there's no longer a height-matching hazard between a
+    // short caption (1 line) and a long one (wraps to 2 — see
+    // .lith-log-caption's own comment for the misalignment bug this
+    // replaces). logColItem is now host-only; logCaptionItem is the caption,
+    // width-matched 1:1 with its own column so the two rows' flex layouts
+    // line up column-for-column automatically (same widths, same gap).
+    const logColItem = logId => `
+      <div class="lith-log-col-item" style="width:${LITH_LOG_W}px">
+        <div id="${logId}" class="lith-log-host"></div>
+      </div>`;
+    const logCaptionItem = label => `
+      <div class="lith-log-caption" style="width:${LITH_LOG_W}px;margin-left:${LITH_LOG_TITLE_SHIFT}px" title="${escHtml(label)}">${escHtml(label)}</div>`;
+
+    // No trailing right-pad on any log/fallback column drawn in this row —
+    // the whole gap to the next column (another log column, or the sample
+    // markers) comes from .sample-graphic-row's own flex gap (5px) instead,
+    // so that gap is the ONE place controlling the margin, exactly 5px
+    // between every adjacent pair of rectangles, per explicit request.
+    const logPad = { top: LITH_LOG_PAD.top, bottom: LITH_LOG_PAD.bottom, left: LITH_LOG_PAD.left, right: 0 };
+
+    let logsHtml = '', captionsHtml = '';
+    if (logGroups.length) {
+      logGroups.forEach((g, idx) => {
+        const logId = `${scopeId}-log-${idx}`;
+        if (drawJobs) drawJobs.push({ kind: 'lith', containerId: logId, obs: g.obs, sf, dMin, dMax, pad: logPad });
+        logsHtml += logColItem(logId);
+        captionsHtml += logCaptionItem(g.label);
+      });
+    } else {
+      const logId = `${scopeId}-log-0`;
+      if (drawJobs) drawJobs.push({ kind: 'fallback', containerId: logId, sf, dMin, dMax, sfFrom, sfTo, uom: depthUom, pad: logPad });
+      logsHtml = logColItem(logId);
+      captionsHtml = logCaptionItem('Borehole');
+    }
+
+    const { colorOf, legend } = _assignSampleMethodColors(builtRows.map(row => row.methodKey));
+    const markerColId = `${scopeId}-samples`;
+    if (drawJobs) drawJobs.push({ kind: 'samples', containerId: markerColId, rows: builtRows, colorOf, dMin, dMax });
+    // No caption at all under the marker column (per explicit request, same
+    // as its earlier no-title-above decision) — nothing else follows it in
+    // the caption row, so no spacer is needed to keep later items aligned.
+    const markerColHtml = `
+      <div class="sample-marker-col-item" style="width:${SAMPLE_MARKER_COL_W}px">
+        <div id="${markerColId}" class="lith-log-host"></div>
+      </div>`;
+
+    const axisLabel = `Depth${depthUom ? ` (${depthUom})` : ''}`;
+    // Invisible spacer with the SAME text/class as the real axis label, so
+    // it renders at the exact same WIDTH (vertical-text width isn't a fixed
+    // constant) — keeps the caption row's log captions aligned under their
+    // own columns above, rather than shifted left by the axis label's own
+    // column not existing in this row. max-height:0 (2026-07-30) — only the
+    // WIDTH needs to match; left at its natural height, the real label's
+    // own writing-mode:vertical-rl makes it as tall as "Depth (uom)" rotated
+    // (~50px+), and since align-items:stretch is the flex default, that
+    // dragged the caption row's own height — and the gap before the
+    // legend — up to match it, even though the caption itself is now
+    // properly capped at 2 lines (see .lith-log-caption's own comment).
+    const axisSpacer = `<div class="lith-log-axis-label" style="visibility:hidden;max-height:0;overflow:hidden">${escHtml(axisLabel)}</div>`;
+    // Expandable, starts CLOSED (unlike buildLithLegend's own open-if-<=6
+    // items — this one is unconditionally closed by default per explicit
+    // request, so the collapsed title bar's own small height is all
+    // initBadgeGraphic has to reserve, leaving the rest for the log/marker
+    // row). Plain "Legend" — no "Sampling Method" title needed, matching
+    // buildLithLegend's own generic heading.
+    const legendHtml = legend.length ? `<div class="sample-legend">
+      <div class="kv-section-header sample-legend-title" onclick="toggleKVSection(this)">
+        <span class="kv-tri">▶</span>Legend</div>
+      <div class="sample-legend-body" style="display:none">
+        ${legend.map(e => `<div class="sample-legend-item">
+          <span class="sample-legend-sw" style="background:${e.color}"></span><span>${escHtml(e.label)}</span></div>`).join('')}
+      </div>
+    </div>` : '';
+
+    graphicHtml = `<div class="sample-graphic-col">
+      <div class="sample-graphic-row">
+        <div class="lith-log-axis-label">${escHtml(axisLabel)}</div>${logsHtml}${markerColHtml}
+      </div>
+      <div class="sample-graphic-caption-row">${axisSpacer}${captionsHtml}</div>
+      ${legendHtml}
+    </div>`;
+  }
+
+  if (!graphicHtml) return tableHtml;
+  return `<div class="sample-badge-layout" id="${scopeId}">${graphicHtml}<div class="sample-table-col">${tableHtml}</div></div>`;
 }
 
 function _lithColumnGroupsForSF(sf) {
@@ -17964,26 +18671,35 @@ function renderLithBadgeContent(sfId, sf, lithSystems, allObs, drawJobs) {
     isFinite(parseFloat(o.from)) && isFinite(parseFloat(o.to)) && parseFloat(o.to) > parseFloat(o.from));
   if (!hasDepth) return html;
 
-  // Each graphic-log column gets a classification-type caption above it,
-  // styled like the table's own classification header span (white/bold).
-  // The bar itself sits in the right portion of the column (the left
-  // LITH_LOG_PAD.left px are the depth-tick number gutter) — a plain
-  // width:100%/text-align:center caption would center over the whole
-  // column, i.e. visibly left of the bar, so it's shifted right by
-  // LITH_LOG_TITLE_SHIFT to center over the bar instead.
-  const logColItem = (logId, obsForLog, ctLabel) => `
+  // Captions live in their own row BELOW the log row now (2026-07-30,
+  // replaces a per-column title ABOVE each SVG — see .lith-log-caption's
+  // own comment for the misalignment bug this replaces: every column's SVG
+  // now starts at the exact same y=0 regardless of any column's own caption
+  // text length, since the caption no longer sits above it at all).
+  // logColItem is host-only; logCaptionItem is the caption, width-matched
+  // 1:1 with its own column so the two rows' flex layouts line up
+  // column-for-column automatically (same widths, same gap). The bar itself
+  // sits in the right portion of the column (the left LITH_LOG_PAD.left px
+  // are the depth-tick number gutter) — a plain width:100%/text-align:center
+  // caption would center over the whole column, i.e. visibly left of the
+  // bar, so it's shifted right by LITH_LOG_TITLE_SHIFT to center over the
+  // bar instead.
+  const logColItem = logId => `
       <div class="lith-log-col-item" style="width:${LITH_LOG_W}px">
-        <div class="lith-log-col-title" style="width:${LITH_LOG_W}px;margin-left:${LITH_LOG_TITLE_SHIFT}px" title="${esc(ctLabel)}">${esc(ctLabel)}</div>
         <div id="${logId}" class="lith-log-host"></div>
       </div>`;
+  const logCaptionItem = ctLabel => `
+      <div class="lith-log-caption" style="width:${LITH_LOG_W}px;margin-left:${LITH_LOG_TITLE_SHIFT}px" title="${esc(ctLabel)}">${esc(ctLabel)}</div>`;
 
-  let logsHtml;
+  let logsHtml, captionsHtml;
   if (combined) {
     const logId = `lith-log-${sfId.replace(/[^a-zA-Z0-9]/g, '_')}`;
-    if (drawJobs) drawJobs.push({ containerId: logId, obs: allObs, sf });
+    if (drawJobs) drawJobs.push({ kind: 'lith', containerId: logId, obs: allObs, sf });
     const ctVals = [...new Set(lithSystems.flatMap(sys => sys.classificationTypes)
       .map(ct => ct.value || ct.codeSpace || 'Unknown'))];
-    logsHtml = logColItem(logId, allObs, ctVals.length ? ctVals.join(', ') : 'Unknown');
+    const ctLabel = ctVals.length ? ctVals.join(', ') : 'Unknown';
+    logsHtml = logColItem(logId);
+    captionsHtml = logCaptionItem(ctLabel);
   } else {
     // Spatially-overlapping LithologySystems (e.g. USCS + USDA logs of the
     // same interval) each get their own log column, side by side, but all
@@ -17993,7 +18709,7 @@ function renderLithBadgeContent(sfId, sf, lithSystems, allObs, drawJobs) {
     const finiteMaxs = ranges.map(r => r.max).filter(isFinite);
     const dMin = finiteMins.length ? Math.min(...finiteMins) : undefined;
     const dMax = finiteMaxs.length ? Math.max(...finiteMaxs) : undefined;
-    logsHtml = '';
+    logsHtml = ''; captionsHtml = '';
     lithSystems.forEach((sys, idx) => {
       const hasSysDepth = sys.observations.some(o =>
         isFinite(parseFloat(o.from)) && isFinite(parseFloat(o.to)) && parseFloat(o.to) > parseFloat(o.from));
@@ -18002,8 +18718,9 @@ function renderLithBadgeContent(sfId, sf, lithSystems, allObs, drawJobs) {
       const ctLabel = sys.classificationTypes.length
         ? sys.classificationTypes.map(ct => ct.value || ct.codeSpace || 'Unknown').join(', ')
         : `Log ${idx + 1}`;
-      if (drawJobs) drawJobs.push({ containerId: logId, obs: sys.observations, sf, dMin, dMax });
-      logsHtml += logColItem(logId, sys.observations, ctLabel);
+      if (drawJobs) drawJobs.push({ kind: 'lith', containerId: logId, obs: sys.observations, sf, dMin, dMax });
+      logsHtml += logColItem(logId);
+      captionsHtml += logCaptionItem(ctLabel);
     });
   }
 
@@ -18012,10 +18729,20 @@ function renderLithBadgeContent(sfId, sf, lithSystems, allObs, drawJobs) {
   // in-canvas title now that every column draws its own boundary ticks.
   const uom = depthUomForRows(allObs) || '';
   const axisLabel = `Depth${uom ? ` (${uom})` : ''}`;
+  // Invisible spacer, same text/class as the real axis label so it renders
+  // at the exact same WIDTH (vertical-text width isn't a fixed constant) —
+  // keeps the caption row's captions aligned under their own log columns.
+  // max-height:0 — see the Sample badge's own copy of this comment for why
+  // (only width needs to match; the real label's vertical-rl text is tall
+  // enough to drag the whole caption row's height up via align-items:stretch
+  // otherwise, leaving a large gap before the legend).
+  const axisSpacer = `<div class="lith-log-axis-label" style="visibility:hidden;max-height:0;overflow:hidden">${esc(axisLabel)}</div>`;
   const logCol = `<div class="lith-log-col">
       <div class="lith-log-row">
         <div class="lith-log-axis-label">${esc(axisLabel)}</div>${logsHtml}
-      </div>${buildLithLegend(allObs)}</div>`;
+      </div>
+      <div class="lith-log-caption-row">${axisSpacer}${captionsHtml}</div>
+      ${buildLithLegend(allObs)}</div>`;
   const scopeId = `lith-badge-${sfId.replace(/[^a-zA-Z0-9]/g, '_')}`;
   return `<div class="lith-badge-layout" id="${scopeId}">${logCol}<div class="lith-table-col">${html}</div></div>`;
 }
