@@ -12828,6 +12828,149 @@
         </SamplingActivity>
     </samplingActivity>
 
+    <!-- ============================================================
+         BH-Mockup-3 rock coring — HQ wireline diamond-bit core run,
+         269-279 ft (10 ft advance), through moderately weathered to
+         fresh granodiorite bedrock. Authored for full schema coverage
+         of SamplingActivity/SampleProduced/Sample (including the RQD-
+         determination fields: samplingActivityRQD, rockQualityDesignationLength,
+         solidCoreRecoveryLength, lengthLongestPortion) and to exercise
+         the new collapsible "Rock Quality Designation (RQD)" sub-section
+         in the Samples badge display.
+         ============================================================ -->
+    <samplingActivity>
+        <SamplingActivity gml:id="CORE_SA_BH-Mockup-3_269.00_279.00_RC">
+            <gml:description>HQ wireline diamond-bit rock coring activity advancing a continuous 10-ft core run in moderately weathered to fresh granodiorite bedrock, BH-Mockup-3, 269-279 ft depth.</gml:description>
+            <gml:identifier codeSpace="http://www.globalgeosolutions.com/projects">SA-BH-MOCKUP-3-RC-01</gml:identifier>
+            <gml:name>R-1</gml:name>
+            <internalIdentifier codeSpace="http://www.globalgeosolutions.com/projects">SA-BH-MOCKUP-3-269</internalIdentifier>
+            <status>complete</status>
+            <implementationStatus>actual</implementationStatus>
+            <associatedFile xlink:href="#AF001"/>
+            <role>
+                <Role>
+                    <rolePerformed codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/roles.xml#drilling_contractor">drillingContractor</rolePerformed>
+                    <businessAssociate xlink:href="#BA001"/>
+                </Role>
+            </role>
+            <remark>
+                <Remark>
+                    <content>Encountered a 4-in wide clay-filled joint at approximately 271.5 ft; minor drilling fluid loss noted through this interval. Core otherwise competent with tightly healed joints.</content>
+                    <author xlink:href="#BA001"/>
+                    <remarkDateTime frame="#ISO-8601">2026-02-14</remarkDateTime>
+                </Remark>
+            </remark>
+            <investigationTarget>Natural Ground</investigationTarget>
+            <projectRef xlink:href="#Project-Mockup-1"/>
+            <samplingFeatureRef xlink:href="#BH-Mockup-3"/>
+            <samplingLocation>
+                <LinearExtent gml:id="SAL_BH-Mockup-3_269" srsDimension="1" srsName="#lsr-BH-Mockup-3">
+                    <gml:posList>269 279</gml:posList>
+                </LinearExtent>
+            </samplingLocation>
+            <activityType>collect</activityType>
+            <lengthLongestPortion uom="ft" howDetermined="measured">1.80</lengthLongestPortion>
+            <purpose>Recovery of rock core for lithologic logging, RQD/percent recovery determination, and laboratory strength testing (UCS, point load).</purpose>
+            <rockQualityDesignationLength uom="ft" howDetermined="measured">6.40</rockQualityDesignationLength>
+            <samplingActivityRQD uom="%" howDetermined="calculated">64</samplingActivityRQD>
+            <sampleProduced>
+                <SampleProduced gml:id="SampleProduced_BH-Mockup-3_269.00_278.40_RC">
+                    <gml:description>Recovered rock core interval within core run R-1, HQ wireline coring, BH-Mockup-3.</gml:description>
+                    <gml:identifier codeSpace="http://www.globalgeosolutions.com/projects">SP-BH-MOCKUP-3-269-RC</gml:identifier>
+                    <gml:name>R-1</gml:name>
+                    <status>complete</status>
+                    <remark>
+                        <Remark>
+                            <content>Core barrel retrieved and laid out in sequence within core boxes immediately upon surface arrival; run photographed prior to logging.</content>
+                            <author xlink:href="#BA001"/>
+                            <remarkDateTime frame="#ISO-8601">2026-02-14</remarkDateTime>
+                        </Remark>
+                    </remark>
+                    <location>
+                        <LinearExtent gml:id="SPL_BH-Mockup-3_269" srsDimension="1" srsName="#lsr-BH-Mockup-3">
+                            <gml:posList>269.0 278.4</gml:posList>
+                        </LinearExtent>
+                    </location>
+                    <sampleTime>
+                        <TimeInterval gml:id="STI_SampleProduced_BH-Mockup-3_269">
+                            <start frame="#ISO-8601">2026-02-14T08:15:00-08:00</start>
+                            <end frame="#ISO-8601">2026-02-14T11:40:00-08:00</end>
+                        </TimeInterval>
+                    </sampleTime>
+                </SampleProduced>
+            </sampleProduced>
+            <samplerInsertionMethod>rotary drilled (wireline coring)</samplerInsertionMethod>
+            <samplingDate>
+                <TimeInterval gml:id="SDI_CORE_SA_BH-Mockup-3_269">
+                    <start frame="#ISO-8601">2026-02-14T08:15:00-08:00</start>
+                    <end frame="#ISO-8601">2026-02-14T11:40:00-08:00</end>
+                </TimeInterval>
+            </samplingDate>
+            <samplingEnvironment>
+                <Environment gml:id="ENV-CORE-BH-Mockup-3">
+                    <gml:name codeSpace="Global Geoslutions">BH-Mockup-3 Coring Conditions</gml:name>
+                    <status>complete</status>
+                    <ambientTemperature uom="degC" howDetermined="measured">14.5</ambientTemperature>
+                    <weather>Overcast, light intermittent rain, cool</weather>
+                    <windSpeed uom="km/h" howDetermined="measured">8</windSpeed>
+                </Environment>
+            </samplingEnvironment>
+            <samplingEquipment>
+                <Equipment gml:id="EQ-CORE-BH-Mockup-3">
+                    <gml:name codeSpace="Global Geoslutions">HQ Triple-Tube Wireline Core Barrel, 3.0 m</gml:name>
+                    <internalIdentifier codeSpace="http://www.globalgeosolutions.com/projects">GBL-COREBARREL-HQ-MOCKUP3</internalIdentifier>
+                    <status>complete</status>
+                    <implementationStatus>actual</implementationStatus>
+                    <class>tripleTubeWireline</class>
+                    <make>Boart Longyear</make>
+                    <modelNumber>HQ3 Triple-Tube Core Barrel</modelNumber>
+                    <serialNumber>BLY-HQ3-2021-0088</serialNumber>
+                    <otherEquipmentProperty>
+                        <Parameter index="1" gml:id="PARAM-EQ-CORE-BH-Mockup-3-DIA">
+                            <parameterName>coreBarrelDiameter</parameterName>
+                            <parameterValue>63.5</parameterValue>
+                            <parameterUnits>mm</parameterUnits>
+                        </Parameter>
+                    </otherEquipmentProperty>
+                </Equipment>
+            </samplingEquipment>
+            <samplingMethod>
+                <Specification gml:id="SPEC-CORE-BH-Mockup-3">
+                    <gml:name codeSpace="DIGGS">HQ Wireline Diamond Core Barrel</gml:name>
+                    <internalIdentifier codeSpace="http://www.globalgeosolutions.com/projects">CORE-SPEC-BH-Mockup-3</internalIdentifier>
+                    <status>complete</status>
+                    <implementationStatus>actual</implementationStatus>
+                    <remark>
+                        <Remark>
+                            <content>Continuous rock core recovered using an HQ-size (96 mm hole, 63.5 mm core) wireline triple-tube diamond core barrel advanced by a diamond-impregnated bit under rotary drilling with water flush, per ASTM D2113.</content>
+                        </Remark>
+                    </remark>
+                    <shortMethodName>HQ Wireline Diamond Coring</shortMethodName>
+                    <standardReferenceNumber>ASTM D2113</standardReferenceNumber>
+                    <standardTitle>Standard Practice for Rock Core Drilling and Sampling of Rock for Site Investigation</standardTitle>
+                    <standardVersion>14</standardVersion>
+                    <otherSpecificationProperty>
+                        <Parameter index="1" gml:id="PARAM-SPEC-CORE-BH-Mockup-3-BITOD">
+                            <parameterName>bitOutsideDiameter</parameterName>
+                            <parameterValue>96</parameterValue>
+                            <parameterUnits>mm</parameterUnits>
+                        </Parameter>
+                    </otherSpecificationProperty>
+                </Specification>
+            </samplingMethod>
+            <solidCoreRecoveryLength uom="ft" howDetermined="measured">9.00</solidCoreRecoveryLength>
+            <totalSampleRecoveryLength uom="ft" howDetermined="measured">9.40</totalSampleRecoveryLength>
+            <totalSampleRecovery uom="%" howDetermined="calculated">94</totalSampleRecovery>
+            <otherSamplingActivityProperty>
+                <Parameter index="1" gml:id="PARAM-SA-CORE-BH-Mockup-3-CREW">
+                    <parameterName>drillCrew</parameterName>
+                    <parameterValue>Crew 2 - J. Alvarez (driller), M. Reyes (field geologist)</parameterValue>
+                </Parameter>
+            </otherSamplingActivityProperty>
+            <coringPushPressure uom="psi" howDetermined="measured">450</coringPushPressure>
+        </SamplingActivity>
+    </samplingActivity>
+
     <sample>
         <Sample gml:id="Sample_BH-33_2.00_1_AU_">
             <gml:name>1</gml:name>
@@ -13423,6 +13566,84 @@
             <classification>Soil</classification>
             <type>Shelby tube</type>
             <condition>Undisturbed</condition>
+        </Sample>
+    </sample>
+
+    <sample>
+        <Sample gml:id="Sample_BH-Mockup-3_269.00_R-1_RC_">
+            <gml:description>HQ rock core recovered from core run R-1, BH-Mockup-3, 269-279 ft.</gml:description>
+            <gml:identifier codeSpace="http://www.globalgeosolutions.com/projects">S-BH-MOCKUP-3-RC-01</gml:identifier>
+            <gml:name>R-1</gml:name>
+            <internalIdentifier codeSpace="http://www.globalgeosolutions.com/projects">S-BH-MOCKUP-3-269-RC</internalIdentifier>
+            <status>complete</status>
+            <implementationStatus>actual</implementationStatus>
+            <associatedFile xlink:href="#AF001"/>
+            <role>
+                <Role>
+                    <rolePerformed codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/roles.xml#geologist">fieldGeologist</rolePerformed>
+                    <businessAssociate xlink:href="#BA001"/>
+                </Role>
+            </role>
+            <remark>
+                <Remark>
+                    <content>Field-logged as moderately weathered, medium-grained granodiorite; grey, moderately strong, closely to moderately fractured. Core boxed and photographed immediately upon retrieval.</content>
+                    <author xlink:href="#BA001"/>
+                    <remarkDateTime frame="#ISO-8601">2026-02-14</remarkDateTime>
+                </Remark>
+            </remark>
+            <projectRef xlink:href="#Project-Mockup-1"/>
+            <samplingActivityRef xlink:href="#CORE_SA_BH-Mockup-3_269.00_279.00_RC"/>
+            <sampleProducedRef xlink:href="#SampleProduced_BH-Mockup-3_269.00_278.40_RC"/>
+            <relativeReferenceSystemOrigin>top of sample</relativeReferenceSystemOrigin>
+            <classification>Rock</classification>
+            <type>HQ rock core</type>
+            <condition>Intact between natural fractures; no drilling-induced grinding or biscuiting observed.</condition>
+            <initialContainer>
+                <Container gml:id="CONTAINER-Sample_BH-Mockup-3_269.00_R-1_RC_">
+                    <containerLabel>CB-1</containerLabel>
+                    <containerType>Wooden Core Box</containerType>
+                    <containerMaterial>Plywood</containerMaterial>
+                    <containerHeight uom="in" howDetermined="reported">4.5</containerHeight>
+                    <containerLength uom="ft" howDetermined="reported">3.0</containerLength>
+                    <containerVolume uom="ft3" howDetermined="calculated">2.06</containerVolume>
+                    <containerWeight uom="lbf" howDetermined="measured">38</containerWeight>
+                    <containerWidth uom="in" howDetermined="reported">22</containerWidth>
+                    <preservativeAdded>None - core boxed dry and photographed prior to transport</preservativeAdded>
+                </Container>
+            </initialContainer>
+            <purpose>Recovery of rock core for lithologic logging, RQD/percent recovery determination, and laboratory strength testing (UCS, point load).</purpose>
+            <sampleWeight uom="lbf" howDetermined="measured">55.00</sampleWeight>
+            <sampleVolume uom="in3" howDetermined="calculated">553</sampleVolume>
+            <sampleDimensions>
+                <SampleDimensions gml:id="SD-Sample_BH-Mockup-3_269.00_R-1_RC_">
+                    <diameter uom="in" howDetermined="reported">2.50</diameter>
+                    <length uom="ft" howDetermined="measured">9.40</length>
+                </SampleDimensions>
+            </sampleDimensions>
+            <sampleMatrix>Rock</sampleMatrix>
+            <initialPreservationMethod>Core boxed immediately upon retrieval; boxes labeled with depth intervals and photographed prior to transport; no chemical preservation required for rock lithologic/strength testing.</initialPreservationMethod>
+            <chainOfCustodyEvent>
+                <ChainOfCustodyEvent>
+                    <sourceCustodian xlink:href="#BA001"/>
+                    <destinationCustodian xlink:href="#BA001"/>
+                    <dateInitiated frame="#ISO-8601">2026-02-14</dateInitiated>
+                    <dateCompleted frame="#ISO-8601">2026-02-17</dateCompleted>
+                    <sampleContainer xlink:href="#CONTAINER-Sample_BH-Mockup-3_269.00_R-1_RC_"/>
+                    <shippingContainer xlink:href="#SHIPCONTAINER-BH-Mockup-1_D1"/>
+                    <storageLocation>
+                        <Locality gml:id="LOC-GGL-RIYADH-LAB-CB1">
+                            <district>GGL Riyadh Regional Laboratory - Core Storage Rack 2</district>
+                        </Locality>
+                    </storageLocation>
+                </ChainOfCustodyEvent>
+            </chainOfCustodyEvent>
+            <otherSampleProperty>
+                <Parameter index="1" gml:id="PARAM-SAMPLE-BH-Mockup-3-269-CBNUM">
+                    <parameterName>coreBoxNumber</parameterName>
+                    <parameterValue>CB-1</parameterValue>
+                </Parameter>
+            </otherSampleProperty>
+            <coreDistkurbance>Minor mechanical breaks at pre-existing joints and bedding partings during drilling and retrieval; no biscuiting, grinding, or core loss due to disturbance.</coreDistkurbance>
         </Sample>
     </sample>
 

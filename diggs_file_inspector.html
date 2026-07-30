@@ -1218,6 +1218,18 @@ html,body{height:100%;font-family:var(--font-ui);background:var(--bg);color:var(
 .kv-row.kv-row-border-top { border-top:1px solid var(--border); }
 .kv-row.kv-row-border-bottom { border-bottom:1px solid var(--border); }
 .kv-row.kv-row-no-border-bottom { border-bottom:none; }
+/* "Strong" border variant (2026-07-30, rowCfg.borderTop/borderBottom:
+   'strong') — same #6b7280 color .kv-section-header's own border-top
+   already uses, for a row that needs to read as a real object-boundary
+   divider (e.g. the plain row immediately after a collapsed/ended nested
+   category) rather than the low-contrast var(--border) every other .kv-row
+   divider uses. .kv-row-border-bottom-strong in particular must win over
+   .kv-row:last-child — declared after it here, same equal-specificity/
+   source-order-wins convention as .kv-row-border-bottom above, so it still
+   shows a border even when the row is its container's last child (the
+   whole point: marking the true end of an object's own property list). */
+.kv-row.kv-row-border-top-strong { border-top:1px solid #6b7280; }
+.kv-row.kv-row-border-bottom-strong { border-bottom:1px solid #6b7280; }
 .kv-key {
   color:var(--text-muted);font-weight:700;width:110px;flex-shrink:0;font-size:11px;padding-top:1px;
 }
@@ -6350,21 +6362,36 @@ function _itemLabel(rowCfg, node, label) {
  *  .kv-key/.kv-val respectively — per-row style override, default styling
  *  when omitted. See wrapCategoryHeader's categoryClass for the analogous
  *  override on a category/banner header, a deliberately separate knob.
- *  borderTop/borderBottom (optional booleans, from rowCfg) override the
- *  automatic border (every .kv-row gets a bottom border except the last
- *  child of its container, never a top border) — `borderTop:true` adds a
- *  top border; `borderBottom:true`/`false` forces one on/off regardless of
- *  the automatic last-child rule. Omitted (undefined, the default for
- *  both) leaves the automatic CSS rule untouched. Only applies to plain
- *  .kv-row rows (renderSimpleRow) — a category/banner header
- *  (wrapCategoryHeader) has its own, different default divider convention
- *  (a top border always, via .kv-section-header) and isn't affected. */
+ *  borderTop/borderBottom (optional, from rowCfg) override the automatic
+ *  border (every .kv-row gets a bottom border except the last child of its
+ *  container, never a top border) — `true` adds/forces the normal
+ *  low-contrast var(--border) divider; `false` (borderBottom only) forces
+ *  one off regardless of the automatic last-child rule. `'strong'`
+ *  (2026-07-30) is a third option on either side — same #6b7280 color
+ *  .kv-section-header's own border-top uses, for a row that needs to read
+ *  as a real object-boundary divider rather than an ordinary field-to-field
+ *  separator (e.g. the plain row immediately following where a nested
+ *  category's own property list ends — see OBJECT_CONFIGS.SamplingActivity's
+ *  investigationTarget row, `borderTop:'strong'`, marking the end of the
+ *  preceding associatedFile category). `borderBottom:'strong'` in
+ *  particular still shows even on that row's own last child (see the CSS
+ *  comment on .kv-row-border-bottom-strong) — the only way to mark the true
+ *  end of an object's own property list, since a plain object-configs array
+ *  has no built-in "this is the last row" concept for the engine to key off
+ *  automatically; tag the actual last row's own config with it. Omitted
+ *  (undefined, the default for both) leaves the automatic CSS rule
+ *  untouched. Only applies to plain .kv-row rows (renderSimpleRow) — a
+ *  category/banner header (wrapCategoryHeader) has its own, different
+ *  default divider convention (a top border always, via .kv-section-header)
+ *  and isn't affected. */
 function renderSimpleRow(keyHtml, valHtml, labelClass, valueClass, borderTop, borderBottom) {
   const keyCls = labelClass ? `kv-key ${labelClass}` : 'kv-key';
   const valCls = valueClass ? `kv-val ${valueClass}` : 'kv-val';
   let rowCls = 'kv-row';
-  if (borderTop) rowCls += ' kv-row-border-top';
-  if (borderBottom === true) rowCls += ' kv-row-border-bottom';
+  if (borderTop === 'strong') rowCls += ' kv-row-border-top-strong';
+  else if (borderTop) rowCls += ' kv-row-border-top';
+  if (borderBottom === 'strong') rowCls += ' kv-row-border-bottom-strong';
+  else if (borderBottom === true) rowCls += ' kv-row-border-bottom';
   else if (borderBottom === false) rowCls += ' kv-row-no-border-bottom';
   return `<div class="${rowCls}"><span class="${keyCls}">${keyHtml}</span><span class="${valCls}">${valHtml}</span></div>`;
 }
@@ -7789,6 +7816,15 @@ OBJECT_CONFIGS.AssociatedFile = [
   { path: 'diggs:compression' },
   { path: 'diggs:encryption' },
   { path: 'diggs:creatingApplication', label: 'Creating Application' },
+  // Last row in this config — borderBottom:'strong' marks the true end of
+  // AssociatedFile's own property list (the #6b7280 divider, matching
+  // .kv-section-header's own border-top brightness) since this row is
+  // always a nested category's own last child, where the default CSS
+  // (.kv-row:last-child) strips the border entirely. See renderSimpleRow's
+  // own comment on borderTop/borderBottom:'strong' for why this has to be
+  // tagged here (the object's own last row) rather than on whatever
+  // property happens to follow AssociatedFile in a given parent config —
+  // this way it's correct everywhere AssociatedFile is embedded.
   { path: 'diggs:contact', multi: true },
 ],
 
@@ -8487,10 +8523,38 @@ OBJECT_CONFIGS.Environment = [
 //  ../diggs-schema, built for the SamplingActivity+Sample joined interval
 //  table (renderSamplingBadgeContent, near renderLithBadgeContent). Also
 //  used standalone (each type's own config renders the full object) —
-//  consumed-by-table fields (samplingLocation on SamplingActivity; gml:name/
-//  type on Sample) stay listed here per the same precedent as
-//  LithologyObservation's own `location` row.
+//  consumed-by-table fields (samplingLocation/sampleProduced on
+//  SamplingActivity; gml:name/type on Sample; location on SampleProduced)
+//  stay listed here per the same precedent as LithologyObservation's own
+//  `location` row.
 // ══════════════════════════════════════════════════════════════
+
+// RQD-determination fields (2026-07-30) — four sibling leaf properties
+// directly on SamplingActivityType's own sequence, no shared parent element
+// of their own, so they can't group into a collapsible sub-category the
+// normal way (a multi:true object-valued row, whose category chrome comes
+// from the resolved child object automatically). Grouped instead via the
+// `path:'.'` + `configOverride` FUNCTION combination `renderPropertyRow`
+// already supports for a different case (Borehole.constructionMethod's own
+// per-node grouping) — `path:'.'` makes `targets` always exactly `[el]`
+// (the owning SamplingActivity element itself, never empty, so this isn't
+// the normal "no matching node -> row vanishes" case), and
+// `configOverride(el)` returns the sub-panel's body HTML by rendering these
+// four paths against that same `el` via the ordinary renderKVObject/
+// renderPropertyRow machinery — so per-field empty-suppression is
+// unchanged, just collected into one wrapCategoryHeader wrapper instead of
+// four flat rows. wrapCategoryHeader itself already returns '' for an empty
+// body (see its own comment), and renderKVObject returns '' when every one
+// of its rows is empty, so the whole "Rock Quality Designation (RQD)"
+// section disappears entirely when none of the four are populated — same
+// graceful-absence behavior as any other object-valued category, without
+// needing a real schema object to key off.
+const _SA_RQD_CONFIG = [
+  { path: 'diggs:samplingActivityRQD', label: 'Sampling Activity RQD' },
+  { path: 'diggs:lengthLongestPortion', label: 'Length of Longest Portion' },
+  { path: 'diggs:rockQualityDesignationLength', label: 'Rock Quality Designation Length' },
+  { path: 'diggs:solidCoreRecoveryLength', label: 'Solid Core Recovery Length' },
+];
 
 // SamplingActivity — SamplingActivityType (core/Core.xsd:2064) extends
 // AbstractSamplingActivityType (core/AbstractTypes.xsd:1006), which extends
@@ -8501,25 +8565,32 @@ OBJECT_CONFIGS.Environment = [
 // associatedProjectRef/originalProjectRef/sourceSampleRef) are all omitted
 // per the Reference-Property convention.
 OBJECT_CONFIGS.SamplingActivity = [
+  { sectionHeader: 'Sampling Activity Details' },
   ..._OBJ_BASE_FIELDS,
   ..._FEATURE_LEADING,
-  { path: 'diggs:investigationTarget', multi: true, label: 'Investigation Target', labelPlural: 'Investigation Targets' },
+  ..._FEATURE_TRAILING,
+  { path: 'diggs:investigationTarget', multi: true, label: 'Investigation Target', labelPlural: 'Investigation Targets', borderTop: 'strong' },
   { path: 'diggs:samplingLocation', label: 'Sampling Location' },
-  { path: 'diggs:activityType', label: 'Activity Type' },
-  { path: 'diggs:lengthLongestPortion', label: 'Length of Longest Portion' },
   { path: 'diggs:purpose' },
-  { path: 'diggs:rockQualityDesignationLength', label: 'Rock Quality Designation Length' },
-  { path: 'diggs:samplingActivityRQD', label: 'Sampling Activity RQD' },
-  { path: 'diggs:sampleProduced', multi: true, label: 'Sample Produced', labelPlural: 'Samples Produced' },
-  { path: 'diggs:samplerInsertionMethod', label: 'Sampler Insertion Method' },
+  { path: 'diggs:activityType', label: 'Activity Type' },
   { path: 'diggs:samplingDate', label: 'Sampling Date' },
-  { path: 'diggs:samplingEnvironment', multi: true, label: 'Sampling Environment', labelPlural: 'Sampling Environments' },
-  { path: 'diggs:samplingEquipment', multi: true, label: 'Sampling Equipment' },
-  { path: 'diggs:samplingMethod', multi: true, label: 'Sampling Method', labelPlural: 'Sampling Methods' },
-  { path: 'diggs:solidCoreRecoveryLength', label: 'Solid Core Recovery Length' },
+  { path: 'diggs:samplerInsertionMethod', label: 'Sampler Insertion Method' },
   { path: 'diggs:totalSampleRecoveryLength', label: 'Total Sample Recovery Length' },
   { path: 'diggs:totalSampleRecovery', label: 'Total Sample Recovery' },
   { path: 'diggs:mixingTime', label: 'Mixing Time' },
+  { path: 'diggs:coringPushPressure', label: 'Coring Push Pressure' },
+  { path: 'diggs:coringPushPressureMin', label: 'Coring Push Pressure (Min)' },
+  { path: 'diggs:coringPushPressureMax', label: 'Coring Push Pressure (Max)' },
+  { path: 'diggs:samplingMethod', borderTop: true, borderBottom: true, multi: true, label: 'Sampling Method', labelPlural: 'Sampling Methods' },
+
+  {
+    path: '.', label: 'Rock Quality Designation (RQD)',
+    configOverride: saEl => renderKVObject(saEl, _SA_RQD_CONFIG),
+  },
+
+  { path: 'diggs:samplingEquipment', borderTop: true, multi: true, label: 'Sampling Equipment' },
+  { path: 'diggs:sampleProduced', multi: true, label: 'Sample Produced', labelPlural: 'Samples Produced' },
+  { path: 'diggs:samplingEnvironment', multi: true, label: 'Sampling Environment', labelPlural: 'Sampling Environments' },
   {
     path: 'diggs:otherSamplingActivityProperty', multi: true,
     label: 'Other Property', labelPlural: 'Other Properties', alwaysGroup: true,
@@ -8529,10 +8600,47 @@ OBJECT_CONFIGS.SamplingActivity = [
       return txt ? escHtml(txt) + _codeSpaceKeyExtra(nameEl) : null;
     },
   },
-  { path: 'diggs:coringPushPressure', label: 'Coring Push Pressure' },
-  { path: 'diggs:coringPushPressureMin', label: 'Coring Push Pressure (Min)' },
-  { path: 'diggs:coringPushPressureMax', label: 'Coring Push Pressure (Max)' },
-  ..._FEATURE_TRAILING,
+];
+
+// SampleProduced's own remaining fields, spliced into OBJECT_CONFIGS.Sample
+// below so they display as part of the Sample's own expand rather than as a
+// separately-headed block — Sample and SampleProduced are linked only by a
+// JS-level join (a Sample carries just a reverse xlink:href back to its
+// producing SampleProduced; see the "SamplingActivity / Sample" architecture
+// note), not physical containment, so an ordinary `path` row on
+// OBJECT_CONFIGS.Sample can't reach a SampleProduced field — a Sample
+// element has no `sampleTime` child of its own. Each row's `compute` reads
+// `_sampleExpandSP` (declared just below) instead of its own `el`.
+// `_sampleExpandSP` is set to that row's own SampleProduced element
+// immediately before rendering a joined Sample's expand and cleared
+// immediately after (renderSamplingBadgeContent) — safe as a plain
+// module-level var since rendering is synchronous and never reentrant, same
+// convention as other per-render context globals in this file (e.g.
+// `_rifsState`). Outside that joined-table context (Sample rendered
+// standalone, if that ever happens) `_sampleExpandSP` is null and the row
+// silently renders nothing. `diggs:location` is deliberately NOT
+// represented here — it's already shown via the joined table's own Sample
+// From/To columns (see consumedSA's `diggs:sampleProduced` exclusion).
+let _sampleExpandSP = null;
+const _SAMPLE_PRODUCED_TRAILING = [
+  {
+    label: 'When Produced',
+    compute: () => {
+      if (!_sampleExpandSP) return null;
+      const n = evalXPath(_sampleExpandSP, 'diggs:sampleTime')[0];
+      if (!n) return null;
+      // diggs:sampleTime is a TimeIntervalPropertyType — always wraps a
+      // TimeInterval (inline or xlink:href), never a bare dateTime (verified
+      // against ../diggs-schema/core/Common.xsd). renderSimplePropertyCell
+      // would just concatenate the wrapper's raw start+end text nodes
+      // together (two unformatted ISO strings); timeIntervalInline is the
+      // same formatter every other TimeInterval-typed row in the app uses
+      // (SPECIAL_OBJECT_FORMATTERS.TimeInterval) — same-day start/end
+      // collapses to one date + a time range, duration shown when present.
+      const html = FORMAT_FN.timeIntervalInline(n);
+      return html || null;
+    },
+  },
 ];
 
 // Sample — SampleType (core/Core.xsd:2127) extends AbstractSampleType
@@ -8550,22 +8658,21 @@ OBJECT_CONFIGS.SamplingActivity = [
 OBJECT_CONFIGS.Sample = [
   ..._OBJ_BASE_FIELDS,
   ..._FEATURE_LEADING,
+  ..._FEATURE_TRAILING,
+  ..._SAMPLE_PRODUCED_TRAILING,
   { path: 'diggs:relativeReferencingSystem', label: 'Relative Referencing System' },
   { path: 'diggs:relativeReferenceSystemOrigin', label: 'Relative Reference System Origin' },
   { path: 'diggs:classification' },
   { path: 'diggs:type', label: 'Type' },
-  { path: 'diggs:condition' },
-  { path: 'diggs:extrusionMethod', label: 'Extrusion Method' },
-  { path: 'diggs:initialContainer', label: 'Initial Container' },
   { path: 'diggs:purpose' },
-  { path: 'diggs:sampleWeight', label: 'Sample Weight' },
-  { path: 'diggs:sampleVolume', label: 'Sample Volume' },
-  { path: 'diggs:sampleDimensions', label: 'Sample Dimensions' },
+  { path: 'diggs:condition' },
+  { path: 'diggs:coreDistkurbance', label: 'Core Disturbance' },
   { path: 'diggs:sampleMatrix', label: 'Sample Matrix' },
   { path: 'diggs:initialPreservationMethod', label: 'Initial Preservation Method' },
-  { path: 'diggs:chainOfCustodyEvent', multi: true, label: 'Chain of Custody Event', labelPlural: 'Chain of Custody Events' },
-  {
-    path: 'diggs:otherSampleProperty', multi: true,
+  { path: 'diggs:extrusionMethod', label: 'Extrusion Method' },
+  { path: 'diggs:sampleWeight', label: 'Sample Weight' },
+  { path: 'diggs:sampleVolume', label: 'Sample Volume' },
+  { path: 'diggs:otherSampleProperty', multi: true,
     label: 'Other Property', labelPlural: 'Other Properties', alwaysGroup: true,
     itemLabel: el => {
       const nameEl = evalXPath(el, 'diggs:parameterName')[0];
@@ -8573,8 +8680,9 @@ OBJECT_CONFIGS.Sample = [
       return txt ? escHtml(txt) + _codeSpaceKeyExtra(nameEl) : null;
     },
   },
-  { path: 'diggs:coreDistkurbance', label: 'Core Disturbance' },
-  ..._FEATURE_TRAILING,
+  { path: 'diggs:sampleDimensions', label: 'Sample Dimensions' },
+  { path: 'diggs:initialContainer', label: 'Initial Container' },
+ { path: 'diggs:chainOfCustodyEvent', multi: true, label: 'Chain of Custody Event', labelPlural: 'Chain of Custody Events' },
 ];
 
 // SampleProduced — SampleProducedType (core/Common.xsd:2267) extends
@@ -8583,6 +8691,7 @@ OBJECT_CONFIGS.Sample = [
 // plain optional rows, same as every other choice branch in this engine)
 // + _OBJ_TYPE_TRAILING.
 OBJECT_CONFIGS.SampleProduced = [
+  { sectionHeader: 'Sample Produced', labelPlural: 'Samples Produced' },
   ..._OBJ_BASE_FIELDS,
   { path: 'diggs:location', label: 'Location' },
   { path: 'diggs:sampleTime', label: 'Sample Time' },
@@ -9276,9 +9385,9 @@ OBJECT_CONFIGS.BoreholeConstructionMethod = [
 // are a known gap for a future pass). [choice: waterDepth? | isDry?].
 OBJECT_CONFIGS.BoreholeEvent = [
  { path: 'diggs:time', label: 'When' },
-  { path: 'diggs:location', label: 'Where' },
+ { path: 'diggs:location', label: 'Where' },
  ..._OBJ_BASE_FIELDS,
-   { path: 'diggs:casingBottom', label: 'Casing Bottom' },
+  { path: 'diggs:casingBottom', label: 'Casing Bottom' },
   { path: 'diggs:holeBottom', label: 'Hole Bottom' },
   { path: 'diggs:waterDepth', label: 'Water Depth' },
   { path: 'diggs:isDry', label: 'Dry Borehole', boolean: true },
@@ -18220,7 +18329,9 @@ function _sampleMarkerClick(markerEl) {
 /** renderSamplingBadgeContent — orchestrator for the "Material Samples"
  *  badge (buildAssocBadges). Builds one interval-style table joining each
  *  SamplingActivity to its produced Sample(s), sorted in SamplingActivity
- *  depth order; each row expands to the remaining Sample fields then the
+ *  depth order; each row expands to the remaining Sample fields (which now
+ *  also carries the joining SampleProduced's own remaining fields, e.g.
+ *  Sample Time — see _SAMPLE_PRODUCED_TRAILING/_sampleExpandSP), then the
  *  remaining SamplingActivity fields (renderKVObject against
  *  OBJECT_CONFIGS.Sample/.SamplingActivity, per explicit user-specified
  *  order); plus the graphic column (lithology log, or a hollow-rectangle
@@ -18306,8 +18417,15 @@ function renderSamplingBadgeContent(sfId, sf, drawJobs) {
   // element's own expand panel — same exact-path-consumption convention as
   // every other interval/data table (occasional cosmetic duplication of a
   // NON-excluded field, e.g. a 2nd samplingMethod occurrence, is an accepted
-  // cost — see _buildTableExpandHtml's own comment).
-  const consumedSA = new Set(['diggs:samplingLocation']);
+  // cost — see _buildTableExpandHtml's own comment). `diggs:sampleProduced`
+  // is excluded from the SamplingActivity expand too — left in, its generic
+  // object render would re-show that row's own SampleProduced.location (the
+  // exact source of the Sample From/To columns) as a hard duplicate, not the
+  // "cosmetic" kind of overlap the convention above tolerates. Its own
+  // remaining fields (sampleTime, etc.) are still surfaced, but merged into
+  // the Sample's own expand instead of a separate section — see
+  // _SAMPLE_PRODUCED_TRAILING/_sampleExpandSP, set below.
+  const consumedSA = new Set(['diggs:samplingLocation', 'diggs:sampleProduced']);
   const consumedSample = new Set(['gml:name', 'diggs:type']);
 
   const builtRows = rawRows.map(({ r, rawIdx, saFT, spFT, methodLabel }, i) => {
@@ -18332,9 +18450,16 @@ function renderSamplingBadgeContent(sfId, sf, drawJobs) {
     const recoveryCell = { html: escHtml(String(pctRounded)) + '%' };
 
     const saExpand = _buildTableExpandHtml(r.sa, {}, consumedSA, true);
+    // _sampleExpandSP gives OBJECT_CONFIGS.Sample's own _SAMPLE_PRODUCED_TRAILING
+    // row (Sample Time) access to this row's joined SampleProduced element —
+    // set immediately before rendering, cleared immediately after (see that
+    // const's own comment for why this is safe as a module-level var).
+    _sampleExpandSP = r.sp || null;
     const sampleExpand = r.sample ? _buildTableExpandHtml(r.sample, {}, consumedSample, true) : '';
-    // Sample fields first, then SamplingActivity fields — explicit user
-    // spec order.
+    _sampleExpandSP = null;
+    // Sample fields (now including the joined SampleProduced's own remaining
+    // fields, e.g. Sample Time) first, then SamplingActivity fields —
+    // explicit user spec order.
     const expandHtml = sampleExpand + saExpand;
 
     // Row key for the table<->graphic sync (_sampleRowClick/_sampleMarkerClick)
