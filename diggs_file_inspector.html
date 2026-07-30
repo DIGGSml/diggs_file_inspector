@@ -7565,13 +7565,137 @@ function renderProcedureSection(procObjs, ctx) {
   ctx = ctx || {};
   const drawJobs = [];
   let html = '';
+  let plotHtml = '';
   for (const proc of (procObjs || [])) {
     if (!proc) continue;
     const cfg = OBJECT_CONFIGS[proc.localName];
-    html += cfg
+    const plotBuilder = PROCEDURE_PLOT_BUILDERS[proc.localName];
+    if (plotBuilder) {
+      const built = plotBuilder(proc, ctx);
+      if (built && built.html) {
+        plotHtml += built.html;
+        for (const j of (built.drawJobs || [])) drawJobs.push(j);
+      }
+    }
+    const kvHtml = cfg
       ? renderKVObject(proc, cfg)
       : renderGenericObject(proc, { drawJobs, depthUom: ctx.depthUom, skip: new Set() }, 0);
+    html += kvHtml;
   }
+  return { html, drawJobs, plotHtml };
+}
+
+/**
+ * PROCEDURE_PLOT_BUILDERS — per-procedure-type hook for a plot block shown
+ * at the very top of a measurement's Metadata section — ABOVE both the
+ * measurement's own metadata (Name/Investigation Target/...) and the
+ * procedure's KV content, not merely ahead of the procedure's own fields
+ * (see both renderProcedureSection call sites, which prepend the returned
+ * `plotHtml` before `metaHtml + procHtml` rather than folding it into
+ * `html`). Each builder is `(proc, ctx) => {html, drawJobs}|null` — `html`
+ * holds one placeholder `<div id="...">` per plot, `drawJobs` are
+ * `{kind, containerId, ...}` entries drawn once the HTML is live in the DOM
+ * (afterRender — same convention as every other drawJobs consumer in this
+ * file; see buildMeasurementDisplay's dispatch, which branches on `kind`
+ * before falling back to the depth/time `drawResultPlots` shape every other
+ * job already uses).
+ * `ctx.resultSet` (the owning measurement's parsed ResultSet — see both
+ * renderProcedureSection call sites) is how a builder reaches computed
+ * result values (e.g. LL/PI) that live in the Test's outcome, not the
+ * procedure object itself. This is the seam CLAUDE.md flags for future
+ * procedure plot kinds (grain-size, compaction, e-log-p, stress-strain) —
+ * add an entry here, not a new rendering engine.
+ */
+const PROCEDURE_PLOT_BUILDERS = {
+  AtterbergLimitsTest: _buildAtterbergPlots,
+};
+
+/** Pulls {i:log10(x), p:waterContent} points from every `tagName` trial
+ *  child of an AtterbergLimitsTest procedure element (CasagrandeTrial's
+ *  blowCount or FallConeTrial's penetration for `xField`), sorted ascending
+ *  — the shape drawPlot's crosshair binary-search requires. */
+function _atterbergTrialPoints(proc, tagName, xField) {
+  const trials = Array.from(proc.getElementsByTagNameNS(NS.diggs, tagName));
+  const pts = [];
+  for (const t of trials) {
+    const wcEl = t.getElementsByTagNameNS(NS.diggs, 'waterContent')[0];
+    const xEl = t.getElementsByTagNameNS(NS.diggs, xField)[0];
+    const wc = wcEl ? parseFloat(wcEl.textContent) : NaN;
+    const xv = xEl ? parseFloat(xEl.textContent) : NaN;
+    if (isFinite(wc) && isFinite(xv) && xv > 0) pts.push({ i: Math.log10(xv), p: wc });
+  }
+  pts.sort((a, b) => a.i - b.i);
+  return pts;
+}
+
+/** Reads LL/PI (and the USCS symbol, if reported) out of an AtterbergLimitsTest
+ *  Test's own parsed ResultSet by matching each Property's propertyClass
+ *  codeSpace fragment against the DIGGS property dictionary term — the
+ *  computed limits live in the Test's outcome, not the procedure object, so
+ *  this can't be read off `proc` itself. Single-row result (one test, one
+ *  outcome) — returns null if either LL or PI is missing/blank (e.g. a
+ *  non-plastic soil with no PI), since a plasticity chart needs both. */
+function _atterbergLLPI(resultSet) {
+  if (!resultSet || !resultSet.rows.length) return null;
+  const row = resultSet.rows[0];
+  const valFor = frag => {
+    const idx = resultSet.props.findIndex(p => p.codeSpace && p.codeSpace.endsWith('#' + frag));
+    if (idx < 0) return null;
+    const raw = row[idx];
+    if (raw == null || raw === '') return null;
+    const v = parseFloat(raw);
+    return isFinite(v) ? v : null;
+  };
+  const LL = valFor('liquid_limit'), PI = valFor('plasticity_index');
+  if (LL == null || PI == null) return null;
+  const symIdx = resultSet.props.findIndex(p => p.codeSpace && p.codeSpace.endsWith('#uscs_symbol_425'));
+  const symbol = symIdx >= 0 ? row[symIdx] : null;
+  return { LL, PI, symbol };
+}
+
+/** ASTM D4318's two standard reporting plots for an AtterbergLimitsTest:
+ *  the liquid-limit flow curve (water content vs. log blow-count/cone
+ *  penetration, from the procedure's own trial objects) and the USCS
+ *  plasticity chart (PI vs. LL, from the Test's computed result). Either,
+ *  both, or neither may be drawable depending on what the instance actually
+ *  reports (a non-plastic soil has no PI; a one-point LL method has only one
+ *  trial, too few to draw a flow line) — this degrades gracefully rather
+ *  than assuming both are always present. */
+function _buildAtterbergPlots(proc, ctx) {
+  const csTrials = _atterbergTrialPoints(proc, 'CasagrandeTrial', 'blowCount');
+  const fcTrials = _atterbergTrialPoints(proc, 'FallConeTrial', 'penetration');
+  const flow = csTrials.length >= 2 ? { pts: csTrials, kind: 'casagrande' }
+    : fcTrials.length >= 2 ? { pts: fcTrials, kind: 'fallcone' }
+    : null;
+  const llpi = _atterbergLLPI(ctx.resultSet);
+  if (!flow && !llpi) return null;
+
+  const idBase = 'att-plot-' + Math.random().toString(36).slice(2, 9);
+  const jobs = [];
+  if (flow) jobs.push({ kind: 'atterbergFlow', flow });
+  if (llpi) jobs.push({ kind: 'atterbergPlasticity', point: llpi });
+
+  // Side by side at half the pane's width each (not stacked full-width) —
+  // a lone plot still gets only half width, left-aligned, rather than
+  // stretching to fill. No inline width here: the assoc-pane's result
+  // tables are deliberately auto-width (#assoc-content .sub-table —
+  // shrink-to-fit columns, not full pane width), so "half the pane" can't
+  // be expressed as a CSS % of this container (that would resolve against
+  // the table's own already-shrunk width, producing a tiny plot for a
+  // narrow, few-column result table). Each draw function
+  // (_drawAtterbergFlowCurve/_drawAtterbergPlasticityChart) instead sets an
+  // explicit px width at draw time via _atterbergPlotTargetWidth, measured
+  // off the real ancestor .meas-pane-body — which also has the side effect
+  // (verified live) of pulling a too-narrow auto-width table wider to fit,
+  // with no horizontal scrollbar, since it stays under the pane's own
+  // max-width:100% cap.
+  let html = '<div class="att-plot-stack" style="display:flex;flex-direction:row;flex-wrap:wrap;gap:12px;margin-bottom:10px;align-items:flex-start;">';
+  const drawJobs = jobs.map((job, i) => {
+    const containerId = `${idBase}-${i}`;
+    html += `<div id="${containerId}" style="flex:0 0 auto;"></div>`;
+    return Object.assign({ containerId }, job);
+  });
+  html += '</div>';
   return { html, drawJobs };
 }
 
@@ -8516,6 +8640,303 @@ OBJECT_CONFIGS.Environment = [
   { path: 'diggs:windSpeed', label: 'Wind Speed' },
   { path: 'diggs:otherEnvironmentalProperty', multi: true, label: 'Other Property' },
   ..._COMPONENT_TRAILING,
+];
+
+// ══════════════════════════════════════════════════════════════
+//  AtterbergLimitsTest configs (2026-07-30) — full schema trace via
+//  ../diggs-schema. Added alongside the flow-curve/plasticity-chart plots in
+//  PROCEDURE_PLOT_BUILDERS: this is the "generic rendering genuinely needs
+//  special treatment" case CLAUDE.md's own Procedure-content convention
+//  calls out (a plot, bespoke row order/labels) — the first procedure type
+//  in the app to get a hand-authored OBJECT_CONFIGS entry rather than
+//  falling through renderGenericObject. **Row order here is a curated
+//  display order** (method/specimen first, then test parameters, then the
+//  trial data tables, then equipment/environment bookkeeping) — it does NOT
+//  mirror XSD sequence order, which only constrains XML authoring, not KV
+//  display order; reorder/relabel freely.
+//
+//  Every referenced nested type below (SoilSpecimen, SpecimenConditions,
+//  the four *Trial types, LaboratoryTestEvent, IntactSpecimenPreparationInfo,
+//  ReconstitutedSpecimenPreparationInfo, TemperatureMeasurement) needed its
+//  own OBJECT_CONFIGS entry too — renderResolvedObject calls
+//  `renderKVObject(childEl, OBJECT_CONFIGS[typeName] || [])` with NO
+//  generic-object fallback, so a hand-authored parent config that resolves
+//  into a still-config-less nested type would silently render that branch
+//  EMPTY (real data loss) rather than falling back to renderGenericObject's
+//  config-free walker the way it did before this config existed. This is
+//  why authoring one procedure config cascades into several small
+//  supporting ones — SpecimenConditions/TemperatureMeasurement/etc. are
+//  shared by other lab-test specimen types too (CBR, triaxial, ...), not
+//  Atterberg-specific, so they're built out reasonably completely rather
+//  than just the fields this one test type happens to report.
+// ══════════════════════════════════════════════════════════════
+
+// AtterbergLimitsTestType (core/CoreProcedures.xsd) extends
+// AbstractLaboratoryTestProcedureType -> AbstractTestProcedureType ->
+// AbstractProcedureType (empty own sequence) -> AbstractFeatureType.
+OBJECT_CONFIGS.AtterbergLimitsTest = [
+  ..._OBJ_BASE_FIELDS,
+  ..._FEATURE_LEADING,
+  { path: 'diggs:testProcedureMethod', multi: true, label: 'Test Method' },
+  { path: 'diggs:specimen', multi: true, label: 'Specimen' },
+  { path: 'diggs:specimenInitialState', label: 'Specimen Initial State' },
+  { path: 'diggs:sieveProcedure', label: 'Sieve Procedure' },
+  { path: 'diggs:handRemoved', label: 'Hand-Removed +No. 40 Material', boolean: true },
+  { path: 'diggs:percentRetainedNo40', label: '% Retained on No. 40 Sieve' },
+  { path: 'diggs:ovenDriedBeforeTest', label: 'Oven-Dried Before Test', boolean: true },
+  { path: 'diggs:multiPointLLmethod', label: 'Multi-Point LL Method', boolean: true },
+  { path: 'diggs:waterDensity', label: 'Water Density' },
+  { path: 'diggs:waxDensity', label: 'Wax Density' },
+  {
+    path: 'diggs:casagrandeTrial', multi: true,
+    label: 'Liquid Limit Trial (Casagrande)', labelPlural: 'Liquid Limit Trials (Casagrande)',
+    dataTable: {
+      column: [
+        { path: 'diggs:trialNo', label: 'Trial' },
+        { path: 'diggs:blowCount', label: 'Blow Count' },
+        { path: 'diggs:waterContent', label: 'Water Content' },
+      ],
+    },
+  },
+  {
+    path: 'diggs:fallConeTrial', multi: true,
+    label: 'Liquid Limit Trial (Fall Cone)', labelPlural: 'Liquid Limit Trials (Fall Cone)',
+    dataTable: {
+      column: [
+        { path: 'diggs:trialNo', label: 'Trial' },
+        { path: 'diggs:penetration', label: 'Penetration' },
+        { path: 'diggs:waterContent', label: 'Water Content' },
+      ],
+    },
+  },
+  {
+    path: 'diggs:plasticLimitTrial', multi: true, label: 'Plastic Limit Trial',
+    dataTable: {
+      column: [
+        { path: 'diggs:trialNo', label: 'Trial' },
+        { path: 'diggs:waterContent', label: 'Water Content' },
+      ],
+    },
+  },
+  {
+    path: 'diggs:shrinkageLimitTrial', multi: true, label: 'Shrinkage Limit Trial',
+    dataTable: {
+      column: [
+        { path: 'diggs:trialNo', label: 'Trial' },
+        { path: 'diggs:waterContentWetSoil', label: 'Water Content (Wet)' },
+        { path: 'diggs:volumeWetSoil', label: 'Volume (Wet)' },
+        { path: 'diggs:volumeDrySoil', label: 'Volume (Dry)' },
+        { path: 'diggs:massDrySoil', label: 'Mass (Dry)' },
+      ],
+    },
+  },
+  { path: 'diggs:testProcedureEquipment', multi: true, label: 'Equipment', labelPlural: 'Equipment' },
+  { path: 'diggs:testingEnvironment', multi: true, label: 'Testing Environment' },
+  { path: 'diggs:testEvent', label: 'Test Event' },
+  {
+    path: 'diggs:otherTestProperty', multi: true,
+    label: 'Other Property', labelPlural: 'Other Properties', alwaysGroup: true,
+    itemLabel: el => {
+      const nameEl = evalXPath(el, 'diggs:parameterName')[0];
+      const txt = nodeText(nameEl);
+      return txt ? escHtml(txt) + _codeSpaceKeyExtra(nameEl) : null;
+    },
+  },
+  ..._FEATURE_TRAILING,
+];
+
+// SoilSpecimen — SoilSpecimenType (core/Core.xsd:6970) extends
+// AbstractSpecimenType (core/AbstractTypes.xsd:1333, itself extends
+// AbstractFeatureType). `sampleRef` (required, unbounded — the join back to
+// the source Sample) is omitted per the Reference-Property convention, same
+// as every other *Ref in this app.
+OBJECT_CONFIGS.SoilSpecimen = [
+  ..._OBJ_BASE_FIELDS,
+  ..._FEATURE_LEADING,
+  { path: 'diggs:specimenType', label: 'Specimen Type' },
+  { path: 'diggs:specimenLocation', label: 'Specimen Location' },
+  { path: 'diggs:extractionTime', label: 'Extraction Time' },
+  { path: 'diggs:specificGravityOfSolids', label: 'Specific Gravity of Solids' },
+  { path: 'diggs:sizeFraction', label: 'Size Fraction' },
+  { path: 'diggs:preparationProcedure', label: 'Preparation Procedure' },
+  { path: 'diggs:conditionPreTest', label: 'Condition — Pre-Test' },
+  { path: 'diggs:conditionIntermediate', multi: true, label: 'Condition — Intermediate', labelPlural: 'Conditions — Intermediate' },
+  { path: 'diggs:conditionPostTest', label: 'Condition — Post-Test' },
+  { path: 'diggs:intactSpecimenPreparationInfo', label: 'Intact Specimen Preparation' },
+  { path: 'diggs:reconstitutedSpecimenPreparationInfo', label: 'Reconstituted Specimen Preparation' },
+  {
+    path: 'diggs:otherSpecimenProperty', multi: true,
+    label: 'Other Property', labelPlural: 'Other Properties', alwaysGroup: true,
+    itemLabel: el => {
+      const nameEl = evalXPath(el, 'diggs:parameterName')[0];
+      const txt = nodeText(nameEl);
+      return txt ? escHtml(txt) + _codeSpaceKeyExtra(nameEl) : null;
+    },
+  },
+  ..._FEATURE_TRAILING,
+];
+
+// SpecimenConditions — SpecimenConditionsType (core/Core.xsd:7184) extends
+// AbstractComponentObjectType (name*/status?/remark* on top of
+// AbstractComponentObjectBaseType's description?/identifier? — same shape
+// as _OBJ_BASE_FIELDS + _OBJ_TYPE_TRAILING). Shared by other lab-test
+// specimen types (CBR, triaxial, consolidation, ...), not Atterberg-only.
+OBJECT_CONFIGS.SpecimenConditions = [
+  ..._OBJ_BASE_FIELDS,
+  { path: 'diggs:dateTime', label: 'Date/Time' },
+  { path: 'diggs:index' },
+  { path: 'diggs:waterContent', label: 'Water Content' },
+  { path: 'diggs:wetWeight', label: 'Wet Weight' },
+  { path: 'diggs:dryWeight', label: 'Dry Weight' },
+  { path: 'diggs:bulkUnitWeight', label: 'Bulk Unit Weight' },
+  { path: 'diggs:dryUnitWeight', label: 'Dry Unit Weight' },
+  { path: 'diggs:voidRatio', label: 'Void Ratio' },
+  { path: 'diggs:percentSaturation', label: 'Percent Saturation' },
+  { path: 'diggs:shape' },
+  { path: 'diggs:diameter' },
+  { path: 'diggs:length' },
+  { path: 'diggs:width' },
+  { path: 'diggs:height' },
+  { path: 'diggs:diameterHeightRatio', label: 'Diameter:Height Ratio' },
+  { path: 'diggs:ringDiameter', label: 'Ring Diameter' },
+  { path: 'diggs:crossSectionalArea', label: 'Cross-Sectional Area' },
+  { path: 'diggs:surfaceArea', label: 'Surface Area' },
+  { path: 'diggs:volume' },
+  { path: 'diggs:dimensionMeasurementTechnique', label: 'Dimension Measurement Technique' },
+  { path: 'diggs:temperature', multi: true, label: 'Temperature' },
+  {
+    path: 'diggs:otherConditionProperty', multi: true,
+    label: 'Other Property', labelPlural: 'Other Properties', alwaysGroup: true,
+    itemLabel: el => {
+      const nameEl = evalXPath(el, 'diggs:parameterName')[0];
+      const txt = nodeText(nameEl);
+      return txt ? escHtml(txt) + _codeSpaceKeyExtra(nameEl) : null;
+    },
+  },
+  ..._OBJ_TYPE_TRAILING,
+];
+
+// TemperatureMeasurement — TemperatureMeasurementType (core/Common.xsd:2438)
+// extends AbstractObjectType.
+OBJECT_CONFIGS.TemperatureMeasurement = [
+  ..._OBJ_BASE_FIELDS,
+  { path: 'diggs:dateTime', label: 'Date/Time' },
+  { path: 'diggs:temperature' },
+  ..._OBJ_TYPE_TRAILING,
+];
+
+// IntactSpecimenPreparationInfo — IntactSpecimenPreparationInfoType
+// (core/Core.xsd:7370) extends AbstractObjectType.
+OBJECT_CONFIGS.IntactSpecimenPreparationInfo = [
+  ..._OBJ_BASE_FIELDS,
+  { path: 'diggs:IntactSpecimenType', label: 'Intact Specimen Type' },
+  { path: 'diggs:specimenTrimmedInWetRoom', label: 'Trimmed in Wet Room', boolean: true },
+  ..._OBJ_TYPE_TRAILING,
+];
+
+// ReconstitutedSpecimenPreparationInfo — ReconstitutedSpecimenPreparationInfoType
+// (core/Core.xsd:7107) extends AbstractObjectType.
+OBJECT_CONFIGS.ReconstitutedSpecimenPreparationInfo = [
+  ..._OBJ_BASE_FIELDS,
+  { path: 'diggs:compactorType', label: 'Compactor Type' },
+  { path: 'diggs:numberOfLifts', label: 'Number of Lifts' },
+  { path: 'diggs:relativeCompaction', label: 'Relative Compaction' },
+  { path: 'diggs:waterContentRelativeToOptimum', label: 'Water Content Relative to Optimum' },
+  ..._OBJ_TYPE_TRAILING,
+];
+
+// CasagrandeTrial/FallConeTrial/PlasticLimitTrial — CasagrandeTrialType/
+// FallConeTrialType/PlasticLimitTrialType (core/CoreProcedures.xsd) extend
+// AbstractProcedureTrialType -> AbstractObjectType (name*/status?/remark*,
+// same shape as _OBJ_BASE_FIELDS/_OBJ_TYPE_TRAILING) + AbstractProcedureTrialType's
+// own otherProperty*. Referenced from OBJECT_CONFIGS.AtterbergLimitsTest's own
+// casagrandeTrial/fallConeTrial/plasticLimitTrial rows via `dataTable` — this
+// config only supplies each row's EXPAND panel (trialNo/isManual/name/status/
+// remark/otherProperty; blowCount/penetration/waterContent are consumed by
+// the dataTable's own columns and excluded from the expand automatically).
+OBJECT_CONFIGS.CasagrandeTrial = [
+  ..._OBJ_BASE_FIELDS,
+  { path: 'diggs:trialNo', label: 'Trial No.' },
+  { path: 'diggs:isManual', label: 'Manual Device', boolean: true },
+  { path: 'diggs:blowCount', label: 'Blow Count' },
+  { path: 'diggs:waterContent', label: 'Water Content' },
+  {
+    path: 'diggs:otherProperty', multi: true,
+    label: 'Other Property', labelPlural: 'Other Properties', alwaysGroup: true,
+    itemLabel: el => {
+      const nameEl = evalXPath(el, 'diggs:parameterName')[0];
+      const txt = nodeText(nameEl);
+      return txt ? escHtml(txt) + _codeSpaceKeyExtra(nameEl) : null;
+    },
+  },
+  ..._OBJ_TYPE_TRAILING,
+];
+
+OBJECT_CONFIGS.FallConeTrial = [
+  ..._OBJ_BASE_FIELDS,
+  { path: 'diggs:trialNo', label: 'Trial No.' },
+  { path: 'diggs:penetration' },
+  { path: 'diggs:waterContent', label: 'Water Content' },
+  {
+    path: 'diggs:otherProperty', multi: true,
+    label: 'Other Property', labelPlural: 'Other Properties', alwaysGroup: true,
+    itemLabel: el => {
+      const nameEl = evalXPath(el, 'diggs:parameterName')[0];
+      const txt = nodeText(nameEl);
+      return txt ? escHtml(txt) + _codeSpaceKeyExtra(nameEl) : null;
+    },
+  },
+  ..._OBJ_TYPE_TRAILING,
+];
+
+OBJECT_CONFIGS.PlasticLimitTrial = [
+  ..._OBJ_BASE_FIELDS,
+  { path: 'diggs:trialNo', label: 'Trial No.' },
+  { path: 'diggs:isManual', label: 'Manual Rolling', boolean: true },
+  { path: 'diggs:waterContent', label: 'Water Content' },
+  {
+    path: 'diggs:otherProperty', multi: true,
+    label: 'Other Property', labelPlural: 'Other Properties', alwaysGroup: true,
+    itemLabel: el => {
+      const nameEl = evalXPath(el, 'diggs:parameterName')[0];
+      const txt = nodeText(nameEl);
+      return txt ? escHtml(txt) + _codeSpaceKeyExtra(nameEl) : null;
+    },
+  },
+  ..._OBJ_TYPE_TRAILING,
+];
+
+// ShrinkageLimitTrial — ShrinkageLimitTrialType extends AbstractObjectType
+// DIRECTLY (not AbstractProcedureTrialType — no otherProperty), unlike its
+// three Casagrande/FallCone/PlasticLimit siblings above.
+OBJECT_CONFIGS.ShrinkageLimitTrial = [
+  ..._OBJ_BASE_FIELDS,
+  { path: 'diggs:trialNo', label: 'Trial No.' },
+  { path: 'diggs:waterContentWetSoil', label: 'Water Content (Wet Soil)' },
+  { path: 'diggs:volumeWetSoil', label: 'Volume (Wet Soil)' },
+  { path: 'diggs:volumeDrySoil', label: 'Volume (Dry Soil)' },
+  { path: 'diggs:massDrySoil', label: 'Mass (Dry Soil)' },
+  ..._OBJ_TYPE_TRAILING,
+];
+
+// LaboratoryTestEvent — LaboratoryTestEventType (core/Common.xsd:1375)
+// extends AbstractComponentObjectBaseType directly (name*/status?/remark*
+// declared on its own sequence rather than inherited — same resulting shape
+// as _OBJ_BASE_FIELDS minus identifier, but identifier isn't in this type's
+// sequence at all, so including the row is harmless — it simply never
+// resolves).
+OBJECT_CONFIGS.LaboratoryTestEvent = [
+  ..._OBJ_BASE_FIELDS,
+  { path: 'diggs:time', label: 'Time' },
+  {
+    path: 'diggs:infoRecorded', multi: true, label: 'Info Recorded', alwaysGroup: true,
+    itemLabel: el => {
+      const nameEl = evalXPath(el, 'diggs:parameterName')[0];
+      const txt = nodeText(nameEl);
+      return txt ? escHtml(txt) + _codeSpaceKeyExtra(nameEl) : null;
+    },
+  },
+  ..._OBJ_TYPE_TRAILING,
 ];
 
 // ══════════════════════════════════════════════════════════════
@@ -10542,6 +10963,7 @@ const _MEAS_MONITOR_LOCATION = {
 };
 
 OBJECT_CONFIGS.Test = [
+  {sectionHeader: 'General Info'},
   ..._MEAS_META_LEADING,
   ..._MEAS_TIMES,
   ..._MEAS_META_TRAILING,
@@ -15765,9 +16187,11 @@ function _measRowExpandHtml(row, depthUom, drawJobs) {
   const metaCfg = OBJECT_CONFIGS[rec.measType];
   const metaHtml = metaCfg ? renderKVObject(rec.el, metaCfg) : '';
   const procObjs = rec.procObjs || [];
-  const { html: procHtml, drawJobs: procJobs } = renderProcedureSection(procObjs, { depthUom });
+  const { html: procHtml, drawJobs: procJobs, plotHtml } = renderProcedureSection(procObjs, { depthUom, resultSet: rec.resultSet });
   for (const j of procJobs) drawJobs.push(j);
-  const metaProcHtml = metaHtml + procHtml;
+  // plotHtml goes first — above the measurement's own metadata, not just
+  // above the procedure's KV fields (see PROCEDURE_PLOT_BUILDERS' banner).
+  const metaProcHtml = plotHtml + metaHtml + procHtml;
   if (!metaProcHtml) return '';
   return wrapCategoryHeader(`${diggsLabel(rec.procType)} Metadata`, metaProcHtml, true);
 }
@@ -15860,10 +16284,12 @@ function buildMeasurementDisplay(sf) {
         const metaHtml = metaCfg ? renderKVObject(group[0].el, metaCfg) : '';
 
         const allProcs = group[0].procObjs || [];
-        const { html: procHtml, drawJobs: procJobs } = renderProcedureSection(allProcs, { depthUom });
+        const { html: procHtml, drawJobs: procJobs, plotHtml } = renderProcedureSection(allProcs, { depthUom, resultSet: group[0].resultSet });
         for (const j of procJobs) drawJobs.push(j);
 
-        const metaProcHtml = metaHtml + procHtml;
+        // plotHtml first — above the measurement's own metadata too, not
+        // just above the procedure's KV fields.
+        const metaProcHtml = plotHtml + metaHtml + procHtml;
         if (metaProcHtml) panes.push({ label: `${diggsLabel(procType)} Metadata`, html: metaProcHtml });
       }
 
@@ -15886,6 +16312,16 @@ function buildMeasurementDisplay(sf) {
         requestAnimationFrame(() => {
           for (const id of splitIds) initMeasSplit(id);
           for (const j of drawJobs) {
+            if (j.kind === 'atterbergFlow') {
+              const c = document.getElementById(j.containerId);
+              if (c) _drawAtterbergFlowCurve(c, j.flow);
+              continue;
+            }
+            if (j.kind === 'atterbergPlasticity') {
+              const c = document.getElementById(j.containerId);
+              if (c) _drawAtterbergPlasticityChart(c, j.point);
+              continue;
+            }
             const c = document.getElementById(j.plotId);
             if (c) drawResultPlots(c, j.model, { domainKind: j.domainKind, depthUom: j.depthUom, totalDepth: j.totalDepth, lithColumns: j.lithColumns });
           }
@@ -18984,11 +19420,29 @@ function drawPlot(container, spec) {
   svg.appendChild(gridG); svg.appendChild(axisG);
   svg.appendChild(rect(PAD.left, PAD.top, pW, pH, null, C.border));
 
+  // Permanent reference construction (opt-in via spec.refPoint) — dashed
+  // lines dropped to both axes at a specific data-space point, e.g. marking
+  // where a flow curve's LL is read off at N=25 blows / 20mm penetration.
+  // Drawn UNDER the data line/markers (appended before polyline) so the
+  // actual data reads as the visually dominant layer; independent of the
+  // transient hover crosshair (hLine/vLine/dot below), which stays
+  // interactive-only and unaffected by this.
+  const refG = document.createElementNS(NS_SVG, 'g');
+  refG.setAttribute('clip-path', `url(#${clipId})`);
+  svg.appendChild(refG);
+
   const polyline = document.createElementNS(NS_SVG, 'polyline');
   polyline.setAttribute('fill', 'none'); polyline.setAttribute('stroke', dep.color);
   polyline.setAttribute('stroke-width', '1.5'); polyline.setAttribute('stroke-linejoin', 'round');
   polyline.setAttribute('stroke-linecap', 'round'); polyline.setAttribute('clip-path', `url(#${clipId})`);
   svg.appendChild(polyline);
+
+  // Permanent point markers (opt-in via spec.pointMarkers) — every actual
+  // data point, not just the transient hover dot, e.g. so a flow curve shows
+  // its real measured trials alongside the connecting line.
+  const markerG = document.createElementNS(NS_SVG, 'g');
+  markerG.setAttribute('clip-path', `url(#${clipId})`);
+  svg.appendChild(markerG);
 
   const mkText = (attrs, txt) => {
     const t = document.createElementNS(NS_SVG, 'text');
@@ -19119,6 +19573,48 @@ function drawPlot(container, spec) {
     const buf = iSpan * 0.01;
     const vis = pts.filter(p => p.i >= view.iMin - buf && p.i <= view.iMax + buf);
     polyline.setAttribute('points', vis.map(p => `${sx(p).toFixed(2)},${sy(p).toFixed(2)}`).join(' '));
+
+    // Permanent point markers — one small filled circle per visible data
+    // point (rebuilt every redraw since zoom/pan changes both which points
+    // are visible and their screen position).
+    while (markerG.firstChild) markerG.removeChild(markerG.firstChild);
+    if (spec.pointMarkers) {
+      for (const p of vis) {
+        const c = document.createElementNS(NS_SVG, 'circle');
+        c.setAttribute('cx', sx(p).toFixed(2)); c.setAttribute('cy', sy(p).toFixed(2));
+        c.setAttribute('r', spec.pointMarkerRadius || 3.5);
+        c.setAttribute('fill', dep.color); c.setAttribute('stroke', C.outer); c.setAttribute('stroke-width', '1');
+        markerG.appendChild(c);
+      }
+    }
+
+    // Permanent reference construction — dashed lines dropped from a
+    // data-space point (spec.refPoint = {i, p, label?, color?}) to both
+    // axes, e.g. pinpointing where a flow curve's LL is read. Only drawn
+    // when the point falls within the current (possibly zoomed) view.
+    while (refG.firstChild) refG.removeChild(refG.firstChild);
+    if (spec.refPoint && isFinite(spec.refPoint.i) && isFinite(spec.refPoint.p)
+      && spec.refPoint.i >= view.iMin && spec.refPoint.i <= view.iMax) {
+      const rx = sx(spec.refPoint), ry = sy(spec.refPoint);
+      const refColor = spec.refPoint.color || '#f0883e';
+      const dash = (x1, y1, x2, y2) => {
+        const l = document.createElementNS(NS_SVG, 'line');
+        l.setAttribute('x1', x1); l.setAttribute('y1', y1); l.setAttribute('x2', x2); l.setAttribute('y2', y2);
+        l.setAttribute('stroke', refColor); l.setAttribute('stroke-width', '1.25');
+        l.setAttribute('stroke-dasharray', '4,3');
+        return l;
+      };
+      refG.appendChild(dash(rx, PAD.top + pH, rx, ry));
+      refG.appendChild(dash(PAD.left, ry, rx, ry));
+      const dot = document.createElementNS(NS_SVG, 'circle');
+      dot.setAttribute('cx', rx); dot.setAttribute('cy', ry); dot.setAttribute('r', '3');
+      dot.setAttribute('fill', refColor); dot.setAttribute('stroke', C.outer); dot.setAttribute('stroke-width', '1');
+      refG.appendChild(dot);
+      if (spec.refPoint.label) {
+        refG.appendChild(mkText({ x: rx + 6, y: ry - 6, 'font-size': spec.axisFontSize || 12,
+          fill: refColor, 'font-family': F.mono }, spec.refPoint.label));
+      }
+    }
   }
 
   // Refit dependent axis to data in the current independent window.
@@ -19470,6 +19966,176 @@ function drawResultPlots(container, model, opts) {
   }
 
   return drawn;
+}
+
+/** Linear interpolation (or extrapolation, past either end) of `pts`
+ *  (ascending by `.i`) at a given independent-axis value — used to read the
+ *  flow curve's own piecewise-linear line at the standard LL blow-count/
+ *  penetration target, matching what the drawn line/markers actually show
+ *  rather than a separately-fitted regression. */
+function _interpAtX(pts, targetI) {
+  if (pts.length < 2) return null;
+  let idx = pts.findIndex(p => p.i >= targetI);
+  if (idx === -1) idx = pts.length - 1;   // past the last point — extrapolate off the last segment
+  if (idx === 0) idx = 1;                 // before the first point — extrapolate off the first segment
+  const a = pts[idx - 1], b = pts[idx];
+  const t = (targetI - a.i) / (b.i - a.i || 1);
+  return a.p + t * (b.p - a.p);
+}
+
+/** Target width (px) for one Atterberg plot — half of the REAL, currently
+ *  rendered `.meas-pane-body` content width (the scrollable ancestor that
+ *  actually bounds available space; see the .att-plot-stack banner comment
+ *  in _buildAtterbergPlots for why a CSS % can't express this), minus half
+ *  the stack's own 12px gap so two side-by-side plots sum to exactly that
+ *  width with no overflow. Floored at 200px so a pathologically narrow pane
+ *  doesn't shrink a plot past legibility. Must be measured at DRAW time
+ *  (afterRender, once `container` is live in the DOM) — .meas-pane-body's
+ *  own width is independent of its content (it scrolls, per its
+ *  `overflow:auto`), so this doesn't create a sizing feedback loop. */
+function _atterbergPlotTargetWidth(container) {
+  const paneBody = container.closest('.meas-pane-body');
+  const avail = paneBody ? paneBody.clientWidth : container.parentElement.getBoundingClientRect().width * 2;
+  return Math.max(200, Math.floor((avail - 12) / 2));
+}
+
+/** ASTM D4318 liquid-limit flow curve: water content (linear) vs. blow count
+ *  or cone penetration (log scale — points already carry `i = log10(x)`, see
+ *  _atterbergTrialPoints) via the shared drawPlot engine. Modeled on
+ *  drawResultPlots' own temporal (x-independent, unflipped) branch — same
+ *  viewport/axis shape, just fed log-transformed x values and a tick
+ *  formatter that exponentiates back for display. Shows the actual trial
+ *  points as permanent markers (`pointMarkers`) alongside the connecting
+ *  line, plus a dashed reference construction (`refPoint`) dropped to both
+ *  axes at the standard reading point — N=25 blows for Casagrande, 20mm
+ *  penetration for the fall cone method — showing exactly where LL is read
+ *  off the curve, interpolated along the same line the plot draws. */
+function _drawAtterbergFlowCurve(container, flow) {
+  const w = _atterbergPlotTargetWidth(container);
+  container.style.width = w + 'px';
+  container.style.minWidth = w + 'px';
+  const pts = flow.pts;
+  const col = PLOT_COLORS[0];
+  const isFallCone = flow.kind === 'fallcone';
+  const indLabel = isFallCone ? 'Cone Penetration, mm (log scale)' : 'Number of Blows, N (log scale)';
+  const title = isFallCone ? 'Liquid Limit Flow Curve — Fall Cone' : 'Liquid Limit Flow Curve — Casagrande';
+  const targetX = isFallCone ? 20 : 25;
+  const targetI = Math.log10(targetX);
+  const llAtTarget = _interpAtX(pts, targetI);
+  drawPlot(container, {
+    points: pts, orientation: 'x-ind', pointMarkers: true,
+    refPoint: llAtTarget != null
+      ? { i: targetI, p: llAtTarget, color: '#f0883e', label: `LL = ${Math.round(llAtTarget)}%` }
+      : null,
+    viewport: { VW: 440, VH: 260, PAD: { top: 26, bottom: 42, left: 50, right: 16 } },
+    clipPrefix: 'att-flow', infoText: `n=${pts.length}`,
+    axisFontSize: 11, tooltipFontSize: 12,
+    ind: {
+      ticks: 5, minSpanAbs: 0.05,
+      fmtTick: v => String(Math.round(Math.pow(10, v))),
+      fmtTip: v => `${isFallCone ? 'Penetration' : 'N'} = ${Number(Math.pow(10, v).toPrecision(3))}`,
+    },
+    dep: {
+      color: col, ticks: 5, flip: false, padFrac: 0.15, padAbsFrac: 0.05, padConst: 0.5,
+      fmtTick: v => v.toFixed(1),
+      fmtTip: v => 'w = ' + v.toFixed(1) + '%',
+    },
+    leftLabel: { text: 'Water Content (%)', color: col, size: 11 },
+    bottomLabel: { text: indLabel, color: '#8b949e', size: 11 },
+    titleParts: [{ text: title, color: col, size: 11 }],
+    titleSize: 11,
+    wrapper: { className: 'att-flow-plot-wrapper', style: 'margin-bottom:0; position:relative;' },
+  });
+}
+
+/** USCS plasticity (Casagrande) chart: PI vs. LL with the standard A-line
+ *  (kinked at LL=25.5, the CL-ML/ML boundary — PI=4 below it, PI=0.73(LL-20)
+ *  above) and U-line (PI=0.9(LL-8), the practical upper-bound envelope)
+ *  reference boundaries, plus this test's own (LL, PI) point. A fixed
+ *  reference chart with a single point — no zoom/pan/crosshair state makes
+ *  sense here, so this is a small standalone SVG builder rather than a
+ *  drawPlot() call (drawPlot's one-series-plus-crosshair model doesn't fit a
+ *  reference-line-plus-point chart). Colors match drawPlot's own dark-theme
+ *  defaults for visual consistency with the flow curve above it. */
+function _drawAtterbergPlasticityChart(container, pt) {
+  const w = _atterbergPlotTargetWidth(container);
+  container.style.width = w + 'px';
+  container.style.minWidth = w + 'px';
+  const NS_SVG = 'http://www.w3.org/2000/svg';
+  const VW = 360, VH = 260, PAD = { left: 46, right: 16, top: 26, bottom: 40 };
+  const pW = VW - PAD.left - PAD.right, pH = VH - PAD.top - PAD.bottom;
+  const C = { outer: '#0d1117', plot: '#161b22', grid: '#21262d', border: '#30363d', axisText: '#8b949e' };
+  const maxLL = Math.max(100, Math.ceil((pt.LL + 10) / 10) * 10);
+  const maxPI = Math.max(60, Math.ceil((pt.PI + 10) / 10) * 10);
+  const xOf = ll => PAD.left + (ll / maxLL) * pW;
+  const yOf = pi => PAD.top + (1 - Math.max(0, pi) / maxPI) * pH;
+
+  const svg = document.createElementNS(NS_SVG, 'svg');
+  svg.setAttribute('viewBox', `0 0 ${VW} ${VH}`);
+  svg.setAttribute('width', '100%');
+  svg.style.cssText = 'display:block;';
+  const mk = (tag, attrs) => {
+    const e = document.createElementNS(NS_SVG, tag);
+    for (const k in attrs) e.setAttribute(k, attrs[k]);
+    return e;
+  };
+  const text = (attrs, txt) => { const t = mk('text', attrs); t.textContent = txt; return t; };
+  const lineOf = (pts, attrs) => mk('polyline', Object.assign({
+    points: pts.map(p => `${xOf(p.ll).toFixed(1)},${yOf(p.pi).toFixed(1)}`).join(' '),
+    fill: 'none',
+  }, attrs));
+
+  svg.appendChild(mk('rect', { x: 0, y: 0, width: VW, height: VH, fill: C.outer }));
+  svg.appendChild(mk('rect', { x: PAD.left, y: PAD.top, width: pW, height: pH, fill: C.plot }));
+
+  for (let ll = 0; ll <= maxLL; ll += 10) {
+    const x = xOf(ll);
+    svg.appendChild(mk('line', { x1: x, x2: x, y1: PAD.top, y2: PAD.top + pH, stroke: C.grid, 'stroke-width': 1 }));
+    svg.appendChild(text({ x, y: VH - PAD.bottom + 14, 'text-anchor': 'middle', 'font-size': 10, fill: C.axisText, 'font-family': 'monospace' }, ll));
+  }
+  for (let pi = 0; pi <= maxPI; pi += 10) {
+    const y = yOf(pi);
+    svg.appendChild(mk('line', { x1: PAD.left, x2: PAD.left + pW, y1: y, y2: y, stroke: C.grid, 'stroke-width': 1 }));
+    svg.appendChild(text({ x: PAD.left - 5, y: y + 3, 'text-anchor': 'end', 'font-size': 10, fill: C.axisText, 'font-family': 'monospace' }, pi));
+  }
+  svg.appendChild(mk('rect', { x: PAD.left, y: PAD.top, width: pW, height: pH, fill: 'none', stroke: C.border }));
+
+  // A-line: PI=4 flat from LL=0 to LL=25.5 (the CL-ML/ML split), then
+  // PI=0.73(LL-20) — clipped to the chart's own PI range so it never runs
+  // off the top edge.
+  const aSlopeEndLL = Math.min(maxLL, maxPI / 0.73 + 20);
+  svg.appendChild(lineOf(
+    [{ ll: 0, pi: 4 }, { ll: 25.5, pi: 4 }, { ll: aSlopeEndLL, pi: 0.73 * (aSlopeEndLL - 20) }],
+    { stroke: '#f0883e', 'stroke-width': 1.5 }
+  ));
+  svg.appendChild(text({ x: xOf(aSlopeEndLL) - 4, y: yOf(0.73 * (aSlopeEndLL - 20)) - 4, 'text-anchor': 'end', 'font-size': 10, fill: '#f0883e', 'font-family': 'monospace' }, 'A-line'));
+
+  // U-line: PI=0.9(LL-8), the practical upper-bound envelope.
+  const uEndLL = Math.min(maxLL, maxPI / 0.9 + 8);
+  svg.appendChild(lineOf(
+    [{ ll: 8, pi: 0 }, { ll: uEndLL, pi: 0.9 * (uEndLL - 8) }],
+    { stroke: '#bc8cff', 'stroke-width': 1.5, 'stroke-dasharray': '4,3' }
+  ));
+  svg.appendChild(text({ x: xOf(uEndLL) - 4, y: yOf(0.9 * (uEndLL - 8)) - 4, 'text-anchor': 'end', 'font-size': 10, fill: '#bc8cff', 'font-family': 'monospace' }, 'U-line'));
+
+  // This test's own (LL, PI) point.
+  const px = xOf(Math.min(pt.LL, maxLL)), py = yOf(Math.min(pt.PI, maxPI));
+  const dot = mk('circle', { cx: px, cy: py, r: 5, fill: '#58a6ff', stroke: '#fff', 'stroke-width': 1.5 });
+  const ttl = document.createElementNS(NS_SVG, 'title');
+  ttl.textContent = `LL=${pt.LL}, PI=${pt.PI}${pt.symbol ? ', ' + pt.symbol : ''}`;
+  dot.appendChild(ttl);
+  svg.appendChild(dot);
+  svg.appendChild(text({ x: px + 8, y: py - 8, 'font-size': 11, fill: '#e6edf3', 'font-family': 'monospace' },
+    `${pt.symbol ? pt.symbol + ' ' : ''}LL=${pt.LL}, PI=${pt.PI}`));
+
+  svg.appendChild(text({ x: PAD.left + pW / 2, y: VH - 4, 'text-anchor': 'middle', 'font-size': 12, fill: C.axisText, 'font-family': 'sans-serif' }, 'Liquid Limit (LL)'));
+  svg.appendChild(text({ transform: `rotate(-90) translate(${-(PAD.top + pH / 2)}, 13)`, 'text-anchor': 'middle', 'font-size': 12, fill: C.axisText, 'font-family': 'sans-serif' }, 'Plasticity Index (PI)'));
+  svg.appendChild(text({ x: PAD.left + pW / 2, y: 14, 'text-anchor': 'middle', 'font-size': 12, 'font-weight': 'bold', fill: '#58a6ff', 'font-family': 'sans-serif' }, 'Plasticity Chart'));
+
+  const wrapper = document.createElement('div');
+  wrapper.style.cssText = 'margin-bottom:0;';
+  wrapper.appendChild(svg);
+  container.appendChild(wrapper);
 }
 
 // ══════════════════════════════════════════════════════════════

@@ -16679,7 +16679,7 @@
 
                                         </Property>
                                         <Property index="4">
-                                            <propertyName>Symbol from plasticity chart</propertyName>
+                                            <propertyName>USCS Symbol</propertyName>
                                             <typeData>string</typeData>
                                             <propertyClass codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/properties.xml#uscs_symbol_425">USCS Symbol Passing 425 Screen</propertyClass>
                                         </Property>
@@ -16771,7 +16771,7 @@
 
                                         </Property>
                                         <Property index="4">
-                                            <propertyName>Symbol from plasticity chart</propertyName>
+                                            <propertyName>USCS Symbol</propertyName>
                                             <typeData>string</typeData>
                                             <propertyClass codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/properties.xml#uscs_symbol_425">USCS Symbol Passing 425 Screen</propertyClass>
                                         </Property>
@@ -16863,7 +16863,7 @@
 
                                         </Property>
                                         <Property index="4">
-                                            <propertyName>Symbol from plasticity chart</propertyName>
+                                            <propertyName>USCS Symbol</propertyName>
                                             <typeData>string</typeData>
                                             <propertyClass codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/properties.xml#uscs_symbol_425">USCS Symbol Passing 425 Screen</propertyClass>
                                         </Property>
@@ -16955,7 +16955,7 @@
 
                                         </Property>
                                         <Property index="4">
-                                            <propertyName>Symbol from plasticity chart</propertyName>
+                                            <propertyName>USCS Symbol</propertyName>
                                             <typeData>string</typeData>
                                             <propertyClass codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/properties.xml#uscs_symbol_425">USCS Symbol Passing 425 Screen</propertyClass>
                                         </Property>
@@ -17047,7 +17047,7 @@
 
                                         </Property>
                                         <Property index="4">
-                                            <propertyName>Symbol from plasticity chart</propertyName>
+                                            <propertyName>USCS Symbol</propertyName>
                                             <typeData>string</typeData>
                                             <propertyClass codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/properties.xml#uscs_symbol_425">USCS Symbol Passing 425 Screen</propertyClass>
                                         </Property>
@@ -17144,7 +17144,7 @@
 
                                         </Property>
                                         <Property index="4">
-                                            <propertyName>Symbol from plasticity chart</propertyName>
+                                            <propertyName>USCS Symbol</propertyName>
                                             <typeData>string</typeData>
                                             <propertyClass codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/properties.xml#uscs_symbol_425">USCS Symbol Passing 425 Screen</propertyClass>
                                         </Property>
@@ -17236,7 +17236,7 @@
 
                                         </Property>
                                         <Property index="4">
-                                            <propertyName>Symbol from plasticity chart</propertyName>
+                                            <propertyName>USCS Symbol</propertyName>
                                             <typeData>string</typeData>
                                             <propertyClass codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/properties.xml#uscs_symbol_425">USCS Symbol Passing 425 Screen</propertyClass>
                                         </Property>
@@ -17328,7 +17328,7 @@
 
                                         </Property>
                                         <Property index="4">
-                                            <propertyName>Symbol from plasticity chart</propertyName>
+                                            <propertyName>USCS Symbol</propertyName>
                                             <typeData>string</typeData>
                                             <propertyClass codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/properties.xml#uscs_symbol_425">USCS Symbol Passing 425 Screen</propertyClass>
                                         </Property>
@@ -17425,7 +17425,7 @@
 
                                         </Property>
                                         <Property index="4">
-                                            <propertyName>Symbol from plasticity chart</propertyName>
+                                            <propertyName>USCS Symbol</propertyName>
                                             <typeData>string</typeData>
                                             <propertyClass codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/properties.xml#uscs_symbol_425">USCS Symbol Passing 425 Screen</propertyClass>
                                         </Property>
@@ -17522,7 +17522,7 @@
 
                                         </Property>
                                         <Property index="4">
-                                            <propertyName>Symbol from plasticity chart</propertyName>
+                                            <propertyName>USCS Symbol</propertyName>
                                             <typeData>string</typeData>
                                             <propertyClass codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/properties.xml#uscs_symbol_425">USCS Symbol Passing 425 Screen</propertyClass>
                                         </Property>
@@ -21836,6 +21836,820 @@
                         </DriveSet>
                     </driveSet>
                 </DrivenPenetrationTest>
+            </procedure>
+        </Test>
+    </measurement>
+
+    <measurement>
+        <Test gml:id="Test_ATT_BH-Mockup-1_55">
+            <gml:name>Atterberg Limits - SPT-4 (55.0-56.4 ft)</gml:name>
+            <role>
+                <Role>
+                    <rolePerformed codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/roles.xml#laboratory_name">Laboratory Name</rolePerformed>
+                    <businessAssociate xlink:href="#BA001"/>
+                </Role>
+            </role>
+            <investigationTarget>Natural Ground</investigationTarget>
+            <projectRef xlink:href="#Project-Mockup-1"/>
+            <samplingFeatureRef xlink:href="#BH-Mockup-1"/>
+            <samplingTime>
+                <TimeInterval gml:id="TI_Test_ATT_BH-Mockup-1_55">
+                    <start frame="#ISO-8601">2026-02-10</start>
+                </TimeInterval>
+            </samplingTime>
+            <outcome>
+                <TestResult>
+                    <location>
+                        <PointLocation gml:id="PL_ATT_BH-Mockup-1_55" srsDimension="1" srsName="#lsr-BH-Mockup-1">
+                            <gml:pos>55.7</gml:pos>
+                        </PointLocation>
+                    </location>
+                    <results>
+                        <ResultSet>
+                            <parameters>
+                                <PropertyParameters>
+                                    <properties>
+                                        <Property index="1">
+                                            <propertyName>LL</propertyName>
+                                            <typeData>integer</typeData>
+                                            <propertyClass codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/properties.xml#liquid_limit">Liquid Limit</propertyClass>
+                                        </Property>
+                                        <Property index="2">
+                                            <propertyName>PL</propertyName>
+                                            <typeData>integer</typeData>
+                                            <propertyClass codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/properties.xml#plastic_limit">Plastic Limit</propertyClass>
+                                        </Property>
+                                        <Property index="3">
+                                            <propertyName>PI</propertyName>
+                                            <typeData>integer</typeData>
+                                            <propertyClass codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/properties.xml#plasticity_index">Plasticity Index</propertyClass>
+                                        </Property>
+                                        <Property index="4">
+                                            <propertyName>USCS Symbol</propertyName>
+                                            <typeData>string</typeData>
+                                            <propertyClass codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/properties.xml#uscs_symbol_425">USCS Symbol Passing 425 Screen</propertyClass>
+                                        </Property>
+                                        <Property index="5">
+                                            <propertyName>LI</propertyName>
+                                            <typeData>double</typeData>
+                                            <propertyClass codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/properties.xml#liquidity_index">Liquidity Index</propertyClass>
+                                        </Property>
+                                        <Property index="6">
+                                            <propertyName>CI</propertyName>
+                                            <typeData>integer</typeData>
+                                            <propertyClass codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/properties.xml#consistency_index">Consistency Index</propertyClass>
+                                        </Property>
+                                        <Property index="7">
+                                            <propertyName>non plastic</propertyName>
+                                            <typeData>boolean</typeData>
+                                            <propertyClass codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/properties.xml#non_plastic">Non Plastic</propertyClass>
+                                        </Property>
+                                    </properties>
+                                </PropertyParameters>
+                            </parameters>
+                            <dataValues cs="," decimal="." ts=" ">23,,,ML,,,1</dataValues>
+                        </ResultSet>
+                    </results>
+                </TestResult>
+            </outcome>
+            <procedure>
+                <AtterbergLimitsTest gml:id="ATT_BH-Mockup-1_55">
+                    <gml:description>Atterberg limits performed on Sample SPT-4 (55.0-56.4 ft), sandy silt (ML) unit near the top of the 48-61 ft interval. Plastic limit could not be determined - see remark.</gml:description>
+                    <status>complete</status>
+                    <remark>
+                        <Remark>
+                            <content>Soil crumbled before reaching a 1/8 in (3 mm) thread diameter during the plastic limit rolling procedure; specimen assessed as non-plastic (NP) per ASTM D4318 Section 5.3. Liquid limit was still determinable by the multi-point Casagrande method.</content>
+                            <author xlink:href="#BA001"/>
+                            <remarkDateTime frame="#ISO-8601">2026-02-12</remarkDateTime>
+                        </Remark>
+                    </remark>
+                    <testProcedureMethod>
+                        <Specification gml:id="SPEC_ATT_BH-Mockup-1_55">
+                            <gml:name>ASTM D4318-17e1, Multipoint Method</gml:name>
+                            <accredtingBody>CCRL</accredtingBody>
+                        </Specification>
+                    </testProcedureMethod>
+                    <specimen>
+                        <SoilSpecimen gml:id="Specimen_ATT_BH-Mockup-1_55">
+                            <gml:description>Sandy Silt (ML), light brown, moist</gml:description>
+                            <gml:name>1</gml:name>
+                            <sampleRef xlink:href="#Sample_BH-Mockup-1_55_SPT-4"/>
+                            <specimenType>disturbed</specimenType>
+                        </SoilSpecimen>
+                    </specimen>
+                    <sieveProcedure>wet</sieveProcedure>
+                    <specimenInitialState>Wet</specimenInitialState>
+                    <multiPointLLmethod>true</multiPointLLmethod>
+                    <casagrandeTrial>
+                        <CasagrandeTrial gml:id="CGT_BH-Mockup-1_55_1">
+                            <trialNo>1</trialNo>
+                            <isManual>true</isManual>
+                            <blowCount>32</blowCount>
+                            <waterContent uom="%" howDetermined="measured">20.8</waterContent>
+                        </CasagrandeTrial>
+                    </casagrandeTrial>
+                    <casagrandeTrial>
+                        <CasagrandeTrial gml:id="CGT_BH-Mockup-1_55_2">
+                            <trialNo>2</trialNo>
+                            <isManual>true</isManual>
+                            <blowCount>24</blowCount>
+                            <waterContent uom="%" howDetermined="measured">22.3</waterContent>
+                        </CasagrandeTrial>
+                    </casagrandeTrial>
+                    <casagrandeTrial>
+                        <CasagrandeTrial gml:id="CGT_BH-Mockup-1_55_3">
+                            <trialNo>3</trialNo>
+                            <isManual>true</isManual>
+                            <blowCount>15</blowCount>
+                            <waterContent uom="%" howDetermined="measured">24.6</waterContent>
+                        </CasagrandeTrial>
+                    </casagrandeTrial>
+                </AtterbergLimitsTest>
+            </procedure>
+        </Test>
+    </measurement>
+
+    <measurement>
+        <Test gml:id="Test_ATT_BH-Mockup-1_65">
+            <gml:name>Atterberg Limits - SPT-5 (65.0-66.5 ft)</gml:name>
+            <role>
+                <Role>
+                    <rolePerformed codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/roles.xml#laboratory_name">Laboratory Name</rolePerformed>
+                    <businessAssociate xlink:href="#BA001"/>
+                </Role>
+            </role>
+            <investigationTarget>Natural Ground</investigationTarget>
+            <projectRef xlink:href="#Project-Mockup-1"/>
+            <samplingFeatureRef xlink:href="#BH-Mockup-1"/>
+            <samplingTime>
+                <TimeInterval gml:id="TI_Test_ATT_BH-Mockup-1_65">
+                    <start frame="#ISO-8601">2026-02-10</start>
+                </TimeInterval>
+            </samplingTime>
+            <resultTime>
+                <TimeInterval gml:id="TR_Test_ATT_BH-Mockup-1_65">
+                    <start frame="#ISO-8601">2026-02-18</start>
+                </TimeInterval>
+            </resultTime>
+            <outcome>
+                <TestResult>
+                    <location>
+                        <PointLocation gml:id="PL_ATT_BH-Mockup-1_65" srsDimension="1" srsName="#lsr-BH-Mockup-1">
+                            <gml:pos>65.8</gml:pos>
+                        </PointLocation>
+                    </location>
+                    <results>
+                        <ResultSet>
+                            <parameters>
+                                <PropertyParameters>
+                                    <properties>
+                                        <Property index="1">
+                                            <propertyName>LL</propertyName>
+                                            <typeData>integer</typeData>
+                                            <propertyClass codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/properties.xml#liquid_limit">Liquid Limit</propertyClass>
+                                        </Property>
+                                        <Property index="2">
+                                            <propertyName>PL</propertyName>
+                                            <typeData>integer</typeData>
+                                            <propertyClass codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/properties.xml#plastic_limit">Plastic Limit</propertyClass>
+                                        </Property>
+                                        <Property index="3">
+                                            <propertyName>PI</propertyName>
+                                            <typeData>integer</typeData>
+                                            <propertyClass codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/properties.xml#plasticity_index">Plasticity Index</propertyClass>
+                                        </Property>
+                                        <Property index="4">
+                                            <propertyName>USCS Symbol</propertyName>
+                                            <typeData>string</typeData>
+                                            <propertyClass codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/properties.xml#uscs_symbol_425">USCS Symbol Passing 425 Screen</propertyClass>
+                                        </Property>
+                                        <Property index="5">
+                                            <propertyName>LI</propertyName>
+                                            <typeData>double</typeData>
+                                            <propertyClass codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/properties.xml#liquidity_index">Liquidity Index</propertyClass>
+                                        </Property>
+                                        <Property index="6">
+                                            <propertyName>CI</propertyName>
+                                            <typeData>integer</typeData>
+                                            <propertyClass codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/properties.xml#consistency_index">Consistency Index</propertyClass>
+                                        </Property>
+                                        <Property index="7">
+                                            <propertyName>non plastic</propertyName>
+                                            <typeData>boolean</typeData>
+                                            <propertyClass codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/properties.xml#non_plastic">Non Plastic</propertyClass>
+                                        </Property>
+                                    </properties>
+                                </PropertyParameters>
+                            </parameters>
+                            <dataValues cs="," decimal="." ts=" ">31,18,13,CL,0.46,54,0</dataValues>
+                        </ResultSet>
+                    </results>
+                </TestResult>
+            </outcome>
+            <procedure>
+                <AtterbergLimitsTest gml:id="ATT_BH-Mockup-1_65">
+                    <gml:description>Atterberg limits performed on Sample SPT-5 (65.0-66.5 ft), lean clay with sand (CL) unit within the 61-85 ft interval. Liquid limit determined by the fall cone (cone penetrometer) method rather than the Casagrande device.</gml:description>
+                    <status>complete</status>
+                    <testProcedureMethod>
+                        <Specification gml:id="SPEC_ATT_BH-Mockup-1_65_LL">
+                            <gml:name>BS 1377-2:1990, Cone Penetrometer Method (Liquid Limit)</gml:name>
+                            <accredtingBody>CCRL</accredtingBody>
+                        </Specification>
+                    </testProcedureMethod>
+                    <testProcedureMethod>
+                        <Specification gml:id="SPEC_ATT_BH-Mockup-1_65_PL">
+                            <gml:name>ASTM D4318-17e1, Plastic Limit (Method A)</gml:name>
+                            <accredtingBody>CCRL</accredtingBody>
+                        </Specification>
+                    </testProcedureMethod>
+                    <specimen>
+                        <SoilSpecimen gml:id="Specimen_ATT_BH-Mockup-1_65">
+                            <gml:description>Lean Clay with Sand (CL), grey, moist</gml:description>
+                            <gml:name>1</gml:name>
+                            <sampleRef xlink:href="#Sample_BH-Mockup-1_65_SPT-5"/>
+                            <specimenLocation>
+                                <PointLocation gml:id="SPL_ATT_BH-Mockup-1_65" srsDimension="1" srsName="#lsr-BH-Mockup-1">
+                                    <gml:pos>65.9</gml:pos>
+                                </PointLocation>
+                            </specimenLocation>
+                            <conditionPreTest>
+                                <SpecimenConditions gml:id="SC_ATT_BH-Mockup-1_65">
+                                    <waterContent uom="%" howDetermined="measured">24.0</waterContent>
+                                </SpecimenConditions>
+                            </conditionPreTest>
+                            <specimenType>disturbed</specimenType>
+                        </SoilSpecimen>
+                    </specimen>
+                    <sieveProcedure>wet</sieveProcedure>
+                    <specimenInitialState>Wet</specimenInitialState>
+                    <multiPointLLmethod>true</multiPointLLmethod>
+                    <fallConeTrial>
+                        <FallConeTrial gml:id="FCT_BH-Mockup-1_65_1">
+                            <trialNo>1</trialNo>
+                            <penetration uom="mm" howDetermined="measured">15.2</penetration>
+                            <waterContent uom="%" howDetermined="measured">28.5</waterContent>
+                        </FallConeTrial>
+                    </fallConeTrial>
+                    <fallConeTrial>
+                        <FallConeTrial gml:id="FCT_BH-Mockup-1_65_2">
+                            <trialNo>2</trialNo>
+                            <penetration uom="mm" howDetermined="measured">19.8</penetration>
+                            <waterContent uom="%" howDetermined="measured">31.2</waterContent>
+                        </FallConeTrial>
+                    </fallConeTrial>
+                    <fallConeTrial>
+                        <FallConeTrial gml:id="FCT_BH-Mockup-1_65_3">
+                            <trialNo>3</trialNo>
+                            <penetration uom="mm" howDetermined="measured">24.1</penetration>
+                            <waterContent uom="%" howDetermined="measured">33.8</waterContent>
+                        </FallConeTrial>
+                    </fallConeTrial>
+                    <plasticLimitTrial>
+                        <PlasticLimitTrial gml:id="PLT_BH-Mockup-1_65_1">
+                            <trialNo>1</trialNo>
+                            <isManual>true</isManual>
+                            <waterContent uom="%" howDetermined="measured">17.8</waterContent>
+                        </PlasticLimitTrial>
+                    </plasticLimitTrial>
+                    <plasticLimitTrial>
+                        <PlasticLimitTrial gml:id="PLT_BH-Mockup-1_65_2">
+                            <trialNo>2</trialNo>
+                            <isManual>true</isManual>
+                            <waterContent uom="%" howDetermined="measured">18.4</waterContent>
+                        </PlasticLimitTrial>
+                    </plasticLimitTrial>
+                </AtterbergLimitsTest>
+            </procedure>
+        </Test>
+    </measurement>
+
+    <measurement>
+        <Test gml:id="Test_ATT_BH-Mockup-1_85">
+            <gml:name>Atterberg Limits - SPT-7 (85.0-86.5 ft)</gml:name>
+            <role>
+                <Role>
+                    <rolePerformed codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/roles.xml#laboratory_name">Laboratory Name</rolePerformed>
+                    <businessAssociate xlink:href="#BA001"/>
+                </Role>
+            </role>
+            <investigationTarget>Natural Ground</investigationTarget>
+            <projectRef xlink:href="#Project-Mockup-1"/>
+            <samplingFeatureRef xlink:href="#BH-Mockup-1"/>
+            <samplingTime>
+                <TimeInterval gml:id="TI_Test_ATT_BH-Mockup-1_85">
+                    <start frame="#ISO-8601">2026-02-11</start>
+                </TimeInterval>
+            </samplingTime>
+            <outcome>
+                <TestResult>
+                    <location>
+                        <PointLocation gml:id="PL_ATT_BH-Mockup-1_85" srsDimension="1" srsName="#lsr-BH-Mockup-1">
+                            <gml:pos>85.5</gml:pos>
+                        </PointLocation>
+                    </location>
+                    <results>
+                        <ResultSet>
+                            <parameters>
+                                <PropertyParameters>
+                                    <properties>
+                                        <Property index="1">
+                                            <propertyName>LL</propertyName>
+                                            <typeData>integer</typeData>
+                                            <propertyClass codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/properties.xml#liquid_limit">Liquid Limit</propertyClass>
+                                        </Property>
+                                        <Property index="2">
+                                            <propertyName>PL</propertyName>
+                                            <typeData>integer</typeData>
+                                            <propertyClass codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/properties.xml#plastic_limit">Plastic Limit</propertyClass>
+                                        </Property>
+                                        <Property index="3">
+                                            <propertyName>PI</propertyName>
+                                            <typeData>integer</typeData>
+                                            <propertyClass codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/properties.xml#plasticity_index">Plasticity Index</propertyClass>
+                                        </Property>
+                                        <Property index="4">
+                                            <propertyName>USCS Symbol</propertyName>
+                                            <typeData>string</typeData>
+                                            <propertyClass codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/properties.xml#uscs_symbol_425">USCS Symbol Passing 425 Screen</propertyClass>
+                                        </Property>
+                                        <Property index="5">
+                                            <propertyName>LI</propertyName>
+                                            <typeData>double</typeData>
+                                            <propertyClass codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/properties.xml#liquidity_index">Liquidity Index</propertyClass>
+                                        </Property>
+                                        <Property index="6">
+                                            <propertyName>CI</propertyName>
+                                            <typeData>integer</typeData>
+                                            <propertyClass codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/properties.xml#consistency_index">Consistency Index</propertyClass>
+                                        </Property>
+                                        <Property index="7">
+                                            <propertyName>non plastic</propertyName>
+                                            <typeData>boolean</typeData>
+                                            <propertyClass codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/properties.xml#non_plastic">Non Plastic</propertyClass>
+                                        </Property>
+                                        <Property index="8">
+                                            <propertyName>SL</propertyName>
+                                            <typeData>integer</typeData>
+                                            <propertyClass codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/properties.xml#shrinkage_limit">Shrinkage Limit</propertyClass>
+                                        </Property>
+                                        <Property index="9">
+                                            <propertyName>SR</propertyName>
+                                            <typeData>double</typeData>
+                                            <propertyClass codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/properties.xml#shrinkage_ratio">Shrinkage Ratio</propertyClass>
+                                        </Property>
+                                        <Property index="10">
+                                            <propertyName>VS</propertyName>
+                                            <typeData>integer</typeData>
+                                            <propertyClass codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/properties.xml#volumetric_shrinkage">Volumetric Shrinkage</propertyClass>
+                                        </Property>
+                                    </properties>
+                                </PropertyParameters>
+                            </parameters>
+                            <dataValues cs="," decimal="." ts=" ">58,24,34,CH,0.35,65,0,36,2.04,16</dataValues>
+                        </ResultSet>
+                    </results>
+                </TestResult>
+            </outcome>
+            <procedure>
+                <AtterbergLimitsTest gml:id="ATT_BH-Mockup-1_85">
+                    <gml:description>Atterberg limits and shrinkage limit performed on Sample SPT-7 (85.0-86.5 ft), fat clay with sand (CH) unit at the top of the 85-105 ft CH interval; see the SPT-7 SamplingActivity remark regarding sample swelling during recovery.</gml:description>
+                    <status>complete</status>
+                    <testProcedureMethod>
+                        <Specification gml:id="SPEC_ATT_BH-Mockup-1_85_ATT">
+                            <gml:name>ASTM D4318-17e1, Multipoint Method</gml:name>
+                            <accredtingBody>CCRL</accredtingBody>
+                        </Specification>
+                    </testProcedureMethod>
+                    <testProcedureMethod>
+                        <Specification gml:id="SPEC_ATT_BH-Mockup-1_85_SL">
+                            <gml:name>ASTM D4943-18, Shrinkage Limit by Wax Method</gml:name>
+                            <accredtingBody>CCRL</accredtingBody>
+                        </Specification>
+                    </testProcedureMethod>
+                    <specimen>
+                        <SoilSpecimen gml:id="Specimen_ATT_BH-Mockup-1_85">
+                            <gml:description>Fat Clay with Sand (CH), dark grey, wet, high plasticity</gml:description>
+                            <gml:name>1</gml:name>
+                            <sampleRef xlink:href="#Sample_BH-Mockup-1_85_SPT-7"/>
+                            <preparationProcedure>
+                                <Specification gml:id="SPEC_PREP_ATT_BH-Mockup-1_85">
+                                    <gml:description>Specimen air-dried and pulverized to pass the No. 40 sieve prior to remolding, per ASTM D421.</gml:description>
+                                </Specification>
+                            </preparationProcedure>
+                            <conditionPreTest>
+                                <SpecimenConditions gml:id="SC_ATT_BH-Mockup-1_85">
+                                    <waterContent uom="%" howDetermined="measured">36.0</waterContent>
+                                </SpecimenConditions>
+                            </conditionPreTest>
+                            <specificGravityOfSolids waterTemperature="20">2.72</specificGravityOfSolids>
+                            <specimenType>disturbed</specimenType>
+                        </SoilSpecimen>
+                    </specimen>
+                    <ovenDriedBeforeTest>false</ovenDriedBeforeTest>
+                    <sieveProcedure>none</sieveProcedure>
+                    <handRemoved>true</handRemoved>
+                    <percentRetainedNo40>2</percentRetainedNo40>
+                    <specimenInitialState>Dry (air)</specimenInitialState>
+                    <multiPointLLmethod>true</multiPointLLmethod>
+                    <waterDensity waterTemperature="20">1.00</waterDensity>
+                    <waxDensity uom="g/cm3" howDetermined="reported">0.90</waxDensity>
+                    <casagrandeTrial>
+                        <CasagrandeTrial gml:id="CGT_BH-Mockup-1_85_1">
+                            <trialNo>1</trialNo>
+                            <isManual>false</isManual>
+                            <blowCount>38</blowCount>
+                            <waterContent uom="%" howDetermined="measured">52.0</waterContent>
+                        </CasagrandeTrial>
+                    </casagrandeTrial>
+                    <casagrandeTrial>
+                        <CasagrandeTrial gml:id="CGT_BH-Mockup-1_85_2">
+                            <trialNo>2</trialNo>
+                            <isManual>false</isManual>
+                            <blowCount>29</blowCount>
+                            <waterContent uom="%" howDetermined="measured">55.5</waterContent>
+                        </CasagrandeTrial>
+                    </casagrandeTrial>
+                    <casagrandeTrial>
+                        <CasagrandeTrial gml:id="CGT_BH-Mockup-1_85_3">
+                            <trialNo>3</trialNo>
+                            <isManual>false</isManual>
+                            <blowCount>21</blowCount>
+                            <waterContent uom="%" howDetermined="measured">59.0</waterContent>
+                        </CasagrandeTrial>
+                    </casagrandeTrial>
+                    <casagrandeTrial>
+                        <CasagrandeTrial gml:id="CGT_BH-Mockup-1_85_4">
+                            <trialNo>4</trialNo>
+                            <isManual>false</isManual>
+                            <blowCount>14</blowCount>
+                            <waterContent uom="%" howDetermined="measured">63.5</waterContent>
+                        </CasagrandeTrial>
+                    </casagrandeTrial>
+                    <plasticLimitTrial>
+                        <PlasticLimitTrial gml:id="PLT_BH-Mockup-1_85_1">
+                            <trialNo>1</trialNo>
+                            <isManual>false</isManual>
+                            <waterContent uom="%" howDetermined="measured">23.5</waterContent>
+                        </PlasticLimitTrial>
+                    </plasticLimitTrial>
+                    <plasticLimitTrial>
+                        <PlasticLimitTrial gml:id="PLT_BH-Mockup-1_85_2">
+                            <trialNo>2</trialNo>
+                            <isManual>false</isManual>
+                            <waterContent uom="%" howDetermined="measured">24.5</waterContent>
+                        </PlasticLimitTrial>
+                    </plasticLimitTrial>
+                    <shrinkageLimitTrial>
+                        <ShrinkageLimitTrial gml:id="SLT_BH-Mockup-1_85_1">
+                            <trialNo>1</trialNo>
+                            <waterContentWetSoil uom="%" howDetermined="measured">44.0</waterContentWetSoil>
+                            <volumeWetSoil uom="cm3" howDetermined="measured">18.50</volumeWetSoil>
+                            <volumeDrySoil uom="cm3" howDetermined="measured">15.90</volumeDrySoil>
+                            <massDrySoil uom="g" howDetermined="measured">32.50</massDrySoil>
+                        </ShrinkageLimitTrial>
+                    </shrinkageLimitTrial>
+                </AtterbergLimitsTest>
+            </procedure>
+        </Test>
+    </measurement>
+
+    <measurement>
+        <Test gml:id="Test_ATT_BH-Mockup-1_106">
+            <gml:name>Atterberg Limits - SPT-9B (106.0-106.5 ft)</gml:name>
+            <role>
+                <Role>
+                    <rolePerformed codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/roles.xml#laboratory_name">Laboratory Name</rolePerformed>
+                    <businessAssociate xlink:href="#BA001"/>
+                </Role>
+            </role>
+            <investigationTarget>Natural Ground</investigationTarget>
+            <projectRef xlink:href="#Project-Mockup-1"/>
+            <samplingFeatureRef xlink:href="#BH-Mockup-1"/>
+            <samplingTime>
+                <TimeInterval gml:id="TI_Test_ATT_BH-Mockup-1_106">
+                    <start frame="#ISO-8601">2026-02-11</start>
+                </TimeInterval>
+            </samplingTime>
+            <outcome>
+                <TestResult>
+                    <location>
+                        <PointLocation gml:id="PL_ATT_BH-Mockup-1_106" srsDimension="1" srsName="#lsr-BH-Mockup-1">
+                            <gml:pos>106.2</gml:pos>
+                        </PointLocation>
+                    </location>
+                    <results>
+                        <ResultSet>
+                            <parameters>
+                                <PropertyParameters>
+                                    <properties>
+                                        <Property index="1">
+                                            <propertyName>LL</propertyName>
+                                            <typeData>integer</typeData>
+                                            <propertyClass codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/properties.xml#liquid_limit">Liquid Limit</propertyClass>
+                                        </Property>
+                                        <Property index="2">
+                                            <propertyName>LL (oven dried)</propertyName>
+                                            <typeData>integer</typeData>
+                                            <propertyClass codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/properties.xml#liquid_limit_oven_dried">Oven Dried Liquid Limit</propertyClass>
+                                        </Property>
+                                        <Property index="3">
+                                            <propertyName>PL</propertyName>
+                                            <typeData>integer</typeData>
+                                            <propertyClass codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/properties.xml#plastic_limit">Plastic Limit</propertyClass>
+                                        </Property>
+                                        <Property index="4">
+                                            <propertyName>PI</propertyName>
+                                            <typeData>integer</typeData>
+                                            <propertyClass codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/properties.xml#plasticity_index">Plasticity Index</propertyClass>
+                                        </Property>
+                                        <Property index="5">
+                                            <propertyName>USCS Symbol</propertyName>
+                                            <typeData>string</typeData>
+                                            <propertyClass codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/properties.xml#uscs_symbol_425">USCS Symbol Passing 425 Screen</propertyClass>
+                                        </Property>
+                                        <Property index="6">
+                                            <propertyName>LI</propertyName>
+                                            <typeData>double</typeData>
+                                            <propertyClass codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/properties.xml#liquidity_index">Liquidity Index</propertyClass>
+                                        </Property>
+                                        <Property index="7">
+                                            <propertyName>CI</propertyName>
+                                            <typeData>integer</typeData>
+                                            <propertyClass codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/properties.xml#consistency_index">Consistency Index</propertyClass>
+                                        </Property>
+                                        <Property index="8">
+                                            <propertyName>non plastic</propertyName>
+                                            <typeData>boolean</typeData>
+                                            <propertyClass codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/properties.xml#non_plastic">Non Plastic</propertyClass>
+                                        </Property>
+                                    </properties>
+                                </PropertyParameters>
+                            </parameters>
+                            <dataValues cs="," decimal="." ts=" ">39,33,19,20,CH,0.35,65,0</dataValues>
+                        </ResultSet>
+                    </results>
+                </TestResult>
+            </outcome>
+            <procedure>
+                <AtterbergLimitsTest gml:id="ATT_BH-Mockup-1_106">
+                    <gml:description>Atterberg limits performed on the high plasticity clay lens (106.0-106.5 ft, Sample SPT-9B) hand-separated from the SPT-9 clayey sand recovery; see the SPT-9 SamplingActivity remark. An oven-dried liquid limit is also reported for comparison since the specimen required oven drying before testing.</gml:description>
+                    <status>complete</status>
+                    <testProcedureMethod>
+                        <Specification gml:id="SPEC_ATT_BH-Mockup-1_106">
+                            <gml:name>ASTM D4318-17e1, One-Point Method</gml:name>
+                            <accredtingBody>CCRL</accredtingBody>
+                        </Specification>
+                    </testProcedureMethod>
+                    <specimen>
+                        <SoilSpecimen gml:id="Specimen_ATT_BH-Mockup-1_106">
+                            <gml:description>High plasticity clay lens (CH) hand-selected from clayey sand (SC) recovery</gml:description>
+                            <gml:name>1</gml:name>
+                            <sampleRef xlink:href="#Sample_BH-Mockup-1_106_SPT-9B"/>
+                            <extractionTime frame="#ISO-8601">2026-02-16</extractionTime>
+                            <otherSpecimenProperty>
+                                <Parameter index="1" gml:id="PARAM_SPECIMEN_ATT_BH-Mockup-1_106_SOURCE">
+                                    <parameterName>specimenSource</parameterName>
+                                    <parameterValue>Hand-selected clay lens fraction from SPT-9B, distinct from surrounding clayey sand</parameterValue>
+                                </Parameter>
+                            </otherSpecimenProperty>
+                            <specimenType>disturbed</specimenType>
+                        </SoilSpecimen>
+                    </specimen>
+                    <ovenDriedBeforeTest>true</ovenDriedBeforeTest>
+                    <handRemoved>true</handRemoved>
+                    <percentRetainedNo40>5</percentRetainedNo40>
+                    <specimenInitialState>other:ovenDried105C</specimenInitialState>
+                    <multiPointLLmethod>false</multiPointLLmethod>
+                    <casagrandeTrial>
+                        <CasagrandeTrial gml:id="CGT_BH-Mockup-1_106_1">
+                            <trialNo>1</trialNo>
+                            <isManual>true</isManual>
+                            <blowCount>23</blowCount>
+                            <waterContent uom="%" howDetermined="measured">39.0</waterContent>
+                        </CasagrandeTrial>
+                    </casagrandeTrial>
+                    <plasticLimitTrial>
+                        <PlasticLimitTrial gml:id="PLT_BH-Mockup-1_106_1">
+                            <trialNo>1</trialNo>
+                            <isManual>true</isManual>
+                            <waterContent uom="%" howDetermined="measured">19.0</waterContent>
+                        </PlasticLimitTrial>
+                    </plasticLimitTrial>
+                    <plasticLimitTrial>
+                        <PlasticLimitTrial gml:id="PLT_BH-Mockup-1_106_2">
+                            <trialNo>2</trialNo>
+                            <isManual>true</isManual>
+                            <waterContent uom="%" howDetermined="measured">19.6</waterContent>
+                        </PlasticLimitTrial>
+                    </plasticLimitTrial>
+                </AtterbergLimitsTest>
+            </procedure>
+        </Test>
+    </measurement>
+
+    <measurement>
+        <Test gml:id="Test_ATT_BH-Mockup-1_135">
+            <gml:name>Atterberg Limits - SPT-12 (135.0-136.3 ft)</gml:name>
+            <role>
+                <Role>
+                    <rolePerformed codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/roles.xml#laboratory_name">Laboratory Name</rolePerformed>
+                    <businessAssociate xlink:href="#BA001"/>
+                </Role>
+            </role>
+            <investigationTarget>Natural Ground</investigationTarget>
+            <projectRef xlink:href="#Project-Mockup-1"/>
+            <samplingFeatureRef xlink:href="#BH-Mockup-1"/>
+            <samplingTime>
+                <TimeInterval gml:id="TI_Test_ATT_BH-Mockup-1_135">
+                    <start frame="#ISO-8601">2026-02-11</start>
+                </TimeInterval>
+            </samplingTime>
+            <resultTime>
+                <TimeInterval gml:id="TR_Test_ATT_BH-Mockup-1_135">
+                    <start frame="#ISO-8601">2026-02-20</start>
+                </TimeInterval>
+            </resultTime>
+            <outcome>
+                <TestResult>
+                    <location>
+                        <PointLocation gml:id="PL_ATT_BH-Mockup-1_135" srsDimension="1" srsName="#lsr-BH-Mockup-1">
+                            <gml:pos>135.6</gml:pos>
+                        </PointLocation>
+                    </location>
+                    <results>
+                        <ResultSet>
+                            <parameters>
+                                <PropertyParameters>
+                                    <properties>
+                                        <Property index="1">
+                                            <propertyName>LL</propertyName>
+                                            <typeData>integer</typeData>
+                                            <propertyClass codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/properties.xml#liquid_limit">Liquid Limit</propertyClass>
+                                        </Property>
+                                        <Property index="2">
+                                            <propertyName>PL</propertyName>
+                                            <typeData>integer</typeData>
+                                            <propertyClass codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/properties.xml#plastic_limit">Plastic Limit</propertyClass>
+                                        </Property>
+                                        <Property index="3">
+                                            <propertyName>PI</propertyName>
+                                            <typeData>integer</typeData>
+                                            <propertyClass codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/properties.xml#plasticity_index">Plasticity Index</propertyClass>
+                                        </Property>
+                                        <Property index="4">
+                                            <propertyName>USCS Symbol</propertyName>
+                                            <typeData>string</typeData>
+                                            <propertyClass codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/properties.xml#uscs_symbol_425">USCS Symbol Passing 425 Screen</propertyClass>
+                                        </Property>
+                                        <Property index="5">
+                                            <propertyName>LI</propertyName>
+                                            <typeData>double</typeData>
+                                            <propertyClass codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/properties.xml#liquidity_index">Liquidity Index</propertyClass>
+                                        </Property>
+                                        <Property index="6">
+                                            <propertyName>CI</propertyName>
+                                            <typeData>integer</typeData>
+                                            <propertyClass codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/properties.xml#consistency_index">Consistency Index</propertyClass>
+                                        </Property>
+                                        <Property index="7">
+                                            <propertyName>non plastic</propertyName>
+                                            <typeData>boolean</typeData>
+                                            <propertyClass codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/properties.xml#non_plastic">Non Plastic</propertyClass>
+                                        </Property>
+                                    </properties>
+                                </PropertyParameters>
+                            </parameters>
+                            <dataValues cs="," decimal="." ts=" ">28,16,12,CL,0.25,75,0</dataValues>
+                        </ResultSet>
+                    </results>
+                </TestResult>
+            </outcome>
+            <procedure>
+                <AtterbergLimitsTest gml:id="ATT_BH-Mockup-1_135">
+                    <gml:description>Atterberg limits performed on Sample SPT-12 (135.0-136.3 ft), sandy lean clay (CL) unit within the 128-150 ft interval.</gml:description>
+                    <internalIdentifier codeSpace="http://www.globalgeosolutions.com/projects">ATT-BH-MOCKUP-1-135</internalIdentifier>
+                    <status>complete</status>
+                    <implementationStatus>actual</implementationStatus>
+                    <role>
+                        <Role>
+                            <rolePerformed codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/roles.xml#laboratory_name">Laboratory Name</rolePerformed>
+                            <businessAssociate xlink:href="#BA001"/>
+                        </Role>
+                    </role>
+                    <remark>
+                        <Remark>
+                            <content>Liquid limit device calibrated and cup drop height verified (10 mm) prior to testing per ASTM D4318 Annex A1.</content>
+                            <author xlink:href="#BA001"/>
+                            <remarkDateTime frame="#ISO-8601">2026-02-19</remarkDateTime>
+                        </Remark>
+                    </remark>
+                    <testProcedureMethod>
+                        <Specification gml:id="SPEC_ATT_BH-Mockup-1_135">
+                            <gml:name>ASTM D4318-17e1, Multipoint Method</gml:name>
+                            <accredtingBody>CCRL</accredtingBody>
+                        </Specification>
+                    </testProcedureMethod>
+                    <testProcedureEquipment>
+                        <Equipment gml:id="EQ_ATT-LLDEVICE_BH-Mockup-1">
+                            <gml:name codeSpace="Global Geoslutions">Motorized Liquid Limit Device</gml:name>
+                            <status>complete</status>
+                            <implementationStatus>actual</implementationStatus>
+                            <class>liquidLimitDevice</class>
+                            <make>Humboldt</make>
+                            <modelNumber>H-4230</modelNumber>
+                            <serialNumber>HB-4230-2021-0138</serialNumber>
+                        </Equipment>
+                    </testProcedureEquipment>
+                    <testProcedureEquipment>
+                        <Equipment gml:id="EQ_ATT-PLPLATE_BH-Mockup-1">
+                            <gml:name codeSpace="Global Geoslutions">Ground Glass Rolling Plate</gml:name>
+                            <status>complete</status>
+                            <implementationStatus>actual</implementationStatus>
+                            <class>plasticLimitPlate</class>
+                            <make>Humboldt</make>
+                            <modelNumber>H-4235</modelNumber>
+                        </Equipment>
+                    </testProcedureEquipment>
+                    <testingEnvironment>
+                        <Environment gml:id="ENV_ATT_BH-Mockup-1_135">
+                            <ambientTemperature uom="degC" howDetermined="measured">21.5</ambientTemperature>
+                            <humidity uom="%" howDetermined="measured">45</humidity>
+                        </Environment>
+                    </testingEnvironment>
+                    <otherTestProperty>
+                        <Parameter index="1" gml:id="PARAM_ATT_BH-Mockup-1_135_TECH">
+                            <parameterName>technicianInitials</parameterName>
+                            <parameterValue>JQP</parameterValue>
+                        </Parameter>
+                    </otherTestProperty>
+                    <testEvent>
+                        <LaboratoryTestEvent gml:id="LTE_ATT_BH-Mockup-1_135">
+                            <gml:name>Specimen re-homogenization check</gml:name>
+                            <status>complete</status>
+                            <time>
+                                <TimeInterval gml:id="TI_LTE_ATT_BH-Mockup-1_135">
+                                    <start frame="#ISO-8601">2026-02-19</start>
+                                </TimeInterval>
+                            </time>
+                            <infoRecorded>
+                                <Parameter index="1" gml:id="PARAM_LTE_ATT_BH-Mockup-1_135">
+                                    <parameterName>cureTime</parameterName>
+                                    <parameterValue>24</parameterValue>
+                                    <parameterUnits>h</parameterUnits>
+                                </Parameter>
+                            </infoRecorded>
+                        </LaboratoryTestEvent>
+                    </testEvent>
+                    <specimen>
+                        <SoilSpecimen gml:id="Specimen_ATT_BH-Mockup-1_135">
+                            <gml:description>Sandy Lean Clay (CL), brown, moist</gml:description>
+                            <gml:name>1</gml:name>
+                            <sampleRef xlink:href="#Sample_BH-Mockup-1_135_SPT-12"/>
+                            <specimenType>disturbed</specimenType>
+                        </SoilSpecimen>
+                    </specimen>
+                    <sieveProcedure>wet</sieveProcedure>
+                    <specimenInitialState>Wet</specimenInitialState>
+                    <multiPointLLmethod>true</multiPointLLmethod>
+                    <casagrandeTrial>
+                        <CasagrandeTrial gml:id="CGT_BH-Mockup-1_135_1">
+                            <trialNo>1</trialNo>
+                            <isManual>false</isManual>
+                            <blowCount>35</blowCount>
+                            <waterContent uom="%" howDetermined="measured">25.0</waterContent>
+                        </CasagrandeTrial>
+                    </casagrandeTrial>
+                    <casagrandeTrial>
+                        <CasagrandeTrial gml:id="CGT_BH-Mockup-1_135_2">
+                            <trialNo>2</trialNo>
+                            <isManual>false</isManual>
+                            <blowCount>26</blowCount>
+                            <waterContent uom="%" howDetermined="measured">27.5</waterContent>
+                        </CasagrandeTrial>
+                    </casagrandeTrial>
+                    <casagrandeTrial>
+                        <CasagrandeTrial gml:id="CGT_BH-Mockup-1_135_3">
+                            <trialNo>3</trialNo>
+                            <isManual>false</isManual>
+                            <blowCount>18</blowCount>
+                            <waterContent uom="%" howDetermined="measured">30.5</waterContent>
+                        </CasagrandeTrial>
+                    </casagrandeTrial>
+                    <plasticLimitTrial>
+                        <PlasticLimitTrial gml:id="PLT_BH-Mockup-1_135_1">
+                            <trialNo>1</trialNo>
+                            <isManual>false</isManual>
+                            <waterContent uom="%" howDetermined="measured">15.5</waterContent>
+                        </PlasticLimitTrial>
+                    </plasticLimitTrial>
+                    <plasticLimitTrial>
+                        <PlasticLimitTrial gml:id="PLT_BH-Mockup-1_135_2">
+                            <trialNo>2</trialNo>
+                            <isManual>false</isManual>
+                            <waterContent uom="%" howDetermined="measured">16.3</waterContent>
+                        </PlasticLimitTrial>
+                    </plasticLimitTrial>
+                </AtterbergLimitsTest>
             </procedure>
         </Test>
     </measurement>
