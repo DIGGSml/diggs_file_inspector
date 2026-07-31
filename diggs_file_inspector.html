@@ -19983,19 +19983,74 @@ function _interpAtX(pts, targetI) {
   return a.p + t * (b.p - a.p);
 }
 
-/** Target width (px) for one Atterberg plot — half of the REAL, currently
- *  rendered `.meas-pane-body` content width (the scrollable ancestor that
- *  actually bounds available space; see the .att-plot-stack banner comment
- *  in _buildAtterbergPlots for why a CSS % can't express this), minus half
- *  the stack's own 12px gap so two side-by-side plots sum to exactly that
- *  width with no overflow. Floored at 200px so a pathologically narrow pane
- *  doesn't shrink a plot past legibility. Must be measured at DRAW time
- *  (afterRender, once `container` is live in the DOM) — .meas-pane-body's
- *  own width is independent of its content (it scrolls, per its
- *  `overflow:auto`), so this doesn't create a sizing feedback loop. */
+/** Target width (px) for one Atterberg plot — half of the real available
+ *  width of `.att-plot-stack` (container's direct parent — the flex row
+ *  holding both plot placeholders), minus half the stack's own 12px gap so
+ *  two side-by-side plots sum to exactly that width with no overflow.
+ *  Floored at 200px so a pathologically narrow pane doesn't shrink a plot
+ *  past legibility. Must be computed at DRAW time (afterRender, once
+ *  `container` is live in the DOM).
+ *
+ *  Two measurement paths, because this draws in two different structural
+ *  contexts (see PROCEDURE_PLOT_BUILDERS/buildMeasurementDisplay):
+ *  - **Single-measurement badge**: the plot sits directly in the top-level
+ *    Metadata pane (always visible). `.att-plot-stack`'s own rendered
+ *    `getBoundingClientRect().width` is accurate as-is — it's a block-level
+ *    flex row with no width of its own, so it already reflects whatever
+ *    space its full ancestor chain leaves available.
+ *  - **Multi-measurement badge**: the plot sits inside one result-table
+ *    row's `.kv-interval-detail-row` (via `_measRowExpandHtml`), which
+ *    starts `display:none` and only shows once the user expands that
+ *    specific row. `buildMeasurementDisplay`'s `afterRender` draws EVERY
+ *    row's plots up front in one pass, regardless of which row (if any)
+ *    the user has actually opened — so at draw time a not-yet-expanded
+ *    row's whole subtree is hidden, and any geometry query inside it
+ *    (`getBoundingClientRect`/`clientWidth`) returns 0 (found live: this is
+ *    exactly what made a fixed-parent-width version of this function
+ *    collapse every plot to the 200px floor once the earlier wrap bug was
+ *    fixed). Detected via `rect.width === 0` and handled by computing
+ *    available width analytically instead of geometrically: start from the
+ *    always-visible `#assoc-content`'s real `clientWidth`, then walk the
+ *    ancestor chain from `.att-plot-stack`'s parent up through (and
+ *    including) `#assoc-content`, subtracting each level's own
+ *    `getComputedStyle` left+right padding (e.g. the detail row `td`'s
+ *    `8px 10px 10px 24px`, `#assoc-content`'s own `12px 16px`). A hidden
+ *    element's *computed CSS values* stay correct even though its
+ *    *geometry* zeroes out, so this reconstructs the true width the row
+ *    will have once actually expanded — matching the live-verified
+ *    behavior that a too-narrow auto-width table grows to fit a wider
+ *    forced child. Capped at 40 ancestor levels as a bail-out in case
+ *    `#assoc-content` is never reached (shouldn't happen; Atterberg plots
+ *    only ever render inside it). */
 function _atterbergPlotTargetWidth(container) {
-  const paneBody = container.closest('.meas-pane-body');
-  const avail = paneBody ? paneBody.clientWidth : container.parentElement.getBoundingClientRect().width * 2;
+  const stack = container.parentElement;
+  const rect = stack.getBoundingClientRect();
+  let avail;
+  if (rect.width > 0) {
+    avail = rect.width;
+  } else {
+    const assocContent = document.getElementById('assoc-content');
+    if (assocContent) {
+      let totalPad = 0, el = stack.parentElement, hops = 0;
+      while (el && hops++ < 40) {
+        const cs = getComputedStyle(el);
+        totalPad += (parseFloat(cs.paddingLeft) || 0) + (parseFloat(cs.paddingRight) || 0);
+        if (el === assocContent) break;
+        el = el.parentElement;
+      }
+      // Safety margin: this whole branch runs BEFORE the user has expanded
+      // any row, so it can't account for #assoc-content's own vertical
+      // scrollbar (`::-webkit-scrollbar { width:6px }`) appearing later,
+      // once actually expanding a row adds enough height to make the pane
+      // scroll — clientWidth shrinks by the scrollbar's width at that
+      // point, but not yet here. Found live (headless-Chrome measurement):
+      // without this margin the estimate came out exactly 1-2px too wide,
+      // just enough to flip the flex-wrap once the row was really expanded.
+      avail = assocContent.clientWidth - totalPad - 8;
+    } else {
+      avail = 800; // shouldn't happen — safe arbitrary fallback
+    }
+  }
   return Math.max(200, Math.floor((avail - 12) / 2));
 }
 
@@ -20005,11 +20060,28 @@ function _atterbergPlotTargetWidth(container) {
  *  drawResultPlots' own temporal (x-independent, unflipped) branch — same
  *  viewport/axis shape, just fed log-transformed x values and a tick
  *  formatter that exponentiates back for display. Shows the actual trial
- *  points as permanent markers (`pointMarkers`) alongside the connecting
- *  line, plus a dashed reference construction (`refPoint`) dropped to both
- *  axes at the standard reading point — N=25 blows for Casagrande, 20mm
- *  penetration for the fall cone method — showing exactly where LL is read
- *  off the curve, interpolated along the same line the plot draws. */
+ *  points as permanent, slightly-enlarged markers (`pointMarkerRadius`,
+ *  vs. drawPlot's own 3.5px default) alongside the connecting line, plus a
+ *  dashed reference construction (`refPoint`) dropped to both axes at the
+ *  standard reading point — N=25 blows for Casagrande, 20mm penetration
+ *  for the fall cone method — showing exactly where LL is read off the
+ *  curve, interpolated along the same line the plot draws.
+ *
+ *  `VH` is set to match _drawAtterbergPlasticityChart's own 360:260
+ *  aspect ratio (`440 * 260/360`) rather than the 440:260 this plot would
+ *  otherwise use — both plots share the same target width (see
+ *  _atterbergPlotTargetWidth), so matching aspect ratios makes their
+ *  rendered heights equal with NO forced/distorting resize needed on
+ *  either side (the earlier approach forced the plasticity chart's own,
+ *  differently-proportioned SVG to stretch via preserveAspectRatio:none
+ *  to match this chart's height — this is the non-distorting alternative:
+ *  taller PAD.top/bottom-relative plot area on the axis that actually has
+ *  headroom to give, the y-axis, rather than squashing anything).
+ *
+ *  `indFullOverride` pads the x-axis (log scale) one whole real-unit below
+ *  the smallest trial value and above the largest, converted to the same
+ *  log10 space `pts[].i` already uses — without it the first/last point
+ *  sits exactly on the plot's left/right edge, clipping its marker. */
 function _drawAtterbergFlowCurve(container, flow) {
   const w = _atterbergPlotTargetWidth(container);
   container.style.width = w + 'px';
@@ -20022,12 +20094,16 @@ function _drawAtterbergFlowCurve(container, flow) {
   const targetX = isFallCone ? 20 : 25;
   const targetI = Math.log10(targetX);
   const llAtTarget = _interpAtX(pts, targetI);
+  const rawXs = pts.map(p => Math.pow(10, p.i));
+  const xMinPadded = Math.max(0.1, Math.floor(Math.min(...rawXs)) - 1);
+  const xMaxPadded = Math.ceil(Math.max(...rawXs)) + 1;
   drawPlot(container, {
-    points: pts, orientation: 'x-ind', pointMarkers: true,
+    points: pts, orientation: 'x-ind', pointMarkers: true, pointMarkerRadius: 5,
+    indFullOverride: { min: Math.log10(xMinPadded), max: Math.log10(xMaxPadded) },
     refPoint: llAtTarget != null
       ? { i: targetI, p: llAtTarget, color: '#f0883e', label: `LL = ${Math.round(llAtTarget)}%` }
       : null,
-    viewport: { VW: 440, VH: 260, PAD: { top: 26, bottom: 42, left: 50, right: 16 } },
+    viewport: { VW: 440, VH: 440 * (260 / 360), PAD: { top: 26, bottom: 42, left: 50, right: 16 } },
     clipPrefix: 'att-flow', infoText: `n=${pts.length}`,
     axisFontSize: 11, tooltipFontSize: 12,
     ind: {
@@ -20050,13 +20126,22 @@ function _drawAtterbergFlowCurve(container, flow) {
 
 /** USCS plasticity (Casagrande) chart: PI vs. LL with the standard A-line
  *  (kinked at LL=25.5, the CL-ML/ML boundary — PI=4 below it, PI=0.73(LL-20)
- *  above) and U-line (PI=0.9(LL-8), the practical upper-bound envelope)
- *  reference boundaries, plus this test's own (LL, PI) point. A fixed
- *  reference chart with a single point — no zoom/pan/crosshair state makes
- *  sense here, so this is a small standalone SVG builder rather than a
- *  drawPlot() call (drawPlot's one-series-plus-crosshair model doesn't fit a
- *  reference-line-plus-point chart). Colors match drawPlot's own dark-theme
- *  defaults for visual consistency with the flow curve above it. */
+ *  above), U-line (PI=0.9(LL-8), the practical upper-bound envelope), the
+ *  50% LL divider (plain vertical low/high-plasticity split), the small
+ *  CL-ML borderline zone between the A-line and U-line (hatched, per the
+ *  reference USCS chart), classification region labels (CH or OH/MH or
+ *  OH/CL or OL/ML or OL/CL-ML), and this test's own (LL, PI) point (dot
+ *  only — no adjacent text label; the <title> still surfaces LL/PI/symbol
+ *  on hover). The A-line/U-line's own labels are rotated to visually
+ *  follow their line (`lineAngleDeg`, in pixel space — LL and PI scale by
+ *  different factors so a data-space slope isn't the same as its pixel
+ *  angle) and set smaller than the region labels, per the reference. A
+ *  fixed reference chart with a single point — no zoom/pan/crosshair state
+ *  makes sense here, so this is a small standalone SVG builder rather than
+ *  a drawPlot() call (drawPlot's one-series-plus-crosshair model doesn't
+ *  fit a reference-line-plus-point chart). Colors match drawPlot's own
+ *  dark-theme defaults for visual consistency with the flow curve above
+ *  it. */
 function _drawAtterbergPlasticityChart(container, pt) {
   const w = _atterbergPlotTargetWidth(container);
   container.style.width = w + 'px';
@@ -20098,35 +20183,106 @@ function _drawAtterbergPlasticityChart(container, pt) {
     svg.appendChild(mk('line', { x1: PAD.left, x2: PAD.left + pW, y1: y, y2: y, stroke: C.grid, 'stroke-width': 1 }));
     svg.appendChild(text({ x: PAD.left - 5, y: y + 3, 'text-anchor': 'end', 'font-size': 10, fill: C.axisText, 'font-family': 'monospace' }, pi));
   }
+
+  // 50% LL divider — the conventional low/high plasticity split (an "L"
+  // vs. "H" suffix on every USCS symbol), independent of the A-line/U-line
+  // slopes. A plain vertical reference line, not a classification boundary
+  // of its own.
+  if (50 <= maxLL) {
+    const x50 = xOf(50);
+    svg.appendChild(mk('line', { x1: x50, x2: x50, y1: PAD.top, y2: PAD.top + pH, stroke: '#c9d1d9', 'stroke-width': 1.5 }));
+  }
+
   svg.appendChild(mk('rect', { x: PAD.left, y: PAD.top, width: pW, height: pH, fill: 'none', stroke: C.border }));
 
   // A-line: PI=4 flat from LL=0 to LL=25.5 (the CL-ML/ML split), then
   // PI=0.73(LL-20) — clipped to the chart's own PI range so it never runs
   // off the top edge.
   const aSlopeEndLL = Math.min(maxLL, maxPI / 0.73 + 20);
+
+  // U-line: PI=0.9(LL-8), the practical upper-bound envelope.
+  const uEndLL = Math.min(maxLL, maxPI / 0.9 + 8);
+
+  // CL-ML zone — the small ASTM D2487 borderline region (4≤PI≤7, above the
+  // A-line) between the A-line and U-line, per the reference chart. Built
+  // from the same two formulas already driving the lines above, not a
+  // separate hand-tuned box, so it stays consistent if those ever change:
+  // bottom edge along the A-line's flat PI=4 run (from where the U-line
+  // reaches PI=4, to LL=25.5), right edge up the A-line's slope to PI=7,
+  // top edge back along PI=7, left edge down the U-line's slope to PI=4.
+  const llAtUPI4 = 4 / 0.9 + 8, llAtUPI7 = 7 / 0.9 + 8, llAtAPI7 = 7 / 0.73 + 20;
+  const clmlPts = [
+    { ll: llAtUPI4, pi: 4 }, { ll: 25.5, pi: 4 },
+    { ll: llAtAPI7, pi: 7 }, { ll: llAtUPI7, pi: 7 },
+  ];
+  const hatchId = 'clml-hatch-' + Math.random().toString(36).slice(2, 8);
+  const defs = document.createElementNS(NS_SVG, 'defs');
+  const hatchPattern = mk('pattern', { id: hatchId, width: 6, height: 6, patternTransform: 'rotate(45)', patternUnits: 'userSpaceOnUse' });
+  hatchPattern.appendChild(mk('line', { x1: 0, y1: 0, x2: 0, y2: 6, stroke: C.axisText, 'stroke-width': 1 }));
+  defs.appendChild(hatchPattern);
+  svg.appendChild(defs);
+  svg.appendChild(mk('polygon', {
+    points: clmlPts.map(p => `${xOf(p.ll).toFixed(1)},${yOf(p.pi).toFixed(1)}`).join(' '),
+    fill: `url(#${hatchId})`, stroke: C.axisText, 'stroke-width': 1,
+  }));
+
+  // Pixel-space angle (degrees) of a line with data-space slope
+  // dPI/dLL=slope — separate from the data-space slope itself since
+  // xOf/yOf scale LL and PI by different factors (pW/maxLL vs. pH/maxPI),
+  // so the two axes are never pixel-uniform; used to rotate the A-line/
+  // U-line labels to visually follow their own line, per the reference
+  // chart, rather than sitting flat.
+  const lineAngleDeg = slope => Math.atan2(-slope * (pH / maxPI), pW / maxLL) * 180 / Math.PI;
+
   svg.appendChild(lineOf(
     [{ ll: 0, pi: 4 }, { ll: 25.5, pi: 4 }, { ll: aSlopeEndLL, pi: 0.73 * (aSlopeEndLL - 20) }],
     { stroke: '#f0883e', 'stroke-width': 1.5 }
   ));
-  svg.appendChild(text({ x: xOf(aSlopeEndLL) - 4, y: yOf(0.73 * (aSlopeEndLL - 20)) - 4, 'text-anchor': 'end', 'font-size': 10, fill: '#f0883e', 'font-family': 'monospace' }, 'A-line'));
+  {
+    const ll = 25.5 + (aSlopeEndLL - 25.5) * 0.55, pi = 0.73 * (ll - 20);
+    const lx = xOf(ll), ly = yOf(pi) - 5;
+    svg.appendChild(text({ x: lx, y: ly, 'text-anchor': 'middle', 'font-size': 8, fill: '#f0883e', 'font-family': 'monospace',
+      transform: `rotate(${lineAngleDeg(0.73).toFixed(1)}, ${lx}, ${ly})` }, 'A-line'));
+  }
 
-  // U-line: PI=0.9(LL-8), the practical upper-bound envelope.
-  const uEndLL = Math.min(maxLL, maxPI / 0.9 + 8);
   svg.appendChild(lineOf(
     [{ ll: 8, pi: 0 }, { ll: uEndLL, pi: 0.9 * (uEndLL - 8) }],
     { stroke: '#bc8cff', 'stroke-width': 1.5, 'stroke-dasharray': '4,3' }
   ));
-  svg.appendChild(text({ x: xOf(uEndLL) - 4, y: yOf(0.9 * (uEndLL - 8)) - 4, 'text-anchor': 'end', 'font-size': 10, fill: '#bc8cff', 'font-family': 'monospace' }, 'U-line'));
+  {
+    const ll = 8 + (uEndLL - 8) * 0.55, pi = 0.9 * (ll - 8);
+    const lx = xOf(ll), ly = yOf(pi) - 5;
+    svg.appendChild(text({ x: lx, y: ly, 'text-anchor': 'middle', 'font-size': 8, fill: '#bc8cff', 'font-family': 'monospace',
+      transform: `rotate(${lineAngleDeg(0.9).toFixed(1)}, ${lx}, ${ly})` }, 'U-line'));
+  }
 
-  // This test's own (LL, PI) point.
+  // Classification region labels (fixed positions as fractions of the
+  // chart's own dynamic maxLL/maxPI, so they stay sensibly placed however
+  // far those extend beyond the USCS chart's own 100/60 minimum) — per the
+  // reference USCS plasticity chart: clay (C) above the A-line, silt/
+  // organic (M/O) below it; low (L, LL<50) vs. high (H, LL≥50) plasticity
+  // split by the 50% line above.
+  const regionLabel = (ll, pi, txt) => svg.appendChild(text(
+    { x: xOf(ll), y: yOf(pi), 'text-anchor': 'middle', 'font-size': 9, fill: C.axisText, 'font-family': 'sans-serif' }, txt));
+  regionLabel(50 + (maxLL - 50) * 0.5, maxPI * 0.82, 'CH or OH');
+  regionLabel(50 + (maxLL - 50) * 0.5, maxPI * 0.15, 'MH or OH');
+  regionLabel(50 * 0.62, maxPI * 0.38, 'CL or OL');
+  // ll=40 (not a maxLL fraction) — deliberately clear of the CL-ML box's own
+  // footprint (LL~12.4-29.6), which a naive maxLL*fraction placement landed
+  // right on top of.
+  regionLabel(40, maxPI * 0.05, 'ML or OL');
+  svg.appendChild(text({
+    x: xOf((llAtUPI4 + 25.5) / 2), y: yOf(5.5), 'text-anchor': 'middle', 'font-size': 6.5, fill: '#e6edf3', 'font-family': 'monospace',
+  }, 'CL-ML'));
+
+  // This test's own (LL, PI) point — dot only, no adjacent text label (the
+  // <title> below still surfaces LL/PI/symbol on hover).
   const px = xOf(Math.min(pt.LL, maxLL)), py = yOf(Math.min(pt.PI, maxPI));
   const dot = mk('circle', { cx: px, cy: py, r: 5, fill: '#58a6ff', stroke: '#fff', 'stroke-width': 1.5 });
   const ttl = document.createElementNS(NS_SVG, 'title');
   ttl.textContent = `LL=${pt.LL}, PI=${pt.PI}${pt.symbol ? ', ' + pt.symbol : ''}`;
   dot.appendChild(ttl);
   svg.appendChild(dot);
-  svg.appendChild(text({ x: px + 8, y: py - 8, 'font-size': 11, fill: '#e6edf3', 'font-family': 'monospace' },
-    `${pt.symbol ? pt.symbol + ' ' : ''}LL=${pt.LL}, PI=${pt.PI}`));
 
   svg.appendChild(text({ x: PAD.left + pW / 2, y: VH - 4, 'text-anchor': 'middle', 'font-size': 12, fill: C.axisText, 'font-family': 'sans-serif' }, 'Liquid Limit (LL)'));
   svg.appendChild(text({ transform: `rotate(-90) translate(${-(PAD.top + pH / 2)}, 13)`, 'text-anchor': 'middle', 'font-size': 12, fill: C.axisText, 'font-family': 'sans-serif' }, 'Plasticity Index (PI)'));
@@ -20134,6 +20290,40 @@ function _drawAtterbergPlasticityChart(container, pt) {
 
   const wrapper = document.createElement('div');
   wrapper.style.cssText = 'margin-bottom:0;';
+
+  // Align with an adjacent flow-curve plot in the same .att-plot-stack (see
+  // _buildAtterbergPlots — the flow job is always pushed, and so drawn,
+  // first when both exist). The flow curve's drawPlot() wrapper has a
+  // Reset/+/-/n= toolbar above its own SVG that this chart doesn't have, so
+  // without adjustment "Plasticity Chart" starts higher than the flow
+  // curve's actual plot body. A spacer matching the toolbar's own height
+  // pushes this chart's SVG down to start at the same point — no height
+  // override needed on this side (unlike an earlier version of this fix):
+  // _drawAtterbergFlowCurve's own viewport VH is now set to match this
+  // chart's 360:260 aspect ratio, so at the same shared target width `w`
+  // both SVGs already come out the same height naturally, with neither
+  // stretched/distorted to match the other.
+  //
+  // The toolbar height is a fixed constant rather than a live DOM
+  // measurement — even though the flow wrapper was drawn moments earlier
+  // in this same pass, this chart (like the flow curve) draws inside a
+  // multi-measurement badge's per-row expand (`.kv-interval-detail-row`),
+  // which is `display:none` until the user opens that specific row (see
+  // _atterbergPlotTargetWidth's own banner comment for the identical
+  // constraint), so at draw time the flow wrapper has no live layout box
+  // to measure. ATT_TOOLBAR_H: drawPlot's toolbar is pure fixed-CSS sizing
+  // with no width-dependent part (6px own padding + a button's 11px font *
+  // 1.6 line-height + 1px border top/bottom + 2px own padding) —
+  // live-measured at ~28px; update this constant if drawPlot's toolbar CSS
+  // (see mkBtn/toolbar.style.cssText) ever changes.
+  const hasFlowSibling = !!(container.parentElement && container.parentElement.querySelector('.att-flow-plot-wrapper'));
+  if (hasFlowSibling) {
+    const ATT_TOOLBAR_H = 28;
+    const spacer = document.createElement('div');
+    spacer.style.height = ATT_TOOLBAR_H + 'px';
+    wrapper.appendChild(spacer);
+  }
+
   wrapper.appendChild(svg);
   container.appendChild(wrapper);
 }
