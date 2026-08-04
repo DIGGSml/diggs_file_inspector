@@ -1610,18 +1610,17 @@ table.data-table tbody tr.selected {
    (flex-basis only applies inside a flex container), so each SVG's `width:100%`
    fills the full pane width — and since its viewBox aspect ratio locks
    height = width * 2.1 (VW=200/VH=420), that alone made a depth plot balloon
-   to 2x+ the pane height. Thicker (10px), always-rendered (not overlay/hover-
-   only) accent-colored scrollbar — thin/muted default scrollbars were too easy
-   to miss against the dark theme once several plot columns overflow. */
+   to 2x+ the pane height. Scrollbar styling is the shared global default
+   (see the plain ::-webkit-scrollbar rules below) — same thin grey/
+   hover-white look the Results table's own scroll container uses; a
+   thicker, always-rendered accent-colored variant was tried here first but
+   read as visually inconsistent with every other scrollbar in the app, so
+   it was removed rather than kept as a one-off. */
 .meas-plot-row {
   display:flex;flex-direction:row;gap:10px;flex-wrap:nowrap;
   width:100%;overflow-x:auto;overflow-y:hidden;
   padding-bottom:10px;
-  scrollbar-width:auto;scrollbar-color:var(--accent) var(--surface2);
 }
-.meas-plot-row::-webkit-scrollbar { height:10px; }
-.meas-plot-row::-webkit-scrollbar-track { background:var(--surface2); border-radius:5px; }
-.meas-plot-row::-webkit-scrollbar-thumb { background:var(--accent); border-radius:5px; }
 
 /* .meas-lith-col-wrapper — the lithology graphic-log reference column
    drawResultPlots prepends to a depth-vertical .meas-plot-row (see
@@ -1677,7 +1676,13 @@ table.data-table tbody tr.selected {
    categories, the Plot div) supplies its own via .kv-section-header's/etc.
    own margins instead. */
 .meas-pane-body { flex:1 1 auto;overflow:auto;padding:0 6px 6px; }
-.meas-vsplit-handle { flex:0 0 6px;cursor:row-resize;background:var(--surface3); }
+/* Same thickness/rest color as the main layout's own drag handles
+   (#h-drag/.v-drag, both flex:0 0 5px, background var(--surface2)) — this
+   used to be flex:0 0 6px with background var(--surface3) (a visibly
+   lighter grey), which together read as noticeably thicker/more prominent
+   than every other divider in the app; unified rather than kept as a
+   one-off. */
+.meas-vsplit-handle { flex:0 0 5px;cursor:row-resize;background:var(--surface2);transition:background .15s; }
 .meas-vsplit-handle:hover, .meas-vsplit-handle.dragging { background:var(--accent); }
 
 /* ── Well SVG plot styles ─────────────────────────── */
@@ -1759,12 +1764,11 @@ table.data-table tbody tr.selected {
    to accent on hover, same discoverability convention as .cs-link/.kv-val-link. */
 .result-col-link { cursor:pointer; text-decoration:underline; text-underline-offset:2px; }
 .result-col-link:hover { color:var(--accent); }
+/* Sample "Associated Measurements" row link (navigateToSampleMeasurement) —
+   same discoverability convention as .result-col-link/.ba-link. */
+.assoc-meas-link { cursor:pointer; color:var(--accent); text-decoration:underline; text-underline-offset:2px; }
+.assoc-meas-link:hover { color:#f0b060; }
 .muted-dash { color:var(--text-dim) !important; text-align:center; }
-
-/* PPD dissipation trace plots */
-.ppd-plot-wrap { margin: 12px 0 8px; }
-.ppd-plot-label { font-size:11px; color:var(--text-muted); margin-bottom:4px; font-style:italic; }
-.ppd-plot-container { width:80%; min-width:80%; }
 
 /* Generic detail popup — BusinessAssociate detail is the only surviving use */
 #detail-popup { display:none;position:fixed;inset:0;z-index:9999;
@@ -4969,6 +4973,13 @@ let DIGGS_SAMPLES = {}; // keyed by sf gml:id (via samplingFeatureRef) -> Sampli
 // gml:id -> array of Sample elements referencing it. See
 // renderSamplingBadgeContent / _buildSamplingActivityRows.
 let DIGGS_SAMPLE_BY_SP = new Map();
+// DIGGS_SP_TO_SF — SampleProduced gml:id -> owning SF gml:id (the
+// samplingFeatureRef of that SampleProduced's parent SamplingActivity).
+// Forward complement to DIGGS_SAMPLE_BY_SP: given a Sample (via its own
+// sampleProducedRef), this resolves which SF's Samples badge/table it lives
+// in — used by _sampleRefRows/navigateToSample (a measurement or Specimen's
+// "Sample Name" link, see OBJECT_CONFIGS).
+let DIGGS_SP_TO_SF = new Map();
 // DIGGS_MEASUREMENTS — unified measurement registry (the config-driven rebuild's
 // data layer). Keyed by owning SF gml:id → array of records:
 //   { measType, el, sfId, procType, procObjs[], domain, resultSet }
@@ -4976,6 +4987,18 @@ let DIGGS_SAMPLE_BY_SP = new Map();
 // Populated generically for all four measurement flavors (Test/Monitor/
 // MaterialTest/MeasurementWhileDrilling) alongside the legacy per-type globals.
 let DIGGS_MEASUREMENTS = {};
+// DIGGS_SAMPLE_MEASUREMENTS — reverse index powering Sample's "Associated
+// Measurements" KV rows (see OBJECT_CONFIGS.Sample's computeRows row,
+// _sampleAssociatedMeasurementRows). Keyed by Sample gml:id -> array of
+// { sfId, procType, measId }, one entry per measurement whose subtree
+// contains a sampleRef pointing back to that Sample — sampleRef can live
+// directly on the measurement (AbstractMeasurementType's own field) or
+// nested inside a procedure object (e.g. WaterContentTest's own
+// specimen/SoilSpecimen/sampleRef, the common real-world location), so the
+// ingest pass searches the whole measurement subtree rather than assuming a
+// fixed depth. Populated alongside DIGGS_MEASUREMENTS in loadDIGGS's unified
+// measurement ingest pass.
+let DIGGS_SAMPLE_MEASUREMENTS = {};
 
 // ══════════════════════════════════════════════════════════════
 //  SF_TYPE_CONFIG  — per-type metadata for all DIGGS 3.0 SF element types
@@ -5392,7 +5415,7 @@ function resetToLoad() {
   sfMarkers.clear();
   DIGGS_SF = new Map();
   DIGGS_BH = []; DIGGS_CPT = []; DIGGS_WELL = [];
-  DIGGS_LITH = {}; DIGGS_SAMPLES = {}; DIGGS_SAMPLE_BY_SP = new Map();
+  DIGGS_LITH = {}; DIGGS_SAMPLES = {}; DIGGS_SAMPLE_BY_SP = new Map(); DIGGS_SP_TO_SF = new Map();
   DIGGS_PROJECTS = []; DIGGS_ACTIVE_PROJECT = null; DIGGS_BA_MAP = {};
   _expandedMultiTrackId = null;
   // LSR_UOM is keyed by srsName, which for a local `#fragment` reference is
@@ -7138,6 +7161,21 @@ function _fmtResultValue(raw, kind) {
   return escHtml(raw);
 }
 
+// Abbreviates a gml:TimeUnitType token (`second`/`minute`/`hour`/`day`/
+// `month`/`year`, or its `other:xyz` free-text escape hatch) to match every
+// other short unit label in this app. Shared by `_resultIndexSpec` (the
+// Elapsed Time column header) and `drawResultPlots` (an elapsed-time plot's
+// axis ticks/tooltip) so the two never drift.
+const _TIME_UNIT_SHORT = { year: 'yr', month: 'mo', day: 'd', hour: 'h', minute: 'min', second: 's' };
+function _shortTimeUnit(u) { return _TIME_UNIT_SHORT[u] || (u || '').replace(/^other:/, ''); }
+// Plain "N unit" formatter for an elapsed-time value (integer once |v|>=100,
+// 2dp below that) — shared by `drawResultPlots`' elapsed-time axis and
+// `_drawPPDCurve`'s dissipation-curve axis so the two never drift.
+function _fmtElapsedTime(v, unitShort) {
+  const n = Math.abs(v) >= 100 ? Math.round(v) : Math.round(v * 100) / 100;
+  return n + (unitShort ? ' ' + unitShort : '');
+}
+
 /**
  * _resultIndexSpec(domain, depthUom) — a parsed domain → the result table's
  * leading index column(s) + per-row extractors. Returns
@@ -7166,7 +7204,7 @@ function _resultIndexSpec(domain, depthUom) {
   }
   if (domain.geomType === 'TimeIntervalList') {
     return {
-      cols: [{ label: 'Elapsed Time', uom: domain.timeUnit || '' }],
+      cols: [{ label: 'Elapsed Time', uom: _shortTimeUnit(domain.timeUnit) || '' }],
       cells: p => [_fmtIndexNum(p)],
       sortNum: p => { const n = parseFloat(p); return isNaN(n) ? null : n; },
     };
@@ -7281,6 +7319,12 @@ function buildResultTableModel(records, opts) {
  *     identifies which one) — a single-measurement display has nothing
  *     per-row to differentiate, so it omits `rowExpand` entirely and shows
  *     metadata/procedure as ordinary trailing sections instead.
+ *   - `rowKey?: (row) => string` — when supplied, stamps the row's `<tr>`
+ *     with `data-meas-row-key="<value>"`, so external code (a Sample's
+ *     "Associated Measurements" link — see navigateToSampleMeasurement) can
+ *     locate and expand one specific row after switching to this badge.
+ *     Purely additive — a row with no key, or no `rowKey` supplied at all,
+ *     renders identically to before.
  * The `<table>` always carries `meas-result-table` (sticky-header CSS hook)
  * alongside the shared `sub-table kv-interval-table` classes. A value
  * column's header (never an index column — those come from the domain, not
@@ -7322,7 +7366,9 @@ function renderResultTable(model, spec) {
       return `<td class="kv-interval-val${numCls}">${lead}${cell ? _fmtResultValue(cell.raw, cell.kind) : _KV_EMPTY_DASH}</td>`;
     }).join('');
     const onclick = expandable ? ' onclick="toggleKVSection(this)"' : '';
-    tbody += `<tr class="kv-interval-row"${onclick}>${idxTds}${valTds}</tr>`;
+    const rowKeyVal = spec.rowKey ? spec.rowKey(r) : null;
+    const rowKeyAttr = rowKeyVal ? ` data-meas-row-key="${esc(rowKeyVal)}"` : '';
+    tbody += `<tr class="kv-interval-row"${rowKeyAttr}${onclick}>${idxTds}${valTds}</tr>`;
     if (expandable) {
       tbody += `<tr class="kv-interval-detail-row" style="display:none"><td colspan="${totalCols}">${expandHtml}</td></tr>`;
     }
@@ -7451,7 +7497,14 @@ function _renderTemporalResultBlock(trEl, label, ctx) {
   const model = buildResultTableModel([{ domain, resultSet }], {});
   if (!model || !model.rows.length) return '';
   const plotId = 'proctr-' + Math.random().toString(36).slice(2, 8);
-  ctx.drawJobs.push({ plotId, model, domainKind: domain ? domain.kind : 'temporal', depthUom: '' });
+  // `timeUnit` set only for an elapsed-time domain (TimeIntervalList, e.g. a
+  // dissipation test's seconds-since-hold-start) — its raw index values are
+  // plain numbers, NOT epoch milliseconds, so drawResultPlots must format
+  // its independent axis as elapsed time rather than a calendar Date. A
+  // real dateTime domain (TimePositionList) leaves this unset, preserving
+  // the existing epoch-ms Date formatting.
+  const timeUnit = (domain && domain.geomType === 'TimeIntervalList') ? (domain.timeUnit || 's') : null;
+  ctx.drawJobs.push({ plotId, model, domainKind: domain ? domain.kind : 'temporal', depthUom: '', timeUnit });
   return `<div id="${plotId}" class="proc-plot-area"></div>` +
     renderResultTable(model, { label, startCollapsed: true });
 }
@@ -7630,6 +7683,7 @@ function renderProcedureSection(procObjs, ctx) {
 const PROCEDURE_PLOT_BUILDERS = {
   AtterbergLimitsTest: _buildAtterbergPlots,
   ParticleSizeTest: _buildParticleSizePlot,
+  PorePressureDissipationTest: _buildPPDPlot,
 };
 
 /** Pulls {i:log10(x), p:waterContent} points from every `tagName` trial
@@ -7808,6 +7862,66 @@ function _buildParticleSizePlot(proc, ctx) {
   return { html, drawJobs: [{ kind: 'particleSizeCurve', containerId, pts }] };
 }
 
+/** Every (elapsed time, value) point from a PorePressureDissipationTest
+ *  procedure's dissipationTimeSeries occurrence(s), pooled the same way
+ *  _particleSizePoints pools multiple SieveAnalysis/Hydrometer objects
+ *  (in practice a procedure carries exactly one dissipationTimeSeries — one
+ *  continuous hold — but the schema allows more than one and pooling costs
+ *  nothing). Unlike _particleSizePoints' direct flat-element DOM walk, a
+ *  dissipationTimeSeries wraps a real TemporalResult (domain + ResultSet,
+ *  parallel-array encoded), so this reuses the same
+ *  parseDomain/parseResultSet pipeline `OBJECT_CONFIGS.
+ *  PorePressureDissipationTest`'s own `dissipationTimeSeries` row uses for
+ *  its table — same underlying data, read directly here since the plot only
+ *  needs the elapsed-time index + first numeric value column, not a full
+ *  table model. `timeUnit`/`valueLabel`/`valueUom` are taken from the first
+ *  occurrence that has them (first-seen, matching buildResultTableModel's
+ *  own column-union convention). */
+function _ppdDissipationSeries(proc) {
+  const pts = [];
+  let timeUnit = '', valueLabel = '', valueUom = '';
+  for (const dtsEl of Array.from(proc.getElementsByTagNameNS(NS.diggs, 'dissipationTimeSeries'))) {
+    const trEl = dtsEl.getElementsByTagNameNS(NS.diggs, 'TemporalResult')[0];
+    if (!trEl) continue;
+    const domain = parseDomain(trEl);
+    if (!domain || domain.kind !== 'temporal') continue;
+    const rsEl = trEl.getElementsByTagNameNS(NS.diggs, 'ResultSet')[0];
+    if (!rsEl) continue;
+    const resultSet = parseResultSet(rsEl, { expectedRows: domain.positions ? domain.positions.length : undefined });
+    if (!resultSet || !resultSet.props.length) continue;
+    const ci = resultSet.props.findIndex(p => p.kind === 'numeric');
+    const col = ci >= 0 ? ci : 0;
+    const prop = resultSet.props[col];
+    if (!valueLabel) {
+      valueLabel = prop.name || prop.propertyClass || '';
+      valueUom = prop.uom || '';
+      timeUnit = domain.timeUnit || '';
+    }
+    for (let i = 0; i < resultSet.rows.length; i++) {
+      const t = domain.positions[i];
+      const v = parseFloat(resultSet.rows[i][col]);
+      if (typeof t === 'number' && isFinite(t) && isFinite(v)) pts.push({ i: t, p: v });
+    }
+  }
+  pts.sort((a, b) => a.i - b.i);
+  return { pts, timeUnit, valueLabel, valueUom };
+}
+
+/** Pore-pressure dissipation curve for a PorePressureDissipationTest —
+ *  analogous to _buildParticleSizePlot (a single full-pane-width plot, per
+ *  the same "match Atterberg/ParticleSizeTest placement and sizing"
+ *  request), drawn ahead of the procedure's own KV content rather than
+ *  embedded in its `dissipationTimeSeries` row (see that row's own
+ *  configOverride, which renders only the raw table now). Needs at least 2
+ *  points to draw anything meaningful. */
+function _buildPPDPlot(proc, ctx) {
+  const series = _ppdDissipationSeries(proc);
+  if (series.pts.length < 2) return null;
+  const containerId = 'ppd-plot-' + Math.random().toString(36).slice(2, 9);
+  const html = `<div style="margin-bottom:10px;"><div id="${containerId}"></div></div>`;
+  return { html, drawJobs: [{ kind: 'ppdCurve', containerId, series }] };
+}
+
 /** Render one property row from rowCfg, evaluated against context
  *  element el. Branches generically (no config-declared "kind" needed):
  *  a property wrapper that resolves to one or more child objects (embedded
@@ -7892,6 +8006,46 @@ function renderPropertyRow(el, rowCfg) {
       ? `${_rowLabel(rowCfg)}<div class="kv-key-extra">${result.keyExtra}</div>`
       : _rowLabel(rowCfg);
     return renderSimpleRow(keyHtml, val, rowCfg.labelClass, rowCfg.valueClass, rowCfg.borderTop, rowCfg.borderBottom);
+  }
+
+  // `computeRows` is an escape hatch for a *group* of rows computed from
+  // state outside `el`'s own schema fields entirely — e.g. Sample's
+  // "Associated Measurements" (an aggregation over every measurement in the
+  // whole document that references this Sample via sampleRef, not a child
+  // element of Sample at all; see _sampleAssociatedMeasurementRows) or a
+  // Specimen/measurement's "Sample Name" (_sampleRefRows). Returns an array
+  // of `{label, val}` row descriptors, or a falsy/empty array for "nothing
+  // to show" (renders nothing — no empty header/row).
+  //
+  // Grouping follows the SAME convention every real multi-occurrence object
+  // row already uses elsewhere in this engine (see the plain `blocks.length
+  // === 1 && !rowCfg.alwaysGroup` check further down this function): exactly
+  // one item renders as an ordinary plain row (`it.label` as its key, e.g. a
+  // lone "Sample Name" row reading just like any other field) with no
+  // header at all; two or more get wrapped in one wrapCategoryHeader (title
+  // = `rowCfg.labelPlural` or `rowCfg.label + 's'`), each its own line
+  // underneath — the "each occurrence gets its own row under one category"
+  // shape. Set `rowCfg.alwaysGroup: true` on the row config to force the
+  // collapsible category header even for a single result (e.g. "Associated
+  // Measurements" — always its own named section, never merged into a bare
+  // row, matching the `otherSampleProperty`-style rows' own use of
+  // `alwaysGroup`). Keeping the row itself in `OBJECT_CONFIGS.Sample` /
+  // `.SoilSpecimen` / `_MEAS_META_TRAILING` (rather than hardcoding grouping
+  // into a call site) means both the label/position AND this grouping
+  // behavior stay a config edit, not a code change. **A row config using
+  // `alwaysGroup` with a `label` that's already plural-looking MUST also set
+  // `labelPlural` explicitly** — found live: "Associated Measurements" with
+  // no `labelPlural` fell through to the `label + 's'` default and rendered
+  // "Associated Measurementss".
+  if (typeof rowCfg.computeRows === 'function') {
+    const items = rowCfg.computeRows(el) || [];
+    if (!items.length) return '';
+    const rowsHtml = items.map(it =>
+      renderSimpleRow(_rowLabel({ label: it.label }), it.val, rowCfg.labelClass, rowCfg.valueClass)
+    ).join('');
+    if (items.length === 1 && !rowCfg.alwaysGroup) return rowsHtml;
+    const plural = rowCfg.labelPlural || (rowCfg.label ? rowCfg.label + 's' : '');
+    return wrapCategoryHeader(plural, rowsHtml, false, rowCfg.categoryClass);
   }
 
   const path = rowCfg.path || '.';
@@ -8857,11 +9011,17 @@ OBJECT_CONFIGS.AtterbergLimitsTest = [
 // SoilSpecimen — SoilSpecimenType (core/Core.xsd:6970) extends
 // AbstractSpecimenType (core/AbstractTypes.xsd:1333, itself extends
 // AbstractFeatureType). `sampleRef` (required, unbounded — the join back to
-// the source Sample) is omitted per the Reference-Property convention, same
-// as every other *Ref in this app.
+// the source Sample) is the one *Ref in this app NOT omitted per the
+// Reference-Property convention (2026-08-04): unlike an internal xlink the
+// reader can already see structurally (e.g. Well's "Parent Feature"), a
+// specimen's sampleRef is the only place the actual originating Sample is
+// identified at all — see the shared `_sampleRefRows` (computeRows) row
+// below, which also backs the analogous row on the measurement configs
+// (_MEAS_META_TRAILING) for AbstractMeasurementType's own sampleRef.
 OBJECT_CONFIGS.SoilSpecimen = [
   ..._OBJ_BASE_FIELDS,
   ..._FEATURE_LEADING,
+  { label: 'Sample Name', computeRows: el => _sampleRefRows(el) },
   { path: 'diggs:specimenType', label: 'Specimen Type' },
   { path: 'diggs:specimenLocation', label: 'Specimen Location' },
   { path: 'diggs:extractionTime', label: 'Extraction Time' },
@@ -9331,6 +9491,74 @@ OBJECT_CONFIGS.StaticConePenetrationTest = [
   ..._FEATURE_TRAILING,
 ];
 
+// PorePressureDissipationTest (2026-08-03) — PorePressureDissipationTestType
+// (core/CoreProcedures.xsd) extends AbstractInsituTestProcedureType ->
+// AbstractTestProcedureType -> AbstractProcedureType (empty own sequence) ->
+// AbstractFeatureType, the exact same base chain as
+// OBJECT_CONFIGS.StaticConePenetrationTest above (testEvent is likewise
+// InSituTestEventPropertyType, maxOccurs="unbounded" -> multi:true here
+// too). Own fields: estimatedIr?/estimatedU0?/estimatedU50?/
+// estimatedWaterDepth?, then dissipationTimeSeries* (unbounded
+// DissipationTimeSeriesPropertyType, each wrapping exactly one required
+// diggs:TemporalResult — the raw pore-pressure-vs-elapsed-time curve).
+//
+// `dissipationTimeSeries` is the one row here that isn't a plain path/
+// object row: TemporalResult has no KV shape of its own (domain + results,
+// same coverage-type family as TestResult, not a normal feature/object), so
+// resolving it through the ordinary nested-OBJECT_CONFIGS path would render
+// empty. `configOverride` reaches in to the wrapper's TemporalResult child
+// and renders its raw elapsed-time/value table via the same
+// parseDomain/parseResultSet/buildResultTableModel/renderResultTable
+// pipeline `_renderTemporalResultBlock` uses (table only — `label: null`
+// (really: omitted) suppresses `renderResultTable`'s own wrapCategoryHeader
+// so it doesn't double up with the header this row's own configOverride
+// dispatch already adds in `renderPropertyRow`). The dissipation CURVE PLOT
+// itself is deliberately NOT drawn here — see
+// `PROCEDURE_PLOT_BUILDERS.PorePressureDissipationTest`
+// (`_buildPPDPlot`/`_drawPPDCurve`, near `_buildParticleSizePlot`), which
+// puts it at the very top of the metadata section (ahead of General Info),
+// full-pane-width, matching Atterberg/ParticleSizeTest's own plot
+// placement and font-scaling convention — the same reasoning as those two
+// types keeping their own raw trial/grading data in an ordinary KV/
+// dataTable row while their plot lives entirely separately.
+OBJECT_CONFIGS.PorePressureDissipationTest = [
+  ..._OBJ_BASE_FIELDS,
+  ..._FEATURE_LEADING,
+  { path: 'diggs:testProcedureMethod', multi: true, label: 'Test Method' },
+  { path: 'diggs:estimatedIr', label: 'Estimated Rigidity Index (Ir)' },
+  { path: 'diggs:estimatedU0', label: 'Estimated Equilibrium Pore Pressure (U0)' },
+  { path: 'diggs:estimatedU50', label: 'Estimated U50 Pore Pressure' },
+  { path: 'diggs:estimatedWaterDepth', label: 'Estimated Water Depth' },
+  {
+    path: 'diggs:dissipationTimeSeries', multi: true,
+    label: 'Dissipation Time Series',
+    configOverride: dtsEl => {
+      const trEl = evalXPath(dtsEl, 'diggs:TemporalResult')[0];
+      if (!trEl) return '';
+      const domain = parseDomain(trEl);
+      const rsEl = trEl.getElementsByTagNameNS(NS.diggs, 'ResultSet')[0];
+      if (!rsEl) return '';
+      const resultSet = parseResultSet(rsEl, { expectedRows: domain && domain.positions ? domain.positions.length : undefined });
+      const model = buildResultTableModel([{ domain, resultSet }], {});
+      if (!model || !model.rows.length) return '';
+      return renderResultTable(model, { startCollapsed: true });
+    },
+  },
+  { path: 'diggs:testProcedureEquipment', multi: true, label: 'Equipment', labelPlural: 'Equipment' },
+  { path: 'diggs:testingEnvironment', multi: true, label: 'Testing Environment' },
+  { path: 'diggs:testEvent', multi: true, label: 'Test Event', labelPlural: 'Test Events' },
+  {
+    path: 'diggs:otherTestProperty', multi: true,
+    label: 'Other Property', labelPlural: 'Other Properties', alwaysGroup: true,
+    itemLabel: el => {
+      const nameEl = evalXPath(el, 'diggs:parameterName')[0];
+      const txt = nodeText(nameEl);
+      return txt ? escHtml(txt) + _codeSpaceKeyExtra(nameEl) : null;
+    },
+  },
+  ..._FEATURE_TRAILING,
+];
+
 // ══════════════════════════════════════════════════════════════
 //  SamplingActivity / Sample configs (2026-07-29) — full schema trace via
 //  ../diggs-schema, built for the SamplingActivity+Sample joined interval
@@ -9456,6 +9684,129 @@ const _SAMPLE_PRODUCED_TRAILING = [
   },
 ];
 
+// Sample "Associated Measurements" — not a schema element at all: a
+// cross-document reverse lookup (which measurement(s), anywhere in the
+// file, reference THIS Sample via sampleRef — see DIGGS_SAMPLE_MEASUREMENTS,
+// populated in loadDIGGS's unified measurement ingest pass) surfaced as its
+// own KV section via OBJECT_CONFIGS.Sample's `computeRows` row below. Rows
+// are deduped to one per distinct procedure type (first-seen wins) — a
+// sample is normally tested once per procedure, though the schema allows a
+// sample to feed more than one procedure type (e.g. both a WaterContentTest
+// and an AtterbergLimitsTest specimen). Each row's value is a link
+// (navigateToSampleMeasurement) that selects the measurement's owning SF,
+// opens that procedure's badge, and — when the badge aggregates more than
+// one measurement — expands + scrolls to the specific row for this sample's
+// own measurement (via renderResultTable's `rowKey`, see
+// buildMeasurementDisplay).
+function _sampleAssociatedMeasurementRows(sampleEl) {
+  const sampleId = sampleEl.getAttributeNS(NS.gml, 'id') || sampleEl.getAttribute('gml:id') || sampleEl.getAttribute('id') || '';
+  const matches = (sampleId && DIGGS_SAMPLE_MEASUREMENTS[sampleId]) || [];
+  if (!matches.length) return [];
+  const seen = new Set();
+  const rows = [];
+  for (const m of matches) {
+    if (seen.has(m.procType)) continue;
+    seen.add(m.procType);
+    const idSafe = String(m.sfId).replace(/[^a-zA-Z0-9]/g, '_');
+    const procTypeSafe = String(m.procType).replace(/[^a-zA-Z0-9]/g, '_');
+    const badgeId = `assoc-meas-${idSafe}-${procTypeSafe}`;
+    const val = `<a class="assoc-meas-link" onclick="navigateToSampleMeasurement('${esc(m.sfId)}','${esc(badgeId)}','${esc(m.measId)}')">${escHtml(diggsLabel(m.procType))}</a>`;
+    rows.push({ label: 'Procedure', val });
+  }
+  return rows;
+}
+
+/** Sample "Associated Measurements" link handler — see
+ *  _sampleAssociatedMeasurementRows above. Selects the measurement's owning
+ *  SF (rebuilding its badge registry via showSFDetail), switches the
+ *  Associated Data pane to the matching procedure badge, then — if this
+ *  badge aggregates more than one measurement — finds the specific row
+ *  tagged with this measurement's own gml:id (renderResultTable's `rowKey`)
+ *  and expands + scrolls to it. selectSF/showAssocBadge are both
+ *  synchronous DOM writes, so no rAF is needed before the badgeId lookup;
+ *  one rAF wraps only the row-expand step as a defensive margin against the
+ *  badge's own afterRender draw jobs still settling layout. */
+function navigateToSampleMeasurement(sfId, badgeId, measId) {
+  const sf = [...DIGGS_SF.values()].flat().find(s => s.id === sfId);
+  if (!sf) return;
+  selectSF(sf.type, sfId);
+  showAssocBadge(sfId, badgeId);
+  if (!measId) return;
+  requestAnimationFrame(() => {
+    const row = document.querySelector(`#assoc-content tr[data-meas-row-key="${CSS.escape(measId)}"]`);
+    if (!row) return;
+    row.scrollIntoView({ block: 'center' });
+    if (!row.classList.contains('kv-row-expanded')) row.click();
+  });
+}
+
+// "Sample Name" row(s) — the flip side of "Associated Measurements" above:
+// shown on a measurement or specimen object (via a `sampleRef` DIRECT CHILD
+// of `el` — deliberately shallow, unlike DIGGS_SAMPLE_MEASUREMENTS' own
+// whole-subtree search, since here each object's OWN sampleRef field is what
+// matters — a measurement's row must not pick up a nested procedure
+// specimen's own sampleRef, and vice versa). Backs
+// OBJECT_CONFIGS.SoilSpecimen and _MEAS_META_TRAILING's own `computeRows`
+// rows — see each config's banner comment for why sampleRef, alone among
+// this app's *Ref elements, isn't simply omitted.
+function _sampleRefRows(el) {
+  const refEls = evalXPath(el, 'diggs:sampleRef');
+  if (!refEls.length) return [];
+  const seen = new Set();
+  const rows = [];
+  for (const refEl of refEls) {
+    const sampleId = (refEl.getAttributeNS(NS.xlink, 'href') || refEl.getAttribute('xlink:href') || '').replace(/^#/, '');
+    const dedupeKey = sampleId || `_${rows.length}`;
+    if (seen.has(dedupeKey)) continue;
+    seen.add(dedupeKey);
+    rows.push({ label: 'Sample Name', val: _sampleNameLinkHtml(resolveHref(refEl), sampleId) });
+  }
+  return rows;
+}
+
+/** Resolves one linked Sample to its display name, as a link
+ *  (navigateToSample) when it resolves to a real row in its owning SF's
+ *  Samples badge table — via the Sample's own `sampleProducedRef` and
+ *  DIGGS_SP_TO_SF, the exact key/lookup renderSamplingBadgeContent's joined
+ *  table rows already use (see that global's own comment) — else plain
+ *  text: the ref target couldn't be resolved at all (unresolvable href), or
+ *  resolved but isn't joined to any SamplingActivity/SampleProduced row
+ *  (e.g. a Sample authored with no sampleProducedRef, schema-optional). */
+function _sampleNameLinkHtml(sampleEl, sampleId) {
+  if (!sampleEl) return escHtml(sampleId || _KV_EMPTY_DASH);
+  const nameEl = evalXPath(sampleEl, 'gml:name[1]')[0];
+  const name = nodeText(nameEl) || sampleEl.getAttributeNS(NS.gml, 'id') || sampleEl.getAttribute('id') || sampleId;
+  const spRefEl = evalXPath(sampleEl, 'diggs:sampleProducedRef')[0];
+  const spId = spRefEl ? (spRefEl.getAttributeNS(NS.xlink, 'href') || spRefEl.getAttribute('xlink:href') || '').replace(/^#/, '') : '';
+  const sfId = spId ? DIGGS_SP_TO_SF.get(spId) : null;
+  if (!sfId || !spId) return escHtml(name);
+  const rowKey = spId.replace(/[^a-zA-Z0-9_-]/g, '_');
+  return `<a class="assoc-meas-link" onclick="navigateToSample('${esc(sfId)}','${esc(rowKey)}')">${escHtml(name)}</a>`;
+}
+
+/** "Sample Name" link handler — mirrors navigateToSampleMeasurement's
+ *  structure: select the owning SF, switch to its Samples badge, then find +
+ *  expand the exact joined-table row via `data-sample-key` (the key
+ *  renderSamplingBadgeContent already stamps on every row — see
+ *  _buildSamplingActivityRows/that function's own `key` computation, which
+ *  `rowKey` here is built to match exactly: the row's SampleProduced gml:id,
+ *  same sanitization). */
+function navigateToSample(sfId, rowKey) {
+  const sf = [...DIGGS_SF.values()].flat().find(s => s.id === sfId);
+  if (!sf) return;
+  selectSF(sf.type, sfId);
+  const badges = _assocBadgeRegistry.get(sfId) || [];
+  const badge = badges.find(b => b.id.startsWith('assoc-samp-'));
+  if (!badge) return;
+  showAssocBadge(sfId, badge.id);
+  requestAnimationFrame(() => {
+    const row = document.querySelector(`#assoc-content tr[data-sample-key="${CSS.escape(rowKey)}"]`);
+    if (!row) return;
+    row.scrollIntoView({ block: 'center' });
+    if (!row.classList.contains('kv-row-expanded')) row.click();
+  });
+}
+
 // Sample — SampleType (core/Core.xsd:2127) extends AbstractSampleType
 // (core/AbstractTypes.xsd:978), which extends AbstractNamedFeatureType —
 // same base shape as SamplingActivity above. projectRef/samplingActivityRef/
@@ -9496,6 +9847,22 @@ OBJECT_CONFIGS.Sample = [
   { path: 'diggs:sampleDimensions', label: 'Sample Dimensions' },
   { path: 'diggs:initialContainer', label: 'Initial Container' },
  { path: 'diggs:chainOfCustodyEvent', multi: true, label: 'Chain of Custody Event', labelPlural: 'Chain of Custody Events' },
+  {
+    // Not a schema field — see _sampleAssociatedMeasurementRows above.
+    // Position here is just config order; move this entry to relabel/
+    // relocate the section without touching any rendering code.
+    // alwaysGroup: true keeps this its own collapsible "Associated
+    // Measurements" category header even when only one procedure type
+    // matched — see renderPropertyRow's computeRows handling for the
+    // default (no alwaysGroup) behavior a plain single-result row like
+    // "Sample Name" uses instead. labelPlural is required here — the
+    // default fallback (label + 's') would otherwise double up on this
+    // already-plural label ("Associated Measurementss").
+    label: 'Associated Measurements',
+    labelPlural: 'Associated Measurements',
+    alwaysGroup: true,
+    computeRows: el => _sampleAssociatedMeasurementRows(el),
+  },
 ];
 
 // SampleProduced — SampleProducedType (core/Common.xsd:2267) extends
@@ -11302,12 +11669,17 @@ OBJECT_CONFIGS.Project = [
 //  AbstractFeature part reuses the same _OBJ_BASE_FIELDS/_FEATURE_LEADING/
 //  _FEATURE_TRAILING every feature config uses; AbstractMeasurementType then
 //  adds investigationTarget*, projectRef+, programRef?, samplingFeatureRef*,
-//  sampleRef*, constructionActivityRef?, otherMeasurementProperty*. The five
-//  *Ref elements are internal xlink navigation properties — omitted per the
-//  engine's Reference-Property convention (the measurement is already shown in
-//  the context of its owning SF/badge). Test/MaterialTest add samplingTime?/
-//  resultTime?/validTime?; Monitor adds samplingTime? + monitorLocation(1);
-//  MWD adds no pre-outcome metadata of its own.
+//  sampleRef*, constructionActivityRef?, otherMeasurementProperty*. Four of
+//  the five *Ref elements are internal xlink navigation properties — omitted
+//  per the engine's Reference-Property convention (the measurement is
+//  already shown in the context of its owning SF/badge). `sampleRef` is the
+//  exception (2026-08-04, same reasoning as SoilSpecimen's own sampleRef —
+//  see that config's banner comment): it's the only place identifying which
+//  Sample(s) this measurement was performed on, surfaced via the shared
+//  `_sampleRefRows` (computeRows) row in _MEAS_META_TRAILING below. Test/
+//  MaterialTest add samplingTime?/resultTime?/validTime?; Monitor adds
+//  samplingTime? + monitorLocation(1); MWD adds no pre-outcome metadata of
+//  its own.
 // ══════════════════════════════════════════════════════════════
 const _MEAS_META_LEADING = [
   { path: 'gml:name', multi: true, splitRows: true },
@@ -11324,6 +11696,7 @@ const _MEAS_TIMES = [
   { path: 'diggs:validTime', label: 'Valid Time' },
 ];
 const _MEAS_META_TRAILING = [
+  { label: 'Sample Name', computeRows: el => _sampleRefRows(el) },
   { path: 'diggs:role', multi: true, splitRows: true },
   { path: 'diggs:remark', multi: true, splitRows: true },
   { path: 'diggs:associatedFile', multi: true },
@@ -12749,11 +13122,18 @@ function loadDIGGS(doc, filename) {
   // DIGGS_SAMPLE_BY_SP) happens lazily at render time in
   // _buildSamplingActivityRows, not here — see renderSamplingBadgeContent.
   DIGGS_SAMPLES = {};
+  DIGGS_SP_TO_SF = new Map();
   for (const sa of xNodes(doc, '//diggs:samplingActivity/diggs:SamplingActivity')) {
     const href = xText(doc, 'diggs:samplingFeatureRef/@xlink:href', sa).replace('#','');
     if (!href) continue;
     if (!DIGGS_SAMPLES[href]) DIGGS_SAMPLES[href] = [];
     DIGGS_SAMPLES[href].push(sa);
+    // DIGGS_SP_TO_SF: every SampleProduced nested under this SamplingActivity
+    // shares its owning SF — see the global's own comment.
+    for (const sp of xNodes(doc, 'diggs:sampleProduced/diggs:SampleProduced', sa)) {
+      const spId = sp.getAttributeNS(NS.gml, 'id') || sp.getAttribute('id') || '';
+      if (spId) DIGGS_SP_TO_SF.set(spId, href);
+    }
   }
   // Reverse index: a Sample only carries a reverse xlink:href
   // (sampleProducedRef) back to its producing SampleProduced — there is no
@@ -12823,6 +13203,7 @@ function loadDIGGS(doc, filename) {
   // config-driven display rebuild. parseResultSet/parseDomain do the parsing.
   // Reuses the wellIds/bhIds/cptIds/openingIdToWellId lookups built above.
   DIGGS_MEASUREMENTS = {};
+  DIGGS_SAMPLE_MEASUREMENTS = {};
   const MEAS_TYPES = ['Test','Monitor','MaterialTest','MeasurementWhileDrilling'];
   const _MEAS_RESULT_ELEM = {
     Test: 'TestResult', Monitor: 'TemporalResult',
@@ -12891,6 +13272,19 @@ function loadDIGGS(doc, filename) {
       DIGGS_MEASUREMENTS[sfId].push({
         measType, el: measEl, sfId, procType, procObjs, domain, resultSet,
       });
+
+      // Reverse sampleRef index (DIGGS_SAMPLE_MEASUREMENTS) — search the
+      // whole measurement subtree, not just measEl's own direct children;
+      // see the global's own comment for why (sampleRef commonly nests
+      // inside a procedure's specimen object rather than sitting directly
+      // on the measurement).
+      const measId = measEl.getAttributeNS(NS.gml, 'id') || measEl.getAttribute('gml:id') || measEl.getAttribute('id') || '';
+      for (const refEl of Array.from(measEl.getElementsByTagNameNS(NS.diggs, 'sampleRef'))) {
+        const sampleId = (refEl.getAttributeNS(NS.xlink, 'href') || '').replace(/^#/, '');
+        if (!sampleId) continue;
+        if (!DIGGS_SAMPLE_MEASUREMENTS[sampleId]) DIGGS_SAMPLE_MEASUREMENTS[sampleId] = [];
+        DIGGS_SAMPLE_MEASUREMENTS[sampleId].push({ sfId, procType, measId });
+      }
     }
   }
 
@@ -16464,10 +16858,11 @@ function initMeasSplit(containerId) {
   // Plot/Results/Metadata (see _buildMeasSplitHtml's pane push order in
   // buildMeasurementDisplay) — an even three-way split gave Metadata as much
   // room as Plot/Results even though it typically needs far less, so default
-  // to 40/35/25 instead. Any other pane count (a 2-pane Plot+Results or
-  // Results+Metadata split) keeps an even share — flex-grow ratios with a
+  // to 50/25/25 instead (Plot given half the pane; Results and Metadata
+  // split the remainder evenly). Any other pane count (a 2-pane Plot+Results
+  // or Results+Metadata split) keeps an even share — flex-grow ratios with a
   // shared flex-basis of 0 is what makes an uneven initial split simple.
-  const initGrow = panes.length === 3 ? [40, 35, 25] : panes.map(() => 1);
+  const initGrow = panes.length === 3 ? [50, 25, 25] : panes.map(() => 1);
   panes.forEach((p, i) => { p.style.flex = `${initGrow[i]} 1 0`; });
 
   // Each handle only resizes its own two immediate neighbor panes — plain
@@ -16674,7 +17069,17 @@ function buildMeasurementDisplay(sf) {
         // expand to the identical metadata/procedure (see the Metadata pane
         // below instead).
         const rowExpand = isMulti ? (row => _measRowExpandHtml(row, depthUom, drawJobs)) : null;
-        const tableHtml = renderResultTable(model, { rowExpand });
+        // rowKey: tags each row with its source measurement's own gml:id, so
+        // navigateToSampleMeasurement (a Sample's "Associated Measurements"
+        // link) can find and expand the exact row for a given measurement
+        // after switching to this badge — harmless when nothing ever queries
+        // for it (single-measurement badges included).
+        const rowKey = row => {
+          const rec = row.sourceRecord;
+          const el = rec && rec.el;
+          return el ? (el.getAttributeNS(NS.gml, 'id') || el.getAttribute('gml:id') || el.getAttribute('id') || '') : '';
+        };
+        const tableHtml = renderResultTable(model, { rowExpand, rowKey });
         panes.push({ label: 'Results', html: tableHtml });
       }
 
@@ -16736,8 +17141,13 @@ function buildMeasurementDisplay(sf) {
               if (c) _drawParticleSizeCurve(c, j.pts);
               continue;
             }
+            if (j.kind === 'ppdCurve') {
+              const c = document.getElementById(j.containerId);
+              if (c) _drawPPDCurve(c, j.series);
+              continue;
+            }
             const c = document.getElementById(j.plotId);
-            if (c) drawResultPlots(c, j.model, { domainKind: j.domainKind, depthUom: j.depthUom, totalDepth: j.totalDepth, lithColumns: j.lithColumns });
+            if (c) drawResultPlots(c, j.model, { domainKind: j.domainKind, depthUom: j.depthUom, timeUnit: j.timeUnit, totalDepth: j.totalDepth, lithColumns: j.lithColumns });
           }
         });
       },
@@ -20233,7 +20643,8 @@ function _wrapWordTokens(words, maxWidth, font) {
  *
  * @param {HTMLElement} container
  * @param {Object} model  buildResultTableModel() output (rows carry `sortNum`,
- *   the raw numeric index = depth or epoch-ms).
+ *   the raw numeric index — depth, epoch-ms for a TimePositionList domain,
+ *   or a plain elapsed-time number for a TimeIntervalList domain).
  * @param {{domainKind:'spatial'|'temporal', depthUom?:string, timeUnit?:string,
  *   totalDepth?:number, only?:string[]}} opts  `only` optionally restricts to
  *   named columns. `totalDepth` (already converted to `depthUom`'s unit —
@@ -20241,7 +20652,14 @@ function _wrapWordTokens(words, maxWidth, font) {
  *   independent axis to always span [0, totalDepth] regardless of where this
  *   particular measurement's own data points happen to fall, matching a
  *   boring log's fixed ground-surface-to-TD convention. Ignored for a
- *   temporal domain (a time axis has no analogous fixed extent).
+ *   temporal domain (a time axis has no analogous fixed extent). `timeUnit`
+ *   (a `parseDomain`-resolved TimeIntervalList's own `unit` attribute, e.g.
+ *   `'second'`) switches a temporal plot's independent axis from
+ *   epoch-ms-as-Date formatting to plain elapsed-time-plus-unit formatting
+ *   — required whenever `domainKind:'temporal'` came from a TimeIntervalList
+ *   rather than a real TimePositionList (a dissipation test's elapsed time
+ *   since hold start, not a calendar timestamp); omitted/falsy preserves
+ *   the original Date-based formatting for a true dateTime domain.
  */
 function drawResultPlots(container, model, opts) {
   opts = opts || {};
@@ -20257,6 +20675,15 @@ function drawResultPlots(container, model, opts) {
     if (days <= 730) return (d.getMonth()+1) + '/' + d.getDate() + '/' + String(d.getFullYear()).slice(2);
     return d.getFullYear() + '/' + (d.getMonth()+1);
   };
+  // Elapsed-time domain (opts.timeUnit set — a TimeIntervalList, e.g. a
+  // dissipation test's seconds-since-hold-start): the raw index values are
+  // plain numbers, NOT epoch milliseconds, so they must NOT go through
+  // fmtTime/Date — that was the bug (every tick landing within a few
+  // thousand ms of the epoch, all formatting to the same wall-clock
+  // minute). `_shortTimeUnit`/`_fmtElapsedTime` (shared with
+  // `_resultIndexSpec`'s Elapsed Time column header and `_drawPPDCurve`,
+  // near the top of the file) abbreviate the schema's spelled-out
+  // gml:TimeUnitType token and format a raw elapsed value with it.
 
   // Collect every drawable column (numeric, ≥2 usable points) up front —
   // same filter _measDrawablePlotCols uses to decide whether a Plot pane
@@ -20332,15 +20759,19 @@ function drawResultPlots(container, model, opts) {
     const uom = c.uom || '';
 
     if (temporal) {
-      const iRange = (pts[pts.length-1].i - pts[0].i) || 1;
+      const elapsed = !!opts.timeUnit;
+      const timeUnitShort = elapsed ? _shortTimeUnit(opts.timeUnit) : '';
+      const indSpec = elapsed
+        ? { ticks: 5, fmtTick: v => _fmtElapsedTime(v, timeUnitShort), fmtTip: v => _fmtElapsedTime(v, timeUnitShort) }
+        : { ticks: 5, minSpanAbs: 60000,
+            fmtTick: (v, span) => fmtTime(new Date(v), span),
+            fmtTip: v => new Date(v).toLocaleString([], {year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}) };
       drawPlot(container, {
         points: pts, orientation: 'x-ind',
         viewport: { VW: 800, VH: 220, PAD: { top: 20, bottom: 46, left: 66, right: 20 } },
         clipPrefix: 'rp-t-' + ci, infoText: `n=${pts.length}`,
         axisFontSize: 12, tooltipFontSize: 12,
-        ind: { ticks: 5, minSpanAbs: 60000,
-               fmtTick: (v, span) => fmtTime(new Date(v), span),
-               fmtTip: v => new Date(v).toLocaleString([], {year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}) },
+        ind: indSpec,
         dep: { color: col, ticks: 5, flip: /depth/i.test(c.label), padFrac: 0.08, padAbsFrac: 0.05, padConst: 0.5,
                fmtTick: v => Number(v.toPrecision(5)).toString(),
                fmtTip: v => Number(v.toPrecision(6)).toString() + (uom ? ' ' + uom : '') },
@@ -20789,6 +21220,76 @@ function _drawParticleSizeCurve(container, pts) {
     titleParts: [{ text: 'Particle Size Distribution', color: col, size: fonts.title }],
     titleSize: fonts.title,
     wrapper: { className: 'pst-curve-plot-wrapper', style: 'margin-bottom:0; position:relative;' },
+  });
+}
+
+/** Pore-pressure dissipation curve — pore pressure (linear) vs. elapsed
+ *  time (linear; NOT log — this is a straightforward relocation/restyling
+ *  of the plot that already worked via drawResultPlots' elapsed-time fix,
+ *  not a change in axis scale). Full-pane-width sizing and font scaling
+ *  reuse `_particleSizePlotTargetWidth`/`_attPsdFontSizes` verbatim — both
+ *  are pure layout/measurement helpers with nothing PSD-specific in their
+ *  own logic (same precedent as `_drawAtterbergPlasticityChart` reusing
+ *  `_atterbergPlotTargetWidth`, a differently-named sibling plot's own
+ *  width helper), so a single full-width plot here reproduces
+ *  ParticleSizeTest's exact on-screen size/style per explicit request
+ *  rather than duplicating that math under a new name. Unlike the
+ *  Atterberg/ParticleSizeTest curves, this one has NO permanent
+ *  `pointMarkers` — per explicit request it reads like the app's generic
+ *  result plots (drawResultPlots' own depth/temporal profiles): line only,
+ *  a data point's value surfaced via the hover crosshair/tooltip instead of
+ *  a fixed dot. `indFullOverride` still pads the elapsed-time axis a few
+ *  percent past the first/last reading so the line itself doesn't touch
+ *  the plot edge (same reasoning as the Atterberg flow curve's own
+ *  log-axis padding, just without a marker to clip) — unlike
+ *  ParticleSizeTest's fixed cross-instance axis frame, there's no shared
+ *  reference frame for "pore pressure over an arbitrary hold duration", so
+ *  both axes auto-fit to this curve's own data range. */
+function _fmtPPDPressure(v) {
+  return Math.abs(v) >= 100 ? v.toFixed(1) : Math.abs(v) >= 10 ? v.toFixed(2) : v.toFixed(3);
+}
+function _drawPPDCurve(container, series) {
+  const { pts, timeUnit, valueLabel, valueUom } = series;
+  const w = _particleSizePlotTargetWidth(container);
+  container.style.width = w + 'px';
+  container.style.minWidth = w + 'px';
+  const col = PLOT_COLORS[0];
+  const VW = 880;
+  const targetHeightPx = 300;
+  const VH = targetHeightPx * VW / w;
+  const fonts = _attPsdFontSizes(w, VW);
+  const unitShort = _shortTimeUnit(timeUnit);
+  const iMin = pts[0].i, iMax = pts[pts.length - 1].i;
+  const iPad = Math.max((iMax - iMin) * 0.03, 1);
+  const label = valueLabel || 'Value';
+  drawPlot(container, {
+    // No permanent pointMarkers (unlike the Atterberg/ParticleSizeTest
+    // curves) — per explicit request, this reads like the app's generic
+    // result plots (drawResultPlots' depth/temporal profiles): the line
+    // only, with a value surfaced via the hover crosshair/tooltip.
+    points: pts, orientation: 'x-ind',
+    // Elapsed time can't be negative — clamp the padded minimum at 0 rather
+    // than letting a left-edge pad (added purely so the t=0 marker doesn't
+    // clip) push the axis below it and show a nonsensical negative tick.
+    indFullOverride: { min: Math.max(0, iMin - iPad), max: iMax + iPad },
+    viewport: { VW, VH, PAD: { top: 26, bottom: 42, left: 50, right: 16 } },
+    clipPrefix: 'ppd-curve', infoText: `n=${pts.length}`,
+    axisFontSize: fonts.axis, tooltipFontSize: fonts.axis,
+    ind: {
+      ticks: 5,
+      fmtTick: v => _fmtElapsedTime(v, unitShort),
+      fmtTip: v => _fmtElapsedTime(v, unitShort),
+    },
+    dep: {
+      color: col, ticks: 5, flip: false, padFrac: 0.08, padAbsFrac: 0.05, padConst: 0.5,
+      fmtTick: v => _fmtPPDPressure(v),
+      fmtTip: v => _fmtPPDPressure(v) + (valueUom ? ' ' + valueUom : ''),
+    },
+    leftLabel: { text: label + (valueUom ? ` (${valueUom})` : ''), color: col, size: fonts.axis },
+    bottomLabel: { text: 'Elapsed Time' + (unitShort ? ` (${unitShort})` : ''), color: '#8b949e', size: fonts.axis },
+    titleParts: [{ text: 'Pore Pressure Dissipation', color: col, size: fonts.title }],
+    titleSize: fonts.title,
+    wrapper: { className: 'ppd-curve-plot-wrapper', style: 'margin-bottom:0; position:relative;' },
   });
 }
 

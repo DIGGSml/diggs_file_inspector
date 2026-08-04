@@ -944,6 +944,85 @@
                     <backfillType>annular space within borehole</backfillType>
                 </Backfill>
             </backfill>
+            <constructionMethod>
+                <BoreholeConstructionMethod gml:id="BCM-BH-Mockup-1">
+                    <gml:name codeSpace="Global Geoslutions">BH-Mockup-1 Mud Rotary Drilling Method</gml:name>
+                    <status>complete</status>
+                    <remark>
+                        <Remark>
+                            <content>Borehole advanced by mud rotary method using water-based bentonite drilling fluid to maintain hole stability and return cuttings to surface; tricone roller bit on NW-size drill rods.</content>
+                        </Remark>
+                    </remark>
+                    <location>
+                        <LinearExtent gml:id="BCMLOC-BH-Mockup-1" srsName="#lsr-BH-Mockup-1" srsDimension="1">
+                            <gml:posList>0 150</gml:posList>
+                        </LinearExtent>
+                    </location>
+                    <methodTime>
+                        <TimeInterval gml:id="TI-BCM-BH-Mockup-1">
+                            <start frame="#ISO-8601">2025-06-02T07:30:00-07:00</start>
+                            <end frame="#ISO-8601">2025-06-02T16:15:00-07:00</end>
+                        </TimeInterval>
+                    </methodTime>
+                    <constructionMethod>
+                        <Specification gml:id="SPEC-BCM-BH-Mockup-1">
+                            <gml:name codeSpace="DIGGS">Mud Rotary Drilling — ASTM D5783</gml:name>
+                            <status>complete</status>
+                            <shortMethodName>Mud Rotary</shortMethodName>
+                            <standardReferenceNumber>ASTM D5783</standardReferenceNumber>
+                            <standardTitle>Standard Guide for Use of Direct Rotary Drilling with Water-Based Drilling Fluid for Geoenvironmental Exploration and the Installation of Subsurface Water-Quality Monitoring Devices</standardTitle>
+                            <standardVersion>1995(2011)</standardVersion>
+                        </Specification>
+                    </constructionMethod>
+                    <constructionEquipment>
+                        <DrillRig gml:id="EQ-Rig-Mockup-1">
+                            <gml:name codeSpace="Global Geoslutions">GGL Rotary Drill Rig No. 3</gml:name>
+                            <class>drill rig</class>
+                            <make>CME</make>
+                            <modelNumber>CME-75</modelNumber>
+                            <serialNumber>CME75-0217</serialNumber>
+                            <engine>Cummins 4B3.9, 130 hp turbocharged diesel</engine>
+                            <carrierType>truck mounted</carrierType>
+                            <groundBearingPressure uom="kPa" howDetermined="reported">240</groundBearingPressure>
+                            <numberForwardGears>5</numberForwardGears>
+                            <numberReverseGears>1</numberReverseGears>
+                            <winchCapacity uom="kN" winchLocation="rear">36</winchCapacity>
+                            <waterTankCapacity uom="m3" howDetermined="reported">0.38</waterTankCapacity>
+                            <levelingSystem>Four hydraulic outrigger jacks, 18 in stroke</levelingSystem>
+                            <rotaryDriveMaxTorque uom="lbf.ft" howDetermined="reported">3500</rotaryDriveMaxTorque>
+                            <rotaryDriveMaxSpeed uom="rpm" howDetermined="reported">146</rotaryDriveMaxSpeed>
+                            <pullDownForceMax uom="kN" howDetermined="reported">89</pullDownForceMax>
+                            <feedRateMax uom="ft/min" howDetermined="reported">30</feedRateMax>
+                            <retractForceMax uom="kN" howDetermined="reported">107</retractForceMax>
+                            <strokeMax uom="ft" howDetermined="reported">5</strokeMax>
+                            <mastLength uom="ft" howDetermined="reported">26</mastLength>
+                        </DrillRig>
+                    </constructionEquipment>
+                </BoreholeConstructionMethod>
+            </constructionMethod>
+            <waterStrike>
+                <WaterStrike gml:id="WS-BH-Mockup-1">
+                    <waterStrikeReadings>
+                        <WaterStrikeReading gml:id="WSR-BH-Mockup-1">
+                            <waterLocation>
+                                <PointLocation gml:id="PL-WSR-BH-Mockup-1" srsDimension="1" srsName="#lsr-BH-Mockup-1">
+                                    <gml:pos>20</gml:pos>
+                                </PointLocation>
+                            </waterLocation>
+                            <linkedReading>
+                                <LinkedWSReading gml:id="LWSR-BH-Mockup-1">
+                                    <elapsedTime uom="min">30</elapsedTime>
+                                    <waterLocation>
+                                        <PointLocation gml:id="PL-LWSR-BH-Mockup-1" srsDimension="1" srsName="#lsr-BH-Mockup-1">
+                                            <gml:pos>18</gml:pos>
+                                        </PointLocation>
+                                    </waterLocation>
+                                </LinkedWSReading>
+                            </linkedReading>
+                        </WaterStrikeReading>
+                    </waterStrikeReadings>
+                </WaterStrike>
+            </waterStrike>
         </Borehole>
     </samplingFeature>
 
@@ -971,6 +1050,53 @@
             <plunge uom="dega" howDetermined="calculated">70</plunge>
             <bearing uom="dega" howDetermined="calculated">315</bearing>
             <totalMeasuredDepth uom="ft" howDetermined="measured">200</totalMeasuredDepth>
+            <constructionMethod>
+                <BoreholeConstructionMethod gml:id="BCM-BH-Mockup-2">
+                    <gml:name codeSpace="Global Geoslutions">BH-Mockup-2 Mud Rotary Drilling Method</gml:name>
+                    <status>complete</status>
+                    <remark>
+                        <Remark>
+                            <content>Borehole advanced by mud rotary method using water-based bentonite drilling fluid to maintain hole stability and return cuttings to surface; tricone roller bit on NW-size drill rods. Advanced on-angle at 70-degree plunge toward the northwest per specified inclination.</content>
+                        </Remark>
+                    </remark>
+                    <location>
+                        <LinearExtent gml:id="BCMLOC-BH-Mockup-2" srsName="#lsr-BH-Mockup-2" srsDimension="1">
+                            <gml:posList>0 200</gml:posList>
+                        </LinearExtent>
+                    </location>
+                    <methodTime>
+                        <TimeInterval gml:id="TI-BCM-BH-Mockup-2">
+                            <start frame="#ISO-8601">2025-06-03T07:30:00-07:00</start>
+                            <end frame="#ISO-8601">2025-06-03T17:00:00-07:00</end>
+                        </TimeInterval>
+                    </methodTime>
+                    <constructionMethod xlink:href="#SPEC-BCM-BH-Mockup-1"/>
+                    <constructionEquipment xlink:href="#EQ-Rig-Mockup-1"/>
+                </BoreholeConstructionMethod>
+            </constructionMethod>
+            <waterStrike>
+                <WaterStrike gml:id="WS-BH-Mockup-2">
+                    <waterStrikeReadings>
+                        <WaterStrikeReading gml:id="WSR-BH-Mockup-2">
+                            <waterLocation>
+                                <PointLocation gml:id="PL-WSR-BH-Mockup-2" srsDimension="1" srsName="#lsr-BH-Mockup-2">
+                                    <gml:pos>15.3</gml:pos>
+                                </PointLocation>
+                            </waterLocation>
+                            <linkedReading>
+                                <LinkedWSReading gml:id="LWSR-BH-Mockup-2">
+                                    <elapsedTime uom="min">30</elapsedTime>
+                                    <waterLocation>
+                                        <PointLocation gml:id="PL-LWSR-BH-Mockup-2" srsDimension="1" srsName="#lsr-BH-Mockup-2">
+                                            <gml:pos>13.3</gml:pos>
+                                        </PointLocation>
+                                    </waterLocation>
+                                </LinkedWSReading>
+                            </linkedReading>
+                        </WaterStrikeReading>
+                    </waterStrikeReadings>
+                </WaterStrike>
+            </waterStrike>
         </Borehole>
     </samplingFeature>
 
@@ -996,6 +1122,53 @@
                 </LinearSpatialReferenceSystem>
             </linearReferencing>
             <totalMeasuredDepth uom="ft" howDetermined="measured">280</totalMeasuredDepth>
+            <constructionMethod>
+                <BoreholeConstructionMethod gml:id="BCM-BH-Mockup-3">
+                    <gml:name codeSpace="Global Geoslutions">BH-Mockup-3 Mud Rotary Drilling Method</gml:name>
+                    <status>complete</status>
+                    <remark>
+                        <Remark>
+                            <content>Borehole advanced by mud rotary method using water-based bentonite drilling fluid to maintain hole stability and return cuttings to surface; tricone roller bit on NW-size drill rods. Hole kicks south then southeast below approximately 100 ft per the deviated trajectory design.</content>
+                        </Remark>
+                    </remark>
+                    <location>
+                        <LinearExtent gml:id="BCMLOC-BH-Mockup-3" srsName="#lsr-BH-Mockup-3" srsDimension="1">
+                            <gml:posList>0 280</gml:posList>
+                        </LinearExtent>
+                    </location>
+                    <methodTime>
+                        <TimeInterval gml:id="TI-BCM-BH-Mockup-3">
+                            <start frame="#ISO-8601">2025-06-04T07:00:00-07:00</start>
+                            <end frame="#ISO-8601">2025-06-04T18:30:00-07:00</end>
+                        </TimeInterval>
+                    </methodTime>
+                    <constructionMethod xlink:href="#SPEC-BCM-BH-Mockup-1"/>
+                    <constructionEquipment xlink:href="#EQ-Rig-Mockup-1"/>
+                </BoreholeConstructionMethod>
+            </constructionMethod>
+            <waterStrike>
+                <WaterStrike gml:id="WS-BH-Mockup-3">
+                    <waterStrikeReadings>
+                        <WaterStrikeReading gml:id="WSR-BH-Mockup-3">
+                            <waterLocation>
+                                <PointLocation gml:id="PL-WSR-BH-Mockup-3" srsDimension="1" srsName="#lsr-BH-Mockup-3">
+                                    <gml:pos>22</gml:pos>
+                                </PointLocation>
+                            </waterLocation>
+                            <linkedReading>
+                                <LinkedWSReading gml:id="LWSR-BH-Mockup-3">
+                                    <elapsedTime uom="min">30</elapsedTime>
+                                    <waterLocation>
+                                        <PointLocation gml:id="PL-LWSR-BH-Mockup-3" srsDimension="1" srsName="#lsr-BH-Mockup-3">
+                                            <gml:pos>20</gml:pos>
+                                        </PointLocation>
+                                    </waterLocation>
+                                </LinkedWSReading>
+                            </linkedReading>
+                        </WaterStrikeReading>
+                    </waterStrikeReadings>
+                </WaterStrike>
+            </waterStrike>
         </Borehole>
     </samplingFeature>
 
@@ -22779,6 +22952,7 @@
             <investigationTarget>Natural Ground</investigationTarget>
             <projectRef xlink:href="#Project-Mockup-1"/>
             <samplingFeatureRef xlink:href="#BH-Mockup-1"/>
+            <sampleRef xlink:href="#Sample_BH-Mockup-1_55_SPT-4"/>
             <samplingTime>
                 <TimeInterval gml:id="TI_Test_ATT_BH-Mockup-1_55">
                     <start frame="#ISO-8601">2026-02-10</start>
@@ -26783,6 +26957,234 @@
             </procedure>
         </Test>
     </measurement>
+
+    <measurement>
+        <Test gml:id="Test_PPDT_Sounding-Mockup-1_28">
+            <gml:name>PPDT-1 (28.0 ft) Dissipation Test</gml:name>
+            <investigationTarget>Ground Improvement</investigationTarget>
+            <projectRef xlink:href="#Project-Mockup-1"/>
+            <samplingFeatureRef xlink:href="#Sounding-Mockup-1"/>
+            <samplingTime>
+                <TimeInterval gml:id="TI_Test_PPDT_Sounding-Mockup-1_28">
+                    <start frame="#ISO-8601">2025-06-10T08:22:00-07:00</start>
+                </TimeInterval>
+            </samplingTime>
+            <outcome>
+                <TestResult>
+                    <location>
+                        <PointLocation gml:id="PL_PPDT_Sounding-Mockup-1_28" srsDimension="1" srsName="#lsr-Sounding-Mockup-1">
+                            <gml:pos>28.0</gml:pos>
+                        </PointLocation>
+                    </location>
+                    <results>
+                        <ResultSet>
+                            <parameters>
+                                <PropertyParameters>
+                                    <properties>
+                                        <Property index="1">
+                                            <propertyName>u2 final</propertyName>
+                                            <typeData>double</typeData>
+                                            <propertyClass codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/properties.xml#pore_pressure">Pore Pressure</propertyClass>
+                                            <uom>tonf[US]/ft2</uom>
+                                        </Property>
+                                    </properties>
+                                </PropertyParameters>
+                            </parameters>
+                            <dataValues cs="," ts=" " decimal=".">0.312</dataValues>
+                        </ResultSet>
+                    </results>
+                </TestResult>
+            </outcome>
+            <procedure>
+                <PorePressureDissipationTest gml:id="PPDT_Sounding-Mockup-1_28">
+                    <gml:description>Pore pressure dissipation test performed at 28.0 ft (along-hole) in a stiff sandy silt/silty sand unit encountered above the 40 ft transition into finer material. The u2 reading at the start of the hold matched the CPTu profile's own continuously-logged u2 at this depth and was already close to the estimated hydrostatic equilibrium, rising only marginally over the hold and confirming free-draining conditions with negligible excess pore pressure generated during penetration; back-calculation of ch/kh was not attempted given the negligible, poorly-defined dissipation signal typical of this material.</gml:description>
+                    <gml:identifier codeSpace="http://www.globalgeosolutions.com/projects">PPDT-Sounding-Mockup-1-28</gml:identifier>
+                    <gml:name codeSpace="Global Geoslutions">Sounding-Mockup-1 PPDT-1</gml:name>
+                    <internalIdentifier codeSpace="http://www.globalgeosolutions.com/projects">GGL-PPDT-01-PROC</internalIdentifier>
+                    <status>complete</status>
+                    <associatedFile xlink:href="#AF001"/>
+                    <remark>
+                        <Remark>
+                            <content>Cone advancement halted at 28.0 ft and held stationary for 300 s while u2 was logged; the reading (0.295 tonf/ft2 at the start of the hold, matching the CPTu profile's own continuously-logged u2 at this depth) rose only marginally to 0.312 tonf/ft2, consistent with a free-draining silty sand/sandy silt already near hydrostatic equilibrium rather than a plastic fine-grained soil generating significant excess pore pressure.</content>
+                        </Remark>
+                    </remark>
+                    <testProcedureMethod>
+                        <Specification gml:id="SPEC-PPDT-Mockup-1-A-Method">
+                            <gml:name codeSpace="DIGGS">Pore-Water Pressure Dissipation Test — ASTM D5778 Annex A2</gml:name>
+                            <status>complete</status>
+                            <shortMethodName>PPDT</shortMethodName>
+                            <standardReferenceNumber>ASTM D5778 Annex A2</standardReferenceNumber>
+                            <standardTitle>Standard Test Method for Electronic Friction Cone and Piezocone Penetration Testing of Soils — Annex A2, Pore-Water Pressure Dissipation Test</standardTitle>
+                            <standardVersion>2020</standardVersion>
+                        </Specification>
+                    </testProcedureMethod>
+                    <testProcedureEquipment xlink:href="#EQ-SCPT-Mockup-1-Cone"/>
+                    <testingEnvironment>
+                        <Environment gml:id="ENV-PPDT-Mockup-1-28">
+                            <gml:name codeSpace="Global Geoslutions">Sounding-Mockup-1 PPDT-1 Field Conditions</gml:name>
+                            <status>complete</status>
+                            <dateTime frame="#ISO-8601">2025-06-10T08:22:00-07:00</dateTime>
+                            <ambientTemperature uom="degC" howDetermined="measured">20.6</ambientTemperature>
+                            <barometricPressure uom="kPa" howDetermined="measured">101.2</barometricPressure>
+                            <weather>Clear, calm</weather>
+                        </Environment>
+                    </testingEnvironment>
+                    <estimatedU0 uom="tonf[US]/ft2">0.312</estimatedU0>
+                    <estimatedWaterDepth uom="ft">18.0</estimatedWaterDepth>
+                    <dissipationTimeSeries>
+                        <TemporalResult>
+                            <timeDomain>
+                                <TimeIntervalList gml:id="TDL_PPDT_Sounding-Mockup-1_28" unit="second">
+                                    <timeIntervalList>0 5 10 20 30 45 60 90 120 180 300</timeIntervalList>
+                                </TimeIntervalList>
+                            </timeDomain>
+                            <results>
+                                <ResultSet>
+                                    <parameters>
+                                        <PropertyParameters>
+                                            <properties>
+                                                <Property index="1">
+                                                    <propertyName>u2</propertyName>
+                                                    <typeData>double</typeData>
+                                                    <propertyClass codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/properties.xml#pore_pressure_dissipation">Pore Pressure Dissipation</propertyClass>
+                                                    <uom>tonf[US]/ft2</uom>
+                                                </Property>
+                                            </properties>
+                                        </PropertyParameters>
+                                    </parameters>
+                                    <dataValues cs="," ts=" " decimal=".">
+                                        0.295 0.300 0.304 0.308 0.310 0.312 0.312 0.312 0.312 0.312 0.312
+                                    </dataValues>
+                                </ResultSet>
+                            </results>
+                        </TemporalResult>
+                    </dissipationTimeSeries>
+                </PorePressureDissipationTest>
+            </procedure>
+        </Test>
+    </measurement>
+
+    <measurement>
+        <Test gml:id="Test_PPDT_Sounding-Mockup-1_65">
+            <gml:name>PPDT-2 (65.0 ft) Dissipation Test</gml:name>
+            <role>
+                <Role>
+                    <rolePerformed codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/roles.xml#field_engineer">Field Engineer</rolePerformed>
+                    <businessAssociate xlink:href="#BA001"/>
+                </Role>
+            </role>
+            <investigationTarget>Ground Improvement</investigationTarget>
+            <projectRef xlink:href="#Project-Mockup-1"/>
+            <samplingFeatureRef xlink:href="#Sounding-Mockup-1"/>
+            <samplingTime>
+                <TimeInterval gml:id="TI_Test_PPDT_Sounding-Mockup-1_65">
+                    <start frame="#ISO-8601">2025-06-10T08:48:00-07:00</start>
+                </TimeInterval>
+            </samplingTime>
+            <outcome>
+                <TestResult>
+                    <location>
+                        <PointLocation gml:id="PL_PPDT_Sounding-Mockup-1_65" srsDimension="1" srsName="#lsr-Sounding-Mockup-1">
+                            <gml:pos>65.0</gml:pos>
+                        </PointLocation>
+                    </location>
+                    <results>
+                        <ResultSet>
+                            <parameters>
+                                <PropertyParameters>
+                                    <properties>
+                                        <Property index="1">
+                                            <propertyName>ch</propertyName>
+                                            <typeData>double</typeData>
+                                            <propertyClass codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/properties.xml#coef_consolidation_horiz">Coefficient of Horizontal Consolidation (Ch)</propertyClass>
+                                            <uom>cm2/s</uom>
+                                        </Property>
+                                        <Property index="2">
+                                            <propertyName>kh</propertyName>
+                                            <typeData>double</typeData>
+                                            <propertyClass codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/properties.xml#coef_permeability_horiz">Horizontal Coefficient of Permeability</propertyClass>
+                                            <uom>m/s</uom>
+                                        </Property>
+                                    </properties>
+                                </PropertyParameters>
+                            </parameters>
+                            <dataValues cs="," ts=" " decimal=".">0.0036,3.0E-9</dataValues>
+                        </ResultSet>
+                    </results>
+                </TestResult>
+            </outcome>
+            <procedure>
+                <PorePressureDissipationTest gml:id="PPDT_Sounding-Mockup-1_65">
+                    <gml:description>Pore pressure dissipation test performed at 65.0 ft (along-hole) in a soft, normally consolidated clay unit corresponding to the low-tip-resistance, high-excess-pore-pressure zone identified on the CPTu profile between roughly 50 and 90 ft. Dissipation was slow and did not fully reach equilibrium within the 3600 s monitoring period; U50 was well defined and used with an assumed rigidity index to back-calculate ch.</gml:description>
+                    <gml:identifier codeSpace="http://www.globalgeosolutions.com/projects">PPDT-Sounding-Mockup-1-65</gml:identifier>
+                    <gml:name codeSpace="Global Geoslutions">Sounding-Mockup-1 PPDT-2</gml:name>
+                    <status>complete</status>
+                    <remark>
+                        <Remark>
+                            <content>Test extended to 3600 s (60 min) per field protocol for suspected soft clay; u2 was still decreasing slowly at test termination (1.507 tonf/ft2 vs. an estimated hydrostatic U0 of 1.468 tonf/ft2) and had not reached full equilibrium. T50 was picked directly off the recorded curve at approximately 660 s.</content>
+                            <author xlink:href="#BA001"/>
+                            <remarkDateTime frame="#ISO-8601">2025-06-10</remarkDateTime>
+                        </Remark>
+                    </remark>
+                    <testProcedureMethod>
+                        <Specification gml:id="SPEC-PPDT-Mockup-1-B-Method">
+                            <gml:name codeSpace="DIGGS">Pore-Water Pressure Dissipation Test — ASTM D5778 Annex A2</gml:name>
+                            <status>complete</status>
+                            <shortMethodName>PPDT</shortMethodName>
+                            <standardReferenceNumber>ASTM D5778 Annex A2</standardReferenceNumber>
+                            <standardTitle>Standard Test Method for Electronic Friction Cone and Piezocone Penetration Testing of Soils — Annex A2, Pore-Water Pressure Dissipation Test</standardTitle>
+                            <standardVersion>2020</standardVersion>
+                        </Specification>
+                    </testProcedureMethod>
+                    <testProcedureEquipment xlink:href="#EQ-SCPT-Mockup-1-Cone"/>
+                    <testEvent>
+                        <InSituTestEvent gml:id="IE-PPDT-Mockup-1-65-Hold">
+                            <infoRecorded>
+                                <Parameter gml:id="PARAM-IE-PPDT-Mockup-1-65-Hold">
+                                    <parameterName>Push Pause Duration</parameterName>
+                                    <parameterValue>3600</parameterValue>
+                                    <parameterUnits>s</parameterUnits>
+                                </Parameter>
+                            </infoRecorded>
+                        </InSituTestEvent>
+                    </testEvent>
+                    <estimatedIr>100</estimatedIr>
+                    <estimatedU0 uom="tonf[US]/ft2">1.468</estimatedU0>
+                    <estimatedU50 uom="tonf[US]/ft2">2.347</estimatedU50>
+                    <estimatedWaterDepth uom="ft">18.0</estimatedWaterDepth>
+                    <dissipationTimeSeries>
+                        <TemporalResult>
+                            <timeDomain>
+                                <TimeIntervalList gml:id="TDL_PPDT_Sounding-Mockup-1_65" unit="second">
+                                    <timeIntervalList>0 30 60 120 300 600 900 1200 1800 2400 3000 3600</timeIntervalList>
+                                </TimeIntervalList>
+                            </timeDomain>
+                            <results>
+                                <ResultSet>
+                                    <parameters>
+                                        <PropertyParameters>
+                                            <properties>
+                                                <Property index="1">
+                                                    <propertyName>u2</propertyName>
+                                                    <typeData>double</typeData>
+                                                    <propertyClass codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/properties.xml#pore_pressure_dissipation">Pore Pressure Dissipation</propertyClass>
+                                                    <uom>tonf[US]/ft2</uom>
+                                                </Property>
+                                            </properties>
+                                        </PropertyParameters>
+                                    </parameters>
+                                    <dataValues cs="," ts=" " decimal=".">
+                                        3.227 3.172 3.119 3.018 2.751 2.403 2.150 1.965 1.732 1.608 1.542 1.507
+                                    </dataValues>
+                                </ResultSet>
+                            </results>
+                        </TemporalResult>
+                    </dissipationTimeSeries>
+                </PorePressureDissipationTest>
+            </procedure>
+        </Test>
+    </measurement>
+
     <measurement>
         <Test gml:id="SCPT-Test-Mockup-2">
             <gml:name>CPT-2 Sounding Results</gml:name>
@@ -27736,8 +28138,20 @@
                             </infoRecorded>
                         </InSituTestEvent>
                     </testEvent>
+                    <testEvent>
+                        <InSituTestEvent gml:id="IE-SCPT-Mockup-2-WD">
+                            <infoRecorded>
+                                <Parameter gml:id="PARAM-IE-SCPT-Mockup-2-WD">
+                                    <parameterName>Water Depth</parameterName>
+                                    <parameterValue>20.0</parameterValue>
+                                    <parameterUnits>ft</parameterUnits>
+                                </Parameter>
+                            </infoRecorded>
+                        </InSituTestEvent>
+                    </testEvent>
                     <penetrometerType>Piezocone (electronic, dual-element u1/u2)</penetrometerType>
                     <distanceTipToSleeve uom="mm">135</distanceTipToSleeve>
+                    <estimatedWaterDepth uom="ft">20.0</estimatedWaterDepth>
                     <frictionReducer>Friction reducer sleeve installed 1 m behind the cone tip to reduce rod friction through the dense gravel units above 20 ft</frictionReducer>
                     <netAreaRatioCorrection>0.78</netAreaRatioCorrection>
                     <penetrationRate uom="mm/s">20</penetrationRate>
@@ -27753,6 +28167,98 @@
                     <tipApexAngle uom="dega">60</tipApexAngle>
                     <tipArea uom="cm2">10</tipArea>
                 </StaticConePenetrationTest>
+            </procedure>
+        </Test>
+    </measurement>
+
+    <measurement>
+        <Test gml:id="Test_PPDT_Sounding-Mockup-2_45">
+            <gml:name>PPDT-1 (45.0 ft) Dissipation Test</gml:name>
+            <investigationTarget>Ground Improvement</investigationTarget>
+            <projectRef xlink:href="#Project-Mockup-1"/>
+            <samplingFeatureRef xlink:href="#Sounding-Mockup-2"/>
+            <samplingTime>
+                <TimeInterval gml:id="TI_Test_PPDT_Sounding-Mockup-2_45">
+                    <start frame="#ISO-8601">2025-06-11T10:14:00-07:00</start>
+                </TimeInterval>
+            </samplingTime>
+            <outcome>
+                <TestResult>
+                    <location>
+                        <PointLocation gml:id="PL_PPDT_Sounding-Mockup-2_45" srsDimension="1" srsName="#lsr-Sounding-Mockup-2">
+                            <gml:pos>45.0</gml:pos>
+                        </PointLocation>
+                    </location>
+                    <results>
+                        <ResultSet>
+                            <parameters>
+                                <PropertyParameters>
+                                    <properties>
+                                        <Property index="1">
+                                            <propertyName>u2 final</propertyName>
+                                            <typeData>double</typeData>
+                                            <propertyClass codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/properties.xml#pore_pressure">Pore Pressure</propertyClass>
+                                            <uom>tonf[US]/ft2</uom>
+                                        </Property>
+                                    </properties>
+                                </PropertyParameters>
+                            </parameters>
+                            <dataValues cs="," ts=" " decimal=".">0.780</dataValues>
+                        </ResultSet>
+                    </results>
+                </TestResult>
+            </outcome>
+            <procedure>
+                <PorePressureDissipationTest gml:id="PPDT_Sounding-Mockup-2_45">
+                    <gml:identifier codeSpace="http://www.globalgeosolutions.com/projects">PPDT-Sounding-Mockup-2-45</gml:identifier>
+                    <gml:name codeSpace="Global Geoslutions">Sounding-Mockup-2 PPDT-1</gml:name>
+                    <status>complete</status>
+                    <implementationStatus>actual</implementationStatus>
+                    <remark>
+                        <Remark>
+                            <content>Push halted at 45.0 ft in a fine-grained unit below the dense near-surface gravel; u2 at the start of the hold (0.663 tonf/ft2, matching the CPTu profile's own continuously-logged u2 at this depth) was already close to the estimated hydrostatic equilibrium and rose only modestly over the 900 s hold to 0.780 tonf/ft2 (T50 picked at roughly 120 s off the recorded curve), indicating limited excess pore pressure was generated during penetration at this depth.</content>
+                        </Remark>
+                    </remark>
+                    <testProcedureMethod xlink:href="#SPEC-PPDT-Mockup-1-B-Method"/>
+                    <testProcedureEquipment xlink:href="#EQ-SCPT-Mockup-2-Cone"/>
+                    <otherTestProperty>
+                        <Parameter gml:id="PARAM-OTP-PPDT-Mockup-2-45" index="1">
+                            <parameterName>Assumed Unit Weight of Water</parameterName>
+                            <parameterValue>9.81</parameterValue>
+                            <parameterUnits>kN/m3</parameterUnits>
+                        </Parameter>
+                    </otherTestProperty>
+                    <estimatedU50 uom="tonf[US]/ft2">0.722</estimatedU50>
+                    <estimatedWaterDepth uom="ft">20.0</estimatedWaterDepth>
+                    <dissipationTimeSeries>
+                        <TemporalResult>
+                            <timeDomain>
+                                <TimeIntervalList gml:id="TDL_PPDT_Sounding-Mockup-2_45" unit="second">
+                                    <timeIntervalList>0 15 30 60 90 120 180 300 450 600 900</timeIntervalList>
+                                </TimeIntervalList>
+                            </timeDomain>
+                            <results>
+                                <ResultSet>
+                                    <parameters>
+                                        <PropertyParameters>
+                                            <properties>
+                                                <Property index="1">
+                                                    <propertyName>u2</propertyName>
+                                                    <typeData>double</typeData>
+                                                    <propertyClass codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/properties.xml#pore_pressure_dissipation">Pore Pressure Dissipation</propertyClass>
+                                                    <uom>tonf[US]/ft2</uom>
+                                                </Property>
+                                            </properties>
+                                        </PropertyParameters>
+                                    </parameters>
+                                    <dataValues cs="," ts=" " decimal=".">
+                                        0.663 0.673 0.682 0.697 0.710 0.721 0.739 0.759 0.772 0.777 0.780
+                                    </dataValues>
+                                </ResultSet>
+                            </results>
+                        </TemporalResult>
+                    </dissipationTimeSeries>
+                </PorePressureDissipationTest>
             </procedure>
         </Test>
     </measurement>
