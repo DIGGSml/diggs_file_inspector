@@ -1638,6 +1638,14 @@ table.data-table tbody tr.selected {
    request didn't touch. */
 .meas-result-table thead th { position:sticky; top:0; z-index:2; }
 
+/* .result-val-numeric — a numeric-kind value cell (renderResultTable). Without
+   this, a long authored value (e.g. "0.2257") wraps character-by-character in
+   an auto-width table column once its header/sibling cells are wider than the
+   number itself. white-space:nowrap stops the mid-number wrap outright;
+   min-width keeps a column of short values (e.g. "3", "0") from reading as a
+   cramped single character. Paired with _fmtResultValue's own 2dp rounding. */
+.meas-result-table td.result-val-numeric { text-align:right; white-space:nowrap; min-width:3.5em; }
+
 /* .meas-vsplit — a resizable N-pane vertical split (any combination of Plot/
    Results/Metadata a measurement badge has content for — see
    _buildMeasSplitHtml) sharing one bounded box instead of stacking as
@@ -7109,11 +7117,24 @@ function _fmtIndexNum(v) {
 
 /** Format one result-table VALUE cell by its column kind. `raw` is the raw
  *  trimmed string from parseResultSet (null when it matched the column's
- *  nullValue). Numeric values render as authored (significant digits kept);
- *  boolean → Yes/No via the shared helper; string as-is. */
+ *  nullValue). Numeric values round to at most 2 decimal places (matching
+ *  _fmtIndexNum's own index-cell convention) — an authored value like
+ *  "0.2257" or "14.3993" otherwise wraps character-by-character in the
+ *  narrow numeric columns .result-val-numeric's nowrap enforces — except a
+ *  value smaller than 0.1 in magnitude (e.g. a hydrometer-derived D10/D30 in
+ *  mm, often 0.001-0.01) rounds to 4dp instead, since 2dp would otherwise
+ *  collapse it to a bare "0" or lose all differentiation between distinct
+ *  small values; boolean → Yes/No via the shared helper; string as-is. */
 function _fmtResultValue(raw, kind) {
   if (raw == null || raw === '') return _KV_EMPTY_DASH;
   if (kind === 'boolean') { const yn = _boolYesNo(raw); return yn != null ? yn : escHtml(raw); }
+  if (kind === 'numeric') {
+    const n = parseFloat(raw);
+    if (!isNaN(n)) {
+      const factor = Math.abs(n) < 0.1 ? 10000 : 100;
+      return escHtml(String(Math.round(n * factor) / factor));
+    }
+  }
   return escHtml(raw);
 }
 
@@ -7297,8 +7318,8 @@ function renderResultTable(model, spec) {
     const valTds = model.valueCols.map((c, ci) => {
       const cell = r.cells[ci];
       const lead = (noIdx && ci === 0) ? tri : '';
-      const align = c.kind === 'numeric' ? ' style="text-align:right"' : '';
-      return `<td class="kv-interval-val"${align}>${lead}${cell ? _fmtResultValue(cell.raw, cell.kind) : _KV_EMPTY_DASH}</td>`;
+      const numCls = c.kind === 'numeric' ? ' result-val-numeric' : '';
+      return `<td class="kv-interval-val${numCls}">${lead}${cell ? _fmtResultValue(cell.raw, cell.kind) : _KV_EMPTY_DASH}</td>`;
     }).join('');
     const onclick = expandable ? ' onclick="toggleKVSection(this)"' : '';
     tbody += `<tr class="kv-interval-row"${onclick}>${idxTds}${valTds}</tr>`;
@@ -7608,6 +7629,7 @@ function renderProcedureSection(procObjs, ctx) {
  */
 const PROCEDURE_PLOT_BUILDERS = {
   AtterbergLimitsTest: _buildAtterbergPlots,
+  ParticleSizeTest: _buildParticleSizePlot,
 };
 
 /** Pulls {i:log10(x), p:waterContent} points from every `tagName` trial
@@ -7697,6 +7719,93 @@ function _buildAtterbergPlots(proc, ctx) {
   });
   html += '</div>';
   return { html, drawJobs };
+}
+
+// ── ParticleSizeTest plot (2026-08-02) ──────────────────────────────────
+// Same PROCEDURE_PLOT_BUILDERS seam as _buildAtterbergPlots above: a
+// grain-size distribution curve shown ahead of the procedure's own KV
+// content. Built entirely from the procedure element's own sieveAnalysis/
+// hydrometer sub-objects — unlike Atterberg's LL/PI, nothing here lives in
+// the Test's outcome ResultSet, so ctx is unused (kept for signature
+// parity with the PROCEDURE_PLOT_BUILDERS contract).
+
+const _PARTICLE_SIZE_UOM_TO_MM = { mm: 1, cm: 10, m: 1000, dm: 100, um: 0.001, 'µm': 0.001, in: 25.4 };
+
+/** A ParticleSizeMeasureType element's own value, converted to mm. Handles
+ *  the schema's `phi` unit (φ = -log2(D), D in mm — per
+ *  MeasureTypes.xsd:825-838's own documentation) alongside the ordinary
+ *  linear units particle-size data is normally authored in. An
+ *  unrecognized/missing uom falls back to treating the raw value as
+ *  already-mm (the overwhelmingly common case in practice) rather than
+ *  dropping the point outright. */
+function _particleSizeToMm(el) {
+  const raw = parseFloat(nodeText(el));
+  if (!isFinite(raw)) return NaN;
+  const uom = el.getAttribute('uom');
+  if (uom === 'phi') return Math.pow(2, -raw);
+  if (uom == null || uom === 'mm') return raw;
+  const factor = _PARTICLE_SIZE_UOM_TO_MM[uom];
+  return factor != null ? raw * factor : raw;
+}
+
+/** Every (particle size, percent passing) point available on a
+ *  ParticleSizeTest procedure element, pooled across ALL of its
+ *  sieveAnalysis (Grading rows) and hydrometer (Sedimentation rows)
+ *  occurrences — e.g. a two-stage sieve (coarse + wash, see
+ *  OBJECT_CONFIGS.SieveAnalysis's own doc comment) contributes rows from
+ *  both SieveAnalysis objects into one continuous gradation curve.
+ *
+ *  `i` is plain `log10(sizeMm)` — so that drawPlot's normal
+ *  iMin-at-left/iMax-at-right mapping puts the SMALLEST particle size on the
+ *  LEFT and the LARGEST on the right, increasing left-to-right (per explicit
+ *  user request/correction — 2026-08-02, an initial version negated `i` to
+ *  put largest-on-left/smallest-on-right instead, which the user flagged as
+ *  backward). This happens to match the Atterberg flow curve's own log axis
+ *  convention (plain log10, no negation) exactly, unlike an earlier version
+ *  of this function.
+ *
+ *  Sorted ascending by `i` (= ascending by size) to match drawPlot's own
+ *  point-ordering contract; de-duplicated by size (6 significant figures)
+ *  in case a multi-stage sieve repeats a boundary sieve size across two
+ *  SieveAnalysis objects. */
+function _particleSizePoints(proc) {
+  const pts = [];
+  const collect = (parentTag, rowTag, sizeTag) => {
+    for (const parent of Array.from(proc.getElementsByTagNameNS(NS.diggs, parentTag))) {
+      for (const row of Array.from(parent.getElementsByTagNameNS(NS.diggs, rowTag))) {
+        const sizeEl = row.getElementsByTagNameNS(NS.diggs, sizeTag)[0];
+        const passEl = row.getElementsByTagNameNS(NS.diggs, 'percentPassing')[0];
+        if (!sizeEl || !passEl) continue;
+        const sizeMm = _particleSizeToMm(sizeEl);
+        const pct = parseFloat(nodeText(passEl));
+        if (isFinite(sizeMm) && sizeMm > 0 && isFinite(pct)) {
+          pts.push({ i: Math.log10(sizeMm), p: pct, sizeMm });
+        }
+      }
+    }
+  };
+  collect('SieveAnalysis', 'Grading', 'particleSize');
+  collect('Hydrometer', 'Sedimentation', 'particleDiameter');
+  pts.sort((a, b) => a.i - b.i);
+  const seen = new Set();
+  return pts.filter(pt => {
+    const k = pt.sizeMm.toPrecision(6);
+    if (seen.has(k)) return false;
+    seen.add(k); return true;
+  });
+}
+
+/** Grain-size distribution curve for a ParticleSizeTest — analogous to
+ *  _buildAtterbergPlots, but a single full-pane-width plot (not a
+ *  side-by-side pair), per explicit user request. Needs at least 2 points
+ *  to draw anything meaningful (a lone sieve-only reading with just one
+ *  Grading row, for instance, has nothing to connect). */
+function _buildParticleSizePlot(proc, ctx) {
+  const pts = _particleSizePoints(proc);
+  if (pts.length < 2) return null;
+  const containerId = 'pst-plot-' + Math.random().toString(36).slice(2, 9);
+  const html = `<div style="margin-bottom:10px;"><div id="${containerId}"></div></div>`;
+  return { html, drawJobs: [{ kind: 'particleSizeCurve', containerId, pts }] };
 }
 
 /** Render one property row from rowCfg, evaluated against context
@@ -8937,6 +9046,289 @@ OBJECT_CONFIGS.LaboratoryTestEvent = [
     },
   },
   ..._OBJ_TYPE_TRAILING,
+];
+
+// ══════════════════════════════════════════════════════════════
+//  ParticleSizeTest configs (2026-08-01) — full schema trace via
+//  ../diggs-schema (core/CoreProcedures.xsd), following the AtterbergLimitsTest
+//  precedent above: hand-authored because the user asked for control over
+//  table display/labels rather than the generic renderGenericObject fallback.
+//  **Row order is a curated display order**, not XSD sequence order — same
+//  convention as AtterbergLimitsTest.
+//
+//  ParticleSizeTestType extends AbstractLaboratoryTestProcedureType ->
+//  AbstractTestProcedureType -> AbstractProcedureType (empty own sequence) ->
+//  AbstractFeatureType. Own fields: sieveAnalysis* (SieveAnalysisPropertyType),
+//  hydrometer* (HydrometerPropertyType) — both repeating object properties,
+//  rendered as plain multi:true rows (each occurrence gets its own category
+//  header via renderResolvedObject's normal object-registry dispatch), not a
+//  dataTable — a SieveAnalysis/Hydrometer carries too many of its own nested
+//  fields to flatten into table columns, unlike its own gradingData/
+//  sedimentationData children below.
+//
+//  SieveAnalysisType/HydrometerType/GradingType/PanDataType/SedimentationType
+//  all extend AbstractObjectType directly (_OBJ_BASE_FIELDS + _OBJ_TYPE_TRAILING
+//  shape). gradingData (on SieveAnalysis) and sedimentationData (on Hydrometer)
+//  are both repeating "measurement row" children with no location/depth-typed
+//  index of their own (particleSize/elapsedTime are plain measures, not
+//  LinearExtent/PointLocation/TimeInterval), so — mirroring how
+//  AtterbergLimitsTest's own casagrandeTrial/fallConeTrial/plasticLimitTrial/
+//  shrinkageLimitTrial rows were done — they use `dataTable`, not `interval`.
+//  Every specimenRef on SieveAnalysis/Hydrometer is a Reference-Property and
+//  omitted per convention (the specimen is already shown via ParticleSizeTest's
+//  own `specimen` row).
+// ══════════════════════════════════════════════════════════════
+
+OBJECT_CONFIGS.ParticleSizeTest = [
+  ..._OBJ_BASE_FIELDS,
+  ..._FEATURE_LEADING,
+  { path: 'diggs:testProcedureMethod', multi: true, label: 'Test Method' },
+  { path: 'diggs:specimen', multi: true, label: 'Specimen' },
+  {
+    path: 'diggs:sieveAnalysis', multi: true,
+    label: 'Sieve Analysis', labelPlural: 'Sieve Analyses',
+    itemLabel: el => {
+      const nameEl = evalXPath(el, 'gml:name')[0];
+      const txt = nodeText(nameEl);
+      return txt ? escHtml(txt) : null;
+    },
+  },
+  {
+    path: 'diggs:hydrometer', multi: true,
+    label: 'Hydrometer Analysis', labelPlural: 'Hydrometer Analyses',
+    itemLabel: el => {
+      const nameEl = evalXPath(el, 'gml:name')[0];
+      const txt = nodeText(nameEl);
+      return txt ? escHtml(txt) : null;
+    },
+  },
+  { path: 'diggs:testProcedureEquipment', multi: true, label: 'Equipment', labelPlural: 'Equipment' },
+  { path: 'diggs:testingEnvironment', multi: true, label: 'Testing Environment' },
+  { path: 'diggs:testEvent', label: 'Test Event' },
+  {
+    path: 'diggs:otherTestProperty', multi: true,
+    label: 'Other Property', labelPlural: 'Other Properties', alwaysGroup: true,
+    itemLabel: el => {
+      const nameEl = evalXPath(el, 'diggs:parameterName')[0];
+      const txt = nodeText(nameEl);
+      return txt ? escHtml(txt) + _codeSpaceKeyExtra(nameEl) : null;
+    },
+  },
+  ..._FEATURE_TRAILING,
+];
+
+// SieveAnalysis — SieveAnalysisType (core/CoreProcedures.xsd:2963) extends
+// AbstractObjectType. gradingData's dataTable columns (particleSize/
+// sieveNumber/percentPassing/percentRetained) are excluded from each row's
+// expand panel automatically (exact-path consumption); weightRetained and
+// otherGradingProperty remain in the expand — see OBJECT_CONFIGS.Grading.
+OBJECT_CONFIGS.SieveAnalysis = [
+  ..._OBJ_BASE_FIELDS,
+  { path: 'diggs:coarseFractionWetSieved', label: 'Coarse Fraction Wet-Sieved', boolean: true },
+  { path: 'diggs:dispersantUsed', label: 'Dispersant Used', boolean: true },
+  { path: 'diggs:sandGravelConsistency', label: 'Sand/Gravel Consistency' },
+  {
+    path: 'diggs:gradingData', multi: true,
+    label: 'Gradation', labelPlural: 'Gradation',
+    dataTable: {
+      column: [
+        { path: 'diggs:particleSize', label: 'Particle Size' },
+        { path: 'diggs:sieveNumber', label: 'Sieve No.' },
+        { path: 'diggs:percentPassing', label: '% Passing' },
+        { path: 'diggs:percentRetained', label: '% Retained' },
+      ],
+    },
+  },
+  { path: 'diggs:panData', label: 'Pan Data (Minus Finest Sieve)' },
+  {
+    path: 'diggs:otherSieveAnalysisProperty', multi: true,
+    label: 'Other Property', labelPlural: 'Other Properties', alwaysGroup: true,
+    itemLabel: el => {
+      const nameEl = evalXPath(el, 'diggs:parameterName')[0];
+      const txt = nodeText(nameEl);
+      return txt ? escHtml(txt) + _codeSpaceKeyExtra(nameEl) : null;
+    },
+  },
+  ..._OBJ_TYPE_TRAILING,
+];
+
+// Grading — GradingType (core/CoreProcedures.xsd:2688) extends AbstractObjectType.
+// Supplies each gradingData row's expand panel (see SieveAnalysis above) —
+// particleSize/sieveNumber/percentPassing/percentRetained are repeated here
+// (not just left to the dataTable) so a Grading object shown outside a table
+// context still renders every field.
+OBJECT_CONFIGS.Grading = [
+  ..._OBJ_BASE_FIELDS,
+  { path: 'diggs:particleSize', label: 'Particle Size' },
+  { path: 'diggs:sieveNumber', label: 'Sieve No.' },
+  { path: 'diggs:percentPassing', label: '% Passing' },
+  { path: 'diggs:percentRetained', label: '% Retained' },
+  { path: 'diggs:weightRetained', label: 'Weight Retained' },
+  {
+    path: 'diggs:otherGradingProperty', multi: true,
+    label: 'Other Property', labelPlural: 'Other Properties', alwaysGroup: true,
+    itemLabel: el => {
+      const nameEl = evalXPath(el, 'diggs:parameterName')[0];
+      const txt = nodeText(nameEl);
+      return txt ? escHtml(txt) + _codeSpaceKeyExtra(nameEl) : null;
+    },
+  },
+  ..._OBJ_TYPE_TRAILING,
+];
+
+// PanData — PanDataType (core/CoreProcedures.xsd:2826) extends AbstractObjectType.
+// Same field shape as Grading minus particleSize/sieveNumber (the pan has no
+// size fraction of its own — it's everything finer than the last sieve used).
+OBJECT_CONFIGS.PanData = [
+  ..._OBJ_BASE_FIELDS,
+  { path: 'diggs:percentLoss', label: '% Loss' },
+  { path: 'diggs:percentRetained', label: '% Retained (in Pan)' },
+  { path: 'diggs:weightRetained', label: 'Weight Retained' },
+  {
+    path: 'diggs:otherGradingProperty', multi: true,
+    label: 'Other Property', labelPlural: 'Other Properties', alwaysGroup: true,
+    itemLabel: el => {
+      const nameEl = evalXPath(el, 'diggs:parameterName')[0];
+      const txt = nodeText(nameEl);
+      return txt ? escHtml(txt) + _codeSpaceKeyExtra(nameEl) : null;
+    },
+  },
+  ..._OBJ_TYPE_TRAILING,
+];
+
+// Hydrometer — HydrometerType (core/CoreProcedures.xsd:2763) extends
+// AbstractObjectType. soakingPeriod renders via the shared TimeInterval
+// SPECIAL_OBJECT_FORMATTERS entry (Start/End/Duration) — no dedicated
+// OBJECT_CONFIGS.TimeInterval needed. sedimentationData's dataTable columns
+// (elapsedTime/particleDiameter/percentPassing) are excluded from each row's
+// expand panel automatically — clockTime/hydrometerReading/temperature/
+// compositeCorrection/correctedReading/effectiveLength remain in the expand.
+OBJECT_CONFIGS.Hydrometer = [
+  ..._OBJ_BASE_FIELDS,
+  { path: 'diggs:soakingPeriod', label: 'Soaking Period' },
+  { path: 'diggs:dispersionDevice', label: 'Dispersion Device' },
+  { path: 'diggs:dispersionDuration', label: 'Dispersion Duration' },
+  { path: 'diggs:hydrometerType', label: 'Hydrometer Type' },
+  {
+    path: 'diggs:sedimentationData', multi: true,
+    label: 'Sedimentation Reading', labelPlural: 'Sedimentation Readings',
+    dataTable: {
+      column: [
+        { path: 'diggs:elapsedTime', label: 'Elapsed Time' },
+        { path: 'diggs:particleDiameter', label: 'Particle Diameter' },
+        { path: 'diggs:percentPassing', label: '% Passing' },
+      ],
+    },
+  },
+  {
+    path: 'diggs:otherHydrometerProperty', multi: true,
+    label: 'Other Property', labelPlural: 'Other Properties', alwaysGroup: true,
+    itemLabel: el => {
+      const nameEl = evalXPath(el, 'diggs:parameterName')[0];
+      const txt = nodeText(nameEl);
+      return txt ? escHtml(txt) + _codeSpaceKeyExtra(nameEl) : null;
+    },
+  },
+  ..._OBJ_TYPE_TRAILING,
+];
+
+// Sedimentation — SedimentationType (core/CoreProcedures.xsd:2882) extends
+// AbstractObjectType. Supplies each sedimentationData row's expand panel
+// (see Hydrometer above); elapsedTime/particleDiameter/percentPassing are
+// repeated here so a Sedimentation object shown outside a table context
+// still renders every field.
+OBJECT_CONFIGS.Sedimentation = [
+  ..._OBJ_BASE_FIELDS,
+  { path: 'diggs:clockTime', label: 'Clock Time' },
+  { path: 'diggs:elapsedTime', label: 'Elapsed Time' },
+  { path: 'diggs:hydrometerReading', label: 'Hydrometer Reading' },
+  { path: 'diggs:temperature', label: 'Temperature' },
+  { path: 'diggs:compositeCorrection', label: 'Composite Correction' },
+  { path: 'diggs:correctedReading', label: 'Corrected Reading' },
+  { path: 'diggs:effectiveLength', label: 'Effective Length' },
+  { path: 'diggs:particleDiameter', label: 'Particle Diameter' },
+  { path: 'diggs:percentPassing', label: '% Passing' },
+  ..._OBJ_TYPE_TRAILING,
+];
+
+// ══════════════════════════════════════════════════════════════
+//  StaticConePenetrationTest configs (2026-08-03) — full schema trace via
+//  ../diggs-schema (core/CoreProcedures.xsd), following the AtterbergLimitsTest/
+//  ParticleSizeTest precedent: hand-authored so the CPT-specific hardware/
+//  operating fields get real labels instead of falling through
+//  renderGenericObject. **Row order is a curated display order** (method,
+//  then cone hardware/capacity fields, then operating parameters, then the
+//  pore-pressure element(s), then the standard equipment/environment/event/
+//  other-property bookkeeping), not XSD sequence order — same convention as
+//  every other hand-authored procedure config in this file.
+//
+//  StaticConePenetrationTestType extends AbstractInsituTestProcedureType ->
+//  AbstractTestProcedureType -> AbstractProcedureType (empty own sequence) ->
+//  AbstractFeatureType. Unlike AtterbergLimitsTest/ParticleSizeTest (both
+//  AbstractLaboratoryTestProcedureType, testEvent maxOccurs=1), this type's
+//  testEvent is InSituTestEventPropertyType with maxOccurs="unbounded" — set
+//  multi:true here (the other two configs' singular `testEvent` row would be
+//  wrong copied verbatim).
+// ══════════════════════════════════════════════════════════════
+
+// PorePressureElement — PorePressureElementType (core/CoreProcedures.xsd)
+// extends AbstractObjectType (_OBJ_BASE_FIELDS + _OBJ_TYPE_TRAILING shape).
+// Own fields: cellId?, filterElementLocation?, poreCapacity?,
+// porousElementType?, saturationFluid?, then a
+// [choice: saturationMethod | saturationMethodRef] — saturationMethodRef is
+// a Reference-Property (xlink:href-only pointer) and omitted per convention;
+// saturationMethod resolves through the existing OBJECT_CONFIGS.Specification.
+OBJECT_CONFIGS.PorePressureElement = [
+  ..._OBJ_BASE_FIELDS,
+  { path: 'diggs:cellId', label: 'Cell ID' },
+  { path: 'diggs:filterElementLocation', label: 'Filter Element Location' },
+  { path: 'diggs:poreCapacity', label: 'Pore Pressure Capacity' },
+  { path: 'diggs:porousElementType', label: 'Porous Element Type' },
+  { path: 'diggs:saturationFluid', label: 'Saturation Fluid' },
+  { path: 'diggs:saturationMethod', label: 'Saturation Method' },
+  ..._OBJ_TYPE_TRAILING,
+];
+
+OBJECT_CONFIGS.StaticConePenetrationTest = [
+  ..._OBJ_BASE_FIELDS,
+  ..._FEATURE_LEADING,
+  { path: 'diggs:testProcedureMethod', multi: true, label: 'Test Method' },
+  { path: 'diggs:penetrometerType', label: 'Penetrometer Type' },
+  { path: 'diggs:piezoconeType', label: 'Piezocone Type' },
+  { path: 'diggs:tipArea', label: 'Tip Area' },
+  { path: 'diggs:frictionSleeveArea', label: 'Friction Sleeve Area' },
+  { path: 'diggs:distanceTipToSleeve', label: 'Distance, Tip to Sleeve' },
+  { path: 'diggs:tipApexAngle', label: 'Tip Apex Angle' },
+  { path: 'diggs:netAreaRatioCorrection', label: 'Net Area Ratio Correction' },
+  { path: 'diggs:tipCapacity', label: 'Tip Load Cell Capacity' },
+  { path: 'diggs:sleeveCapacity', label: 'Sleeve Load Cell Capacity' },
+  { path: 'diggs:surfaceCapacity', label: 'Surface Load Cell Capacity' },
+  { path: 'diggs:pushRodType', label: 'Push Rod Type' },
+  { path: 'diggs:frictionReducer', label: 'Friction Reducer' },
+  { path: 'diggs:penetrationRate', label: 'Penetration Rate' },
+  { path: 'diggs:estimatedWaterDepth', label: 'Estimated Water Depth' },
+  {
+    path: 'diggs:porePressureElementInfo', multi: true,
+    label: 'Pore Pressure Element', labelPlural: 'Pore Pressure Elements', alwaysGroup: true,
+    itemLabel: el => {
+      const idEl = evalXPath(el, 'diggs:cellId')[0];
+      const txt = nodeText(idEl);
+      return txt ? escHtml(txt) : null;
+    },
+  },
+  { path: 'diggs:testProcedureEquipment', multi: true, label: 'Equipment', labelPlural: 'Equipment' },
+  { path: 'diggs:testingEnvironment', multi: true, label: 'Testing Environment' },
+  { path: 'diggs:testEvent', multi: true, label: 'Test Event', labelPlural: 'Test Events' },
+  {
+    path: 'diggs:otherTestProperty', multi: true,
+    label: 'Other Property', labelPlural: 'Other Properties', alwaysGroup: true,
+    itemLabel: el => {
+      const nameEl = evalXPath(el, 'diggs:parameterName')[0];
+      const txt = nodeText(nameEl);
+      return txt ? escHtml(txt) + _codeSpaceKeyExtra(nameEl) : null;
+    },
+  },
+  ..._FEATURE_TRAILING,
 ];
 
 // ══════════════════════════════════════════════════════════════
@@ -16244,13 +16636,23 @@ function buildMeasurementDisplay(sf) {
         const domRec = group.find(r => r.domain);
         const domainKind = domRec ? domRec.domain.kind : null;
         const plots = _measShouldPlot(model, domainKind, cfg);
-        // A per-row expand only makes sense when this badge aggregates more
-        // than one measurement object — with exactly one, every row would
-        // expand to the identical metadata/procedure (see the Metadata pane
-        // below instead).
-        const rowExpand = isMulti ? (row => _measRowExpandHtml(row, depthUom, drawJobs)) : null;
-        const tableHtml = renderResultTable(model, { rowExpand });
 
+        // The main depth-profile Plot pane's own drawJobs.push happens
+        // BEFORE renderResultTable/rowExpand below (not after, as this used
+        // to read) so its drawJob lands earlier in the shared `drawJobs`
+        // array than any per-row job renderResultTable's rowExpand callback
+        // pushes (see _measRowExpandHtml) — afterRender processes `drawJobs`
+        // in array order, so this guarantees the main `.cpt-plot-wrapper`
+        // plots are already live in the DOM by the time a per-row plot
+        // (e.g. _drawParticleSizeCurve/_drawAtterbergFlowCurve) draws and
+        // wants to measure one for font-size matching (_depthPlotFontPx).
+        // Found live: with the old order, EVERY per-row plot's own
+        // `_depthPlotFontPx()` call found nothing (the main plot didn't
+        // exist yet) and silently fell back to the unscaled default, which
+        // is what actually caused the "font too big" bug the reordering
+        // here fixes. Visual pane order (Plot above Results) is unaffected
+        // — that was already governed by `panes.push` order, which this
+        // preserves (Plot pushed first either way).
         if (plots) {
           const plotId = `measplot-${idSafe}-${procTypeSafe}`;
           // A depth-vertical plot lineup needs the flex-row scroller
@@ -16266,6 +16668,13 @@ function buildMeasurementDisplay(sf) {
           drawJobs.push({ plotId, model, domainKind, depthUom, totalDepth, lithColumns });
           panes.push({ label: 'Plot', html: `<div id="${plotId}"${rowClass}></div>` });
         }
+
+        // A per-row expand only makes sense when this badge aggregates more
+        // than one measurement object — with exactly one, every row would
+        // expand to the identical metadata/procedure (see the Metadata pane
+        // below instead).
+        const rowExpand = isMulti ? (row => _measRowExpandHtml(row, depthUom, drawJobs)) : null;
+        const tableHtml = renderResultTable(model, { rowExpand });
         panes.push({ label: 'Results', html: tableHtml });
       }
 
@@ -16320,6 +16729,11 @@ function buildMeasurementDisplay(sf) {
             if (j.kind === 'atterbergPlasticity') {
               const c = document.getElementById(j.containerId);
               if (c) _drawAtterbergPlasticityChart(c, j.point);
+              continue;
+            }
+            if (j.kind === 'particleSizeCurve') {
+              const c = document.getElementById(j.containerId);
+              if (c) _drawParticleSizeCurve(c, j.pts);
               continue;
             }
             const c = document.getElementById(j.plotId);
@@ -19328,6 +19742,47 @@ function renderLithBadgeContent(sfId, sf, lithSystems, allObs, drawJobs) {
 //  New plot kinds (grain-size, compaction, …) become new spec builders, not
 //  new engines — see plotSpecFromResult() and the drawPlotDispatch() seam.
 // ══════════════════════════════════════════════════════════════
+/** Straight-segment SVG path `d` for an ordered array of {x,y} screen points —
+ *  the <path>-equivalent of what a <polyline points="..."> attribute draws.
+ *  drawPlot uses one <path> element for its data line regardless of mode (see
+ *  _smoothPathD below) so switching spec.smooth on/off doesn't need a
+ *  different SVG element type. */
+function _straightPathD(pts) {
+  if (!pts.length) return '';
+  return 'M' + pts.map(p => `${p.x.toFixed(2)},${p.y.toFixed(2)}`).join(' L');
+}
+
+/** Smooth interpolating spline through `pts` (ordered {x,y} screen points), as
+ *  a cubic-Bezier SVG path `d` — a uniform Catmull-Rom spline (tension 1/6)
+ *  converted segment-by-segment to Bezier control points via the standard
+ *  Catmull-Rom-to-Bezier formula: for the segment P1->P2, control points are
+ *  P1+(P2-P0)/6 and P2-(P3-P1)/6, where P0/P3 are the segment's neighboring
+ *  points. Passes through every point exactly (an interpolating spline, not a
+ *  fitted/approximating curve) — matches "connect the actual measured points
+ *  smoothly" rather than a best-fit regression. Each end segment's missing
+ *  outer neighbor is clamped to the adjacent real point (not wrapped/mirrored)
+ *  so the curve doesn't overshoot past the first/last data point. Falls back
+ *  to a straight-segment path under 3 points, since a spline needs at least
+ *  one interior neighbor per segment to compute a tangent. Used by the
+ *  particle-size distribution curve (spec.smooth) in place of drawPlot's
+ *  default straight-segment connector; screen-space (post log/linear axis
+ *  projection), matching how the straight-segment mode already connects
+ *  points, so a log-scale independent axis still reads as visually smooth. */
+function _smoothPathD(pts) {
+  if (pts.length < 3) return _straightPathD(pts);
+  const d = [`M${pts[0].x.toFixed(2)},${pts[0].y.toFixed(2)}`];
+  for (let i = 0; i < pts.length - 1; i++) {
+    const p0 = pts[i === 0 ? 0 : i - 1];
+    const p1 = pts[i];
+    const p2 = pts[i + 1];
+    const p3 = pts[i + 2 < pts.length ? i + 2 : i + 1];
+    const c1x = p1.x + (p2.x - p0.x) / 6, c1y = p1.y + (p2.y - p0.y) / 6;
+    const c2x = p2.x - (p3.x - p1.x) / 6, c2y = p2.y - (p3.y - p1.y) / 6;
+    d.push(`C${c1x.toFixed(2)},${c1y.toFixed(2)} ${c2x.toFixed(2)},${c2y.toFixed(2)} ${p2.x.toFixed(2)},${p2.y.toFixed(2)}`);
+  }
+  return d.join(' ');
+}
+
 function drawPlot(container, spec) {
   const NS_SVG = 'http://www.w3.org/2000/svg';
   const pts = spec.points;
@@ -19354,11 +19809,24 @@ function drawPlot(container, spec) {
   const iMinFull = ovrValid ? Math.min(ovr.min, ...iVals) : Math.min(...iVals);
   const iMaxFull = ovrValid ? Math.max(ovr.max, ...iVals) : Math.max(...iVals);
   const iRangeFull = iMaxFull - iMinFull || 1;
-  const pMinFull = Math.min(...pVals), pMaxFull = Math.max(...pVals);
+  // `depFullOverride` is indFullOverride's own counterpart for the DEPENDENT
+  // axis (e.g. a percent-passing curve that should always show exactly
+  // 0-100% regardless of this particular test's own data range, for
+  // comparability across tests) — same override-if-valid contract, except
+  // it also suppresses the padding step below entirely (pPad0=0) rather
+  // than padding around the override, so the axis lands on EXACTLY
+  // [dovr.min, dovr.max] rather than that range plus more room — the whole
+  // point of a fixed comparative scale is that it's the same across every
+  // instance, which padding-derived-from-this-instance's-own-data would
+  // undermine.
+  const dovr = spec.depFullOverride;
+  const dovrValid = dovr && isFinite(dovr.min) && isFinite(dovr.max) && dovr.max > dovr.min;
+  const pMinFull = dovrValid ? Math.min(dovr.min, ...pVals) : Math.min(...pVals);
+  const pMaxFull = dovrValid ? Math.max(dovr.max, ...pVals) : Math.max(...pVals);
   const depPad = a => (Math.max(...a) - Math.min(...a)) * (dep.padFrac || 0.08)
                     || Math.abs(Math.min(...a)) * (dep.padAbsFrac || 0.05)
                     || (dep.padConst || 0.5);
-  const pPad0 = depPad(pVals);
+  const pPad0 = dovrValid ? 0 : depPad(pVals);
   let view = { iMin: iMinFull, iMax: iMaxFull, pMin: pMinFull - pPad0, pMax: pMaxFull + pPad0 };
 
   // ── DOM scaffolding: wrapper + toolbar ───────────────────────
@@ -19431,11 +19899,14 @@ function drawPlot(container, spec) {
   refG.setAttribute('clip-path', `url(#${clipId})`);
   svg.appendChild(refG);
 
-  const polyline = document.createElementNS(NS_SVG, 'polyline');
-  polyline.setAttribute('fill', 'none'); polyline.setAttribute('stroke', dep.color);
-  polyline.setAttribute('stroke-width', '1.5'); polyline.setAttribute('stroke-linejoin', 'round');
-  polyline.setAttribute('stroke-linecap', 'round'); polyline.setAttribute('clip-path', `url(#${clipId})`);
-  svg.appendChild(polyline);
+  // <path> rather than <polyline> so the data line can render either straight
+  // segments (default, via _straightPathD) or a smooth interpolating spline
+  // (spec.smooth, via _smoothPathD) through the same element — see redraw().
+  const dataPath = document.createElementNS(NS_SVG, 'path');
+  dataPath.setAttribute('fill', 'none'); dataPath.setAttribute('stroke', dep.color);
+  dataPath.setAttribute('stroke-width', '1.5'); dataPath.setAttribute('stroke-linejoin', 'round');
+  dataPath.setAttribute('stroke-linecap', 'round'); dataPath.setAttribute('clip-path', `url(#${clipId})`);
+  svg.appendChild(dataPath);
 
   // Permanent point markers (opt-in via spec.pointMarkers) — every actual
   // data point, not just the transient hover dot, e.g. so a flow curve shows
@@ -19572,7 +20043,8 @@ function drawPlot(container, spec) {
     }
     const buf = iSpan * 0.01;
     const vis = pts.filter(p => p.i >= view.iMin - buf && p.i <= view.iMax + buf);
-    polyline.setAttribute('points', vis.map(p => `${sx(p).toFixed(2)},${sy(p).toFixed(2)}`).join(' '));
+    const screenPts = vis.map(p => ({ x: sx(p), y: sy(p) }));
+    dataPath.setAttribute('d', spec.smooth ? _smoothPathD(screenPts) : _straightPathD(screenPts));
 
     // Permanent point markers — one small filled circle per visible data
     // point (rebuilt every redraw since zoom/pan changes both which points
@@ -20082,10 +20554,77 @@ function _atterbergPlotTargetWidth(container) {
  *  the smallest trial value and above the largest, converted to the same
  *  log10 space `pts[].i` already uses — without it the first/last point
  *  sits exactly on the plot's left/right edge, clipping its marker. */
+
+// Font sizing (2026-08-02, corrected) for the Atterberg + particle-size
+// plots, so their ON-SCREEN pixel text matches the main result
+// (depth-profile) plots' own axis-label/title size — per explicit user
+// request. What determines on-screen size is nominal-font-size × (rendered
+// CSS width / VW), not the nominal number alone.
+//
+// A first version of this hardcoded a target pixel size calibrated against
+// ONE specific headless-browser window size, then baked it into fixed
+// nominal-font-size constants. The user caught this as wrong: the
+// depth-profile plots' own rendered width is NOT a fixed fraction of the
+// pane (`.cpt-plot-wrapper`'s `flex:0 0 calc(20% - 8px)` only falls back to
+// its 150px `min-width` in a NARROW pane — in a wide window it renders
+// considerably wider than that), so a target calibrated against a narrow
+// test window undershoots badly in a wider real one, and vice versa. Fixed
+// nominal constants can only ever be correct for the one window size they
+// were measured against.
+//
+// The fix: measure an ACTUAL already-rendered depth-profile plot's real
+// on-screen ratio at DRAW TIME instead of hardcoding one. Every badge that
+// gets an Atterberg/particle-size plot also has a Results section with
+// numeric columns, which (per buildMeasurementDisplay) queues its own
+// depth-profile `.cpt-plot-wrapper` drawJobs BEFORE the per-row Atterberg/
+// particle-size drawJobs in the very same drawJobs array — afterRender
+// processes that array in push order, so a `.cpt-plot-wrapper` SVG is
+// already live in the DOM, at its real final width, by the time this file's
+// own plots draw. Measuring it directly makes the match self-correct for
+// whatever window size is actually in play, rather than needing to be
+// re-tuned by hand for one guessed size.
+/**
+ * _depthPlotFontPx() — the depth-profile plots' own axisFontSize(12)/
+ * titleSize(14) (see drawResultPlots), converted to actual on-screen pixels
+ * via an already-rendered `.cpt-plot-wrapper` SVG's real width vs. its own
+ * viewBox width. Returns `{axis, title}` in px, or null if no depth-profile
+ * plot exists anywhere in the DOM yet to measure against (e.g. a badge
+ * whose Results data didn't qualify for auto-plotting) — callers fall back
+ * to the nominal 12/14 unscaled in that case.
+ */
+function _depthPlotFontPx() {
+  const svg = document.querySelector('.cpt-plot-wrapper svg');
+  if (!svg) return null;
+  const rectWidth = svg.getBoundingClientRect().width;
+  if (!rectWidth) return null;
+  const vb = svg.getAttribute('viewBox');
+  const vw = vb ? parseFloat(vb.split(' ')[2]) : null;
+  if (!vw) return null;
+  const ratio = rectWidth / vw;
+  return { axis: 12 * ratio, title: 14 * ratio };
+}
+
+/**
+ * _attPsdFontSizes(rendererWidthPx, VW) — given a plot's own rendered CSS
+ * width and viewBox width, returns the nominal `{axis, title}` font-size
+ * values (in THIS plot's own viewBox units) that reproduce
+ * _depthPlotFontPx()'s real on-screen pixel size. `own_ratio =
+ * renderedWidthPx / VW`; `nominal = target_px / own_ratio`. Falls back to
+ * the plain 12/14 nominal values (unscaled) when no reference depth-profile
+ * plot is available to measure — see _depthPlotFontPx.
+ */
+function _attPsdFontSizes(renderedWidthPx, VW) {
+  const target = _depthPlotFontPx();
+  if (!target) return { axis: 12, title: 14 };
+  const ownRatio = renderedWidthPx / VW;
+  return { axis: target.axis / ownRatio, title: target.title / ownRatio };
+}
+
 function _drawAtterbergFlowCurve(container, flow) {
   const w = _atterbergPlotTargetWidth(container);
   container.style.width = w + 'px';
   container.style.minWidth = w + 'px';
+  const fonts = _attPsdFontSizes(w, 440);
   const pts = flow.pts;
   const col = PLOT_COLORS[0];
   const isFallCone = flow.kind === 'fallcone';
@@ -20105,7 +20644,7 @@ function _drawAtterbergFlowCurve(container, flow) {
       : null,
     viewport: { VW: 440, VH: 440 * (260 / 360), PAD: { top: 26, bottom: 42, left: 50, right: 16 } },
     clipPrefix: 'att-flow', infoText: `n=${pts.length}`,
-    axisFontSize: 11, tooltipFontSize: 12,
+    axisFontSize: fonts.axis, tooltipFontSize: fonts.axis,
     ind: {
       ticks: 5, minSpanAbs: 0.05,
       fmtTick: v => String(Math.round(Math.pow(10, v))),
@@ -20116,11 +20655,140 @@ function _drawAtterbergFlowCurve(container, flow) {
       fmtTick: v => v.toFixed(1),
       fmtTip: v => 'w = ' + v.toFixed(1) + '%',
     },
-    leftLabel: { text: 'Water Content (%)', color: col, size: 11 },
-    bottomLabel: { text: indLabel, color: '#8b949e', size: 11 },
-    titleParts: [{ text: title, color: col, size: 11 }],
-    titleSize: 11,
+    leftLabel: { text: 'Water Content (%)', color: col, size: fonts.axis },
+    bottomLabel: { text: indLabel, color: '#8b949e', size: fonts.axis },
+    titleParts: [{ text: title, color: col, size: fonts.title }],
+    titleSize: fonts.title,
     wrapper: { className: 'att-flow-plot-wrapper', style: 'margin-bottom:0; position:relative;' },
+  });
+}
+
+/** Target width (px) for the particle-size distribution curve — the FULL
+ *  real available width of the accessory pane (per explicit user request,
+ *  unlike _atterbergPlotTargetWidth's own half-pane/side-by-side split),
+ *  measured directly off `container` rather than a `.att-plot-stack`-style
+ *  parent flex row, since there's no sibling plot to share space with.
+ *  Same two-path shape as _atterbergPlotTargetWidth for the same reason
+ *  (see its own banner comment): in the multi-measurement badge case this
+ *  draws inside a not-yet-expanded `.kv-interval-detail-row` (`display:
+ *  none`), where `getBoundingClientRect()` returns a zero-width rect — the
+ *  fallback walks the ancestor chain's own padding up to the always-visible
+ *  `#assoc-content` and computes the true eventual width analytically. */
+function _particleSizePlotTargetWidth(container) {
+  const rect = container.getBoundingClientRect();
+  let avail;
+  if (rect.width > 0) {
+    avail = rect.width;
+  } else {
+    const assocContent = document.getElementById('assoc-content');
+    if (assocContent) {
+      let totalPad = 0, el = container.parentElement, hops = 0;
+      while (el && hops++ < 40) {
+        const cs = getComputedStyle(el);
+        totalPad += (parseFloat(cs.paddingLeft) || 0) + (parseFloat(cs.paddingRight) || 0);
+        if (el === assocContent) break;
+        el = el.parentElement;
+      }
+      avail = assocContent.clientWidth - totalPad - 8;
+    } else {
+      avail = 800;
+    }
+  }
+  return Math.max(320, Math.floor(avail));
+}
+
+/** Adaptive-precision grain-size label (mm) — 3 significant figures via the
+ *  same Number(x.toPrecision(3)) pattern the Atterberg flow curve's own
+ *  fmtTip uses for blow count/penetration, so a value reads sensibly
+ *  whether it's 75 (a 3 in sieve) or 0.0018 (a hydrometer-derived clay
+ *  size) without a fixed decimal count being wrong at one end or the
+ *  other. */
+function _fmtGrainSizeMm(v) {
+  if (!isFinite(v) || v <= 0) return String(v);
+  return String(Number(v.toPrecision(3)));
+}
+
+/** Particle-size distribution (grain-size) curve: percent passing (linear)
+ *  vs. particle size (log scale, largest-to-smallest left-to-right — see
+ *  _particleSizePoints' own doc comment on the `i = -log10(size)`
+ *  convention) via the shared drawPlot engine, `spec.smooth` opted in for a
+ *  spline connector (per explicit user request) rather than drawPlot's
+ *  default straight-segment line, alongside permanent point markers sized
+ *  to match the Atterberg flow curve's own enlarged markers
+ *  (`pointMarkerRadius`).
+ *
+ *  Text/marker/padding sizing (per explicit user request, "similar in size
+ *  to the Atterberg curves"): what actually determines ON-SCREEN pixel size
+ *  for a viewBox-unit quantity (font-size, PAD, pointMarkerRadius, …) is the
+ *  ratio VW : rendered-CSS-width, not the nominal number itself — a
+ *  font-size of 11 renders at very different pixel sizes depending on that
+ *  ratio. Measured live: the Atterberg flow curve (half-pane width, VW
+ *  pinned at a fixed 440 regardless of actual rendered width — see
+ *  _drawAtterbergFlowCurve) renders its ~219px-wide container at roughly a
+ *  2:1 viewBox:pixel ratio (440/219 ≈ 2.0) in this app's own multi-
+ *  measurement badge context. Since this plot's own rendered width (`w`,
+ *  full-pane) is itself roughly 2x one Atterberg half-pane chart's width for
+ *  the SAME available pane space, pinning VW to 880 (= 2 × Atterberg's 440)
+ *  reproduces that same ~2:1 ratio here — so reusing Atterberg's EXACT
+ *  numeric axisFontSize/titleSize/tooltipFontSize/PAD/pointMarkerRadius
+ *  values (not scaled up for the wider chart) lands at the same on-screen
+ *  pixel size as those same numbers do on the Atterberg charts. VH is then
+ *  derived (not a fixed constant like Atterberg's own VH) to hold the
+ *  RENDERED height constant at `targetHeightPx` regardless of how wide or
+ *  narrow the pane actually is — a fixed VW:VH aspect ratio (Atterberg's
+ *  own approach) would instead make this chart's height shrink right along
+ *  with a narrow pane, which reads fine for Atterberg's compact companion
+ *  charts but would squash this wide, many-tick-mark curve illegibly thin.
+ *
+ *  `indFullOverride`/`depFullOverride` fix BOTH axes to the same extent on
+ *  EVERY particle-size curve (0.001-125 mm grain size, 0-100% passing —
+ *  `_PSD_SIZE_MIN_MM`/`_PSD_SIZE_MAX_MM`), per explicit user request, rather
+ *  than each test auto-fitting to its own data range: a coarse-grained
+ *  sieve-only test's data therefore sits in the left/upper portion of a
+ *  wider frame instead of getting its own zoomed-in axes, so any two
+ *  curves are directly visually comparable at a glance (same axis
+ *  position means the same real grain size / percent passing on every
+ *  plot) without needing to check each one's own axis range first — and
+ *  skips the per-instance min/max-over-all-points scan entirely. */
+const _PSD_SIZE_MIN_MM = 0.001;   // 1 micron
+const _PSD_SIZE_MAX_MM = 125;
+
+function _drawParticleSizeCurve(container, pts) {
+  const w = _particleSizePlotTargetWidth(container);
+  container.style.width = w + 'px';
+  container.style.minWidth = w + 'px';
+  const col = PLOT_COLORS[0];
+  const VW = 880;
+  const targetHeightPx = 300;
+  const VH = targetHeightPx * VW / w;
+  const fonts = _attPsdFontSizes(w, VW);
+  drawPlot(container, {
+    points: pts, orientation: 'x-ind', smooth: true, pointMarkers: true, pointMarkerRadius: 5,
+    indFullOverride: { min: Math.log10(_PSD_SIZE_MIN_MM), max: Math.log10(_PSD_SIZE_MAX_MM) },
+    depFullOverride: { min: 0, max: 100 },
+    viewport: { VW, VH, PAD: { top: 26, bottom: 42, left: 50, right: 16 } },
+    clipPrefix: 'pst-curve', infoText: `n=${pts.length}`,
+    axisFontSize: fonts.axis, tooltipFontSize: fonts.axis,
+    ind: {
+      // ticks:5 (not the original 8) — at this larger font size, 8
+      // evenly-spaced labels crowded/overlapped across a curve that can
+      // span 5 orders of magnitude; 5 matches every other plot family's own
+      // tick count (Atterberg, the depth-profile plots) and leaves enough
+      // horizontal room per label.
+      ticks: 5, minSpanAbs: 0.05,
+      fmtTick: v => _fmtGrainSizeMm(Math.pow(10, v)),
+      fmtTip: v => `Size = ${_fmtGrainSizeMm(Math.pow(10, v))} mm`,
+    },
+    dep: {
+      color: col, ticks: 5, flip: false, padFrac: 0.08, padAbsFrac: 0.05, padConst: 2,
+      fmtTick: v => Math.round(v) + '%',
+      fmtTip: v => 'Passing = ' + v.toFixed(1) + '%',
+    },
+    leftLabel: { text: 'Percent Passing (%)', color: col, size: fonts.axis },
+    bottomLabel: { text: 'Grain Size (mm, log scale)', color: '#8b949e', size: fonts.axis },
+    titleParts: [{ text: 'Particle Size Distribution', color: col, size: fonts.title }],
+    titleSize: fonts.title,
+    wrapper: { className: 'pst-curve-plot-wrapper', style: 'margin-bottom:0; position:relative;' },
   });
 }
 
@@ -20148,6 +20816,20 @@ function _drawAtterbergPlasticityChart(container, pt) {
   container.style.minWidth = w + 'px';
   const NS_SVG = 'http://www.w3.org/2000/svg';
   const VW = 360, VH = 260, PAD = { left: 46, right: 16, top: 26, bottom: 40 };
+  // Font sizing: axis-tick text matches _attPsdFontSizes' own target (same
+  // as the flow curve/particle-size curve — see that function's own doc
+  // comment). The chart's 3 OTHER text categories (region labels, A-line/
+  // U-line labels, the CL-ML hatch-zone label) have no direct depth-plot
+  // equivalent to size against, so each is scaled by the same factor
+  // (axisFont / 10) this chart's own ORIGINAL axis-tick baseline (10) used,
+  // preserving its existing internal size hierarchy (ticks largest, then
+  // region labels, then line labels, then the small hatch label).
+  const _psdFonts = _attPsdFontSizes(w, VW);
+  const AXIS_FONT = _psdFonts.axis;
+  const _plastFactor = AXIS_FONT / 10;
+  const REGION_FONT = 9 * _plastFactor;
+  const LINE_LABEL_FONT = 8 * _plastFactor;
+  const HATCH_FONT = 6.5 * _plastFactor;
   const pW = VW - PAD.left - PAD.right, pH = VH - PAD.top - PAD.bottom;
   const C = { outer: '#0d1117', plot: '#161b22', grid: '#21262d', border: '#30363d', axisText: '#8b949e' };
   const maxLL = Math.max(100, Math.ceil((pt.LL + 10) / 10) * 10);
@@ -20176,12 +20858,12 @@ function _drawAtterbergPlasticityChart(container, pt) {
   for (let ll = 0; ll <= maxLL; ll += 10) {
     const x = xOf(ll);
     svg.appendChild(mk('line', { x1: x, x2: x, y1: PAD.top, y2: PAD.top + pH, stroke: C.grid, 'stroke-width': 1 }));
-    svg.appendChild(text({ x, y: VH - PAD.bottom + 14, 'text-anchor': 'middle', 'font-size': 10, fill: C.axisText, 'font-family': 'monospace' }, ll));
+    svg.appendChild(text({ x, y: VH - PAD.bottom + 14, 'text-anchor': 'middle', 'font-size': AXIS_FONT, fill: C.axisText, 'font-family': 'monospace' }, ll));
   }
   for (let pi = 0; pi <= maxPI; pi += 10) {
     const y = yOf(pi);
     svg.appendChild(mk('line', { x1: PAD.left, x2: PAD.left + pW, y1: y, y2: y, stroke: C.grid, 'stroke-width': 1 }));
-    svg.appendChild(text({ x: PAD.left - 5, y: y + 3, 'text-anchor': 'end', 'font-size': 10, fill: C.axisText, 'font-family': 'monospace' }, pi));
+    svg.appendChild(text({ x: PAD.left - 5, y: y + 3, 'text-anchor': 'end', 'font-size': AXIS_FONT, fill: C.axisText, 'font-family': 'monospace' }, pi));
   }
 
   // 50% LL divider — the conventional low/high plasticity split (an "L"
@@ -20241,7 +20923,7 @@ function _drawAtterbergPlasticityChart(container, pt) {
   {
     const ll = 25.5 + (aSlopeEndLL - 25.5) * 0.55, pi = 0.73 * (ll - 20);
     const lx = xOf(ll), ly = yOf(pi) - 5;
-    svg.appendChild(text({ x: lx, y: ly, 'text-anchor': 'middle', 'font-size': 8, fill: '#f0883e', 'font-family': 'monospace',
+    svg.appendChild(text({ x: lx, y: ly, 'text-anchor': 'middle', 'font-size': LINE_LABEL_FONT, fill: '#f0883e', 'font-family': 'monospace',
       transform: `rotate(${lineAngleDeg(0.73).toFixed(1)}, ${lx}, ${ly})` }, 'A-line'));
   }
 
@@ -20252,7 +20934,7 @@ function _drawAtterbergPlasticityChart(container, pt) {
   {
     const ll = 8 + (uEndLL - 8) * 0.55, pi = 0.9 * (ll - 8);
     const lx = xOf(ll), ly = yOf(pi) - 5;
-    svg.appendChild(text({ x: lx, y: ly, 'text-anchor': 'middle', 'font-size': 8, fill: '#bc8cff', 'font-family': 'monospace',
+    svg.appendChild(text({ x: lx, y: ly, 'text-anchor': 'middle', 'font-size': LINE_LABEL_FONT, fill: '#bc8cff', 'font-family': 'monospace',
       transform: `rotate(${lineAngleDeg(0.9).toFixed(1)}, ${lx}, ${ly})` }, 'U-line'));
   }
 
@@ -20263,7 +20945,7 @@ function _drawAtterbergPlasticityChart(container, pt) {
   // organic (M/O) below it; low (L, LL<50) vs. high (H, LL≥50) plasticity
   // split by the 50% line above.
   const regionLabel = (ll, pi, txt) => svg.appendChild(text(
-    { x: xOf(ll), y: yOf(pi), 'text-anchor': 'middle', 'font-size': 9, fill: C.axisText, 'font-family': 'sans-serif' }, txt));
+    { x: xOf(ll), y: yOf(pi), 'text-anchor': 'middle', 'font-size': REGION_FONT, fill: C.axisText, 'font-family': 'sans-serif' }, txt));
   regionLabel(50 + (maxLL - 50) * 0.5, maxPI * 0.82, 'CH or OH');
   regionLabel(50 + (maxLL - 50) * 0.5, maxPI * 0.15, 'MH or OH');
   regionLabel(50 * 0.62, maxPI * 0.38, 'CL or OL');
@@ -20272,7 +20954,7 @@ function _drawAtterbergPlasticityChart(container, pt) {
   // right on top of.
   regionLabel(40, maxPI * 0.05, 'ML or OL');
   svg.appendChild(text({
-    x: xOf((llAtUPI4 + 25.5) / 2), y: yOf(5.5), 'text-anchor': 'middle', 'font-size': 6.5, fill: '#e6edf3', 'font-family': 'monospace',
+    x: xOf((llAtUPI4 + 25.5) / 2), y: yOf(5.5), 'text-anchor': 'middle', 'font-size': HATCH_FONT, fill: '#e6edf3', 'font-family': 'monospace',
   }, 'CL-ML'));
 
   // This test's own (LL, PI) point — dot only, no adjacent text label (the
