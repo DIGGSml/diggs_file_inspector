@@ -27786,7 +27786,7 @@
                         </PointLocation>
                     </referencePoint>
                     <featureExtent>
-                        <MultiSurfaceAggregate>
+                        <MultiSurface gml:id="ms-zone-bif">
                             <surfaceMembers>
                                 <PlanarSurface gml:id="ps-zone-bif-1" srsDimension="2"
                                     srsName="http://www.opengis.net/def/crs/EPSG/0/9357">
@@ -27879,7 +27879,7 @@
                                     </gml:exterior>
                                 </PlanarSurface>
                             </surfaceMembers>
-                        </MultiSurfaceAggregate>
+                        </MultiSurface>
                     </featureExtent>
                     <totalArea uom="m2">58.46</totalArea>
                     <materialType>
@@ -28412,7 +28412,7 @@
                         </PointLocation>
                     </referencePoint>
                     <featureExtent>
-                        <MultiSurfaceAggregate>
+                        <MultiSurface gml:id="ms-zone-pt">
                             <surfaceMembers>
                                 <PlanarSurface gml:id="ps-zone-pt-1" srsDimension="2"
                                     srsName="http://www.opengis.net/def/crs/EPSG/0/9357">
@@ -28448,7 +28448,7 @@
                                     </gml:exterior>
                                 </PlanarSurface>
                             </surfaceMembers>
-                        </MultiSurfaceAggregate>
+                        </MultiSurface>
                     </featureExtent>
                     <totalArea uom="m2">223.96</totalArea>
                     <materialType>
@@ -31705,7 +31705,7 @@
                         </PointLocation>
                     </referencePoint>
                     <featureExtent>
-                        <MultiSurfaceAggregate>
+                        <MultiSurface gml:id="ms-zone-oe">
                             <surfaceMembers>
                                 <PlanarSurface gml:id="ps-zone-oe-1" srsDimension="2"
                                     srsName="http://www.opengis.net/def/crs/EPSG/0/9357">
@@ -31748,7 +31748,7 @@
                                     </gml:exterior>
                                 </PlanarSurface>
                             </surfaceMembers>
-                        </MultiSurfaceAggregate>
+                        </MultiSurface>
                     </featureExtent>
                     <totalArea uom="m2">39.65</totalArea>
                     <materialType>

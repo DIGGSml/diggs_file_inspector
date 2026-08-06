@@ -431,17 +431,17 @@
   </samplingFeature>
 
   <samplingFeature>
-    <!-- DogLeg Trench: a two-patch MultiPlanarSurface trench wall used to test rendering of
-         a bent trench alignment, each patch in its own local CRS (see the two dogleg-patch*-crs
+    <!-- DogLeg Trench: a two-panel CompositeSurface trench wall used to test rendering of
+         a bent trench alignment, each panel in its own local CRS (see the two dogleg-patch*-crs
          LocalCartesianCRS objects above). Exhaustively populated (every optional field from
          TrenchWallType and its ancestor types) to exercise the file inspector's rendering
          against a maximally complete TrenchWall instance - contrast with the minimal "My trench"
          (b11) above. -->
     <TrenchWall gml:id="dogleg1">
       <gml:description>
-        A dog-leg shaped trench wall consisting of two planar patches at different bearings
-        (78 and 110 degrees from North), used to test MultiPlanarSurface rendering with
-        per-patch local coordinate reference systems.
+        A dog-leg shaped trench wall consisting of two contiguous surfaceMember panels at
+        different bearings (78 and 110 degrees from North), used to test CompositeSurface
+        rendering with per-member local coordinate reference systems.
       </gml:description>
       <gml:identifier codeSpace="usgs">urn:diggs:def:fi:USGS:usgs_dogleg1</gml:identifier>
       <gml:name>DogLeg Trench</gml:name>
@@ -479,7 +479,7 @@
       <remark>
         <Remark>
           <content>Trench alignment changes bearing partway along its length, hence "DogLeg"
-            naming; used as a test fixture for MultiPlanarSurface rendering.</content>
+            naming; used as a test fixture for CompositeSurface rendering.</content>
         </Remark>
       </remark>
       <remark>
@@ -568,16 +568,20 @@
         </LocalCoordinate>
       </localCoordinates>
       <featureExtent>
-        <!-- Feature extent: two planar patches at different bearings (dog-leg), each in its own
-             local CRS (dogleg-patch1-crs / dogleg-patch2-crs, defined in documentInformation
-             above). Patch 2's posList uses a continuous chainage (48-85) via its X-axis
+        <!-- Feature extent: two contiguous panels at different bearings (dog-leg), each its own
+             surfaceMember PlanarSurface with its own gml:id and srsName, each panel keyed to its
+             own local CRS (dogleg-patch1-crs / dogleg-patch2-crs, defined in documentInformation
+             above). Panel 2's posList uses a continuous chainage (48-85) via its X-axis
              AxisLocation's originOffset, rather than resetting to a local 0-37 frame; see the
-             originOffset note on dogleg-patch2-crs. srsDimension/srsName are declared directly
-             on each PlanarSurfacePatch, per PlanarSurfacePatchType's gml:SRSReferenceGroup
-             (DIGGS 3.1-dev). Note PlanarSurfacePatch itself still has no gml:id attribute. -->
-        <MultiPlanarSurface gml:id="dogleg-extent">
-          <gml:patches>
-            <PlanarSurfacePatch srsDimension="2" srsName="#dogleg-patch1-crs">
+             originOffset note on dogleg-patch2-crs. Phase 3 conversion (ERT_2D-3D_handoff_
+             2026-08-05.md) from the prior MultiPlanarSurface + PlanarSurfacePatch +
+             gml:SRSReferenceGroup hack to diggs:CompositeSurface, now that Phase 2 has landed
+             the schema change reverting PlanarSurfacePatch to 3.0 and adding CompositeSurface —
+             same geometry/CRS objects, previewed exactly by CompositeSurfaceTest.xml's
+             cst-dogleg. -->
+        <CompositeSurface gml:id="dogleg-extent">
+          <surfaceMembers>
+            <PlanarSurface gml:id="dogleg-patch1" srsDimension="2" srsName="#dogleg-patch1-crs">
               <gml:exterior>
                 <gml:LinearRing>
                   <gml:posList count="25">
@@ -587,8 +591,8 @@
                   </gml:posList>
                 </gml:LinearRing>
               </gml:exterior>
-            </PlanarSurfacePatch>
-            <PlanarSurfacePatch srsDimension="2" srsName="#dogleg-patch2-crs">
+            </PlanarSurface>
+            <PlanarSurface gml:id="dogleg-patch2" srsDimension="2" srsName="#dogleg-patch2-crs">
               <gml:exterior>
                 <gml:LinearRing>
                   <gml:posList count="26">
@@ -598,9 +602,9 @@
                   </gml:posList>
                 </gml:LinearRing>
               </gml:exterior>
-            </PlanarSurfacePatch>
-          </gml:patches>
-        </MultiPlanarSurface>
+            </PlanarSurface>
+          </surfaceMembers>
+        </CompositeSurface>
       </featureExtent>
       <whenConstructed>
         <TimeInterval gml:id="dogleg-whenbuilt">
@@ -665,6 +669,83 @@
           <stability>Stable</stability>
         </TrenchWallEvent>
       </constructionEvent>
+    </TrenchWall>
+  </samplingFeature>
+
+  <samplingFeature>
+    <!-- Three-Panel Trench Wall: a genuinely contiguous, single-CRS MultiPlanarSurface, added
+         Phase 3 of the ERT_2D-3D_handoff_2026-08-05.md surface-geometry redesign. Per that doc's
+         Phase 3 table, MultiPlanarSurface's only real prior instance was dogleg1's own two-patch
+         wall above (now converted to diggs:CompositeSurface, since it actually needed a distinct
+         per-patch CRS at each bearing change) - so MultiPlanarSurface itself had zero live
+         instances left exercising its real, narrower use case: ONE flat surface split into
+         non-addressable panels sharing ONE CRS, with no per-panel gml:id/srsName/reuse-by-
+         reference need. This wall is straight (no bearing change), so all three panels share
+         trench-wall-2d-crs-001 (the same CRS b11 above uses) and the panel boundaries are pure
+         internal bookkeeping (e.g. separate excavation passes), not distinct coordinate frames -
+         the correct MultiPlanarSurface case, contrasted with dogleg1's CompositeSurface case. -->
+    <TrenchWall gml:id="panelwall1">
+      <gml:identifier codeSpace="usgs">urn:diggs:def:fi:USGS:usgs_panelwall1</gml:identifier>
+      <gml:name>Three-Panel Trench Wall</gml:name>
+      <investigationTarget>Natural Ground</investigationTarget>
+      <projectRef xlink:href="#p1"/>
+      <referencePoint>
+        <PointLocation gml:id="panelwall1-rp" srsDimension="3"
+          srsName="https://www.opengis.net/def/crs-compound?1=http://www.opengis.net/def/crs/EPSG/0/26911&amp;2=http://www.opengis.net/def/crs/EPSG/0/5703">
+          <gml:pos>387516.6651 3742645.123 5.0</gml:pos>
+        </PointLocation>
+      </referencePoint>
+      <featureExtent>
+        <!-- Three contiguous panels along one straight wall face (X 0-18 m, D 0-5.5 m), each
+             sharing an edge with its neighbor (X=6, X=12) - a single flat surface subdivided
+             into non-addressable panels, all under the ONE wrapper-level CRS
+             (trench-wall-2d-crs-001, matching b11's own local frame/scale). No per-patch
+             srsName/srsDimension - PlanarSurfacePatchType carries no CRS of its own (reverted
+             to 3.0 in Phase 2; see the Phase 2 log entry above for why that hack existed and was
+             withdrawn). -->
+        <MultiPlanarSurface gml:id="panelwall1-extent" srsDimension="2" srsName="#trench-wall-2d-crs-001">
+          <gml:patches>
+            <PlanarSurfacePatch>
+              <gml:exterior>
+                <gml:LinearRing>
+                  <gml:posList count="5">
+                    0 0 6 0 6 5.5 0 5.5 0 0
+                  </gml:posList>
+                </gml:LinearRing>
+              </gml:exterior>
+            </PlanarSurfacePatch>
+            <PlanarSurfacePatch>
+              <gml:exterior>
+                <gml:LinearRing>
+                  <gml:posList count="5">
+                    6 0 12 0 12 5.5 6 5.5 6 0
+                  </gml:posList>
+                </gml:LinearRing>
+              </gml:exterior>
+            </PlanarSurfacePatch>
+            <PlanarSurfacePatch>
+              <gml:exterior>
+                <gml:LinearRing>
+                  <gml:posList count="5">
+                    12 0 18 0 18 5.5 12 5.5 12 0
+                  </gml:posList>
+                </gml:LinearRing>
+              </gml:exterior>
+            </PlanarSurfacePatch>
+          </gml:patches>
+        </MultiPlanarSurface>
+      </featureExtent>
+      <constructionMethod>
+        <TrenchConstructionMethod gml:id="panelwall1-cm">
+          <gml:name>backhoe</gml:name>
+          <remark>
+            <Remark>
+              <content>Excavated in three passes; panel boundaries mark each day's work, not a
+                change in wall alignment or coordinate frame.</content>
+            </Remark>
+          </remark>
+        </TrenchConstructionMethod>
+      </constructionMethod>
     </TrenchWall>
   </samplingFeature>
 

@@ -1257,7 +1257,7 @@
 							<gml:posList>0 40.00</gml:posList>
 						</LinearExtent>
 					</diameterLocation>
-					<diameter uom="in">4</diameter>
+					<diameter uom="in">6</diameter>
 				</BoreholeDiameter>
 			</holeDiameter>
 			<waterStrike>
