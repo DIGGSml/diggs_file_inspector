@@ -13,6 +13,8 @@
 snippets and plan docs
 CLAUDE.md
 .claude/settings.local.json
+.claude
+tools
 
 # User-specific files (MonoDevelop/Xamarin Studio)
 *.userprefs
