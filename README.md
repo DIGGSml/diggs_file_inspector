@@ -1,5 +1,5 @@
 # DIGGS File Inspector
-Last Updated - Aug. 6, 2026 *(the information herein may be superceded by more recent application commits)*
+Last Updated - Aug. 7, 2026 *(the information herein may be superceded by more recent application commits)*
 
 *A standalone, browser-based viewer for [DIGGS](https://www.diggsml.org/) (Data
 Interchange for Geotechnical and Geoenvironmental Specialists) XML files. Open
@@ -141,6 +141,20 @@ height for map height.
 Shows the loaded file name, its `DocumentInformation` creation date and author(s),
 and a count badge per sampling-feature type present in the file. Clicking the
 logo or **↩ Load New File** returns to the load screen and fully resets state.
+
+Four action buttons operate on the loaded file:
+
+- **✓ Validate** — sends the file to the official DIGGS schema validation
+  service (`diggs.geosetta.org`) and reports errors and warnings in a dialog.
+  Requires an internet connection; the file is sent only for validation.
+- **⤓ Export DIGGS XML** — downloads the raw DIGGS XML exactly as it was
+  loaded (byte-for-byte; the Inspector never rewrites your data).
+- **🖫 Save Shareable File** — downloads a single self-contained HTML file
+  with the DIGGS data embedded. Anyone can open it in a browser — it boots
+  straight into the Inspector with the data loaded, and carries the same
+  Validate / Export / Load New File abilities.
+- **↩ Load New File** — returns to the load screen to open another file
+  (also available inside a saved shareable copy).
 
 ### 2 · Choosing a project
 

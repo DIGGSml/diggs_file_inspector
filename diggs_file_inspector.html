@@ -1962,6 +1962,11 @@ table.data-table tbody tr.selected {
 </head>
 <body>
 
+<!-- Embedded DIGGS XML — populated by "Save Shareable File"; empty in the
+     source copy. When non-empty, the boot block at the end of the document
+     parses it and opens the Inspector directly, skipping the load screen. -->
+<script type="application/xml" id="embedded-diggs"></script>
+
 <!-- ═══════════════════════ LOAD SCREEN ════════════════════════ -->
 <div id="load-screen">
   <div class="load-card">
@@ -1991,6 +1996,12 @@ table.data-table tbody tr.selected {
       <div class="project-meta" id="hdr-project-meta">—</div>
     </div>
     <div id="hdr-sf-badges" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;"></div>
+    <button class="btn-load-new" id="btn-validate" onclick="validateDIGGS()"
+            title="Validate this DIGGS file against the official schema (requires internet)">✓ Validate</button>
+    <button class="btn-load-new" onclick="exportDIGGSXML()"
+            title="Export the raw DIGGS XML data">⤓ Export DIGGS XML</button>
+    <button class="btn-load-new" onclick="saveInspectorHTML()"
+            title="Save as a single HTML file anyone can open — no software needed">🖫 Save Shareable File</button>
     <button class="btn-load-new" onclick="resetToLoad()">↩ Load New File</button>
   </header>
 
@@ -6023,13 +6034,18 @@ function handleFile(file) {
   const reader = new FileReader();
   reader.onload = e => {
     try {
+      const rawXml = e.target.result;
       const parser = new DOMParser();
-      const xmlDoc = parser.parseFromString(e.target.result, 'application/xml');
+      const xmlDoc = parser.parseFromString(rawXml, 'application/xml');
       const parseErr = xmlDoc.querySelector('parsererror');
       if (parseErr) throw new Error('XML parse error: ' + parseErr.textContent.slice(0, 120));
       // Defer to next tick so spinner renders
       setTimeout(() => {
         try {
+          // Raw text retained for the header toolbar (Validate / Export
+          // DIGGS XML / Save Shareable File — defined near </body>).
+          window.DIGGS_RAW_XML = rawXml;
+          window.DIGGS_FILE_NAME = file.name;
           loadDIGGS(xmlDoc, file.name);
         } catch(err) {
           showError('Error reading DIGGS data: ' + err.message);
@@ -26953,6 +26969,204 @@ function esc(s) {
     <div id="detail-popup-content"></div>
   </div>
 </div>
+
+<!-- ══════════════════════════════════════════════════════════════
+     FILE TOOLBAR — Validate / Export DIGGS XML / Save Shareable File
+     + embedded-XML boot for saved shareable copies.
+     Raw XML text is stashed on window by handleFile (and by the boot
+     block below), since loadDIGGS only ever sees the parsed Document.
+     ══════════════════════════════════════════════════════════════ -->
+<script>
+'use strict';
+
+const DIGGS_VALIDATOR_URL = 'https://diggs.geosetta.org/api/diggs/validate';
+
+function triggerDownload(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 5000);
+}
+
+// ── Export the raw DIGGS XML exactly as it was loaded ──
+function exportDIGGSXML() {
+  if (!window.DIGGS_RAW_XML) return;
+  let filename = window.DIGGS_FILE_NAME || 'diggs_data.xml';
+  if (!/\.(xml|diggs)$/i.test(filename)) filename += '.xml';
+  triggerDownload(new Blob([window.DIGGS_RAW_XML], { type: 'application/xml;charset=utf-8' }), filename);
+}
+
+// ── Save a self-contained copy of the Inspector with the XML embedded ──
+// The clone is reset to load-screen state (mirroring resetToLoad) so the
+// saved copy re-parses the embedded XML from scratch when opened; rendered
+// panels, map tiles, WebGL canvases and popups are stripped rather than
+// serialized.
+function saveInspectorHTML() {
+  if (!window.DIGGS_RAW_XML) return;
+  const clone = document.documentElement.cloneNode(true);
+
+  const embed = clone.querySelector('#embedded-diggs');
+  if (embed) {
+    embed.textContent = window.DIGGS_RAW_XML;
+    embed.setAttribute('data-filename', window.DIGGS_FILE_NAME || 'embedded.xml');
+  }
+
+  clone.querySelectorAll('.sf-tab-panel').forEach(el => el.remove());
+  clone.querySelectorAll('#validation-result, #validation-overlay').forEach(el => el.remove());
+  for (const id of ['sf-tab-bar', 'detail-content', 'assoc-content', 'hdr-sf-badges',
+                    'map', 'map-legend', 'project-dropdown',
+                    'detail-popup-title', 'detail-popup-content']) {
+    const el = clone.querySelector('#' + id);
+    if (el) el.innerHTML = '';
+  }
+  const show = (id, disp) => { const el = clone.querySelector('#' + id); if (el) el.style.display = disp; };
+  show('detail-content', 'none');
+  show('detail-placeholder', '');
+  show('assoc-placeholder', 'flex');
+  show('assoc-header', 'none');
+  show('assoc-content', 'none');
+  show('app-shell', 'none');
+  show('load-screen', 'flex');
+  show('project-bar', 'none');
+  show('project-dropdown', 'none');
+  show('project-info-btn', 'none');
+  show('load-spinner', 'none');
+  show('load-error', 'none');
+  const hdrName = clone.querySelector('#hdr-project-name');
+  if (hdrName) hdrName.textContent = '—';
+  const hdrMeta = clone.querySelector('#hdr-project-meta');
+  if (hdrMeta) hdrMeta.textContent = '—';
+
+  const htmlString = '<!DOCTYPE html>\n' + clone.outerHTML;
+
+  const stem = (window.DIGGS_FILE_NAME || 'diggs').replace(/\.[^.]+$/, '');
+  triggerDownload(new Blob([htmlString], { type: 'text/html;charset=utf-8' }),
+                  stem + '_inspector.html');
+}
+
+// ── Validate against the official DIGGS schema (online only) ──
+async function validateDIGGS() {
+  if (!window.DIGGS_RAW_XML) return;
+
+  const btn = document.getElementById('btn-validate');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Validating…'; }
+
+  let resultContainer = document.getElementById('validation-result');
+  if (!resultContainer) {
+    resultContainer = document.createElement('div');
+    resultContainer.id = 'validation-result';
+    resultContainer.style.cssText =
+      'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:10001;' +
+      'max-width:600px;width:90%;max-height:80vh;overflow-y:auto;' +
+      'background:var(--surface2,#fff);color:var(--text,#222);' +
+      'border:1px solid var(--border,#ccc);border-radius:8px;padding:18px;' +
+      'box-shadow:0 8px 32px rgba(0,0,0,0.35);font-family:var(--font-ui,sans-serif);';
+    document.body.appendChild(resultContainer);
+
+    const overlay = document.createElement('div');
+    overlay.id = 'validation-overlay';
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:10000;';
+    overlay.onclick = closeValidation;
+    document.body.appendChild(overlay);
+  }
+  resultContainer.innerHTML =
+    '<div style="text-align:center;padding:26px;">Validating against DIGGS schema…</div>';
+
+  try {
+    const xmlBlob = new Blob([window.DIGGS_RAW_XML], { type: 'application/xml' });
+    const formData = new FormData();
+    formData.append('file', xmlBlob, window.DIGGS_FILE_NAME || 'diggs_data.xml');
+
+    const response = await fetch(DIGGS_VALIDATOR_URL, { method: 'POST', body: formData });
+    if (!response.ok) throw new Error('Server returned ' + response.status + ': ' + response.statusText);
+
+    renderValidationResult(await response.json());
+  } catch (err) {
+    resultContainer.innerHTML =
+      '<h3 style="margin:0 0 8px;">Validation Failed</h3>' +
+      '<p>' + esc(err.message) + '</p>' +
+      '<p style="font-size:12px;color:var(--text-muted,#888);">Check your internet connection and try again.</p>' +
+      '<button class="btn-load-new" onclick="closeValidation()" style="margin-top:12px;">Close</button>';
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '✓ Validate'; }
+  }
+}
+
+function renderValidationResult(result) {
+  const container = document.getElementById('validation-result');
+  if (!container) return;
+  const isValid = result.valid === true;
+
+  // The validator returns an XML report; pull out individual messages.
+  let messages = [];
+  if (result.xml_report) {
+    try {
+      const reportDoc = new DOMParser().parseFromString(result.xml_report, 'application/xml');
+      reportDoc.querySelectorAll('message').forEach(msg => {
+        const severity = msg.querySelector('severity');
+        const text = msg.querySelector('text');
+        if (text) {
+          messages.push({
+            severity: severity ? severity.textContent.trim() : 'INFO',
+            text: text.textContent.trim(),
+          });
+        }
+      });
+    } catch (e) { /* fall through to summary-only display */ }
+  }
+
+  const errors = messages.filter(m => m.severity === 'ERROR');
+  const warnings = messages.filter(m => m.severity === 'WARNING');
+
+  let html = '<h3 style="margin:0 0 8px;color:' + (isValid ? '#3a9a3a' : '#d05050') + ';">' +
+             (isValid ? 'Validation Passed' : 'Validation Issues Found') + '</h3>';
+  if (isValid) {
+    html += '<p>This DIGGS file is valid according to the official schema.</p>';
+  } else {
+    if (errors.length) html += '<p>' + errors.length + ' error' + (errors.length > 1 ? 's' : '') + ' found.</p>';
+    if (warnings.length) html += '<p>' + warnings.length + ' warning' + (warnings.length > 1 ? 's' : '') + ' found.</p>';
+  }
+  if (messages.length) {
+    html += '<div style="margin-top:10px;font-size:12px;max-height:45vh;overflow-y:auto;">';
+    for (const m of messages) {
+      const color = m.severity === 'ERROR' ? '#d05050' : m.severity === 'WARNING' ? '#f0a020' : 'var(--text-muted,#888)';
+      html += '<div style="padding:4px 0;border-bottom:1px solid var(--border,#eee);">' +
+              '<strong style="color:' + color + ';">' + esc(m.severity) + ':</strong> ' + esc(m.text) + '</div>';
+    }
+    html += '</div>';
+  }
+  html += '<button class="btn-load-new" onclick="closeValidation()" style="margin-top:14px;">Close</button>';
+  container.innerHTML = html;
+}
+
+function closeValidation() {
+  const r = document.getElementById('validation-result');
+  const o = document.getElementById('validation-overlay');
+  if (r) r.remove();
+  if (o) o.remove();
+}
+
+// ── Boot from embedded XML (saved shareable copies only) ──
+(function bootEmbeddedDIGGS() {
+  const embed = document.getElementById('embedded-diggs');
+  const xmlText = embed && embed.textContent ? embed.textContent.trim() : '';
+  if (!xmlText) return;
+  const name = embed.getAttribute('data-filename') || 'embedded.xml';
+  try {
+    const doc = new DOMParser().parseFromString(xmlText, 'application/xml');
+    if (doc.querySelector('parsererror')) return;
+    window.DIGGS_RAW_XML = xmlText;
+    window.DIGGS_FILE_NAME = name;
+    loadDIGGS(doc, name);
+  } catch (e) {
+    console.error('Embedded DIGGS boot failed:', e);
+  }
+})();
+</script>
 
 </body>
 </html>
