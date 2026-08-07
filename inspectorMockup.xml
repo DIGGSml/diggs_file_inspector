@@ -17,7 +17,110 @@
 
     <project>
         <Project gml:id="Project-Mockup-1">
+            <gml:description>General-purpose synthetic test project exercising the DIGGS inspector's rendering for a small cluster of vertical/inclined/deviated boreholes and CPT soundings with monitoring well installations. Not tied to a real site.</gml:description>
+            <gml:identifier codeSpace="http://www.globalgeosolutions.com/projects">MOCKUP-PRJ-01</gml:identifier>
             <gml:name>Project for General Mockup Tests 1</gml:name>
+            <gml:name codeSpace="Global Geoslutions">General Mockup Test Site 1</gml:name>
+            <internalIdentifier codeSpace="Global Geoslutions">PROJECT-MOCKUP-1</internalIdentifier>
+            <status>active</status>
+            <implementationStatus>actual</implementationStatus>
+            <associatedFile>
+                <AssociatedFile gml:id="AF-Mockup-1-PROJPLAN">
+                    <gml:description>Field investigation work plan for the Project-Mockup-1 test dataset.</gml:description>
+                    <gml:identifier codeSpace="http://www.globalgeosolutions.com/projects">AF-MOCKUP1-PLAN</gml:identifier>
+                    <gml:name codeSpace="Global Geoslutions">Mockup-1 Field Investigation Work Plan</gml:name>
+                    <status>final</status>
+                    <contact>
+                        <BusinessAssociate gml:id="BA-Mockup-2">
+                            <gml:name codeSpace="Global Geoslutions">Mockup Test Client LLC</gml:name>
+                            <status>active</status>
+                            <title>Client / Owner</title>
+                        </BusinessAssociate>
+                    </contact>
+                    <fileURL>https://www.globalgeosolutions.com/projects/mockup-1/work-plan.pdf</fileURL>
+                    <fileType>workPlan</fileType>
+                    <documentType>fieldPlan</documentType>
+                    <fileDate frame="#ISO-8601">2025-05-20</fileDate>
+                    <mimeType>application/pdf</mimeType>
+                </AssociatedFile>
+            </associatedFile>
+            <role>
+                <Role>
+                    <rolePerformed codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/roles.xml#owner">owner</rolePerformed>
+                    <businessAssociate xlink:href="#BA-Mockup-2"/>
+                </Role>
+            </role>
+            <remark>
+                <Remark>
+                    <content>Synthetic dataset built to exercise the DIGGS file inspector's rendering across a range of borehole/sounding orientations (vertical, inclined, deviated) and monitoring well completions. Coordinates and values are illustrative, not survey data.</content>
+                </Remark>
+            </remark>
+            <arealExtent owns="false">
+                <PlanarSurface
+                    srsName="https://www.opengis.net/def/crs-compound?1=http://www.opengis.net/def/crs/EPSG/0/26911%262=http://www.opengis.net/def/crs/EPSG/0/5703"
+                    srsDimension="3" axisLabels="easting northing height" uomLabels="m m m"
+                    gml:id="PS-Mockup-1">
+                    <gml:exterior>
+                        <!-- Irregular heptagon enclosing all Project-Mockup-1 boreholes/soundings
+                             (BH-Mockup-1/2/3, Sounding-Mockup-1/2) with padding; CCW winding (ISO 19107) -->
+                        <gml:LinearRing>
+                            <gml:posList>453525.00 3706800.00 385.0 453600.00 3706790.00 385.0 453660.00 3706815.00 385.0 453672.00 3706868.00 385.0 453645.00 3706925.00 385.0 453578.00 3706932.00 385.0 453518.00 3706888.00 385.0 453525.00 3706800.00 385.0</gml:posList>
+                        </gml:LinearRing>
+                    </gml:exterior>
+                </PlanarSurface>
+            </arealExtent>
+            <projectDateTimeSpan>
+                <TimeInterval gml:id="TI-Mockup-1-SPAN">
+                    <start frame="#ISO-8601">2025-06-02</start>
+                    <end frame="#ISO-8601">2025-06-10</end>
+                    <duration uom="d" howDetermined="calculated">9</duration>
+                </TimeInterval>
+            </projectDateTimeSpan>
+            <locality>
+                <Locality gml:id="LOC-Mockup-1">
+                    <district>Mockup Test District</district>
+                    <division>Mockup Test County</division>
+                </Locality>
+            </locality>
+            <purpose>siteCharacterization</purpose>
+            <projectEvent>
+                <ProjectEvent gml:id="PE-Mockup-1">
+                    <gml:name codeSpace="Global Geoslutions">Mockup-1 Field Program Complete</gml:name>
+                    <status>complete</status>
+                    <remark>
+                        <Remark>
+                            <content>All boreholes, soundings, and well installations for the Mockup-1 test dataset completed on schedule with no incidents.</content>
+                        </Remark>
+                    </remark>
+                    <time>
+                        <TimeInterval gml:id="TI-PE-Mockup-1">
+                            <start frame="#ISO-8601">2025-06-10T09:05:00-07:00</start>
+                        </TimeInterval>
+                    </time>
+                    <infoRecorded>
+                        <Parameter gml:id="PARAM-PE-Mockup-1">
+                            <parameterName>totalBoreholesCompleted</parameterName>
+                            <parameterValue>3</parameterValue>
+                        </Parameter>
+                    </infoRecorded>
+                </ProjectEvent>
+            </projectEvent>
+            <contract>
+                <Contract gml:id="CON-Mockup-1">
+                    <gml:name codeSpace="Global Geoslutions">Mockup-1 Test Site Investigation Agreement</gml:name>
+                    <status>active</status>
+                    <contractDate frame="#ISO-8601">2025-05-15</contractDate>
+                    <type>professionalServicesAgreement</type>
+                    <value currency="USD">42000.00</value>
+                </Contract>
+            </contract>
+            <otherProjectProperty>
+                <Parameter index="1" gml:id="PARAM-PRJ-Mockup-1">
+                    <parameterName>totalLinearFeetDrilled</parameterName>
+                    <parameterValue>530</parameterValue>
+                    <parameterUnits>ft</parameterUnits>
+                </Parameter>
+            </otherProjectProperty>
         </Project>
     </project>
 
@@ -921,8 +1024,124 @@
 
     <samplingFeature>
         <Borehole gml:id="BH-Mockup-1">
+            <gml:description>Vertical monitoring-well borehole drilled at the Project-Mockup-1 test site to install permanent groundwater monitoring wells MW-1 (shallow, screened 36-46 ft) and MW-2 (deep, screened 106-126 ft). Advanced by mud rotary method to 150 ft total depth; casing, backfill, and both well completions installed the same day.</gml:description>
+            <gml:identifier codeSpace="http://www.globalgeosolutions.com/projects">MOCKUP-BH-01</gml:identifier>
             <gml:name>BH-Mockup-1</gml:name>
+            <gml:name codeSpace="Global Geoslutions">MW-1/MW-2 Monitoring Well Borehole</gml:name>
+            <internalIdentifier codeSpace="Global Geoslutions">BH-Mockup-1</internalIdentifier>
+            <status>final</status>
+            <implementationStatus>actual</implementationStatus>
+            <associatedFile>
+                <AssociatedFile gml:id="AF-Mockup-1-BORINGLOG">
+                    <gml:description>Field boring log for BH-Mockup-1, including drilling, casing, and well construction records.</gml:description>
+                    <gml:identifier codeSpace="http://www.globalgeosolutions.com/projects">AF-BHMOCKUP1-LOG</gml:identifier>
+                    <gml:name codeSpace="Global Geoslutions">BH-Mockup-1 Boring Log</gml:name>
+                    <status>final</status>
+                    <contact>
+                        <BusinessAssociate gml:id="BA-Mockup-1">
+                            <gml:description>Drilling subcontractor responsible for advancing BH-Mockup-1 and installing monitoring wells MW-1 and MW-2.</gml:description>
+                            <gml:identifier codeSpace="http://www.globalgeosolutions.com">GGL-DRILL-01</gml:identifier>
+                            <gml:name codeSpace="Global Geoslutions">GGL Drilling Services</gml:name>
+                            <internalIdentifier codeSpace="Global Geoslutions">BA-Mockup-1</internalIdentifier>
+                            <status>active</status>
+                            <title>Drilling Contractor</title>
+                            <address>
+                                <Address gml:id="ADDR-Mockup-1">
+                                    <number>Suite 210</number>
+                                    <streetAddress>4400 Ranchero Way</streetAddress>
+                                    <city>Ontario</city>
+                                    <state>California</state>
+                                    <country>United States</country>
+                                    <postalCode>91761</postalCode>
+                                </Address>
+                            </address>
+                            <emailAddress type="business">drilling@globalgeosolutions.com</emailAddress>
+                            <phoneNumber type="voice">909-555-0148</phoneNumber>
+                        </BusinessAssociate>
+                    </contact>
+                    <fileURL>https://www.globalgeosolutions.com/projects/mockup-1/field/BH-Mockup-1-log.pdf</fileURL>
+                    <fileType>boringLog</fileType>
+                    <documentType>fieldLog</documentType>
+                    <fileDate frame="#ISO-8601">2025-06-02</fileDate>
+                    <mimeType>application/pdf</mimeType>
+                </AssociatedFile>
+            </associatedFile>
+            <role>
+                <Role>
+                    <rolePerformed codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/roles.xml#drilling_contractor">drillingContractor</rolePerformed>
+                    <timePerformed>
+                        <TimeInterval gml:id="TI-ROLE-BH-Mockup-1">
+                            <start frame="#ISO-8601">2025-06-02</start>
+                            <end frame="#ISO-8601">2025-06-02</end>
+                        </TimeInterval>
+                    </timePerformed>
+                    <businessAssociate xlink:href="#BA-Mockup-1"/>
+                </Role>
+            </role>
+            <remark>
+                <Remark>
+                    <content>BH-Mockup-1 advanced vertically to 150 ft bgl by mud rotary method for installation of two permanent groundwater monitoring wells (MW-1, MW-2). Water first encountered at 20 ft bgl during drilling. Surface casing, backfill seals, and both well completions installed the same day.</content>
+                    <author xlink:href="#BA-Mockup-1"/>
+                </Remark>
+            </remark>
+            <investigationTarget>Natural Ground</investigationTarget>
+            <investigationTarget>Ground Water</investigationTarget>
             <projectRef xlink:href="#Project-Mockup-1"/>
+            <originalProjectRef xlink:href="#Project-Mockup-1"/>
+            <programRef xlink:href="#Program_Mockup_SiteInvestigation_2025"/>
+            <environment>
+                <Environment gml:id="ENV-BH-Mockup-1">
+                    <gml:name codeSpace="Global Geoslutions">BH-Mockup-1 Field Conditions</gml:name>
+                    <status>complete</status>
+                    <dateTime frame="#ISO-8601">2025-06-02T07:30:00-07:00</dateTime>
+                    <ambientTemperature uom="degC" howDetermined="measured">24.0</ambientTemperature>
+                    <barometricPressure uom="kPa" howDetermined="measured">101.2</barometricPressure>
+                    <humidity uom="%" howDetermined="measured">38</humidity>
+                    <weather>Clear, light morning haze burning off by mid-morning</weather>
+                    <windSpeed uom="km/h" howDetermined="measured">8</windSpeed>
+                    <otherEnvironmentalProperty>
+                        <Parameter gml:id="ENV-BH-Mockup-1-P1">
+                            <parameterName>groundSurfaceTemperature</parameterName>
+                            <parameterValue>26.5</parameterValue>
+                            <parameterUnits>degC</parameterUnits>
+                        </Parameter>
+                    </otherEnvironmentalProperty>
+                </Environment>
+            </environment>
+            <otherSamplingFeatureProperty>
+                <Parameter index="1" gml:id="PARAM-BH-Mockup-1-BENTONITE">
+                    <parameterName>bentoniteContent</parameterName>
+                    <parameterMinValue>4</parameterMinValue>
+                    <parameterValue>5</parameterValue>
+                    <parameterMaxValue>6</parameterMaxValue>
+                    <parameterUnits>%</parameterUnits>
+                </Parameter>
+            </otherSamplingFeatureProperty>
+            <locality>
+                <Locality gml:id="LOC-BH-Mockup-1">
+                    <address>
+                        <Address gml:id="ADDR-LOC-BH-Mockup-1">
+                            <streetAddress>4400 Ranchero Way</streetAddress>
+                            <city>Ontario</city>
+                            <state>California</state>
+                            <country>United States</country>
+                            <postalCode>91761</postalCode>
+                        </Address>
+                    </address>
+                    <lot>Lot 14</lot>
+                    <parceI>APN 1057-221-04</parceI>
+                    <plss>
+                        <PLSS gml:id="PLSS-BH-Mockup-1">
+                            <township>T1S</township>
+                            <range>R7W</range>
+                            <section>22</section>
+                            <aliquotPart>NE 1/4 of SW 1/4</aliquotPart>
+                            <baseAndMeridian>San Bernardino</baseAndMeridian>
+                        </PLSS>
+                    </plss>
+                    <quadrangle>Ontario, CA 7.5-minute quadrangle</quadrangle>
+                </Locality>
+            </locality>
             <referencePoint>
                 <PointLocation gml:id="pl-BH-Mockup-1"
                     srsName="https://www.opengis.net/def/crs-compound?1=http://www.opengis.net/def/crs/EPSG/0/26911%262=http://www.opengis.net/def/crs/EPSG/0/5703"
@@ -930,6 +1149,13 @@
                     <gml:pos>453557.08 3706831.07 385.40</gml:pos>
                 </PointLocation>
             </referencePoint>
+            <localCoordinates>
+                <LocalCoordinate>
+                    <easting uom="m">0.00</easting>
+                    <northing uom="m">0.00</northing>
+                    <elevation uom="m">385.40</elevation>
+                </LocalCoordinate>
+            </localCoordinates>
             <centerLine>
                 <LinearExtent gml:id="cl-BH-Mockup-1"
                     srsName="https://www.opengis.net/def/crs-compound?1=http://www.opengis.net/def/crs/EPSG/0/26911%262=http://www.opengis.net/def/crs/EPSG/0/5703"
@@ -945,10 +1171,27 @@
                     <lrm xlink:href="https://diggsml.org/def/crs/DIGGS/0.1/lrm.xml#md_ft"/>
                 </LinearSpatialReferenceSystem>
             </linearReferencing>
+            <plunge uom="dega" howDetermined="measured">90</plunge>
+            <bearing uom="dega" howDetermined="measured">0</bearing>
+            <whenConstructed>
+                <TimeInterval gml:id="WCTI-BH-Mockup-1">
+                    <start frame="#ISO-8601">2025-06-02T07:00:00-07:00</start>
+                    <end frame="#ISO-8601">2025-06-02T16:30:00-07:00</end>
+                    <duration uom="h" howDetermined="calculated">9.5</duration>
+                </TimeInterval>
+            </whenConstructed>
             <totalMeasuredDepth uom="ft" howDetermined="measured">150</totalMeasuredDepth>
+            <boreholePurpose codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/boreholePurpose.xml#MW">Monitoring Well Installation</boreholePurpose>
+            <boreholeType codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/boreholeType.xml#BH">Borehole</boreholeType>
             <backfill>
                 <Backfill gml:id="BKF-BH-Mockup-1">
                     <gml:description>Backfill placed as part of MW-1/MW-2 well construction: bentonite surface seal, cement grout annular seal, and sand packs bracketing each well's screened interval.</gml:description>
+                    <backfillDateTime>
+                        <TimeInterval gml:id="BFDT-BH-Mockup-1">
+                            <start frame="#ISO-8601">2025-06-02T13:00:00-07:00</start>
+                            <end frame="#ISO-8601">2025-06-02T16:15:00-07:00</end>
+                        </TimeInterval>
+                    </backfillDateTime>
                     <backfillLayer>
                         <BackfillLayer gml:id="BKF-BH-Mockup-1-L1">
                             <backfillInterval>
@@ -957,8 +1200,15 @@
                                     <gml:posList>0 10</gml:posList>
                                 </LinearExtent>
                             </backfillInterval>
+                            <whenEmplaced>
+                                <TimeInterval gml:id="BKF-BH-Mockup-1-L1-WE">
+                                    <start frame="#ISO-8601">2025-06-02T13:00:00-07:00</start>
+                                    <end frame="#ISO-8601">2025-06-02T13:20:00-07:00</end>
+                                </TimeInterval>
+                            </whenEmplaced>
                             <backfillMaterial>bentonite</backfillMaterial>
                             <isSanitarySeal>true</isSanitarySeal>
+                            <backfillVolume uom="ft3" howDetermined="calculated">2.1</backfillVolume>
                         </BackfillLayer>
                     </backfillLayer>
                     <backfillLayer>
@@ -981,6 +1231,7 @@
                                 </LinearExtent>
                             </backfillInterval>
                             <backfillMaterial>sand</backfillMaterial>
+                            <wellOpeningRef xlink:href="#WO-Well-Mockup-1-MW1"/>
                         </BackfillLayer>
                     </backfillLayer>
                     <backfillLayer>
@@ -1003,6 +1254,7 @@
                                 </LinearExtent>
                             </backfillInterval>
                             <backfillMaterial>sand</backfillMaterial>
+                            <wellOpeningRef xlink:href="#WO-Well-Mockup-1-MW2"/>
                         </BackfillLayer>
                     </backfillLayer>
                     <backfillLayer>
@@ -1029,7 +1281,37 @@
                         </LinearExtent>
                     </casingLocation>
                     <casingOutsideDiameter uom="in">12</casingOutsideDiameter>
+                    <casingInsideDiameter uom="in">11.5</casingInsideDiameter>
+                    <casingWallThickness uom="in">0.25</casingWallThickness>
                     <casingMaterial>steel</casingMaterial>
+                    <timeCasingInstalled gml:id="TCI-CAS1-BH-Mockup-1">
+                        <start frame="#ISO-8601">2025-06-02T07:45:00-07:00</start>
+                        <end frame="#ISO-8601">2025-06-02T08:30:00-07:00</end>
+                    </timeCasingInstalled>
+                    <timeCasingRemoved gml:id="TCR-CAS1-BH-Mockup-1">
+                        <start frame="#ISO-8601">2025-06-02T16:00:00-07:00</start>
+                        <end frame="#ISO-8601">2025-06-02T16:15:00-07:00</end>
+                    </timeCasingRemoved>
+                    <casingAdvancement>
+                        <CasingAdvancement gml:id="CADV-CAS1-BH-Mockup-1">
+                            <advancementTime>
+                                <TimeInterval gml:id="TI-CADV-CAS1-BH-Mockup-1">
+                                    <start frame="#ISO-8601">2025-06-02T07:45:00-07:00</start>
+                                    <end frame="#ISO-8601">2025-06-02T08:30:00-07:00</end>
+                                </TimeInterval>
+                            </advancementTime>
+                            <casingBaseAtStart>
+                                <PointLocation gml:id="PL-CADV-CAS1-START" srsName="#lsr-BH-Mockup-1" srsDimension="1">
+                                    <gml:pos>0</gml:pos>
+                                </PointLocation>
+                            </casingBaseAtStart>
+                            <casingBaseAtEnd>
+                                <PointLocation gml:id="PL-CADV-CAS1-END" srsName="#lsr-BH-Mockup-1" srsDimension="1">
+                                    <gml:pos>35</gml:pos>
+                                </PointLocation>
+                            </casingBaseAtEnd>
+                        </CasingAdvancement>
+                    </casingAdvancement>
                 </Casing>
             </casing>
             <constructionMethod>
@@ -1053,6 +1335,7 @@
                             <end frame="#ISO-8601">2025-06-02T16:15:00-07:00</end>
                         </TimeInterval>
                     </methodTime>
+                    <holeStability>Hole remained open and stable throughout drilling; no caving or squeezing observed.</holeStability>
                     <constructionMethod>
                         <Specification gml:id="SPEC-BCM-BH-Mockup-1">
                             <gml:name codeSpace="DIGGS">Mud Rotary Drilling — ASTM D5783</gml:name>
@@ -1092,8 +1375,121 @@
                             <mastLength uom="ft" howDetermined="reported">26</mastLength>
                         </DrillRig>
                     </constructionEquipment>
+                    <cuttingToolInfo>
+                        <CuttingTool gml:id="CT-BCM-BH-Mockup-1">
+                            <gml:name codeSpace="Global Geoslutions">Tricone Roller Bit</gml:name>
+                            <toolType codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/toolType.xml#tricone">tricone roller bit</toolType>
+                            <make>Smith Bits</make>
+                            <modelNumber>XR+ Tricone</modelNumber>
+                            <toolOuterDiameter uom="in">12</toolOuterDiameter>
+                            <toolMaterial>tungsten carbide</toolMaterial>
+                            <toolWearStart>New</toolWearStart>
+                            <toolWearEnd>Light, uniform wear; serviceable</toolWearEnd>
+                        </CuttingTool>
+                    </cuttingToolInfo>
+                    <drillPipeInfo>
+                        <DrillPipe gml:id="DP-BCM-BH-Mockup-1">
+                            <gml:name codeSpace="Global Geoslutions">NW-Size Drill Rod</gml:name>
+                            <pipeInnerDiameter uom="in">2.375</pipeInnerDiameter>
+                            <pipeOuterDiameter uom="in">3.500</pipeOuterDiameter>
+                            <pipeMaterial>steel</pipeMaterial>
+                            <pipeSectionLength uom="ft">10</pipeSectionLength>
+                        </DrillPipe>
+                    </drillPipeInfo>
+                    <hydraulicFluidFlowRate uom="gal[US]/min" howDetermined="measured">28.0</hydraulicFluidFlowRate>
                 </BoreholeConstructionMethod>
             </constructionMethod>
+            <constructionEvent>
+                <BoreholeEvent gml:id="CE-BH-Mockup-1">
+                    <gml:name codeSpace="Global Geoslutions">BH-Mockup-1 Drilling and Completion Event</gml:name>
+                    <status>complete</status>
+                    <remark>
+                        <Remark>
+                            <content>Borehole advanced to 150 ft, surface casing set to 35 ft, backfill and both well completions (MW-1, MW-2) installed same day. No hole instability or fluid loss observed.</content>
+                            <author xlink:href="#BA-Mockup-1"/>
+                        </Remark>
+                    </remark>
+                    <location>
+                        <LinearExtent gml:id="CELOC-BH-Mockup-1" srsName="#lsr-BH-Mockup-1" srsDimension="1">
+                            <gml:posList>0 150</gml:posList>
+                        </LinearExtent>
+                    </location>
+                    <time>
+                        <TimeInterval gml:id="TI-CE-BH-Mockup-1">
+                            <start frame="#ISO-8601">2025-06-02T07:30:00-07:00</start>
+                            <end frame="#ISO-8601">2025-06-02T16:15:00-07:00</end>
+                        </TimeInterval>
+                    </time>
+                    <infoRecorded>
+                        <Parameter gml:id="PARAM-CE-BH-Mockup-1">
+                            <parameterName>totalGroutVolumePlaced</parameterName>
+                            <parameterValue>18.5</parameterValue>
+                            <parameterUnits>ft3</parameterUnits>
+                        </Parameter>
+                    </infoRecorded>
+                    <casingBottom>
+                        <PointLocation gml:id="PL-CE-BH-Mockup-1-CSGBOT" srsName="#lsr-BH-Mockup-1" srsDimension="1">
+                            <gml:pos>35</gml:pos>
+                        </PointLocation>
+                    </casingBottom>
+                    <holeBottom>
+                        <PointLocation gml:id="PL-CE-BH-Mockup-1-HOLEBOT" srsName="#lsr-BH-Mockup-1" srsDimension="1">
+                            <gml:pos>150</gml:pos>
+                        </PointLocation>
+                    </holeBottom>
+                    <waterDepth>
+                        <PointLocation gml:id="PL-CE-BH-Mockup-1-WATER" srsName="#lsr-BH-Mockup-1" srsDimension="1">
+                            <gml:pos>20</gml:pos>
+                        </PointLocation>
+                    </waterDepth>
+                </BoreholeEvent>
+            </constructionEvent>
+            <drillAdvancement setName="Mud-Rotary-BH-Mockup-1">
+                <Advancement gml:id="ADV-BH-Mockup-1-01">
+                    <gml:name>BH-Mockup-1 Advance Run 1</gml:name>
+                    <status>actual</status>
+                    <location>
+                        <LinearExtent gml:id="LE-ADV-BH-Mockup-1-01" srsName="#lsr-BH-Mockup-1" srsDimension="1">
+                            <gml:posList>0 75</gml:posList>
+                        </LinearExtent>
+                    </location>
+                    <advancementRate uom="ft/h" howDetermined="measured">14.0</advancementRate>
+                    <fluidCirculationRate uom="gal[US]/min" howDetermined="measured">28.0</fluidCirculationRate>
+                    <fluidWeight uom="lbf/gal[US]" howDetermined="measured">9.4</fluidWeight>
+                    <hammeringUsed>false</hammeringUsed>
+                    <rotationalSpeed uom="rpm" howDetermined="measured">75.0</rotationalSpeed>
+                    <rotationalTorque uom="lbf.ft" howDetermined="measured">380.0</rotationalTorque>
+                </Advancement>
+                <Advancement gml:id="ADV-BH-Mockup-1-02">
+                    <gml:name>BH-Mockup-1 Advance Run 2</gml:name>
+                    <status>actual</status>
+                    <location>
+                        <LinearExtent gml:id="LE-ADV-BH-Mockup-1-02" srsName="#lsr-BH-Mockup-1" srsDimension="1">
+                            <gml:posList>75 150</gml:posList>
+                        </LinearExtent>
+                    </location>
+                    <advancementRate uom="ft/h" howDetermined="measured">9.0</advancementRate>
+                    <fluidCirculationRate uom="gal[US]/min" howDetermined="measured">28.0</fluidCirculationRate>
+                    <fluidWeight uom="lbf/gal[US]" howDetermined="measured">9.6</fluidWeight>
+                    <hammeringUsed>false</hammeringUsed>
+                    <rotationalSpeed uom="rpm" howDetermined="measured">65.0</rotationalSpeed>
+                    <rotationalTorque uom="lbf.ft" howDetermined="measured">560.0</rotationalTorque>
+                </Advancement>
+            </drillAdvancement>
+            <flush>
+                <Flush gml:id="FLUSH-BH-Mockup-1">
+                    <gml:name>BH-Mockup-1 Flush Return</gml:name>
+                    <flushZoneLocation>
+                        <LinearExtent gml:id="LE-FLUSH-BH-Mockup-1" srsName="#lsr-BH-Mockup-1" srsDimension="1">
+                            <gml:posList>0 150</gml:posList>
+                        </LinearExtent>
+                    </flushZoneLocation>
+                    <fluidType codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/fluidType.xml#bentonite_mud">bentonite mud</fluidType>
+                    <minFlushReturn uom="%" howDetermined="measured">85</minFlushReturn>
+                    <maxflushReturn uom="%" howDetermined="measured">100</maxflushReturn>
+                    <flushColor>Light brown-grey</flushColor>
+                </Flush>
+            </flush>
             <holeDiameter>
                 <BoreholeDiameter gml:id="HD1-VH-Mockup-1">
                     <diameterLocation>
@@ -1125,6 +1521,8 @@
                         </LinearExtent>
                     </diameterLocation>
                     <diameter uom="in">7.875</diameter>
+                    <computedBoreholeCrossSectionalArea uom="in2" howDetermined="calculated">48.7</computedBoreholeCrossSectionalArea>
+                    <computedBoreholeVolume uom="ft3" howDetermined="calculated">33.8</computedBoreholeVolume>
                 </BoreholeDiameter>
             </holeDiameter>
             
@@ -1376,8 +1774,55 @@
          ============================================================ -->
     <samplingFeature>
         <Well gml:id="Well-Mockup-1-MW1">
+            <gml:description>Shallow monitoring well MW-1, installed within BH-Mockup-1 to monitor the shallow water-table aquifer (screened 36-46 ft bgl). Constructed 2025-06-03, following installation of the deeper well MW-2 in the same hole.</gml:description>
+            <gml:identifier codeSpace="http://www.globalgeosolutions.com/projects">MOCKUP-MW1-01</gml:identifier>
             <gml:name>MW-1</gml:name>
+            <internalIdentifier codeSpace="Global Geoslutions">MW-1</internalIdentifier>
+            <status>final</status>
+            <implementationStatus>actual</implementationStatus>
+            <associatedFile>
+                <AssociatedFile gml:id="AF-Mockup-1-WELLDIAG">
+                    <gml:description>As-built well construction diagrams for monitoring wells MW-1 and MW-2, BH-Mockup-1.</gml:description>
+                    <gml:identifier codeSpace="http://www.globalgeosolutions.com/projects">AF-MOCKUP1-WELLDIAG</gml:identifier>
+                    <gml:name codeSpace="Global Geoslutions">MW-1/MW-2 Well Construction Diagrams</gml:name>
+                    <status>final</status>
+                    <contact xlink:href="#BA-Mockup-1"/>
+                    <fileURL>https://www.globalgeosolutions.com/projects/mockup-1/field/MW-1-MW-2-well-diagrams.pdf</fileURL>
+                    <fileType>wellConstructionDiagram</fileType>
+                    <documentType>fieldRecord</documentType>
+                    <fileDate frame="#ISO-8601">2025-06-03</fileDate>
+                    <mimeType>application/pdf</mimeType>
+                </AssociatedFile>
+            </associatedFile>
+            <role>
+                <Role>
+                    <rolePerformed codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/roles.xml#drilling_contractor">drillingContractor</rolePerformed>
+                    <timePerformed>
+                        <TimeInterval gml:id="TI-ROLE-Well-Mockup-1-MW1">
+                            <start frame="#ISO-8601">2025-06-03T11:30:00-07:00</start>
+                            <end frame="#ISO-8601">2025-06-03T14:30:00-07:00</end>
+                        </TimeInterval>
+                    </timePerformed>
+                    <businessAssociate xlink:href="#BA-Mockup-1"/>
+                </Role>
+            </role>
+            <remark>
+                <Remark>
+                    <content>MW-1 constructed 2025-06-03, the day following completion of BH-Mockup-1 drilling, immediately after installation of the deeper well MW-2 in the same hole.</content>
+                    <author xlink:href="#BA-Mockup-1"/>
+                </Remark>
+            </remark>
+            <investigationTarget>Ground Water</investigationTarget>
             <projectRef xlink:href="#Project-Mockup-1"/>
+            <originalProjectRef xlink:href="#Project-Mockup-1"/>
+            <programRef xlink:href="#Program_Mockup_SiteInvestigation_2025"/>
+            <otherSamplingFeatureProperty>
+                <Parameter index="1" gml:id="PARAM-Well-Mockup-1-MW1">
+                    <parameterName>developmentWaterVolumeRemoved</parameterName>
+                    <parameterValue>18</parameterValue>
+                    <parameterUnits>gal[US]</parameterUnits>
+                </Parameter>
+            </otherSamplingFeatureProperty>
             <referencePoint>
                 <PointLocation gml:id="pl-Well-Mockup-1-MW1"
                     srsName="https://www.opengis.net/def/crs-compound?1=http://www.opengis.net/def/crs/EPSG/0/26911%262=http://www.opengis.net/def/crs/EPSG/0/5703"
@@ -1401,7 +1846,60 @@
                     <lrm xlink:href="https://diggsml.org/def/crs/DIGGS/0.1/lrm.xml#md_ft"/>
                 </LinearSpatialReferenceSystem>
             </linearReferencing>
+            <plunge uom="dega" howDetermined="measured">90</plunge>
+            <bearing uom="dega" howDetermined="measured">0</bearing>
             <samplingFeatureRef xlink:href="#BH-Mockup-1"/>
+            <installationConstructionEvent>
+                <InstallationEvent gml:id="ICE-Well-Mockup-1-MW1">
+                    <gml:name codeSpace="Global Geoslutions">MW-1 Well Construction</gml:name>
+                    <status>complete</status>
+                    <remark>
+                        <Remark>
+                            <content>Riser, screen, and sump casing installed and sand pack placed opposite the screened interval; second of the two wells constructed in BH-Mockup-1, immediately following MW-2.</content>
+                        </Remark>
+                    </remark>
+                    <location>
+                        <LinearExtent gml:id="LOC-ICE-Well-Mockup-1-MW1" srsName="#lsr-Well-Mockup-1-MW1" srsDimension="1">
+                            <gml:posList>0 49</gml:posList>
+                        </LinearExtent>
+                    </location>
+                    <time>
+                        <TimeInterval gml:id="TI-ICE-Well-Mockup-1-MW1">
+                            <start frame="#ISO-8601">2025-06-03T11:30:00-07:00</start>
+                            <end frame="#ISO-8601">2025-06-03T14:30:00-07:00</end>
+                            <duration uom="h" howDetermined="calculated">3</duration>
+                        </TimeInterval>
+                    </time>
+                </InstallationEvent>
+            </installationConstructionEvent>
+            <installationEquipment>
+                <Equipment gml:id="EQ-Well-Mockup-1">
+                    <gml:name codeSpace="Global Geoslutions">Surge Block / Development Pump</gml:name>
+                    <status>active</status>
+                    <class>submersiblePump</class>
+                    <make>Grundfos</make>
+                    <modelNumber>MP1</modelNumber>
+                </Equipment>
+            </installationEquipment>
+            <aquiferTested>Shallow Alluvial Aquifer</aquiferTested>
+            <fluidPurpose>groundwater level monitoring - observation</fluidPurpose>
+            <initialDevelopmentMethod>
+                <Specification gml:id="SPEC-DEV-Mockup-1">
+                    <gml:name codeSpace="DIGGS">Surge and Bail Development</gml:name>
+                    <status>complete</status>
+                    <shortMethodName>Surge and Bail</shortMethodName>
+                    <standardReferenceNumber>ASTM D5521</standardReferenceNumber>
+                    <standardTitle>Standard Guide for Development of Ground-Water Monitoring Wells in Granular Aquifers</standardTitle>
+                    <standardVersion>2019</standardVersion>
+                </Specification>
+            </initialDevelopmentMethod>
+            <initialDevelopmentTime>
+                <TimeInterval gml:id="TI-DEV-Well-Mockup-1-MW1">
+                    <start frame="#ISO-8601">2025-06-04T10:00:00-07:00</start>
+                    <end frame="#ISO-8601">2025-06-04T11:00:00-07:00</end>
+                    <duration uom="h" howDetermined="calculated">1</duration>
+                </TimeInterval>
+            </initialDevelopmentTime>
             <opening>
                 <WellOpening gml:id="WO-Well-Mockup-1-MW1">
                     <gml:description>2-inch nominal Schedule 40 slotted PVC well screen.</gml:description>
@@ -1415,6 +1913,13 @@
                     <openingMaterial>PVC</openingMaterial>
                 </WellOpening>
             </opening>
+            <sanitarySealLocation>
+                <PointLocation gml:id="SSL-Well-Mockup-1-MW1" srsName="#lsr-Well-Mockup-1-MW1" srsDimension="1">
+                    <gml:pos>10</gml:pos>
+                </PointLocation>
+            </sanitarySealLocation>
+            <sanitarySealType>bentonite</sanitarySealType>
+            <specialTreatment>Well developed by surge block and bailing until discharge water ran clear (turbidity less than 5 NTU).</specialTreatment>
             <wellCasing>
                 <Casing gml:id="CSG-Well-Mockup-1-MW1-riser">
                     <gml:description>2-inch nominal Schedule 40 solid PVC riser casing, top of casing to top of well screen.</gml:description>
@@ -1446,27 +1951,64 @@
                 </Casing>
             </wellCasing>
             <wellDepth uom="ft" howDetermined="measured">49</wellDepth>
+            <wellFinishType>single-zone sand pack with factory-slotted PVC screen</wellFinishType>
+            <wellPurpose>groundwater level monitoring</wellPurpose>
         </Well>
     </samplingFeature>
 
     <samplingFeature>
         <Well gml:id="Well-Mockup-1-MW2">
+            <gml:description>Deep monitoring well MW-2, installed within BH-Mockup-1 to monitor a deeper confined sand aquifer (screened 106-126 ft bgl). Constructed 2025-06-03, first of the two wells installed in this hole given its greater depth.</gml:description>
+            <gml:identifier codeSpace="http://www.globalgeosolutions.com/projects">MOCKUP-MW2-01</gml:identifier>
             <gml:name>MW-2</gml:name>
+            <internalIdentifier codeSpace="Global Geoslutions">MW-2</internalIdentifier>
+            <status>final</status>
+            <implementationStatus>actual</implementationStatus>
+            <associatedFile xlink:href="#AF-Mockup-1-WELLDIAG"/>
+            <role>
+                <Role>
+                    <rolePerformed codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/roles.xml#drilling_contractor">drillingContractor</rolePerformed>
+                    <timePerformed>
+                        <TimeInterval gml:id="TI-ROLE-Well-Mockup-1-MW2">
+                            <start frame="#ISO-8601">2025-06-03T07:30:00-07:00</start>
+                            <end frame="#ISO-8601">2025-06-03T11:00:00-07:00</end>
+                        </TimeInterval>
+                    </timePerformed>
+                    <businessAssociate xlink:href="#BA-Mockup-1"/>
+                </Role>
+            </role>
+            <remark>
+                <Remark>
+                    <content>MW-2 constructed 2025-06-03, the day following completion of BH-Mockup-1 drilling — the first of the two wells installed in this hole, given its greater depth (screened well below MW-1's shallow completion). MW-1 was installed immediately afterward the same day.</content>
+                    <author xlink:href="#BA-Mockup-1"/>
+                </Remark>
+            </remark>
+            <investigationTarget>Ground Water</investigationTarget>
             <projectRef xlink:href="#Project-Mockup-1"/>
+            <originalProjectRef xlink:href="#Project-Mockup-1"/>
+            <programRef xlink:href="#Program_Mockup_SiteInvestigation_2025"/>
+            <otherSamplingFeatureProperty>
+                <Parameter index="1" gml:id="PARAM-Well-Mockup-1-MW2">
+                    <parameterName>developmentWaterVolumeRemoved</parameterName>
+                    <parameterValue>32</parameterValue>
+                    <parameterUnits>gal[US]</parameterUnits>
+                </Parameter>
+            </otherSamplingFeatureProperty>
             <referencePoint>
                 <PointLocation gml:id="pl-Well-Mockup-1-MW2"
                     srsName="https://www.opengis.net/def/crs-compound?1=http://www.opengis.net/def/crs/EPSG/0/26911%262=http://www.opengis.net/def/crs/EPSG/0/5703"
                     srsDimension="3" axisLabels="easting northing height" uomLabels="m m m">
-                    <gml:description>Top of casing, in a flush-mount vault, 1 ft below ground surface.</gml:description>
-                    <gml:pos>453557.08 3706831.07 385.0952</gml:pos>
+                    <gml:description>Top of casing, reset 2026-04-06 following protective monument repair (see maintenanceEvent); now approximately 6 in below ground surface, 6 in higher than the original as-built flush-mount reference (385.0952 m).</gml:description>
+                    <gml:pos>453557.08 3706831.07 385.2476</gml:pos>
                 </PointLocation>
             </referencePoint>
             <centerLine>
                 <LinearExtent gml:id="cl-Well-Mockup-1-MW2"
                     srsName="https://www.opengis.net/def/crs-compound?1=http://www.opengis.net/def/crs/EPSG/0/26911%262=http://www.opengis.net/def/crs/EPSG/0/5703"
                     srsDimension="3" axisLabels="easting northing height" uomLabels="m m m">
-                    <gml:posList>453557.08 3706831.07 385.0952 453557.08 3706831.07
-                        345.7760</gml:posList>
+                    <gml:description>Centreline referenced to the reset top-of-casing datum (2026-04-06); shifted 6 in (0.1524 m) higher, uniformly, from the original as-built centerline so all existing measured-depth values (casing, screen, well depth) remain valid unchanged.</gml:description>
+                    <gml:posList>453557.08 3706831.07 385.2476 453557.08 3706831.07
+                        345.9284</gml:posList>
                 </LinearExtent>
             </centerLine>
             <linearReferencing>
@@ -1476,7 +2018,89 @@
                     <lrm xlink:href="https://diggsml.org/def/crs/DIGGS/0.1/lrm.xml#md_ft"/>
                 </LinearSpatialReferenceSystem>
             </linearReferencing>
+            <plunge uom="dega" howDetermined="measured">90</plunge>
+            <bearing uom="dega" howDetermined="measured">0</bearing>
             <samplingFeatureRef xlink:href="#BH-Mockup-1"/>
+            <installationConstructionEvent>
+                <InstallationEvent gml:id="ICE-Well-Mockup-1-MW2">
+                    <gml:name codeSpace="Global Geoslutions">MW-2 Well Construction</gml:name>
+                    <status>complete</status>
+                    <remark>
+                        <Remark>
+                            <content>Riser, screen, and sump casing installed and sand pack placed opposite the screened interval; first of the two wells constructed in BH-Mockup-1, ahead of the shallower MW-1.</content>
+                        </Remark>
+                    </remark>
+                    <location>
+                        <LinearExtent gml:id="LOC-ICE-Well-Mockup-1-MW2" srsName="#lsr-Well-Mockup-1-MW2" srsDimension="1">
+                            <gml:posList>0 129</gml:posList>
+                        </LinearExtent>
+                    </location>
+                    <time>
+                        <TimeInterval gml:id="TI-ICE-Well-Mockup-1-MW2">
+                            <start frame="#ISO-8601">2025-06-03T07:30:00-07:00</start>
+                            <end frame="#ISO-8601">2025-06-03T11:00:00-07:00</end>
+                            <duration uom="h" howDetermined="calculated">3.5</duration>
+                        </TimeInterval>
+                    </time>
+                </InstallationEvent>
+            </installationConstructionEvent>
+            <installationEquipment xlink:href="#EQ-Well-Mockup-1"/>
+            <aquiferTested>Deeper Confined Sand Aquifer</aquiferTested>
+            <fluidPurpose>groundwater level monitoring - observation</fluidPurpose>
+            <initialDevelopmentMethod xlink:href="#SPEC-DEV-Mockup-1"/>
+            <initialDevelopmentTime>
+                <TimeInterval gml:id="TI-DEV-Well-Mockup-1-MW2">
+                    <start frame="#ISO-8601">2025-06-04T08:00:00-07:00</start>
+                    <end frame="#ISO-8601">2025-06-04T09:30:00-07:00</end>
+                    <duration uom="h" howDetermined="calculated">1.5</duration>
+                </TimeInterval>
+            </initialDevelopmentTime>
+            <maintenanceEvent>
+                <InstallationEvent gml:id="ME-Well-Mockup-1-MW2-01">
+                    <gml:name codeSpace="Global Geoslutions">MW-2 Protective Casing Repair and Reference Point Reset</gml:name>
+                    <status>complete</status>
+                    <remark>
+                        <Remark>
+                            <content>Original flush-mount vault found crushed and the PVC casing stub deteriorated during routine site inspection. Protective monument and casing stub replaced; new top-of-casing reference notch established 6 in (0.1524 m) higher than the original as-built reference point. All subsequent depth-to-water measurements should be referenced to the new top-of-casing elevation of 385.2476 m (NAVD88); prior measurements referenced the original elevation of 385.0952 m. Existing casing/screen depth values (measured from top of casing) remain valid unchanged since the centerline reference was shifted uniformly.</content>
+                            <author xlink:href="#BA-Mockup-1"/>
+                            <remarkDateTime frame="#ISO-8601">2026-04-06</remarkDateTime>
+                        </Remark>
+                    </remark>
+                    <location>
+                        <PointLocation gml:id="PL-ME-Well-Mockup-1-MW2-01" srsName="#lsr-Well-Mockup-1-MW2" srsDimension="1">
+                            <gml:pos>0</gml:pos>
+                        </PointLocation>
+                    </location>
+                    <time>
+                        <TimeInterval gml:id="TI-ME-Well-Mockup-1-MW2-01">
+                            <start frame="#ISO-8601">2026-04-06T09:00:00-07:00</start>
+                            <end frame="#ISO-8601">2026-04-06T11:30:00-07:00</end>
+                            <duration uom="h" howDetermined="calculated">2.5</duration>
+                        </TimeInterval>
+                    </time>
+                    <infoRecorded>
+                        <Parameter index="1" gml:id="ME-Well-Mockup-1-MW2-01-P1">
+                            <parameterName>originalTopOfCasingElevation</parameterName>
+                            <parameterValue>385.0952</parameterValue>
+                            <parameterUnits>m</parameterUnits>
+                        </Parameter>
+                    </infoRecorded>
+                    <infoRecorded>
+                        <Parameter index="2" gml:id="ME-Well-Mockup-1-MW2-01-P2">
+                            <parameterName>resetTopOfCasingElevation</parameterName>
+                            <parameterValue>385.2476</parameterValue>
+                            <parameterUnits>m</parameterUnits>
+                        </Parameter>
+                    </infoRecorded>
+                    <infoRecorded>
+                        <Parameter index="3" gml:id="ME-Well-Mockup-1-MW2-01-P3">
+                            <parameterName>topOfCasingElevationChange</parameterName>
+                            <parameterValue>0.5</parameterValue>
+                            <parameterUnits>ft</parameterUnits>
+                        </Parameter>
+                    </infoRecorded>
+                </InstallationEvent>
+            </maintenanceEvent>
             <opening>
                 <WellOpening gml:id="WO-Well-Mockup-1-MW2">
                     <gml:description>2-inch nominal Schedule 40 slotted PVC well screen.</gml:description>
@@ -1490,6 +2114,13 @@
                     <openingMaterial>PVC</openingMaterial>
                 </WellOpening>
             </opening>
+            <sanitarySealLocation>
+                <PointLocation gml:id="SSL-Well-Mockup-1-MW2" srsName="#lsr-Well-Mockup-1-MW2" srsDimension="1">
+                    <gml:pos>10</gml:pos>
+                </PointLocation>
+            </sanitarySealLocation>
+            <sanitarySealType>bentonite</sanitarySealType>
+            <specialTreatment>Well developed by surge block and bailing until discharge water ran clear (turbidity less than 5 NTU).</specialTreatment>
             <wellCasing>
                 <Casing gml:id="CSG-Well-Mockup-1-MW2-riser">
                     <gml:description>2-inch nominal Schedule 40 solid PVC riser casing, top of casing to top of well screen.</gml:description>
@@ -1521,6 +2152,8 @@
                 </Casing>
             </wellCasing>
             <wellDepth uom="ft" howDetermined="measured">129</wellDepth>
+            <wellFinishType>single-zone sand pack with factory-slotted PVC screen</wellFinishType>
+            <wellPurpose>groundwater level monitoring</wellPurpose>
         </Well>
     </samplingFeature>
 
@@ -27636,6 +28269,7 @@
                                             <typeData>double</typeData>
                                             <propertyClass codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/properties.xml#sleeve_friction">Sleeve Friction</propertyClass>
                                             <uom>tonf[US]/ft2</uom>
+                                            <nullValue reason="missing">-999</nullValue>
                                         </Property>
                                         <Property index="3">
                                             <propertyName>u2</propertyName>
@@ -27670,7 +28304,7 @@
                                 177.9,0.752,-0.001
                                 178.64,0.764,-0.005
                                 174.02,0.7,-0.022
-                                175.34,0.74,-0.017
+                                175.34,-999,-0.017
                                 181.11,0.724,-0.008
                                 183.93,0.754,0.001
                                 183.75,0.721,-0.004
@@ -30060,5 +30694,862 @@
             </procedure>
         </Test>
     </measurement>
+    <measurement>
+        <Monitor gml:id="MON-WL-Well-Mockup-1-MW1">
+            <gml:name codeSpace="Global Geoslutions">MW-1 Water Level and Temperature Monitoring</gml:name>
+            <investigationTarget>Ground Water</investigationTarget>
+            <projectRef xlink:href="#Project-Mockup-1"/>
+            <samplingFeatureRef xlink:href="#Well-Mockup-1-MW1"/>
+            <monitorLocation xlink:href="#OI-Well-Mockup-1-MW1"/>
+            <outcome>
+                <TemporalResult gml:id="TR-MON-WL-Well-Mockup-1-MW1">
+                    <timeDomain>
+                        <TimePositionList gml:id="TPL-MON-WL-Well-Mockup-1-MW1">
+                            <timePositionList>
+                    2025-06-04T08:00:00-07:00 2025-06-05T08:00:00-07:00
+                    2025-06-06T08:00:00-07:00 2025-06-07T08:00:00-07:00
+                    2025-06-08T08:00:00-07:00 2025-06-09T08:00:00-07:00
+                    2025-06-10T08:00:00-07:00 2025-06-11T08:00:00-07:00
+                    2025-06-12T08:00:00-07:00 2025-06-13T08:00:00-07:00
+                    2025-06-14T08:00:00-07:00 2025-06-15T08:00:00-07:00
+                    2025-06-16T08:00:00-07:00 2025-06-17T08:00:00-07:00
+                    2025-06-18T08:00:00-07:00 2025-06-19T08:00:00-07:00
+                    2025-06-20T08:00:00-07:00 2025-06-21T08:00:00-07:00
+                    2025-06-22T08:00:00-07:00 2025-06-23T08:00:00-07:00
+                    2025-06-24T08:00:00-07:00 2025-06-25T08:00:00-07:00
+                    2025-06-26T08:00:00-07:00 2025-06-27T08:00:00-07:00
+                    2025-06-28T08:00:00-07:00 2025-06-29T08:00:00-07:00
+                    2025-06-30T08:00:00-07:00 2025-07-01T08:00:00-07:00
+                    2025-07-02T08:00:00-07:00 2025-07-03T08:00:00-07:00
+                    2025-07-04T08:00:00-07:00 2025-07-05T08:00:00-07:00
+                    2025-07-06T08:00:00-07:00 2025-07-07T08:00:00-07:00
+                    2025-07-08T08:00:00-07:00 2025-07-09T08:00:00-07:00
+                    2025-07-10T08:00:00-07:00 2025-07-11T08:00:00-07:00
+                    2025-07-12T08:00:00-07:00 2025-07-13T08:00:00-07:00
+                    2025-07-14T08:00:00-07:00 2025-07-15T08:00:00-07:00
+                    2025-07-16T08:00:00-07:00 2025-07-17T08:00:00-07:00
+                    2025-07-18T08:00:00-07:00 2025-07-19T08:00:00-07:00
+                    2025-07-20T08:00:00-07:00 2025-07-21T08:00:00-07:00
+                    2025-07-22T08:00:00-07:00 2025-07-23T08:00:00-07:00
+                    2025-07-24T08:00:00-07:00 2025-07-25T08:00:00-07:00
+                    2025-07-26T08:00:00-07:00 2025-07-27T08:00:00-07:00
+                    2025-07-28T08:00:00-07:00 2025-07-29T08:00:00-07:00
+                    2025-07-30T08:00:00-07:00 2025-07-31T08:00:00-07:00
+                    2025-08-01T08:00:00-07:00 2025-08-02T08:00:00-07:00
+                    2025-08-03T08:00:00-07:00 2025-08-04T08:00:00-07:00
+                    2025-08-05T08:00:00-07:00 2025-08-06T08:00:00-07:00
+                    2025-08-07T08:00:00-07:00 2025-08-08T08:00:00-07:00
+                    2025-08-09T08:00:00-07:00 2025-08-10T08:00:00-07:00
+                    2025-08-11T08:00:00-07:00 2025-08-12T08:00:00-07:00
+                    2025-08-13T08:00:00-07:00 2025-08-14T08:00:00-07:00
+                    2025-08-15T08:00:00-07:00 2025-08-16T08:00:00-07:00
+                    2025-08-17T08:00:00-07:00 2025-08-18T08:00:00-07:00
+                    2025-08-19T08:00:00-07:00 2025-08-20T08:00:00-07:00
+                    2025-08-21T08:00:00-07:00 2025-08-22T08:00:00-07:00
+                    2025-08-23T08:00:00-07:00 2025-08-24T08:00:00-07:00
+                    2025-08-25T08:00:00-07:00 2025-08-26T08:00:00-07:00
+                    2025-08-27T08:00:00-07:00 2025-08-28T08:00:00-07:00
+                    2025-08-29T08:00:00-07:00 2025-08-30T08:00:00-07:00
+                    2025-08-31T08:00:00-07:00 2025-09-01T08:00:00-07:00
+                    2025-09-02T08:00:00-07:00 2025-09-03T08:00:00-07:00
+                    2025-09-04T08:00:00-07:00 2025-09-05T08:00:00-07:00
+                    2025-09-06T08:00:00-07:00 2025-09-07T08:00:00-07:00
+                    2025-09-08T08:00:00-07:00 2025-09-09T08:00:00-07:00
+                    2025-09-10T08:00:00-07:00 2025-09-11T08:00:00-07:00
+                    2025-09-12T08:00:00-07:00 2025-09-13T08:00:00-07:00
+                    2025-09-14T08:00:00-07:00 2025-09-15T08:00:00-07:00
+                    2025-09-16T08:00:00-07:00 2025-09-17T08:00:00-07:00
+                    2025-09-18T08:00:00-07:00 2025-09-19T08:00:00-07:00
+                    2025-09-20T08:00:00-07:00 2025-09-21T08:00:00-07:00
+                    2025-09-22T08:00:00-07:00 2025-09-23T08:00:00-07:00
+                    2025-09-24T08:00:00-07:00 2025-09-25T08:00:00-07:00
+                    2025-09-26T08:00:00-07:00 2025-09-27T08:00:00-07:00
+                    2025-09-28T08:00:00-07:00 2025-09-29T08:00:00-07:00
+                    2025-09-30T08:00:00-07:00 2025-10-01T08:00:00-07:00
+                    2025-10-02T08:00:00-07:00 2025-10-03T08:00:00-07:00
+                    2025-10-04T08:00:00-07:00 2025-10-05T08:00:00-07:00
+                    2025-10-06T08:00:00-07:00 2025-10-07T08:00:00-07:00
+                    2025-10-08T08:00:00-07:00 2025-10-09T08:00:00-07:00
+                    2025-10-10T08:00:00-07:00 2025-10-11T08:00:00-07:00
+                    2025-10-12T08:00:00-07:00 2025-10-13T08:00:00-07:00
+                    2025-10-14T08:00:00-07:00 2025-10-15T08:00:00-07:00
+                    2025-10-16T08:00:00-07:00 2025-10-17T08:00:00-07:00
+                    2025-10-18T08:00:00-07:00 2025-10-19T08:00:00-07:00
+                    2025-10-20T08:00:00-07:00 2025-10-21T08:00:00-07:00
+                    2025-10-22T08:00:00-07:00 2025-10-23T08:00:00-07:00
+                    2025-10-24T08:00:00-07:00 2025-10-25T08:00:00-07:00
+                    2025-10-26T08:00:00-07:00 2025-10-27T08:00:00-07:00
+                    2025-10-28T08:00:00-07:00 2025-10-29T08:00:00-07:00
+                    2025-10-30T08:00:00-07:00 2025-10-31T08:00:00-07:00
+                    2025-11-01T08:00:00-07:00 2025-11-02T08:00:00-08:00
+                    2025-11-03T08:00:00-08:00 2025-11-04T08:00:00-08:00
+                    2025-11-05T08:00:00-08:00 2025-11-06T08:00:00-08:00
+                    2025-11-07T08:00:00-08:00 2025-11-08T08:00:00-08:00
+                    2025-11-09T08:00:00-08:00 2025-11-10T08:00:00-08:00
+                    2025-11-11T08:00:00-08:00 2025-11-12T08:00:00-08:00
+                    2025-11-13T08:00:00-08:00 2025-11-14T08:00:00-08:00
+                    2025-11-15T08:00:00-08:00 2025-11-16T08:00:00-08:00
+                    2025-11-17T08:00:00-08:00 2025-11-18T08:00:00-08:00
+                    2025-11-19T08:00:00-08:00 2025-11-20T08:00:00-08:00
+                    2025-11-21T08:00:00-08:00 2025-11-22T08:00:00-08:00
+                    2025-11-23T08:00:00-08:00 2025-11-24T08:00:00-08:00
+                    2025-11-25T08:00:00-08:00 2025-11-26T08:00:00-08:00
+                    2025-11-27T08:00:00-08:00 2025-11-28T08:00:00-08:00
+                    2025-11-29T08:00:00-08:00 2025-11-30T08:00:00-08:00
+                    2025-12-01T08:00:00-08:00 2025-12-02T08:00:00-08:00
+                    2025-12-03T08:00:00-08:00 2025-12-04T08:00:00-08:00
+                    2025-12-05T08:00:00-08:00 2025-12-06T08:00:00-08:00
+                    2025-12-07T08:00:00-08:00 2025-12-08T08:00:00-08:00
+                    2025-12-09T08:00:00-08:00 2025-12-10T08:00:00-08:00
+                    2025-12-11T08:00:00-08:00 2025-12-12T08:00:00-08:00
+                    2025-12-13T08:00:00-08:00 2025-12-14T08:00:00-08:00
+                    2025-12-15T08:00:00-08:00 2025-12-16T08:00:00-08:00
+                    2025-12-17T08:00:00-08:00 2025-12-18T08:00:00-08:00
+                    2025-12-19T08:00:00-08:00 2025-12-20T08:00:00-08:00
+                    2025-12-21T08:00:00-08:00 2025-12-22T08:00:00-08:00
+                    2025-12-23T08:00:00-08:00 2025-12-24T08:00:00-08:00
+                    2025-12-25T08:00:00-08:00 2025-12-26T08:00:00-08:00
+                    2025-12-27T08:00:00-08:00 2025-12-28T08:00:00-08:00
+                    2025-12-29T08:00:00-08:00 2025-12-30T08:00:00-08:00
+                    2025-12-31T08:00:00-08:00 2026-01-01T08:00:00-08:00
+                    2026-01-02T08:00:00-08:00 2026-01-03T08:00:00-08:00
+                    2026-01-04T08:00:00-08:00 2026-01-05T08:00:00-08:00
+                    2026-01-06T08:00:00-08:00 2026-01-07T08:00:00-08:00
+                    2026-01-08T08:00:00-08:00 2026-01-09T08:00:00-08:00
+                    2026-01-10T08:00:00-08:00 2026-01-11T08:00:00-08:00
+                    2026-01-12T08:00:00-08:00 2026-01-13T08:00:00-08:00
+                    2026-01-14T08:00:00-08:00 2026-01-15T08:00:00-08:00
+                    2026-01-16T08:00:00-08:00 2026-01-17T08:00:00-08:00
+                    2026-01-18T08:00:00-08:00 2026-01-19T08:00:00-08:00
+                    2026-01-20T08:00:00-08:00 2026-01-21T08:00:00-08:00
+                    2026-01-22T08:00:00-08:00 2026-01-23T08:00:00-08:00
+                    2026-01-24T08:00:00-08:00 2026-01-25T08:00:00-08:00
+                    2026-01-26T08:00:00-08:00 2026-01-27T08:00:00-08:00
+                    2026-01-28T08:00:00-08:00 2026-01-29T08:00:00-08:00
+                    2026-01-30T08:00:00-08:00 2026-01-31T08:00:00-08:00
+                    2026-02-01T08:00:00-08:00 2026-02-02T08:00:00-08:00
+                    2026-02-03T08:00:00-08:00 2026-02-04T08:00:00-08:00
+                    2026-02-05T08:00:00-08:00 2026-02-06T08:00:00-08:00
+                    2026-02-07T08:00:00-08:00 2026-02-08T08:00:00-08:00
+                    2026-02-09T08:00:00-08:00 2026-02-10T08:00:00-08:00
+                    2026-02-11T08:00:00-08:00 2026-02-12T08:00:00-08:00
+                    2026-02-13T08:00:00-08:00 2026-02-14T08:00:00-08:00
+                    2026-02-15T08:00:00-08:00 2026-02-16T08:00:00-08:00
+                    2026-02-17T08:00:00-08:00 2026-02-18T08:00:00-08:00
+                    2026-02-19T08:00:00-08:00 2026-02-20T08:00:00-08:00
+                    2026-02-21T08:00:00-08:00 2026-02-22T08:00:00-08:00
+                    2026-02-23T08:00:00-08:00 2026-02-24T08:00:00-08:00
+                    2026-02-25T08:00:00-08:00 2026-02-26T08:00:00-08:00
+                    2026-02-27T08:00:00-08:00 2026-02-28T08:00:00-08:00
+                    2026-03-01T08:00:00-08:00 2026-03-02T08:00:00-08:00
+                    2026-03-03T08:00:00-08:00 2026-03-04T08:00:00-08:00
+                    2026-03-05T08:00:00-08:00 2026-03-06T08:00:00-08:00
+                    2026-03-07T08:00:00-08:00 2026-03-08T08:00:00-07:00
+                    2026-03-09T08:00:00-07:00 2026-03-10T08:00:00-07:00
+                    2026-03-11T08:00:00-07:00 2026-03-12T08:00:00-07:00
+                    2026-03-13T08:00:00-07:00 2026-03-14T08:00:00-07:00
+                    2026-03-15T08:00:00-07:00 2026-03-16T08:00:00-07:00
+                    2026-03-17T08:00:00-07:00 2026-03-18T08:00:00-07:00
+                    2026-03-19T08:00:00-07:00 2026-03-20T08:00:00-07:00
+                    2026-03-21T08:00:00-07:00 2026-03-22T08:00:00-07:00
+                    2026-03-23T08:00:00-07:00 2026-03-24T08:00:00-07:00
+                    2026-03-25T08:00:00-07:00 2026-03-26T08:00:00-07:00
+                    2026-03-27T08:00:00-07:00 2026-03-28T08:00:00-07:00
+                    2026-03-29T08:00:00-07:00 2026-03-30T08:00:00-07:00
+                    2026-03-31T08:00:00-07:00 2026-04-01T08:00:00-07:00
+                    2026-04-02T08:00:00-07:00 2026-04-03T08:00:00-07:00
+                    2026-04-04T08:00:00-07:00 2026-04-05T08:00:00-07:00
+                    2026-04-06T08:00:00-07:00 2026-04-07T08:00:00-07:00
+                    2026-04-08T08:00:00-07:00 2026-04-09T08:00:00-07:00
+                    2026-04-10T08:00:00-07:00 2026-04-11T08:00:00-07:00
+                    2026-04-12T08:00:00-07:00 2026-04-13T08:00:00-07:00
+                    2026-04-14T08:00:00-07:00 2026-04-15T08:00:00-07:00
+                    2026-04-16T08:00:00-07:00 2026-04-17T08:00:00-07:00
+                    2026-04-18T08:00:00-07:00 2026-04-19T08:00:00-07:00
+                    2026-04-20T08:00:00-07:00 2026-04-21T08:00:00-07:00
+                    2026-04-22T08:00:00-07:00 2026-04-23T08:00:00-07:00
+                    2026-04-24T08:00:00-07:00 2026-04-25T08:00:00-07:00
+                    2026-04-26T08:00:00-07:00 2026-04-27T08:00:00-07:00
+                    2026-04-28T08:00:00-07:00 2026-04-29T08:00:00-07:00
+                    2026-04-30T08:00:00-07:00 2026-05-01T08:00:00-07:00
+                    2026-05-02T08:00:00-07:00 2026-05-03T08:00:00-07:00
+                    2026-05-04T08:00:00-07:00 2026-05-05T08:00:00-07:00
+                    2026-05-06T08:00:00-07:00 2026-05-07T08:00:00-07:00
+                    2026-05-08T08:00:00-07:00 2026-05-09T08:00:00-07:00
+                    2026-05-10T08:00:00-07:00 2026-05-11T08:00:00-07:00
+                    2026-05-12T08:00:00-07:00 2026-05-13T08:00:00-07:00
+                    2026-05-14T08:00:00-07:00 2026-05-15T08:00:00-07:00
+                    2026-05-16T08:00:00-07:00 2026-05-17T08:00:00-07:00
+                    2026-05-18T08:00:00-07:00 2026-05-19T08:00:00-07:00
+                    2026-05-20T08:00:00-07:00 2026-05-21T08:00:00-07:00
+                    2026-05-22T08:00:00-07:00 2026-05-23T08:00:00-07:00
+                    2026-05-24T08:00:00-07:00 2026-05-25T08:00:00-07:00
+                    2026-05-26T08:00:00-07:00 2026-05-27T08:00:00-07:00
+                    2026-05-28T08:00:00-07:00 2026-05-29T08:00:00-07:00
+                    2026-05-30T08:00:00-07:00 2026-05-31T08:00:00-07:00
+                    2026-06-01T08:00:00-07:00 2026-06-02T08:00:00-07:00
+                    2026-06-03T08:00:00-07:00 2026-06-04T08:00:00-07:00
+                    2026-06-05T08:00:00-07:00 2026-06-06T08:00:00-07:00
+                    2026-06-07T08:00:00-07:00 2026-06-08T08:00:00-07:00
+                    2026-06-09T08:00:00-07:00 2026-06-10T08:00:00-07:00
+                    2026-06-11T08:00:00-07:00 2026-06-12T08:00:00-07:00
+                    2026-06-13T08:00:00-07:00 2026-06-14T08:00:00-07:00
+                    2026-06-15T08:00:00-07:00 2026-06-16T08:00:00-07:00
+                    2026-06-17T08:00:00-07:00 2026-06-18T08:00:00-07:00
+                    2026-06-19T08:00:00-07:00 2026-06-20T08:00:00-07:00
+                    2026-06-21T08:00:00-07:00 2026-06-22T08:00:00-07:00
+                    2026-06-23T08:00:00-07:00 2026-06-24T08:00:00-07:00
+                    2026-06-25T08:00:00-07:00 2026-06-26T08:00:00-07:00
+                    2026-06-27T08:00:00-07:00 2026-06-28T08:00:00-07:00
+                    2026-06-29T08:00:00-07:00 2026-06-30T08:00:00-07:00
+                    2026-07-01T08:00:00-07:00 2026-07-02T08:00:00-07:00
+                    2026-07-03T08:00:00-07:00 2026-07-04T08:00:00-07:00
+                    2026-07-05T08:00:00-07:00 2026-07-06T08:00:00-07:00
+                    2026-07-07T08:00:00-07:00 2026-07-08T08:00:00-07:00
+                    2026-07-09T08:00:00-07:00 2026-07-10T08:00:00-07:00
+                    2026-07-11T08:00:00-07:00 2026-07-12T08:00:00-07:00
+                    2026-07-13T08:00:00-07:00 2026-07-14T08:00:00-07:00
+                    2026-07-15T08:00:00-07:00 2026-07-16T08:00:00-07:00
+                    2026-07-17T08:00:00-07:00 2026-07-18T08:00:00-07:00
+                    2026-07-19T08:00:00-07:00 2026-07-20T08:00:00-07:00
+                    2026-07-21T08:00:00-07:00 2026-07-22T08:00:00-07:00
+                    2026-07-23T08:00:00-07:00 2026-07-24T08:00:00-07:00
+                    2026-07-25T08:00:00-07:00 2026-07-26T08:00:00-07:00
+                    2026-07-27T08:00:00-07:00 2026-07-28T08:00:00-07:00
+                    2026-07-29T08:00:00-07:00 2026-07-30T08:00:00-07:00
+                    2026-07-31T08:00:00-07:00 2026-08-01T08:00:00-07:00
+                    2026-08-02T08:00:00-07:00 2026-08-03T08:00:00-07:00
+                    2026-08-04T08:00:00-07:00 2026-08-05T08:00:00-07:00
+                    2026-08-06T08:00:00-07:00</timePositionList>
+                        </TimePositionList>
+                    </timeDomain>
+                    <results>
+                        <ResultSet>
+                            <parameters>
+                                <PropertyParameters gml:id="PP-MON-WL-Well-Mockup-1-MW1">
+                                    <properties>
+                                        <Property index="1" gml:id="PROP-MON-WL-Well-Mockup-1-MW1-1">
+                                            <propertyName>Depth to Water</propertyName>
+                                            <typeData>double</typeData>
+                                            <propertyClass codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/properties.xml#water_depth">Water Depth</propertyClass>
+                                            <uom>ft</uom>
+                                        </Property>
+                                        <Property index="2" gml:id="PROP-MON-WL-Well-Mockup-1-MW1-2">
+                                            <propertyName>Water Elevation</propertyName>
+                                            <typeData>double</typeData>
+                                            <propertyClass codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/properties.xml#water_elev">Water Elevation</propertyClass>
+                                            <uom>ft</uom>
+                                        </Property>
+                                        <Property index="3" gml:id="PROP-MON-WL-Well-Mockup-1-MW1-3">
+                                            <propertyName>Temperature</propertyName>
+                                            <typeData>double</typeData>
+                                            <propertyClass codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/properties.xml#temperature">Temperature</propertyClass>
+                                            <uom>degF</uom>
+                                        </Property>
+                                    </properties>
+                                </PropertyParameters>
+                            </parameters>
+                            <dataValues cs="," ts=" " decimal=".">
+                    42.09,1221.34,59.60 42.20,1221.24,59.89 42.23,1221.20,59.97 42.35,1221.09,59.94
+                    42.37,1221.06,60.43 42.33,1221.10,60.60 42.46,1220.97,60.29 42.37,1221.07,60.86
+                    42.53,1220.90,60.94 42.61,1220.83,61.42 42.38,1221.06,60.71 42.35,1221.09,61.12
+                    42.51,1220.93,61.26 42.70,1220.73,60.73 42.60,1220.83,61.41 42.60,1220.84,61.45
+                    42.65,1220.79,61.28 42.75,1220.69,61.61 42.80,1220.63,61.45 42.79,1220.64,61.33
+                    42.76,1220.67,61.51 42.60,1220.83,62.11 42.76,1220.68,61.85 42.60,1220.84,62.08
+                    42.84,1220.59,61.96 43.02,1220.41,61.90 42.87,1220.56,61.78 43.01,1220.42,62.12
+                    43.02,1220.42,62.54 42.86,1220.58,62.71 42.90,1220.53,62.57 42.80,1220.63,62.29
+                    42.92,1220.52,62.68 42.79,1220.65,62.24 43.10,1220.34,63.01 42.79,1220.65,62.66
+                    42.97,1220.47,63.26 42.99,1220.45,62.98 42.91,1220.53,63.10 43.04,1220.39,62.74
+                    42.96,1220.48,63.13 42.86,1220.58,63.14 42.80,1220.63,63.30 43.20,1220.24,63.36
+                    42.96,1220.48,63.57 42.94,1220.50,63.56 42.83,1220.61,63.19 43.02,1220.42,63.70
+                    42.89,1220.54,63.55 43.13,1220.31,63.49 42.80,1220.63,63.71 42.93,1220.51,63.74
+                    43.02,1220.42,63.46 42.78,1220.66,63.74 43.05,1220.38,63.64 42.93,1220.51,63.66
+                    42.87,1220.57,63.93 43.04,1220.40,63.52 42.92,1220.52,64.16 42.65,1220.78,64.06
+                    43.05,1220.39,64.53 42.73,1220.71,64.24 42.84,1220.60,63.80 42.61,1220.82,63.64
+                    42.87,1220.57,63.96 42.62,1220.81,64.27 42.66,1220.78,63.78 42.88,1220.56,64.17
+                    42.73,1220.70,63.92 42.61,1220.83,63.68 42.59,1220.84,63.91 42.63,1220.81,63.97
+                    42.59,1220.84,64.14 42.74,1220.70,63.91 42.55,1220.89,64.23 42.43,1221.00,64.13
+                    42.53,1220.91,64.29 42.53,1220.90,64.17 42.54,1220.89,63.78 42.11,1221.33,63.89
+                    42.42,1221.02,63.72 42.29,1221.14,64.19 42.37,1221.06,63.84 42.43,1221.00,63.89
+                    42.31,1221.12,64.10 42.01,1221.43,63.88 42.02,1221.42,64.09 42.33,1221.11,63.87
+                    42.17,1221.27,63.96 42.02,1221.42,64.00 42.10,1221.33,63.61 42.09,1221.34,63.88
+                    41.82,1221.62,64.01 41.79,1221.64,63.76 41.98,1221.46,63.33 41.91,1221.52,63.51
+                    41.92,1221.52,62.71 41.75,1221.68,63.39 41.85,1221.58,62.81 41.84,1221.60,63.27
+                    41.35,1222.09,63.33 41.58,1221.85,63.47 41.56,1221.87,63.38 41.50,1221.93,62.89
+                    41.44,1222.00,63.10 41.65,1221.79,63.43 41.49,1221.94,62.70 41.36,1222.07,62.96
+                    41.35,1222.09,62.33 41.27,1222.16,62.94 41.10,1222.33,63.11 41.28,1222.15,62.79
+                    40.93,1222.50,62.46 41.09,1222.35,62.46 40.88,1222.56,62.49 41.00,1222.44,62.05
+                    40.98,1222.45,62.78 40.98,1222.45,61.96 41.04,1222.39,62.56 40.87,1222.57,62.02
+                    40.49,1222.94,61.82 40.67,1222.77,61.85 40.57,1222.86,61.84 40.64,1222.80,61.85
+                    40.46,1222.98,61.66 40.30,1223.13,61.26 40.46,1222.97,61.44 40.31,1223.13,61.34
+                    40.47,1222.97,61.38 40.27,1223.17,60.98 39.90,1223.53,60.78 40.20,1223.24,60.29
+                    40.13,1223.31,61.35 40.15,1223.29,60.80 39.86,1223.57,61.12 39.77,1223.67,60.63
+                    39.95,1223.49,60.92 39.82,1223.61,60.36 39.63,1223.81,60.82 39.75,1223.69,60.09
+                    39.66,1223.78,60.06 39.67,1223.76,59.94 39.69,1223.75,60.19 39.54,1223.89,59.91
+                    39.46,1223.97,60.19 39.47,1223.97,60.03 39.61,1223.83,59.36 39.20,1224.23,59.64
+                    39.41,1224.03,59.45 39.15,1224.29,59.15 39.13,1224.31,59.61 39.25,1224.18,59.30
+                    39.21,1224.23,59.04 38.98,1224.46,59.13 39.04,1224.40,58.94 38.77,1224.66,58.99
+                    38.89,1224.55,59.28 38.91,1224.53,58.73 38.94,1224.50,58.90 38.89,1224.55,57.88
+                    38.70,1224.74,58.62 38.61,1224.82,57.91 38.43,1225.01,58.22 38.46,1224.97,58.12
+                    38.52,1224.91,58.09 38.59,1224.85,57.54 38.45,1224.99,57.58 38.48,1224.96,58.03
+                    38.42,1225.02,57.80 38.05,1225.38,57.80 38.12,1225.32,57.05 38.33,1225.10,57.50
+                    38.02,1225.42,57.45 38.10,1225.34,56.78 37.98,1225.45,57.16 38.13,1225.31,56.52
+                    37.87,1225.56,57.03 38.01,1225.43,56.74 38.00,1225.44,56.40 37.74,1225.70,56.51
+                    37.82,1225.62,56.20 37.82,1225.61,56.30 37.93,1225.51,56.27 37.80,1225.63,56.02
+                    37.76,1225.68,56.22 37.72,1225.72,55.86 37.63,1225.80,55.40 37.72,1225.72,55.39
+                    37.82,1225.62,55.09 37.47,1225.97,55.31 37.47,1225.96,54.99 37.32,1226.11,55.10
+                    37.40,1226.04,54.57 37.61,1225.83,55.19 37.52,1225.91,54.83 37.21,1226.23,54.88
+                    37.23,1226.21,54.70 37.23,1226.21,54.60 37.42,1226.02,54.67 37.43,1226.01,54.48
+                    37.21,1226.22,54.58 37.31,1226.12,54.48 37.33,1226.10,54.06 37.25,1226.19,53.75
+                    37.01,1226.42,54.18 37.20,1226.24,54.29 37.08,1226.36,54.05 37.18,1226.26,54.01
+                    37.12,1226.31,54.08 37.26,1226.18,54.06 37.11,1226.32,53.79 37.15,1226.29,53.28
+                    37.15,1226.28,53.70 36.97,1226.46,53.48 37.06,1226.38,53.61 37.27,1226.17,53.00
+                    37.01,1226.43,53.21 37.01,1226.42,53.69 37.22,1226.22,52.75 36.84,1226.60,53.32
+                    36.67,1226.77,53.07 36.98,1226.45,52.58 37.03,1226.41,53.01 37.02,1226.41,52.72
+                    36.97,1226.47,52.81 37.20,1226.24,52.82 37.09,1226.35,52.51 36.97,1226.46,52.62
+                    36.86,1226.57,52.62 37.02,1226.42,52.64 36.96,1226.47,52.54 36.92,1226.52,52.65
+                    36.76,1226.68,52.90 37.04,1226.40,52.64 36.99,1226.45,52.57 37.11,1226.33,52.32
+                    37.09,1226.34,52.06 37.03,1226.40,52.24 37.26,1226.17,51.96 37.13,1226.31,52.34
+                    37.04,1226.39,51.99 37.40,1226.04,52.43 37.01,1226.43,51.94 37.33,1226.10,52.28
+                    37.31,1226.13,51.71 37.12,1226.31,52.33 36.97,1226.47,51.53 37.21,1226.22,51.81
+                    37.01,1226.42,51.69 37.17,1226.27,51.92 37.37,1226.06,51.51 37.28,1226.15,51.90
+                    37.47,1225.97,52.08 37.29,1226.15,52.13 37.46,1225.97,51.60 37.64,1225.80,52.10
+                    37.39,1226.04,52.47 37.59,1225.85,51.98 37.47,1225.97,52.48 37.56,1225.88,51.83
+                    37.55,1225.89,52.24 37.36,1226.07,52.24 37.46,1225.98,52.15 37.69,1225.75,52.10
+                    37.68,1225.76,51.97 37.65,1225.79,52.28 37.71,1225.73,51.86 37.75,1225.69,51.68
+                    37.77,1225.67,52.24 37.98,1225.46,52.02 37.65,1225.78,52.56 37.91,1225.53,52.14
+                    37.99,1225.45,52.76 37.83,1225.61,52.05 38.08,1225.35,52.18 38.18,1225.26,52.43
+                    37.95,1225.48,52.07 38.20,1225.23,52.37 38.15,1225.28,52.24 38.30,1225.14,52.51
+                    38.24,1225.19,52.53 38.22,1225.22,53.09 38.69,1224.74,52.88 38.42,1225.02,52.66
+                    38.63,1224.81,52.98 38.40,1225.03,53.02 38.41,1225.02,52.74 38.69,1224.75,53.33
+                    38.59,1224.84,52.95 38.66,1224.77,52.99 38.72,1224.71,53.16 38.78,1224.65,53.22
+                    38.79,1224.65,53.14 38.90,1224.54,53.37 38.92,1224.52,53.54 39.03,1224.40,53.44
+                    38.82,1224.62,53.42 39.09,1224.35,54.36 39.09,1224.34,53.73 39.08,1224.35,54.07
+                    39.05,1224.38,53.60 39.18,1224.25,53.86 39.31,1224.12,54.05 39.21,1224.23,54.34
+                    39.23,1224.21,54.22 39.45,1223.98,53.89 39.56,1223.88,54.37 39.76,1223.67,54.11
+                    39.69,1223.75,54.66 39.56,1223.88,54.51 39.73,1223.70,54.80 39.94,1223.49,54.27
+                    39.72,1223.71,54.44 39.74,1223.69,54.86 39.88,1223.56,54.38 39.90,1223.53,54.96
+                    40.02,1223.42,55.31 40.03,1223.40,54.90 40.17,1223.27,55.52 39.93,1223.50,55.15
+                    40.26,1223.17,55.53 40.38,1223.05,55.54 40.42,1223.02,55.68 40.20,1223.23,55.48
+                    40.41,1223.03,55.86 40.43,1223.00,56.10 40.57,1222.87,55.78 40.43,1223.01,55.84
+                    40.60,1222.83,56.12 40.84,1222.59,56.32 40.73,1222.71,56.42 40.76,1222.68,56.22
+                    40.83,1222.61,56.59 40.90,1222.54,57.05 40.93,1222.51,56.73 40.96,1222.47,57.07
+                    41.04,1222.40,57.29 41.10,1222.33,57.26 41.09,1222.35,57.38 40.91,1222.52,57.54
+                    41.17,1222.27,57.38 40.97,1222.47,57.36 41.28,1222.16,57.36 41.41,1222.03,57.66
+                    41.25,1222.19,57.63 41.54,1221.89,58.22 41.45,1221.98,57.78 41.56,1221.88,58.17
+                    41.63,1221.81,58.32 41.55,1221.89,58.21 41.74,1221.69,58.41 41.69,1221.75,58.56
+                    41.73,1221.70,58.71 41.91,1221.52,59.00 41.92,1221.52,58.88 41.83,1221.60,59.73
+                    41.79,1221.65,58.95 41.88,1221.56,59.12 41.88,1221.56,59.38 42.05,1221.39,59.41
+                    42.05,1221.39,59.22 42.10,1221.34,59.64 42.20,1221.24,59.64 42.31,1221.12,60.45
+                    42.23,1221.20,59.85 42.20,1221.24,60.27 42.27,1221.16,59.77 42.06,1221.38,60.58
+                    42.06,1221.38,60.11 42.38,1221.05,60.17 42.32,1221.12,60.46 42.46,1220.97,60.70
+                    42.42,1221.02,60.69 42.52,1220.91,60.78 42.72,1220.72,60.67 42.46,1220.97,61.07
+                    42.57,1220.86,61.50 42.47,1220.96,60.82 42.74,1220.70,61.24 42.55,1220.89,60.92
+                    42.72,1220.72,61.35 42.70,1220.74,61.74 42.64,1220.80,61.17 42.80,1220.64,61.26
+                    42.79,1220.64,61.63 42.82,1220.62,61.57 42.88,1220.55,61.66 42.73,1220.71,62.11
+                    42.62,1220.81,61.98 42.70,1220.74,61.90 42.81,1220.63,62.18 42.76,1220.67,62.12
+                    42.84,1220.59,62.37 42.87,1220.57,62.20 42.90,1220.54,62.29 42.96,1220.47,62.61
+                    42.91,1220.53,62.35 42.90,1220.54,62.99 42.88,1220.55,63.08 43.15,1220.28,62.70
+                    42.90,1220.54,62.80 42.96,1220.47,62.48 42.85,1220.58,63.10 43.16,1220.28,62.81
+                    43.04,1220.40,63.12 43.01,1220.42,63.38 42.94,1220.50,62.74 43.10,1220.34,62.81
+                    42.99,1220.45,63.36 42.99,1220.44,63.11 43.02,1220.42,63.35 42.99,1220.45,63.56
+                    43.27,1220.17,63.41 42.92,1220.51,63.80 43.10,1220.34,63.30 42.95,1220.49,63.63
+                    43.09,1220.35,63.37 43.03,1220.41,63.86 43.01,1220.42,63.67 43.36,1220.07,63.46
+                    42.95,1220.48,63.87 42.81,1220.62,63.77 42.94,1220.50,63.27 42.78,1220.65,63.68
+                    42.67,1220.76,63.80 42.94,1220.50,63.95 42.77,1220.66,64.09 42.75,1220.68,63.58
+                    42.77,1220.66,64.11</dataValues>
+                        </ResultSet>
+                    </results>
+                </TemporalResult>
+            </outcome>
+            <procedure>
+                <WaterLevelMonitoring gml:id="WLM-Well-Mockup-1-MW1">
+                    <gml:name codeSpace="Global Geoslutions">MW-1 Water Level Monitoring Procedure</gml:name>
+                    <remark>
+                        <Remark>
+                            <content>Water levels and temperature recorded once daily by an in-well pressure transducer beginning 2025-06-04, the day following MW-1 completion, continuing to present. MW-1 is completed in the shallow, unconfined water-table aquifer (screened 36-46 ft below top of casing); levels fluctuate gradually and seasonally, rising through winter recharge and falling through summer.</content>
+                        </Remark>
+                    </remark>
+                    <testProcedureEquipment>
+                        <Sensor gml:id="SENSOR-MW1">
+                            <gml:name codeSpace="Global Geoslutions">MW-1 Water Level / Temperature Transducer</gml:name>
+                            <class>Pressure transducer</class>
+                            <make>In-Situ Inc.</make>
+                            <modelNumber>Level TROLL 500</modelNumber>
+                            <dateInstalled>
+                                <TimeInterval gml:id="TI-INST-SENSOR-MW1">
+                                    <start frame="#ISO-8601">2025-06-04T07:30:00-07:00</start>
+                                </TimeInterval>
+                            </dateInstalled>
+                            <detector>
+                                <Detector gml:id="DET-MW1-depth">
+                                    <measurand codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/measurand.xml#water_depth">Water Depth</measurand>
+                                </Detector>
+                            </detector>
+                            <detector>
+                                <Detector gml:id="DET-MW1-elev">
+                                    <measurand codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/measurand.xml#water_elev">Water Elevation</measurand>
+                                </Detector>
+                            </detector>
+                            <detector>
+                                <Detector gml:id="DET-MW1-temp">
+                                    <measurand codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/measurand.xml#temperature">Temperature</measurand>
+                                </Detector>
+                            </detector>
+                        </Sensor>
+                    </testProcedureEquipment>
+                    <referencePoints>
+                        <ReferencePoint>
+                            <time>
+                                <TimeInterval gml:id="TI-RP-Well-Mockup-1-MW1-01">
+                                    <start frame="#ISO-8601">2025-06-04T08:00:00-07:00</start>
+                                </TimeInterval>
+                            </time>
+                            <rpLocation xlink:href="#pl-Well-Mockup-1-MW1"/>
+                            <datumDescription>Top of casing, flush-mount vault</datumDescription>
+                        </ReferencePoint>
+                    </referencePoints>
+                </WaterLevelMonitoring>
+            </procedure>
+        </Monitor>
+    </measurement>
+
+    <measurement>
+        <Monitor gml:id="MON-WL-Well-Mockup-1-MW2">
+            <gml:name codeSpace="Global Geoslutions">MW-2 Water Level and Temperature Monitoring</gml:name>
+            <investigationTarget>Ground Water</investigationTarget>
+            <projectRef xlink:href="#Project-Mockup-1"/>
+            <samplingFeatureRef xlink:href="#Well-Mockup-1-MW2"/>
+            <monitorLocation xlink:href="#OI-Well-Mockup-1-MW2"/>
+            <outcome>
+                <TemporalResult gml:id="TR-MON-WL-Well-Mockup-1-MW2">
+                    <timeDomain>
+                        <TimePositionList gml:id="TPL-MON-WL-Well-Mockup-1-MW2">
+                            <timePositionList>
+                    2025-06-04T08:00:00-07:00 2025-06-05T08:00:00-07:00
+                    2025-06-06T08:00:00-07:00 2025-06-07T08:00:00-07:00
+                    2025-06-08T08:00:00-07:00 2025-06-09T08:00:00-07:00
+                    2025-06-10T08:00:00-07:00 2025-06-11T08:00:00-07:00
+                    2025-06-12T08:00:00-07:00 2025-06-13T08:00:00-07:00
+                    2025-06-14T08:00:00-07:00 2025-06-15T08:00:00-07:00
+                    2025-06-16T08:00:00-07:00 2025-06-17T08:00:00-07:00
+                    2025-06-18T08:00:00-07:00 2025-06-19T08:00:00-07:00
+                    2025-06-20T08:00:00-07:00 2025-06-21T08:00:00-07:00
+                    2025-06-22T08:00:00-07:00 2025-06-23T08:00:00-07:00
+                    2025-06-24T08:00:00-07:00 2025-06-25T08:00:00-07:00
+                    2025-06-26T08:00:00-07:00 2025-06-27T08:00:00-07:00
+                    2025-06-28T08:00:00-07:00 2025-06-29T08:00:00-07:00
+                    2025-06-30T08:00:00-07:00 2025-07-01T08:00:00-07:00
+                    2025-07-02T08:00:00-07:00 2025-07-03T08:00:00-07:00
+                    2025-07-04T08:00:00-07:00 2025-07-05T08:00:00-07:00
+                    2025-07-06T08:00:00-07:00 2025-07-07T08:00:00-07:00
+                    2025-07-08T08:00:00-07:00 2025-07-09T08:00:00-07:00
+                    2025-07-10T08:00:00-07:00 2025-07-11T08:00:00-07:00
+                    2025-07-12T08:00:00-07:00 2025-07-13T08:00:00-07:00
+                    2025-07-14T08:00:00-07:00 2025-07-15T08:00:00-07:00
+                    2025-07-16T08:00:00-07:00 2025-07-17T08:00:00-07:00
+                    2025-07-18T08:00:00-07:00 2025-07-19T08:00:00-07:00
+                    2025-07-20T08:00:00-07:00 2025-07-21T08:00:00-07:00
+                    2025-07-22T08:00:00-07:00 2025-07-23T08:00:00-07:00
+                    2025-07-24T08:00:00-07:00 2025-07-25T08:00:00-07:00
+                    2025-07-26T08:00:00-07:00 2025-07-27T08:00:00-07:00
+                    2025-07-28T08:00:00-07:00 2025-07-29T08:00:00-07:00
+                    2025-07-30T08:00:00-07:00 2025-07-31T08:00:00-07:00
+                    2025-08-01T08:00:00-07:00 2025-08-02T08:00:00-07:00
+                    2025-08-03T08:00:00-07:00 2025-08-04T08:00:00-07:00
+                    2025-08-05T08:00:00-07:00 2025-08-06T08:00:00-07:00
+                    2025-08-07T08:00:00-07:00 2025-08-08T08:00:00-07:00
+                    2025-08-09T08:00:00-07:00 2025-08-10T08:00:00-07:00
+                    2025-08-11T08:00:00-07:00 2025-08-12T08:00:00-07:00
+                    2025-08-13T08:00:00-07:00 2025-08-14T08:00:00-07:00
+                    2025-08-15T08:00:00-07:00 2025-08-16T08:00:00-07:00
+                    2025-08-17T08:00:00-07:00 2025-08-18T08:00:00-07:00
+                    2025-08-19T08:00:00-07:00 2025-08-20T08:00:00-07:00
+                    2025-08-21T08:00:00-07:00 2025-08-22T08:00:00-07:00
+                    2025-08-23T08:00:00-07:00 2025-08-24T08:00:00-07:00
+                    2025-08-25T08:00:00-07:00 2025-08-26T08:00:00-07:00
+                    2025-08-27T08:00:00-07:00 2025-08-28T08:00:00-07:00
+                    2025-08-29T08:00:00-07:00 2025-08-30T08:00:00-07:00
+                    2025-08-31T08:00:00-07:00 2025-09-01T08:00:00-07:00
+                    2025-09-02T08:00:00-07:00 2025-09-03T08:00:00-07:00
+                    2025-09-04T08:00:00-07:00 2025-09-05T08:00:00-07:00
+                    2025-09-06T08:00:00-07:00 2025-09-07T08:00:00-07:00
+                    2025-09-08T08:00:00-07:00 2025-09-09T08:00:00-07:00
+                    2025-09-10T08:00:00-07:00 2025-09-11T08:00:00-07:00
+                    2025-09-12T08:00:00-07:00 2025-09-13T08:00:00-07:00
+                    2025-09-14T08:00:00-07:00 2025-09-15T08:00:00-07:00
+                    2025-09-16T08:00:00-07:00 2025-09-17T08:00:00-07:00
+                    2025-09-18T08:00:00-07:00 2025-09-19T08:00:00-07:00
+                    2025-09-20T08:00:00-07:00 2025-09-21T08:00:00-07:00
+                    2025-09-22T08:00:00-07:00 2025-09-23T08:00:00-07:00
+                    2025-09-24T08:00:00-07:00 2025-09-25T08:00:00-07:00
+                    2025-09-26T08:00:00-07:00 2025-09-27T08:00:00-07:00
+                    2025-09-28T08:00:00-07:00 2025-09-29T08:00:00-07:00
+                    2025-09-30T08:00:00-07:00 2025-10-01T08:00:00-07:00
+                    2025-10-02T08:00:00-07:00 2025-10-03T08:00:00-07:00
+                    2025-10-04T08:00:00-07:00 2025-10-05T08:00:00-07:00
+                    2025-10-06T08:00:00-07:00 2025-10-07T08:00:00-07:00
+                    2025-10-08T08:00:00-07:00 2025-10-09T08:00:00-07:00
+                    2025-10-10T08:00:00-07:00 2025-10-11T08:00:00-07:00
+                    2025-10-12T08:00:00-07:00 2025-10-13T08:00:00-07:00
+                    2025-10-14T08:00:00-07:00 2025-10-15T08:00:00-07:00
+                    2025-10-16T08:00:00-07:00 2025-10-17T08:00:00-07:00
+                    2025-10-18T08:00:00-07:00 2025-10-19T08:00:00-07:00
+                    2025-10-20T08:00:00-07:00 2025-10-21T08:00:00-07:00
+                    2025-10-22T08:00:00-07:00 2025-10-23T08:00:00-07:00
+                    2025-10-24T08:00:00-07:00 2025-10-25T08:00:00-07:00
+                    2025-10-26T08:00:00-07:00 2025-10-27T08:00:00-07:00
+                    2025-10-28T08:00:00-07:00 2025-10-29T08:00:00-07:00
+                    2025-10-30T08:00:00-07:00 2025-10-31T08:00:00-07:00
+                    2025-11-01T08:00:00-07:00 2025-11-02T08:00:00-08:00
+                    2025-11-03T08:00:00-08:00 2025-11-04T08:00:00-08:00
+                    2025-11-05T08:00:00-08:00 2025-11-06T08:00:00-08:00
+                    2025-11-07T08:00:00-08:00 2025-11-08T08:00:00-08:00
+                    2025-11-09T08:00:00-08:00 2025-11-10T08:00:00-08:00
+                    2025-11-11T08:00:00-08:00 2025-11-12T08:00:00-08:00
+                    2025-11-13T08:00:00-08:00 2025-11-14T08:00:00-08:00
+                    2025-11-15T08:00:00-08:00 2025-11-16T08:00:00-08:00
+                    2025-11-17T08:00:00-08:00 2025-11-18T08:00:00-08:00
+                    2025-11-19T08:00:00-08:00 2025-11-20T08:00:00-08:00
+                    2025-11-21T08:00:00-08:00 2025-11-22T08:00:00-08:00
+                    2025-11-23T08:00:00-08:00 2025-11-24T08:00:00-08:00
+                    2025-11-25T08:00:00-08:00 2025-11-26T08:00:00-08:00
+                    2025-11-27T08:00:00-08:00 2025-11-28T08:00:00-08:00
+                    2025-11-29T08:00:00-08:00 2025-11-30T08:00:00-08:00
+                    2025-12-01T08:00:00-08:00 2025-12-02T08:00:00-08:00
+                    2025-12-03T08:00:00-08:00 2025-12-04T08:00:00-08:00
+                    2025-12-05T08:00:00-08:00 2025-12-06T08:00:00-08:00
+                    2025-12-07T08:00:00-08:00 2025-12-08T08:00:00-08:00
+                    2025-12-09T08:00:00-08:00 2025-12-10T08:00:00-08:00
+                    2025-12-11T08:00:00-08:00 2025-12-12T08:00:00-08:00
+                    2025-12-13T08:00:00-08:00 2025-12-14T08:00:00-08:00
+                    2025-12-15T08:00:00-08:00 2025-12-16T08:00:00-08:00
+                    2025-12-17T08:00:00-08:00 2025-12-18T08:00:00-08:00
+                    2025-12-19T08:00:00-08:00 2025-12-20T08:00:00-08:00
+                    2025-12-21T08:00:00-08:00 2025-12-22T08:00:00-08:00
+                    2025-12-23T08:00:00-08:00 2025-12-24T08:00:00-08:00
+                    2025-12-25T08:00:00-08:00 2025-12-26T08:00:00-08:00
+                    2025-12-27T08:00:00-08:00 2025-12-28T08:00:00-08:00
+                    2025-12-29T08:00:00-08:00 2025-12-30T08:00:00-08:00
+                    2025-12-31T08:00:00-08:00 2026-01-01T08:00:00-08:00
+                    2026-01-02T08:00:00-08:00 2026-01-03T08:00:00-08:00
+                    2026-01-04T08:00:00-08:00 2026-01-05T08:00:00-08:00
+                    2026-01-06T08:00:00-08:00 2026-01-07T08:00:00-08:00
+                    2026-01-08T08:00:00-08:00 2026-01-09T08:00:00-08:00
+                    2026-01-10T08:00:00-08:00 2026-01-11T08:00:00-08:00
+                    2026-01-12T08:00:00-08:00 2026-01-13T08:00:00-08:00
+                    2026-01-14T08:00:00-08:00 2026-01-15T08:00:00-08:00
+                    2026-01-16T08:00:00-08:00 2026-01-17T08:00:00-08:00
+                    2026-01-18T08:00:00-08:00 2026-01-19T08:00:00-08:00
+                    2026-01-20T08:00:00-08:00 2026-01-21T08:00:00-08:00
+                    2026-01-22T08:00:00-08:00 2026-01-23T08:00:00-08:00
+                    2026-01-24T08:00:00-08:00 2026-01-25T08:00:00-08:00
+                    2026-01-26T08:00:00-08:00 2026-01-27T08:00:00-08:00
+                    2026-01-28T08:00:00-08:00 2026-01-29T08:00:00-08:00
+                    2026-01-30T08:00:00-08:00 2026-01-31T08:00:00-08:00
+                    2026-02-01T08:00:00-08:00 2026-02-02T08:00:00-08:00
+                    2026-02-03T08:00:00-08:00 2026-02-04T08:00:00-08:00
+                    2026-02-05T08:00:00-08:00 2026-02-06T08:00:00-08:00
+                    2026-02-07T08:00:00-08:00 2026-02-08T08:00:00-08:00
+                    2026-02-09T08:00:00-08:00 2026-02-10T08:00:00-08:00
+                    2026-02-11T08:00:00-08:00 2026-02-12T08:00:00-08:00
+                    2026-02-13T08:00:00-08:00 2026-02-14T08:00:00-08:00
+                    2026-02-15T08:00:00-08:00 2026-02-16T08:00:00-08:00
+                    2026-02-17T08:00:00-08:00 2026-02-18T08:00:00-08:00
+                    2026-02-19T08:00:00-08:00 2026-02-20T08:00:00-08:00
+                    2026-02-21T08:00:00-08:00 2026-02-22T08:00:00-08:00
+                    2026-02-23T08:00:00-08:00 2026-02-24T08:00:00-08:00
+                    2026-02-25T08:00:00-08:00 2026-02-26T08:00:00-08:00
+                    2026-02-27T08:00:00-08:00 2026-02-28T08:00:00-08:00
+                    2026-03-01T08:00:00-08:00 2026-03-02T08:00:00-08:00
+                    2026-03-03T08:00:00-08:00 2026-03-04T08:00:00-08:00
+                    2026-03-05T08:00:00-08:00 2026-03-06T08:00:00-08:00
+                    2026-03-07T08:00:00-08:00 2026-03-08T08:00:00-07:00
+                    2026-03-09T08:00:00-07:00 2026-03-10T08:00:00-07:00
+                    2026-03-11T08:00:00-07:00 2026-03-12T08:00:00-07:00
+                    2026-03-13T08:00:00-07:00 2026-03-14T08:00:00-07:00
+                    2026-03-15T08:00:00-07:00 2026-03-16T08:00:00-07:00
+                    2026-03-17T08:00:00-07:00 2026-03-18T08:00:00-07:00
+                    2026-03-19T08:00:00-07:00 2026-03-20T08:00:00-07:00
+                    2026-03-21T08:00:00-07:00 2026-03-22T08:00:00-07:00
+                    2026-03-23T08:00:00-07:00 2026-03-24T08:00:00-07:00
+                    2026-03-25T08:00:00-07:00 2026-03-26T08:00:00-07:00
+                    2026-03-27T08:00:00-07:00 2026-03-28T08:00:00-07:00
+                    2026-03-29T08:00:00-07:00 2026-03-30T08:00:00-07:00
+                    2026-03-31T08:00:00-07:00 2026-04-01T08:00:00-07:00
+                    2026-04-02T08:00:00-07:00 2026-04-03T08:00:00-07:00
+                    2026-04-04T08:00:00-07:00 2026-04-05T08:00:00-07:00
+                    2026-04-06T08:00:00-07:00 2026-04-07T08:00:00-07:00
+                    2026-04-08T08:00:00-07:00 2026-04-09T08:00:00-07:00
+                    2026-04-10T08:00:00-07:00 2026-04-11T08:00:00-07:00
+                    2026-04-12T08:00:00-07:00 2026-04-13T08:00:00-07:00
+                    2026-04-14T08:00:00-07:00 2026-04-15T08:00:00-07:00
+                    2026-04-16T08:00:00-07:00 2026-04-17T08:00:00-07:00
+                    2026-04-18T08:00:00-07:00 2026-04-19T08:00:00-07:00
+                    2026-04-20T08:00:00-07:00 2026-04-21T08:00:00-07:00
+                    2026-04-22T08:00:00-07:00 2026-04-23T08:00:00-07:00
+                    2026-04-24T08:00:00-07:00 2026-04-25T08:00:00-07:00
+                    2026-04-26T08:00:00-07:00 2026-04-27T08:00:00-07:00
+                    2026-04-28T08:00:00-07:00 2026-04-29T08:00:00-07:00
+                    2026-04-30T08:00:00-07:00 2026-05-01T08:00:00-07:00
+                    2026-05-02T08:00:00-07:00 2026-05-03T08:00:00-07:00
+                    2026-05-04T08:00:00-07:00 2026-05-05T08:00:00-07:00
+                    2026-05-06T08:00:00-07:00 2026-05-07T08:00:00-07:00
+                    2026-05-08T08:00:00-07:00 2026-05-09T08:00:00-07:00
+                    2026-05-10T08:00:00-07:00 2026-05-11T08:00:00-07:00
+                    2026-05-12T08:00:00-07:00 2026-05-13T08:00:00-07:00
+                    2026-05-14T08:00:00-07:00 2026-05-15T08:00:00-07:00
+                    2026-05-16T08:00:00-07:00 2026-05-17T08:00:00-07:00
+                    2026-05-18T08:00:00-07:00 2026-05-19T08:00:00-07:00
+                    2026-05-20T08:00:00-07:00 2026-05-21T08:00:00-07:00
+                    2026-05-22T08:00:00-07:00 2026-05-23T08:00:00-07:00
+                    2026-05-24T08:00:00-07:00 2026-05-25T08:00:00-07:00
+                    2026-05-26T08:00:00-07:00 2026-05-27T08:00:00-07:00
+                    2026-05-28T08:00:00-07:00 2026-05-29T08:00:00-07:00
+                    2026-05-30T08:00:00-07:00 2026-05-31T08:00:00-07:00
+                    2026-06-01T08:00:00-07:00 2026-06-02T08:00:00-07:00
+                    2026-06-03T08:00:00-07:00 2026-06-04T08:00:00-07:00
+                    2026-06-05T08:00:00-07:00 2026-06-06T08:00:00-07:00
+                    2026-06-07T08:00:00-07:00 2026-06-08T08:00:00-07:00
+                    2026-06-09T08:00:00-07:00 2026-06-10T08:00:00-07:00
+                    2026-06-11T08:00:00-07:00 2026-06-12T08:00:00-07:00
+                    2026-06-13T08:00:00-07:00 2026-06-14T08:00:00-07:00
+                    2026-06-15T08:00:00-07:00 2026-06-16T08:00:00-07:00
+                    2026-06-17T08:00:00-07:00 2026-06-18T08:00:00-07:00
+                    2026-06-19T08:00:00-07:00 2026-06-20T08:00:00-07:00
+                    2026-06-21T08:00:00-07:00 2026-06-22T08:00:00-07:00
+                    2026-06-23T08:00:00-07:00 2026-06-24T08:00:00-07:00
+                    2026-06-25T08:00:00-07:00 2026-06-26T08:00:00-07:00
+                    2026-06-27T08:00:00-07:00 2026-06-28T08:00:00-07:00
+                    2026-06-29T08:00:00-07:00 2026-06-30T08:00:00-07:00
+                    2026-07-01T08:00:00-07:00 2026-07-02T08:00:00-07:00
+                    2026-07-03T08:00:00-07:00 2026-07-04T08:00:00-07:00
+                    2026-07-05T08:00:00-07:00 2026-07-06T08:00:00-07:00
+                    2026-07-07T08:00:00-07:00 2026-07-08T08:00:00-07:00
+                    2026-07-09T08:00:00-07:00 2026-07-10T08:00:00-07:00
+                    2026-07-11T08:00:00-07:00 2026-07-12T08:00:00-07:00
+                    2026-07-13T08:00:00-07:00 2026-07-14T08:00:00-07:00
+                    2026-07-15T08:00:00-07:00 2026-07-16T08:00:00-07:00
+                    2026-07-17T08:00:00-07:00 2026-07-18T08:00:00-07:00
+                    2026-07-19T08:00:00-07:00 2026-07-20T08:00:00-07:00
+                    2026-07-21T08:00:00-07:00 2026-07-22T08:00:00-07:00
+                    2026-07-23T08:00:00-07:00 2026-07-24T08:00:00-07:00
+                    2026-07-25T08:00:00-07:00 2026-07-26T08:00:00-07:00
+                    2026-07-27T08:00:00-07:00 2026-07-28T08:00:00-07:00
+                    2026-07-29T08:00:00-07:00 2026-07-30T08:00:00-07:00
+                    2026-07-31T08:00:00-07:00 2026-08-01T08:00:00-07:00
+                    2026-08-02T08:00:00-07:00 2026-08-03T08:00:00-07:00
+                    2026-08-04T08:00:00-07:00 2026-08-05T08:00:00-07:00
+                    2026-08-06T08:00:00-07:00</timePositionList>
+                        </TimePositionList>
+                    </timeDomain>
+                    <results>
+                        <ResultSet>
+                            <parameters>
+                                <PropertyParameters gml:id="PP-MON-WL-Well-Mockup-1-MW2">
+                                    <properties>
+                                        <Property index="1" gml:id="PROP-MON-WL-Well-Mockup-1-MW2-1">
+                                            <propertyName>Depth to Water</propertyName>
+                                            <typeData>double</typeData>
+                                            <propertyClass codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/properties.xml#water_depth">Water Depth</propertyClass>
+                                            <uom>ft</uom>
+                                        </Property>
+                                        <Property index="2" gml:id="PROP-MON-WL-Well-Mockup-1-MW2-2">
+                                            <propertyName>Water Elevation</propertyName>
+                                            <typeData>double</typeData>
+                                            <propertyClass codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/properties.xml#water_elev">Water Elevation</propertyClass>
+                                            <uom>ft</uom>
+                                        </Property>
+                                        <Property index="3" gml:id="PROP-MON-WL-Well-Mockup-1-MW2-3">
+                                            <propertyName>Temperature</propertyName>
+                                            <typeData>double</typeData>
+                                            <propertyClass codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/properties.xml#temperature">Temperature</propertyClass>
+                                            <uom>degF</uom>
+                                        </Property>
+                                    </properties>
+                                </PropertyParameters>
+                            </parameters>
+                            <dataValues cs="," ts=" " decimal=".">
+                    21.50,1241.93,59.32 21.81,1241.63,59.42 21.82,1241.62,59.59 19.32,1244.12,59.56
+                    18.15,1245.29,59.26 18.18,1245.26,59.43 20.17,1243.27,59.54 21.01,1242.42,59.40
+                    21.32,1242.11,59.50 21.87,1241.57,59.63 19.68,1243.76,59.59 18.12,1245.31,59.67
+                    18.66,1244.77,59.47 20.27,1243.16,59.60 20.72,1242.71,59.82 21.84,1241.59,59.72
+                    22.03,1241.41,59.55 19.82,1243.62,59.69 18.14,1245.29,59.67 18.35,1245.09,59.57
+                    20.22,1243.21,60.01 21.65,1241.78,59.95 21.30,1242.13,59.89 21.78,1241.65,60.02
+                    19.12,1244.32,59.91 18.52,1244.92,59.94 18.78,1244.65,60.01 20.28,1243.16,60.05
+                    21.01,1242.43,60.15 21.92,1241.51,60.13 21.50,1241.94,60.25 19.47,1243.96,60.08
+                    17.66,1245.77,60.41 18.75,1244.69,60.24 20.08,1243.35,60.45 20.80,1242.64,60.43
+                    20.96,1242.48,60.15 22.13,1241.30,60.48 19.39,1244.05,60.26 18.04,1245.39,60.71
+                    18.26,1245.17,60.30 20.11,1243.33,60.38 20.57,1242.87,60.38 21.17,1242.26,60.51
+                    21.80,1241.63,60.35 19.63,1243.80,60.56 17.80,1245.63,60.50 17.77,1245.67,60.78
+                    19.49,1243.94,60.64 21.09,1242.34,60.59 22.03,1241.40,60.70 22.04,1241.39,60.78
+                    19.81,1243.63,60.74 17.62,1245.82,60.77 18.43,1245.01,60.76 19.82,1243.62,60.80
+                    21.26,1242.18,60.70 21.68,1241.75,61.00 22.03,1241.40,60.87 19.38,1244.06,60.79
+                    17.16,1246.28,60.98 18.55,1244.89,60.85 19.96,1243.47,60.94 21.06,1242.37,60.88
+                    21.45,1241.99,60.86 21.53,1241.91,60.98 19.30,1244.14,60.92 18.15,1245.29,60.90
+                    18.60,1244.84,61.24 20.13,1243.31,61.22 20.56,1242.88,61.25 22.00,1241.44,61.07
+                    22.05,1241.39,61.10 19.64,1243.79,61.15 18.18,1245.26,61.30 18.29,1245.15,61.33
+                    20.20,1243.24,61.32 21.01,1242.42,61.16 22.00,1241.44,61.36 21.66,1241.77,61.21
+                    20.03,1243.40,61.46 17.52,1245.92,61.24 18.97,1244.47,61.19 20.34,1243.09,61.18
+                    21.63,1241.81,61.17 21.62,1241.82,61.28 22.01,1241.43,61.13 19.25,1244.19,61.38
+                    18.05,1245.39,61.27 18.53,1244.90,61.16 20.20,1243.24,61.42 21.85,1241.59,61.50
+                    21.72,1241.72,61.19 22.48,1240.96,61.13 19.93,1243.50,61.33 18.18,1245.26,61.48
+                    19.28,1244.15,61.50 20.60,1242.84,61.31 21.34,1242.10,61.47 22.07,1241.37,61.32
+                    22.31,1241.13,61.40 19.25,1244.19,61.46 18.91,1244.53,61.36 19.01,1244.43,61.36
+                    20.08,1243.35,61.36 21.58,1241.85,61.55 22.04,1241.40,61.72 22.76,1240.68,61.59
+                    19.76,1243.67,61.44 18.76,1244.67,61.55 18.38,1245.05,61.42 20.04,1243.40,61.49
+                    21.55,1241.88,61.59 22.33,1241.10,61.48 21.89,1241.55,61.45 19.87,1243.56,61.46
+                    18.57,1244.87,61.56 18.73,1244.70,61.51 20.64,1242.80,61.62 21.79,1241.65,61.44
+                    22.02,1241.42,61.58 22.19,1241.25,61.72 20.04,1243.40,61.49 18.55,1244.89,61.49
+                    19.12,1244.32,61.53 20.73,1242.70,61.59 21.90,1241.53,61.38 22.51,1240.93,61.57
+                    22.58,1240.86,61.54 20.77,1242.66,61.38 19.36,1244.07,61.47 18.91,1244.52,61.47
+                    21.09,1242.35,61.51 22.53,1240.90,61.39 22.41,1241.02,61.36 22.39,1241.04,61.37
+                    20.80,1242.63,61.53 18.93,1244.51,61.49 19.00,1244.44,61.30 20.87,1242.57,61.37
+                    21.94,1241.50,61.59 22.26,1241.17,61.40 22.85,1240.59,61.60 20.71,1242.72,61.52
+                    19.42,1244.02,61.36 19.56,1243.88,61.03 21.50,1241.93,61.39 22.35,1241.08,61.20
+                    22.36,1241.07,61.31 22.33,1241.11,61.21 20.77,1242.66,61.23 19.96,1243.48,61.09
+                    20.07,1243.36,61.27 21.71,1241.73,61.24 22.08,1241.36,61.24 22.18,1241.25,61.10
+                    22.98,1240.46,60.91 20.70,1242.73,61.18 19.41,1244.02,61.10 20.00,1243.44,61.05
+                    21.60,1241.84,61.27 22.62,1240.82,60.87 23.34,1240.10,61.19 23.07,1240.36,61.10
+                    21.01,1242.42,61.10 19.31,1244.12,61.10 19.75,1243.69,60.97 21.84,1241.60,60.95
+                    22.32,1241.11,60.70 23.13,1240.30,60.80 23.55,1239.89,60.93 21.34,1242.09,60.67
+                    19.77,1243.67,60.66 20.56,1242.88,61.16 21.66,1241.77,60.86 22.21,1241.22,60.81
+                    22.90,1240.54,60.75 23.62,1239.82,60.86 21.02,1242.42,60.76 19.73,1243.71,60.67
+                    20.07,1243.37,60.56 21.41,1242.02,60.70 22.98,1240.45,60.47 23.23,1240.21,60.70
+                    23.79,1239.65,60.61 21.21,1242.23,60.61 19.65,1243.79,60.37 20.24,1243.20,60.37
+                    21.53,1241.91,60.37 22.54,1240.90,60.49 23.78,1239.66,60.38 23.43,1240.01,60.30
+                    21.00,1242.44,60.31 19.89,1243.55,60.36 20.52,1242.91,60.25 21.60,1241.84,60.24
+                    22.66,1240.77,60.26 23.75,1239.69,60.16 23.48,1239.96,60.44 21.06,1242.37,60.34
+                    19.60,1243.84,60.27 19.88,1243.56,60.22 22.04,1241.40,60.08 22.76,1240.67,60.00
+                    23.46,1239.98,60.24 23.87,1239.56,60.14 21.15,1242.29,59.95 20.05,1243.39,59.92
+                    20.61,1242.82,60.11 21.16,1242.28,59.94 22.83,1240.61,60.12 23.75,1239.69,59.97
+                    23.93,1239.51,59.66 21.68,1241.75,59.67 20.18,1243.25,59.84 20.28,1243.16,59.77
+                    21.85,1241.59,59.48 22.66,1240.78,59.57 23.07,1240.37,59.78 23.24,1240.19,59.69
+                    21.41,1242.02,59.63 19.86,1243.57,59.60 20.37,1243.06,59.64 22.31,1241.13,59.57
+                    23.37,1240.07,59.62 23.52,1239.92,59.41 24.00,1239.43,59.73 21.76,1241.68,59.41
+                    20.15,1243.28,59.68 19.98,1243.45,59.42 21.87,1241.57,59.45 23.42,1240.01,59.46
+                    23.15,1240.29,59.07 24.40,1239.04,59.54 22.08,1241.35,59.39 19.91,1243.53,59.23
+                    20.37,1243.07,59.38 21.81,1241.63,59.49 23.18,1240.25,59.21 23.13,1240.30,59.28
+                    23.40,1240.03,59.13 21.85,1241.59,59.24 19.48,1243.95,59.28 20.04,1243.39,59.07
+                    21.96,1241.48,59.01 23.35,1240.09,59.11 23.62,1239.82,59.08 23.45,1239.99,59.21
+                    20.96,1242.48,58.88 20.00,1243.43,58.94 20.17,1243.26,58.92 21.87,1241.56,59.00
+                    22.60,1240.83,58.97 23.86,1239.57,58.88 23.08,1240.36,59.05 21.42,1242.02,58.90
+                    20.28,1243.16,58.83 20.27,1243.17,58.92 21.99,1241.45,59.04 22.32,1241.12,58.99
+                    22.82,1240.61,58.86 23.58,1239.85,58.88 21.03,1242.41,58.91 19.58,1243.85,58.69
+                    20.06,1243.38,58.99 21.95,1241.48,58.85 22.69,1240.75,58.67 23.31,1240.12,58.79
+                    23.00,1240.44,58.99 21.01,1242.43,58.74 19.58,1243.85,58.78 19.75,1243.68,58.64
+                    21.66,1241.78,58.63 22.96,1240.47,58.76 22.85,1240.58,58.77 23.30,1240.13,58.54
+                    21.05,1242.38,58.59 18.91,1244.52,58.54 20.27,1243.17,58.55 21.34,1242.10,58.52
+                    22.02,1241.41,58.58 22.93,1240.50,58.55 23.43,1240.01,58.50 21.17,1242.27,58.51
+                    19.50,1243.94,58.46 20.02,1243.41,58.55 21.24,1242.20,58.62 22.37,1241.06,58.58
+                    23.16,1240.27,58.60 23.02,1240.41,58.55 21.41,1242.03,58.38 18.97,1244.47,58.51
+                    19.43,1244.01,58.45 21.29,1242.15,58.67 21.82,1241.61,58.54 22.89,1240.55,58.40
+                    23.17,1240.26,58.57 21.18,1242.26,58.49 19.51,1243.93,58.71 19.97,1243.46,58.48
+                    20.75,1242.68,58.35 22.37,1241.06,58.38 22.75,1240.69,58.54 23.10,1240.34,58.70
+                    20.90,1242.54,58.39 19.03,1244.40,58.77 19.31,1244.13,58.51 21.85,1242.09,58.57
+                    22.82,1241.12,58.63 22.85,1241.09,58.48 23.82,1240.12,58.32 21.06,1242.87,58.57
+                    19.32,1244.61,58.68 20.20,1243.73,58.57 21.33,1242.60,58.68 22.46,1241.48,58.47
+                    22.96,1240.98,58.41 23.60,1240.33,58.70 20.61,1243.32,58.32 19.17,1244.76,58.56
+                    20.04,1243.90,58.84 21.72,1242.22,58.73 22.30,1241.64,58.43 22.21,1241.73,58.66
+                    22.88,1241.05,58.45 20.90,1243.04,58.84 19.63,1244.31,58.48 20.41,1243.53,58.66
+                    21.61,1242.33,58.87 22.51,1241.42,58.68 22.34,1241.60,58.57 23.06,1240.87,58.62
+                    20.38,1243.55,58.59 19.41,1244.52,58.84 20.17,1243.77,58.88 20.84,1243.10,58.84
+                    21.45,1242.48,58.80 22.57,1241.37,58.91 22.37,1241.56,58.83 20.86,1243.07,58.86
+                    18.94,1245.00,58.66 19.74,1244.19,58.90 21.08,1242.86,58.97 21.98,1241.96,58.78
+                    22.00,1241.94,58.71 23.07,1240.87,58.90 20.39,1243.55,59.03 19.15,1244.79,59.05
+                    19.34,1244.60,59.15 21.07,1242.86,59.00 21.37,1242.57,59.32 22.29,1241.65,59.11
+                    22.23,1241.71,59.04 20.52,1243.41,59.21 18.27,1245.67,59.11 19.21,1244.73,59.24
+                    20.50,1243.43,59.08 21.69,1242.24,59.15 22.91,1241.03,59.22 22.09,1241.84,59.14
+                    20.81,1243.13,59.51 19.06,1244.87,59.16 19.12,1244.82,59.42 20.52,1243.41,59.55
+                    21.42,1242.52,59.61 22.18,1241.75,59.31 22.66,1241.27,59.33 20.45,1243.48,59.34
+                    18.85,1245.09,59.34 19.33,1244.61,59.38 20.39,1243.54,59.61 21.77,1242.17,59.71
+                    22.35,1241.59,59.58 22.48,1241.45,59.43 20.16,1243.78,59.50 18.66,1245.28,59.74
+                    18.79,1245.14,59.63 20.62,1243.32,59.81 21.32,1242.61,59.88 21.94,1242.00,59.87
+                    22.30,1241.63,59.61 20.01,1243.92,59.97 18.20,1245.73,59.84 19.03,1244.90,59.89
+                    20.79,1243.15,59.96 22.01,1241.93,59.88 21.78,1242.15,60.04 21.82,1242.12,59.79
+                    19.50,1244.43,60.05 18.55,1245.39,60.15 18.68,1245.25,59.91 20.75,1243.19,60.10
+                    21.58,1242.36,60.21 21.44,1242.50,60.12 21.91,1242.02,59.97 19.64,1244.30,60.15
+                    17.90,1246.03,60.19 19.49,1244.45,60.23 19.85,1244.09,60.03 21.72,1242.21,60.36
+                    22.10,1241.84,60.47 21.96,1241.98,60.36 20.28,1243.66,60.38 18.51,1245.42,60.41
+                    19.57,1244.37,60.26 20.51,1243.43,60.42 20.95,1242.98,60.51 21.68,1242.25,60.48
+                    22.11,1241.83,60.32 19.58,1244.36,60.57 18.49,1245.45,60.59 19.01,1244.92,60.63
+                    20.24,1243.70,60.76 21.14,1242.80,60.62 22.26,1241.68,60.58 21.98,1241.95,60.84
+                    19.67,1244.26,60.50 18.58,1245.36,60.78 19.22,1244.72,60.62 21.08,1242.86,60.97
+                    21.66,1242.28,60.77 21.87,1242.06,60.61 22.23,1241.70,60.76 20.17,1243.76,60.72
+                    18.15,1245.78,60.84 18.76,1245.17,60.87 20.89,1243.04,60.80 21.67,1242.26,60.95
+                    21.83,1242.11,60.84</dataValues>
+                        </ResultSet>
+                    </results>
+                </TemporalResult>
+            </outcome>
+            <procedure>
+                <WaterLevelMonitoring gml:id="WLM-Well-Mockup-1-MW2">
+                    <gml:name codeSpace="Global Geoslutions">MW-2 Water Level Monitoring Procedure</gml:name>
+                    <remark>
+                        <Remark>
+                            <content>Water levels and temperature recorded once daily by an in-well pressure transducer beginning 2025-06-04, the day following MW-2 completion, continuing to present. MW-2 is completed in a deeper confined sand aquifer (screened 106-126 ft below top of casing); the potentiometric surface sits well above the screen and shows larger, more erratic fluctuations than MW-1, reflecting the influence of a nearby production well operating on a weekday pumping schedule (drawdown accumulating Monday-Friday, recovering over the weekend), superimposed on a muted seasonal trend. On 2026-04-06 the protective monument and casing stub were repaired and the top-of-casing reference point was reset 0.5 ft (0.1524 m) higher than the original as-built elevation (see samplingFeatureRef Well/maintenanceEvent). This reference point change causes a corresponding ~0.5 ft step increase in reported depth-to-water at that date with no discontinuity in reported water elevation, which is computed relative to each reading's own then-current reference point.</content>
+                        </Remark>
+                    </remark>
+                    <testProcedureEquipment>
+                        <Sensor gml:id="SENSOR-MW2">
+                            <gml:name codeSpace="Global Geoslutions">MW-2 Water Level / Temperature Transducer</gml:name>
+                            <class>Pressure transducer</class>
+                            <make>In-Situ Inc.</make>
+                            <modelNumber>Level TROLL 500</modelNumber>
+                            <dateInstalled>
+                                <TimeInterval gml:id="TI-INST-SENSOR-MW2">
+                                    <start frame="#ISO-8601">2025-06-04T07:30:00-07:00</start>
+                                </TimeInterval>
+                            </dateInstalled>
+                            <detector>
+                                <Detector gml:id="DET-MW2-depth">
+                                    <measurand codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/measurand.xml#water_depth">Water Depth</measurand>
+                                </Detector>
+                            </detector>
+                            <detector>
+                                <Detector gml:id="DET-MW2-elev">
+                                    <measurand codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/measurand.xml#water_elev">Water Elevation</measurand>
+                                </Detector>
+                            </detector>
+                            <detector>
+                                <Detector gml:id="DET-MW2-temp">
+                                    <measurand codeSpace="https://diggsml.org/def/codes/DIGGS/0.1/measurand.xml#temperature">Temperature</measurand>
+                                </Detector>
+                            </detector>
+                        </Sensor>
+                    </testProcedureEquipment>
+                    <referencePoints>
+                        <ReferencePoint>
+                            <time>
+                                <TimeInterval gml:id="TI-RP-Well-Mockup-1-MW2-01">
+                                    <start frame="#ISO-8601">2025-06-04T08:00:00-07:00</start>
+                                    <end frame="#ISO-8601">2026-04-06T09:00:00-07:00</end>
+                                </TimeInterval>
+                            </time>
+                            <rpLocation>
+                                <PointLocation gml:id="RP-Well-Mockup-1-MW2-original"
+                                    srsName="https://www.opengis.net/def/crs-compound?1=http://www.opengis.net/def/crs/EPSG/0/26911%262=http://www.opengis.net/def/crs/EPSG/0/5703"
+                                    srsDimension="3" axisLabels="easting northing height" uomLabels="m m m">
+                                    <gml:description>Original as-built top of casing, flush-mount vault, prior to the 2026-04-06 protective monument repair and reference point reset (see maintenanceEvent).</gml:description>
+                                    <gml:pos>453557.08 3706831.07 385.0952</gml:pos>
+                                </PointLocation>
+                            </rpLocation>
+                            <datumDescription>Top of casing, flush-mount vault (original as-built reference point)</datumDescription>
+                        </ReferencePoint>
+                        <ReferencePoint>
+                            <time>
+                                <TimeInterval gml:id="TI-RP-Well-Mockup-1-MW2-02">
+                                    <start frame="#ISO-8601">2026-04-06T11:30:00-07:00</start>
+                                </TimeInterval>
+                            </time>
+                            <rpLocation xlink:href="#pl-Well-Mockup-1-MW2"/>
+                            <datumDescription>Top of casing, reset following protective monument repair</datumDescription>
+                        </ReferencePoint>
+                    </referencePoints>
+                </WaterLevelMonitoring>
+            </procedure>
+        </Monitor>
+    </measurement>
+
 
 </Diggs>

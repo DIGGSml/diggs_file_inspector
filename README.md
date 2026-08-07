@@ -1,520 +1,755 @@
 # DIGGS File Inspector
+Last Updated - Aug. 6, 2026 *(the information herein may be superceded by more recent application commits)*
 
-A standalone, browser-based viewer for [DIGGS](https://www.diggsml.org/) (Data Interchange for Geotechnical and Geoenvironmental Specifications) XML files. Load any DIGGS 3.0 instance document and explore its full contents through a structured, interactive interface — no installation, no server, no dependencies to manage.
+*A standalone, browser-based viewer for [DIGGS](https://www.diggsml.org/) (Data
+Interchange for Geotechnical and Geoenvironmental Specialists) XML files. Open
+one HTML file, drop in a DIGGS instance document, and explore its full contents
+— features, geometry, lithology, samples, tests, monitoring records and
+geophysical results — through an interactive, geotechnically-aware interface.*
+
+*No installation. No server. No account.* **Your data never leaves your computer.**
 
 ---
 
-## Purpose
+## Contents
 
-DIGGS XML files can be large, deeply nested, and difficult to inspect with general-purpose tools. The DIGGS File Inspector is purpose-built to parse and display DIGGS 3.0 instance documents in a human-readable form that reflects the logical structure of the standard: projects, sampling features, sampling activities and samples, lab, in-situ and monitoring measurements, observation systems, program and construction activities, and project metadata — all rendered according to their schema roles.
-
-The application is a single self-contained HTML file. Open it in any modern browser, drag-and-drop (or use the file picker to load) a DIGGS XML file, and the interface populates immediately. Nothing is sent to a server; all parsing and rendering happens locally in the browser.
+- [What it does](#what-it-does)
+- [Quick start](#quick-start)
+- [Who it's for](#who-its-for)
+- [User guide](#user-guide)
+  - [How the screen is organized](#how-the-screen-is-organized)
+  - [1 · The file bar](#1--the-file-bar)
+  - [2 · Choosing a project](#2--choosing-a-project)
+  - [3 · The feature table and map](#3--the-feature-table-and-map)
+  - [4 · The Detail panel](#4--the-detail-panel)
+  - [5 · The Associated Data panel](#5--the-associated-data-panel)
+  - [Reading the data: expansion triangles and link icons](#reading-the-data-expansion-triangles-and-link-icons)
+  - [Graphics ↔ data: where selections are linked](#graphics--data-where-selections-are-linked)
+  - [Working with plots](#working-with-plots)
+  - [Working with 3D views](#working-with-3d-views)
+- [What the Inspector displays](#what-the-inspector-displays)
+  - [Sampling features](#sampling-features)
+  - [Observation systems](#observation-systems)
+  - [Samples and sampling activities](#samples-and-sampling-activities)
+  - [Measurements and test procedures](#measurements-and-test-procedures)
+  - [Result domains and visualization](#result-domains-and-visualization)
+  - [Project and document metadata](#project-and-document-metadata)
+- [Architecture and privacy](#architecture-and-privacy)
+  - [What works offline](#what-works-offline)
+- [Coordinate reference systems](#coordinate-reference-systems)
+  - [Embedded CRS support](#embedded-crs-support)
+  - [Vertical datums](#vertical-datums)
+  - [Non-EPSG reference systems](#non-epsg-reference-systems)
+  - [srsName formats recognized](#srsname-formats-recognized)
+  - [Reference registries and dictionaries](#reference-registries-and-dictionaries)
+- [Known limitations](#known-limitations)
+- [Reporting problems](#reporting-problems)
+- [License](#license)
 
 ---
 
-## Target Users
+## What it does
 
-- **Geotechnical engineers and geologists** who need to verify, review, or QC DIGGS data files produced by software or field data collection systems.
-- **DIGGS implementers and software developers** who are building tools that produce or consume DIGGS XML and need to validate that their output is structured correctly.
-- **DIGGS Technical Committee members and standard contributors** who need to inspect real-world instance documents during schema development and review.
-- **Data managers and project personnel** who want a quick visual summary of what is in a DIGGS file without writing custom scripts.---
+DIGGS files are large, deeply nested, and heavily cross-referenced. A borehole's
+lithology may live in a separate observation system halfway down the document,
+its samples in a third place, and the lab tests on those samples in a fourth —
+joined only by `xlink:href` identifiers. Generic XML tools show you the tree;
+they don't show you the borehole.
 
-## Supported DIGGS Object Classes
-This tool is currently under development and does not yet support all v. 3.0 objects and properties. The information below reflects the current state of progress.
+The DIGGS File Inspector resolves those relationships and presents the file the
+way a geotechnical professional thinks about it:
 
-### Document Information
-The XML files name is parsed and displayed in a summary bar above the SF tabs, with file version, creation date, creating application, author and status, if available..
+- **Sampling-feature centric.** Pick a borehole, sounding, well, trench wall or
+  survey line, and everything attached to it — construction record, lithology,
+  samples, in-situ and lab tests, monitoring data — is one click away.
+- **Geometry-aware.** Coordinates are transformed and mapped, centerlines are
+  classified (vertical / inclined / deviated / multilateral) and viewable in 3D,
+  surface and solid feature extents are measured and rendered.
+- **Graphical where a graphic is the right answer.** Patterned lithology logs,
+  well-construction diagrams, grain-size and Atterberg plots, depth and
+  time-series profiles, ERT-style heat maps, 3D volumes.
+- **Complete where completeness matters.** Every field the display engine knows
+  about is shown, with its unit, its code space, and its provenance — no
+  silently dropped data.
 
-### Projects
-- DIGGS files with multiple projects are supported. Select project of interest from the pill bar or dropdown in the left panel. All sampling features associated with the selected project will display in the summary table and map. Features referencing multiple projects appear under each.
+---
 
+## Quick start
 
+1. Download `diggs_file_inspector.html` (a single file — clone the repo or use
+   the raw download).
+2. Open it in a modern browser (Chrome, Edge, Firefox, or Safari). Double-clicking
+   the file is fine; it runs from `file://`.
+3. Drag a DIGGS file onto the drop zone, or click to browse. Both the `.xml` and
+   `.diggs` extensions are accepted — they carry the same payload, a DIGGS XML
+   instance document.
 
-- All `Project` properties in the file are parsed and displayed. Each project is accessible via a pill bar (up to 3 projects) or a dropdown (4 or more). If project metadata properties exist, they an be vieweed by clicking the project info button (ⓘ). Project metadata includes names, purpose, date span, roles and associated business associates, locality, status, remarks, associated files, and `otherProjectProperty` entries. The project info button (ⓘ) is disabled when the project is referenced only by fragment identifier with no corresponding element
+The interface populates immediately. To load a different file, click **↩ Load New
+File** (or the logo) in the top-left.
 
-### Sampling Features
-All DIGGS 3.0 Sampling Feature types are recognized and displayed in the SF table and on the map. The level of detail support varies by type.
+> **Note on file size.** Very large instance documents (tens of MB) parse in a few
+> seconds; the spinner stays up until parsing completes.
 
-| Sampling Feature Type | Summary Table | Map | Detail Panel |
-|---|---|---|---|
-| `Borehole` | ✅ Full | ✅ Point marker | ✅ Full | 
-| `Sounding` | ✅ Full | ✅ Point marker | ✅ Full | 
-| `Well` | ✅ Full | ✅ Point marker | ✅ Full | 
-| `TrialPit` | ✅ Full | ✅ Point marker | Metadata only |
-| `Station` | ✅ Full | ✅ Point marker | Metadata only |
-| `Transect` | ✅ Full | ✅ Polyline | Metadata only |
-| `GroutTrenchCutoffWall` | ✅ Full | ✅ Polyline | Metadata only |
-| `GP_Trackline` | ✅ Full | ✅ Polyline | Metadata only |
-| `GP_MultiTrack` | ✅ Full (collapsible group rows) | ✅ Via member tracklines | Metadata only |
-| `TrenchWall` | ✅ Full | ✅ Point marker | Metadata only |
-| `GP_ArealSurvey` | ✅ Full | ✅ Polygon outline | Metadata only |
+> **Note on caching.** If you replace `diggs_file_inspector.html` with a newer
+> version and the browser still shows old behavior, a plain reload may not be
+> enough — clear the cache or open it in a private window.
 
-**Notes:**
-- "Metadata only" in the Detail Panel column means the center panel displays the SF's identification, location, timing, roles, remarks, and associated data, but does not yet have type-specific properies or nested property information.
-- Borehole and Sounding detail panels include full interval-based construction data tables (diameter, flush, casing, backfill, construction method, drill advancement, construction events, water strikes, etc.).
-- Well detail panels include interval-based tables for openings, casing, installation events, maintenance events, and abandonment events.
-### Observation Systems
-The followign Observation Systems are supported;
+---
 
-| Observation System | System Properties | Observation Properties |
-|---|---|---|
-| `LithologySystem` | ✅ Full | 0D and 1D sampling features only |
-| `ColorSystem` | -- | -- |
-| `DiscontinuitySystem` | -- | -- |
-| `GeoUnitSystem` | -- | -- |
-| `StratigraphySystem` | -- | -- |
-| `OtherObservationSystem` | -- | -- |
+## Who it's for
 
-`LithologySystem` objects attached to Borehole, Sounding, and TrialPit features are fully parsed and rendered. The Lithology badge in the SF table expands to a detailed lithology log table. Each interval row includes:
+- **Geotechnical engineers and geologists** verifying, reviewing or QC-ing DIGGS
+  data delivered by a consultant, drilling contractor or field data-collection
+  system.
+- **DIGGS implementers and software developers** checking that what their
+  software writes is what a consumer will actually read.
+- **DIGGS Technical Committee members and contributors** inspecting real-world
+  instance documents during schema development.
+- **Data managers and project personnel** who need to see what is in a file
+  without writing a script.
 
-| Column | Content |
+---
+
+## User guide
+
+### How the screen is organized
+
+```
+┌───────────────────────────────────────────────────────────────────────────────┐
+│  FILE BAR   file name · created · author        [type counts]   ↩ Load New    │
+├────────────────────┬────────────────────────────┬─────────────────────────────┤
+│  Project selector  │                            │                             │
+│  ┌──────────────┐  │   DETAIL PANEL             │   ASSOCIATED DATA PANEL     │
+│  │ Feature tabs │  │                            │                             │
+│  │ Summary table│  │   1 · Feature header       │   Construction graphic      │
+│  └──────────────┘  │   2 · Location / CRS grid  │   (auto), then whichever    │
+│  ═══ drag ═══      │   3 · Associated Data tabs │   badge you click:          │
+│  ┌──────────────┐  │   4 · Full metadata (KV)   │   lithology log, samples,   │
+│  │     MAP      │  │                            │   result tables, plots,     │
+│  │   + legend   │  │                            │   3D views                  │
+│  └──────────────┘  │                            │                             │
+└────────────────────┴────────────────────────────┴─────────────────────────────┘
+        left column        ║ drag ║                    ║ drag ║
+```
+
+The three columns are separated by **drag handles** — grab the vertical bars to
+rebalance the columns, or the horizontal bar in the left column to trade table
+height for map height.
+
+### 1 · The file bar
+
+Shows the loaded file name, its `DocumentInformation` creation date and author(s),
+and a count badge per sampling-feature type present in the file. Clicking the
+logo or **↩ Load New File** returns to the load screen and fully resets state.
+
+### 2 · Choosing a project
+
+A DIGGS file may contain several projects. The **Project** dropdown at the top of
+the left column filters everything below it: only the sampling features belonging
+to the selected project appear in the tabs, the summary table and the map. A
+feature referenced by more than one project appears under each. An **All
+Projects** entry at the bottom of the list removes the filter.
+
+**View Details --->** opens the project's own metadata (names, purpose, dates,
+roles and business associates, locality, status, remarks, associated files,
+`otherProjectProperty`) in the centre Detail panel. The button is hidden when the
+file only references a project by identifier with no `Project` element to show.
+Project geometry (reference point, linear extents, areal extents) is **never
+auto-plotted** — each occurrence carries its own **Show on Map** button, and only
+one project geometry is shown at a time.
+
+Selecting any sampling feature replaces the project view in the centre panel;
+the two never share it.
+
+### 3 · The feature table and map
+
+**Tabs** — one per sampling-feature type present in the (filtered) file, with a
+count. The table below has six columns: *Name*, *Depth / Extent*, *Date*,
+*Parent Feature*, *Installations*, *Purpose*.
+
+- *Depth / Extent* shows the feature's own reported measurement with its unit.
+  Where the Inspector can also compute the value from geometry (centerline
+  length, surface area) it cross-checks the two and flags a disagreement beyond
+  2 %.
+- *Parent Feature* is a live link for installations — a well or pile jumps to the
+  borehole it was installed in.
+- *Installations* lists what was installed inside the feature.
+- **GP_MultiTrack** and **RI Foundation System** rows are expandable group
+  headers; clicking one opens an accordion of its member tracklines, or its load
+  transfer platforms and rigid inclusions.
+
+**Map** — Leaflet, with a basemap switcher (Street, Dark, Satellite, Topo) in the
+top-right corner and a legend strip beneath. Point features render as coloured
+symbols, linear features as polylines, planar features as filled polygons.
+Clicking a marker selects the feature exactly as clicking its table row does, and
+vice versa; the selected feature is highlighted in bright pink and brought to the
+front (so a feature sharing coordinates with another can't be hidden underneath).
+
+Features whose coordinates cannot be resolved to real-world positions are still
+fully listed and inspectable — they simply carry no marker, and the Detail panel
+explains why.
+
+### 4 · The Detail panel
+
+Selecting a feature builds four sections in the centre column:
+
+1. **Header** — type, name, identifier.
+2. **Location** — the full CRS description (horizontal and vertical components,
+   with the source of each display unit noted), both horizontal coordinates,
+   elevation, and total depth / extent. Warnings appear here: an unresolvable
+   CRS, a detected latitude/longitude axis swap, or a reported-vs-computed
+   geometry mismatch.
+3. **Associated Data** — the badge panel (see below).
+4. **Feature metadata** — the complete, schema-traced key/value rendering of that
+   feature type: identification, purpose, timing, roles and business associates,
+   trajectory, linear referencing, construction records, events, water strikes,
+   remarks, associated files and any `other…Property` entries.
+
+Sections 1–3 stay pinned; section 4 scrolls independently.
+
+Feature types without a metadata configuration yet simply show no section 4 (see
+[Sampling features](#sampling-features) for which types are complete).
+
+### 5 · The Associated Data panel
+
+The right-hand column. Two things put content here:
+
+**Automatically — the Construction graphic.** Selecting any feature that carries
+construction data immediately draws a depth-scaled column diagram, without your
+clicking anything:
+
+| Column | Contents |
 |---|---|
-| From / To | Depth interval with units |
-| Classification | Primary classification badge (USCS, USCS-coarse, Wentworth, bedrock, etc.), clickable for full classification popup |
-| Description | Free-text lithologic description |
-| Unit Name / Facies | Stratigraphic identifiers |
-| Details | Pill buttons for Color, Properties, Components, Placed Observations, and Boundary |
+| **Lithology** | Patterned graphic log of every non-overlapping lithology system logged on the feature |
+| **Wells and Backfill** | Backfill layers as patterned zones, with any well installed in the hole drawn over them — solid casing as plain pipe, screened intervals as slotted pipe, scaled to real relative diameters and centred on each well's own axis |
+| **Casing** | The parent feature's own casing program, drawn concentrically (widest first) and coloured by material, with a mirrored diameter scale |
+| **Hole Diameter** | A staircase depth-vs-diameter chart of the reported hole diameters |
 
-**Color popup:** Munsell code rendered as a CSS color swatch alongside all color descriptor fields.
+A blue water-table symbol (triangle plus tick) is drawn beside the first present
+column at the depth of the most recent water-strike reading. Each patterned
+column has its own collapsible legend beneath it (all legends start closed, so
+the log itself gets the height). Selecting a **Well** shows the parent borehole's
+lithology and backfill with only that one well's casing and screen drawn.
 
-**Properties popup:** Full `LithProperties` and `ComponentProperties` display, including general/soil fields (particle shape, structure, plasticity, consistency, moisture, cementation, inclusions, surface texture, dipAngle with apparent-dip suffix, recovery, particle sorting), rock fields (grain size, hardness, strength, weathering, rock mass description, slaking rate, sorting, RQD), particle size distribution sub-block with individual grain-size fraction entries, `otherLithProperty` as name/value pairs, and remarks.
+**On demand — the badges.** Section 3 of the Detail panel groups everything else
+attached to the feature into three tabs:
 
-**Components popup:** Per-component classification badge, description, and abundance, each with its own Properties pill.
-
-**Placed Observations and Boundary popups:** Registered and accessible; content display depends on data present.
-
-### Measurements
-`for each samping feature, measurements are grouped together by their procedure type. A badge is displayed in the central pane for each procedure associated with the selected sampling feature. Clicking on the procedure badge will display the result properties and values in  either text or plot form. Metadata for each procedure is either not or partially supported at this time, depending on the procedure. Current status of measurement data is as follows:
-
-| Test Procedure | Measurement Results | Procedure Metadata | Data Plots |
-|---|---|---|---|
-| AggregateAbrasionValueTest |✅ Full |-- |-- |
-| AggregateCrushingValueTest |✅ Full | --|-- |
-| AggregateElongationIndexTest|✅ Full |-- |-- |
-| AggregateFlakinessIndexTest |✅ Full |-- |-- |
-| AggregateImpactValueTest | ✅ Full|-- |-- |
-| AggregatePolishedStoneValueTest |✅ Full |-- |-- |
-| AggregateSlakeDurabilityTest |✅ Full |-- |-- |
-| AggregateWaterAbsorptionTest | ✅ Full|v-- |-- |
-| AtterbergLimitsTest | ✅ Full|-- |-- |
-| ChalkCrushingValueTest |✅ Full |-- |-- |
-| ConsolidationTest |✅ Full |-- |-- |
-| DirectShearTest |✅ Full |-- |-- |
-| DrivenPenetrationTest | ✅ Full|Drive sets only |-- |
-| DynamicProbeTest |✅ Full |-- |-- |
-| EnvironmentalScreeningTest | ✅ Full|-- |-- |
-| FlatPlateDilatometerTest | ✅ Full|-- |-- |
-| FrostSusceptibilityTest | ✅ Full|-- |-- |
-| InsituCBRTest |✅ Full |-- |-- |
-| InsituDensityTest |✅ Full |-- |-- |
-| InSituPenetrometerTest |✅ Full |-- |-- |
-| InsituPermeabilityTest |✅ Full |-- |-- |
-| InsituResistivityTest |✅ Full |-- |-- |
-| InsituVaneTest |✅ Full |-- |-- |
-| LabCBRTest |✅ Full |-- |-- |
-| LabChemicalTest |✅ Full |-- |-- |
-| LabCompactionTest |✅ Full |-- |-- |
-| LabDensityTest |✅ Full |-- |-- |
-| LabPenetrometerTest |✅ Full |-- |-- |
-| LabPermeabilityTest |✅ Full |-- |-- |
-| LabResistivityTest |✅ Full |-- |-- |
-| LabVaneTest |✅ Full |-- |-- |
-| LabVelocityTest |✅ Full |-- |-- |
-| LinearShrinkageTest |✅ Full |-- |-- |
-| LosAngelesAbrasionTest |✅ Full |-- |-- |
-| LossOnIgnitionTest |✅ Full |-- |-- |
-| LugeonTest |✅ Full |-- |-- |
-| MaterialGradationTest |✅ Full |-- |-- |
-| MCVTest |✅ Full |-- |-- |
-| MicroDevalTest |✅ Full |-- |-- |
-| MWDProcedure |✅ Full |-- |-- |
-| OrganicMatterByWetCombustionTest |✅ Full |-- |-- |
-| ParticleSizeTest |✅ Full |-- |-- |
-| PocketPenetrometerTest |✅ Full |-- |-- |
-| PointLoadTest |✅ Full |-- |-- |
-| PorePressureDissipationTest |✅ Full |Partial |Dissipation Time Series |
-| PressuremeterTest |✅ Full |-- |-- |
-| PumpingTest |✅ Full |-- |-- |
-| RedoxTest |✅ Full |-- |-- |
-| RelativeDensityTest |✅ Full |-- |-- |
-| RockPorosityDensityTest | ✅ Full|-- |-- |
-| SchmidtReboundHardnessTest |✅ Full |-- |-- |
-| ShoreScleroscopeHardnessTest |✅ Full | | |
-| SpecificGravityTest |✅ Full | | |
-| StaticConePenetrationTest |✅ Plots only |Partial |-Depth-series plots of results |
-| SuctionTest |✅ Full |-- |-- |
-| SwellOrCollapseTest |✅ Full |-- |-- |
-| TensileStrengthTest |✅ Full |-- |-- |
-| TriaxialTest |✅ Full |-- |-- |
-| UnconfinedCompressiveStrengthTest |✅ Full |-- |-- |
-| WaterContentTest |✅ Full |-- |-- |
-| WaterLevelMonitoring |✅ Plots only |-- Time-series plots of results |
-| WirelineLog |✅ Full |-- |-- |
-
-
-
----
-
-## Application Architecture
-
-The inspector is a **single-file HTML application** (~11,000+ lines). It has no build step and no external dependencies beyond two libraries embedded in the file:
-
-- **Leaflet 1.9.4** — interactive map rendering
-- **proj4js** — coordinate reference system transformation (for projecting non-WGS84 coordinates to map display coordinates)
-
-### Layout: Four Panes
-
-```
-┌────────────────┬──────────────────────────────┬────────────────────────┐
-│ Left Column    │ Center: SF Detail Panel      │ Right: SF Association  │
-│                │                              │ Panel (triggered when  │
-│  SF Summary    │  Metadata for selected SF    │ selecting badges from  │
-│  Table         │  (Section 4 descriptors)     │ central pane.          │
-│                │   Measurement and observation|                        │                        │
-│  Map           │    system badges             │                        │
-└────────────────┴──────────────────────────────┴────────────────────────┘
-```
-
-The SF Summary Table at top-left lists all sampling features. Clicking a row selects it, populates the Detail Panel (center), and highlights the corresponding map marker.
-
-### Parse Layer
-
-On file load, `loadDIGGS(doc, filename)` orchestrates parsing:
-
-1. **`parseProjects(doc)`** — builds `DIGGS_BA_MAP` (business associate lookup) and project registry.
-2. **`parseSamplingFeature(doc, el, type)`** — called for every SF element; extracts identity fields, location (with CRS-aware coordinate projection), geometry (point/polyline/polygon), and type-specific fields. Returns a plain SF object stored in the unified `DIGGS_SF` Map keyed by type.
-3. **Lithology parsing** — `parseLithologyObject()` / `parseLithProperties()` are called from within the Borehole/Sounding/TrialPit parsing paths and build `DIGGS_LITH[sfId]` arrays of typed observation objects.
-4. **`enrichElevUnits()`** — asynchronous post-parse step that looks up vertical CRS definitions from the DIGGS CRS registry to resolve elevation units for each SF.
-5. **`enrichLsrUoms(doc)`** — resolves unit-of-measure labels from `LocalSpatialReferenceSystem` definitions embedded in the file.
-
-### Rendering Layer
-
-All rendering is **config-driven**. No SF type or data type has bespoke rendering logic written directly into display functions. Instead:
-
-- **`SF_TYPE_CONFIG`** governs how each SF type appears in the table and on the map.
-- **`DIGGS_DISPLAY_LABELS` / `diggsLabel()`** provide human-readable labels for DIGGS element names throughout the UI.
-- **`SF_DETAIL_DESCRIPTORS`** drive the center Detail Panel via `renderKVTable()`.
-- **Lithology descriptor objects** (`LITH_TABLE_COLUMNS`, `LITH_PROPERTIES_GROUPS`, `LITH_CLASSIFICATION_DESCRIPTOR`, `LITH_COLOR_DESCRIPTOR`, `LITH_DETAIL_SECTIONS`, `LITH_PSD_DESCRIPTOR`) drive all lithology display via `renderLithBadgeContent()` and `renderFields()`.
-- **`PROJECT_DETAIL_DESCRIPTOR`** drives the project info popup via `renderKVTable()`.
-- **`KV_FORMAT` / `FORMAT_FN`** registries provide named formatter functions referenced by string key from within descriptors.
-
-### Two Rendering Pipelines
-
-There are two distinct rendering pipelines, each with its own descriptor shape. **Do not mix them.**
-
-| Pipeline | Entry point | Used for |
-|---|---|---|
-| **KV Table** | `renderKVTable(el, descriptor)` | SF Detail Panel (center pane), Project info popup |
-| **Fields / Detail Popup** | `renderFields(el, fields)` → `itemsToHtml()` | All `showDetailPopup()` content: lithology Classification, Color, Properties, Components popups |
-
-### Map
-
-The map is Leaflet-based with a basemap switcher (OpenStreetMap, CartoDB Positron, Esri Satellite, Esri Topo). CRS transformation is handled by proj4js; all coordinates are validated against strict WGS84 range bounds before being passed to Leaflet, with a graceful point-fallback path for unresolvable CRS references.
-
-Point SF types render as labeled circle markers. Line SF types render as polylines from `centerLine`/`LinearExtent`. Planar SF types render as polygon outlines (no fill) from `featureExtent`. `GP_MultiTrack` members are rendered as individual polylines; the group header row in the table controls collective selection. Project geometry is rendered below SF markers in a muted style.
-
----
-
-## Config and Descriptor Objects
-
-### `SF_TYPE_CONFIG`
-
-Defined near the top of the script section. One entry per SF type string (e.g., `'Borehole'`, `'GP_Trackline'`). Each entry has:
-
-| Property | Type | Purpose |
-|---|---|---|
-| `label` | string | Human-readable type name shown in tab headings |
-| `plural` | string | Plural form for tab labels |
-| `mapGeom` | `'point'` \| `'line'` \| `'polygon'` \| `'none'` | Controls how the SF is drawn on the map |
-| `marker` | object | Icon style for point types: `{ color, symbol, size }` |
-| `lineStyle` | object | Polyline style for line types: `{ color, weight, opacity }` |
-| `polygonStyle` | object | Polygon style for planar types |
-| `tabOrder` | number | Controls left-to-right ordering of SF type tabs |
-
-Example:
-```js
-Borehole: {
-  label: 'Borehole', plural: 'Boreholes',
-  mapGeom: 'point',
-  marker: { color: '#4a9eff', symbol: '⬤', size: 12 },
-  tabOrder: 10
-}
-```
-
-### `DIGGS_DISPLAY_LABELS`
-
-A flat object mapping DIGGS element/attribute names (as they appear in the schema) to display strings. Used by `diggsLabel(name)` throughout the UI wherever a human-readable label is needed but not explicitly supplied by a descriptor.
-
-```js
-const DIGGS_DISPLAY_LABELS = {
-  boreholePurpose: 'Purpose',
-  whenConstructed: 'Constructed',
-  particleSizeValue: 'Size Value',
-  // ...
-};
-```
-
-To change how any DIGGS element name is displayed, add or modify an entry here.
-
-### `SF_DETAIL_DESCRIPTORS`
-
-An object with one array per SF type that has full Detail Panel support (`Borehole`, `Sounding`, `Well`). Each array is a **descriptor array** consumed by `renderKVTable()`.
-
-**Descriptor array entries** for the KV Table pipeline:
-
-| Property | Type | Purpose |
-|---|---|---|
-| `sectionHeader` | string | Renders a styled section divider; no path evaluation |
-| `label` | string | Row label shown in the left column |
-| `path` | XPath string | Evaluates relative to the SF element; text content used |
-| `parentPath` | XPath string | Navigates to a child element first; `rawFormat` or `composite` then evaluates relative to it |
-| `rawFormat` | string | Key into `KV_FORMAT` registry; function receives the navigated element and returns HTML |
-| `composite` | array | Array of `{ path, prefix?, suffix?, sep? }` sub-specs; combined into a single string |
-| `multi` | boolean | When true with `parentPath`, iterates all matching child nodes |
-| `showEmpty` | boolean | When true, renders a `—` placeholder if no data found |
-| `children` | array | Sub-descriptor rendered indented below the parent row (KV pipeline only) |
-
-Example — a simple field:
-```js
-{ label: 'Purpose', path: 'diggs:boreholePurpose' }
-```
-
-Example — a delegated table:
-```js
-{ sectionHeader: 'Hole Diameter' },
-{ label: '', parentPath: '.', rawFormat: 'renderHoleDiameterTable' }
-```
-
-Example — a composite field with conditional suffix:
-```js
-{ label: 'Plunge', parentPath: 'diggs:centerLine/diggs:LinearExtent',
-  rawFormat: 'resolvePlunge' }
-```
-
-### `PROJECT_DETAIL_DESCRIPTOR`
-
-A descriptor array with the same structure as SF_DETAIL_DESCRIPTORS entries, consumed by `renderKVTable()` to render the project info popup. Covers names, purpose, date range, roles, business associates, locality, status, remarks, associated files, and other project properties.
-
-### `KV_FORMAT` and `FORMAT_FN`
-
-`KV_FORMAT` is the named-function registry for the `rawFormat` property used in `renderKVTable()` descriptors. Each key is a string (used as the `rawFormat` value in descriptors); the corresponding function receives a DOM element and returns an HTML string.
-
-`FORMAT_FN` is the lower-level function registry containing the actual implementations. `KV_FORMAT` functions are thin delegates into `FORMAT_FN`. Complex formatters like `renderBANested`, `renderRemarkNested`, `resolveBAName`, `timeIntervalInline`, `renderBoreholeConstruction*` tables, and orientation resolvers all live here.
-
-To add a new formatter:
-1. Add the implementation function to `FORMAT_FN`.
-2. Add a `KV_FORMAT` entry that delegates to it (or implement it directly in `KV_FORMAT` if it is simple).
-3. Reference the `KV_FORMAT` key as `rawFormat: 'yourKey'` in any descriptor.
-
-### `buildIntervalTable(parentEl, config)`
-
-A generic engine for rendering interval-indexed data tables (construction records, casing, openings, etc.). Called from `KV_FORMAT` functions rather than from descriptors directly. Config properties:
-
-| Property | Purpose |
+| Tab | Contains |
 |---|---|
-| `rowPath` | XPath relative to `parentEl` to find row elements |
-| `locationPath` | XPath within each row to the `LinearExtent` for from/to depth columns |
-| `srsDimensionDefault` | Fallback for depth extraction when `srsDimension` attribute is absent |
-| `columns` | Array of column specs: `{ label, path, format?, width? }` |
+| **Material Samples** | The joined sampling-activity / sample table plus its depth-scaled sample marker column |
+| **Observations** | The Lithology badge — graphic log beside the interval table |
+| **Measurements** | One badge per test/monitoring procedure type found on the feature, with a count |
 
-### Lithology Descriptor Objects
+Click a tab to open its grid, then a badge to load it into the panel. Clicking a
+badge replaces the Construction graphic; re-selecting the feature brings the
+Construction graphic back.
 
-All lithology rendering is driven by a family of descriptor objects consumed by `renderLithBadgeContent()` and the `renderFields()` pipeline.
+A measurement badge lays out up to three **resizable, collapsible panes** —
+**Plot**, **Results**, and procedure **Metadata**. Drag the divider between any
+two panes to resize; click a pane header to collapse it and give its space to
+the others. When a plot is present, Results and Metadata start collapsed so the
+plot gets the room.
 
-#### `LITH_TABLE_COLUMNS`
+### Reading the data: expansion triangles and link icons
 
-Array of column spec objects for the lithology log table. Each entry:
+Almost everything in the Inspector is progressive disclosure. The conventions are
+consistent everywhere:
 
-| Property | Purpose |
+| You see | It means |
 |---|---|
-| `key` | Identifier used internally to route to the correct cell builder |
-| `label` | Column header text |
-| `width` | CSS width string |
-| `buildFn` | String key for the cell-builder function (e.g., `'buildClassCell'`, `'buildDescCell'`) |
+| **▸ / ▾ orange section header** | A collapsible category. Click anywhere on the header. |
+| **▸ at the left of a table row** | That row expands to every remaining field of the object it summarizes — the interval tables (lithology, casing, construction methods, reference points, samples, aggregated test results) show a handful of summary columns and hide the rest here. A row with nothing left over has no triangle. |
+| **🔗 next to a field label** | The value's `codeSpace` is a dictionary URL. Click to open that dictionary entry in a new tab (needs internet). |
+| **small grey text under a label** | A plain-text `codeSpace` (typically the organization that defined the code). |
+| **Underlined name** | A business associate. Click for their full contact record. |
+| **Clickable result-table column header** | Opens that property's full `Property` definition — class, code space, null value, qualifiers, detection limits, sampling rate. |
+| **`—`** | The field exists in the file but carries no value in this particular record. |
+| **Value uom (extra)** | The value, its unit, then any other attributes on that element in one parenthetical. |
 
-#### `LITH_PROPERTIES_GROUPS`
+Repeating objects each get their own header rather than being merged, so you can
+always tell two occurrences apart. Units are shown as reported, with UCUM
+exponents rendered properly (`m2` → m²).
 
-Concatenation of `LITH_PROPS_SOIL` and `LITH_PROPS_ROCK` arrays. Used as the `fields` argument to `renderFields()` for both LithProperties and ComponentProperties popups. Entries use the **Fields/Detail Popup pipeline** shape:
+### Graphics ↔ data: where selections are linked
 
-| Property | Type | Purpose |
+Wherever a graphic sits next to a table, the two are synchronized in both
+directions:
+
+- **Lithology** — clicking a zone in the graphic log expands its table row and
+  scrolls to it; clicking the row outlines its zone in white.
+- **Samples** — clicking a sample marker highlights and expands its row in the
+  joined table, and vice versa. Markers are coloured by sampling method, shaped
+  by the activity (triangle = point sample, rectangle = driven interval), and
+  drawn so that unrecovered length reads as a hollow gap.
+- **Rigid inclusions / CMC piles** — table rows and their map markers select
+  together.
+- **Samples ↔ tests** — if a sample's expanded record lists **Associated
+  Measurements**; clicking one jumps to the owning feature, opens the right
+  procedure badge and expands the exact result row. The reverse link ("Sample
+  Name" on a test or specimen) navigates back.
+- **Show on Map** — on project geometry rows.
+- **View 3D** — on trajectory and feature-extent rows (see below).
+
+### Working with plots
+
+Every depth, time-series and procedure plot shares one toolbar and one
+interaction model:
+
+- **⊞ Reset** — back to full extent. **＋ / －** — zoom. **n=** — point count.
+- **Scroll** to zoom, **drag** to pan, **hover** for a crosshair and a value
+  tooltip.
+- Depth profiles always span the full depth of the hole (0 to total depth), not
+  just the data's own range, so two properties are directly comparable.
+- Where a lithology log exists, a bare patterned reference column is drawn to the
+  left of a depth-profile row at the same scale, so values can be read against
+  the material at that depth.
+- Grain-size distribution curves use a fixed 0.001–125 mm × 0–100 % frame on
+  every test so any two curves are directly comparable.
+
+### Working with 3D views
+
+**View 3D** buttons open an interactive Three.js scene in the Associated Data
+panel:
+
+| Where | What it shows |
+|---|---|
+| A borehole, sounding, well or rigid inclusion whose trajectory is **Inclined**, **Deviated** or **Multilateral** | The real centerline as a 3D tube, with vertex markers at every survey station, elevation ladder, and every sidetrack leg drawn in its own colour |
+| A **GP_Trackline** with real elevation change | The survey path as a 3D line |
+| A **planar or volumetric sampling feature** | The actual surface patches or solid faces, with a **Solid / Translucent** toggle |
+| A **3D gridded result** (e.g. a 3D resistivity array) | A point cloud, three orthogonal index-sliced surfaces with continuous (interpolated) position sliders, and — where the dataset is small enough and WebGL 2 is available — a GPU ray-marched translucent volume |
+
+Controls: drag to orbit, scroll to zoom, right-drag to pan. The toolbar offers
+**Reset**, **Plan**, **N Elevation**, **E Elevation** and an
+**Isometric (Perspective) or Orthographic** toggle, with a labelled N/E/Up orientation gizmo in
+the corner.
+
+---
+
+## What the Inspector displays
+
+This tool is under active development and does not yet cover every DIGGS object
+and property. The tables below reflect the current state, checked against the
+[DIGGS 3.1-dev schema](https://github.com/DIGGSml/schema-dev/tree/3.1-dev).
+
+Legend: **✅ Full** · **◐ Partial** · **— Not yet**
+
+### Sampling features
+
+Every sampling-feature type in the schema is recognized, listed and (where its
+geometry resolves) mapped. Depth of *metadata* coverage varies.
+
+| Sampling feature | Summary table | Map | Feature metadata | Construction graphic | 3D view |
+|---|---|---|---|---|---|
+| `Borehole` | ✅ Full | ✅ Point | ✅ Full | ✅ Full | ✅ Trajectory |
+| `Sounding` | ✅ Full | ✅ Point | ✅ Full | ✅ Full | ✅ Trajectory |
+| `Well` | ✅ Full | ✅ Via parent feature | ✅ Full | ✅ Full (parent's hole + this well) | ✅ Trajectory |
+| `RigidInclusion` | ✅ In RIFS accordion | ✅ Via parent system | ✅ Full | ◐ Water strike / lithology | ✅ Trajectory |
+| `RIFoundationSystem` | ✅ Full (accordion) | ✅ Polygon | ✅ Full | — | — |
+| `LoadTransferPlatform` | ✅ In RIFS accordion | ✅ Zone polygons | ✅ Full | — | — |
+| `GP_Trackline` | ✅ Full | ✅ Polyline | ✅ Full | — | ✅ Path |
+| `PlanarSamplingFeature` | ✅ Full | ✅ Polygon | ✅ Full | — | ✅ Surface |
+| `VolumetricSamplingFeature` | ✅ Full | ✅ Point | ✅ Full | — | ✅ Solid |
+| `TrialPit` | ✅ Full | ✅ Point | — | ◐ Lithology only | — |
+| `Station` | ✅ Full | ✅ Point | — | ◐ Lithology only | — |
+| `Transect` | ✅ Full | ✅ Polyline | — | ◐ Lithology only | — |
+| `GroutTrenchCutoffWall` | ✅ Full | ✅ Polyline | — | — | — |
+| `TrenchWall` | ✅ Full | ✅ Polygon | — | — | — |
+| `GP_ArealSurvey` | ✅ Full | ✅ Polygon | — | — | — |
+| `GP_MultiTrack` | ✅ Full (group rows) | ✅ Via member tracklines | — | — | — |
+| `SteelHPile` | ✅ Full | ✅ Via parent feature | — | — | — |
+| `SteelPipePile` | ✅ Full | ✅ Via parent feature | — | — | — |
+| `ConcretePile` | ✅ Full | ✅ Via parent feature | — | — | — |
+| `TimberPile` | ✅ Full | ✅ Via parent feature | — | — | — |
+
+**Notes**
+
+- A feature type with **—** under *Feature metadata* still appears everywhere
+  else — table, map, location and CRS panel, and all of its associated
+  lithology, samples and measurements. What it does not yet have is a section 4
+  rendering of its own type-specific properties.
+- The **Construction graphic** is driven by the *data present*, not by feature
+  type: any feature carrying lithology, backfill, casing, hole diameters or water
+  strikes gets the corresponding columns.
+- **Feature-extent geometry** supported for mapping, measurement and 3D:
+  `PlanarSurface`, `MultiPlanarSurface`, `CompositeSurface` (including members
+  with independent CRSs, and members shared by `xlink:href`), `MultiSurface`,
+  `TriangulatedSurface`, and `Solid` (outer shell; interior voids are not
+  analyzed).
+- Feature extents are classified automatically: planar features report
+  **Orientation** (Horizontal / Vertical / Sloping) and **Shape** (Planar /
+  Multi-Planar / Composite / Triangulated / Multi Surface); volumetric features
+  report **Shape** (Prism / Polyhedra / Curved).
+
+### Observation systems
+
+| Observation system | System properties | Observations |
 |---|---|---|
-| `sectionHeader` | string | Ignored in `renderFields` (KV pipeline only) — skip silently |
-| `subHeader` | string | Renders a styled uppercase section label |
-| `guardPath` | XPath string | When on a `subHeader` entry, suppresses the header if no nodes match |
-| `label` | string | Row label |
-| `path` | XPath string | Evaluates relative to the context element |
-| `parentPath` | XPath string | Navigate to child node(s) first; `composite` or `fields` then applies relative to each |
-| `composite` | array | Sub-path specs assembled into a single string: `{ path, prefix?, suffix?, sep?, skipIf? }` |
-| `fields` | array | Sub-descriptor; recurse into matched child with a nested `renderFields()` call |
-| `format` | string | Key into `FORMAT_FN` for value transformation |
-| `multi` | boolean | Iterate all matching nodes |
-| `italic` | boolean | Render value in italics |
-| `bold` | boolean | Render label in bold |
-| `indent` | boolean | Indent the row visually |
-| `showEmpty` | boolean | Render `—` when absent |
+| `LithologySystem` | ✅ Full | ✅ Full for 0D and 1D sampling features |
+| `ColorSystem` | — | — |
+| `DiscontinuitySystem` | — | — |
+| `GeoUnitSystem` | — | — |
+| `StratigraphySystem` | — | — |
+| `OtherObservationSystem` | — | — |
 
-#### `LITH_PSD_DESCRIPTOR`
+`LithologySystem` coverage is complete against the schema and includes every
+nested type: `LithologyObservation`, `Lithology`, `ComponentLithology` /
+`ComponentLith`, `Color` / `ColorComponents`, `Constituent`, `LithProperties`
+and `ComponentProperties` (soil *and* rock fields, including RQD and recovery),
+`ParticleSizeDistribution` / `ParticleSize`, `PlacedObservation`, and `Boundary`.
 
-Descriptor array for the Particle Size Distribution sub-block within LithProperties. Context element is `diggs:ParticleSizeDistribution`. Each grain-size fraction entry uses `parentPath` pointing to the relevant `diggs:*Grainsize/diggs:ParticleSize` element and a `composite` spec assembling size value, unit, and description.
+The **graphic log** renders each interval with a real lithologic pattern:
 
-#### `LITH_CLASSIFICATION_DESCRIPTOR` and `LITH_COLOR_DESCRIPTOR`
+- All 26 USCS (ASTM D2487) soil groups — 15 basic, 11 dual — plus fill.
+- Sedimentary, igneous and metamorphic rock types.
+- Patterns are recreated from the **FGDC** standard lithologic pattern set, over
+  a per-family background colour (gravels orange, sands yellow, silts green,
+  clays blue, organics grey, sedimentary rock on white, igneous/volcanic on red,
+  metamorphic on purple).
+- Material is resolved from `classificationCode`, then `classificationSymbol`,
+  then `legendCode`, then free-text `lithDescription` (parsed for dominant
+  lithology and fines qualifier, e.g. "poorly graded sand with clay" → SP-SC).
+- `lithology_pattern_reference.pdf` in this repo is a printable vector swatch
+  sheet of every pattern.
 
-Flat descriptor arrays for the Classification and Color popups respectively, consumed by `renderFields()`. `LITH_COLOR_DESCRIPTOR` entries include a `format: 'munsellSwatch'` key that renders a CSS color swatch alongside the Munsell code string.
+Lithology display for 2D/3D sampling features (patterned trench-wall and outcrop
+polygons) is **not yet implemented** — those features show an explanatory
+placeholder.
 
-#### `LITH_DETAIL_SECTIONS`
+### Samples and sampling activities
 
-Array of section-spec objects driving `_buildLithDetailCell()` — the function that produces the Details column pill buttons. Each entry:
-
-| Property | Purpose |
+| Object | Coverage |
 |---|---|
-| `key` | Unique string identifying the pill (e.g., `'color'`, `'props'`, `'comps'`) |
-| `label` | Text shown on the pill button |
-| `hasData` | `(obs) => boolean` — controls whether the pill appears |
-| `buildSections` | `(obs, allObs) => [{title, els, fields}]` — returns the popup section specs |
+| `SamplingActivity` | ✅ Full |
+| `Sample` | ✅ Full |
+| `SampleProduced` | ✅ Full |
+| `Container`, `SampleDimensions`, `ChainOfCustodyEvent` | ✅ Full |
+| 2D / 3D sampling features | — Placeholder |
+
+Sampling activities and the samples they produced are joined into one table —
+one row per activity/sample pair — sorted by depth, with columns for activity
+depth, method, sample name, sample depth, sample type and **Recovery %**.
+
+Recovery is computed rather than assumed, in priority order: a reported
+`totalSampleRecovery`, else `totalSampleRecoveryLength` ÷ activity interval, else
+the sample's own recovered interval ÷ activity interval, else 100 % for a point
+sample and 0 % for an interval with no recovery data at all. All arithmetic is
+done in metres from the raw values, not from rounded display strings.
+
+An activity with no sample produced still gets a row — "no sample" is data.
+
+### Measurements and test procedures
+
+Measurements (`Test`, `Monitor`, `MaterialTest`, `MeasurementWhileDrilling`) are
+grouped into one badge per procedure type per feature. **Every procedure type in
+the schema is supported at the baseline level**, because result parsing and
+metadata rendering are generic rather than written per procedure:
+
+| Capability | Coverage |
+|---|---|
+| **Result table** — one column per `Property`, type-aware, with unit and clickable property definition | ✅ All procedure types |
+| **Automatic depth / time plots** — one per drawable numeric column, whenever the result domain is numeric and spatial or temporal | ✅ All procedure types |
+| **Measurement metadata** — name, investigation target, timing, roles, sample cross-reference, remarks | ✅ All procedure types |
+| **Procedure metadata** — the procedure object's own fields, equipment, specifications, environment, test events, specimens | ✅ All procedure types (generic rendering) |
+| **Curated field order / labels / sub-tables** | ◐ Selected types (below) |
+| **Discipline-specific plots** | ◐ Selected types (below) |
+
+Where one measurement badge aggregates several separate measurement objects (for
+example eight SPT tests on one borehole), each result row expands to *that*
+measurement's own metadata and procedure record, so nothing is misattributed to
+a single "representative" test.
+
+**Procedures with enhanced, hand-tuned display:**
+
+| Procedure | Enhancement |
+|---|---|
+| `AtterbergLimitsTest` | Curated layout; trial data as compact tables; **liquid-limit flow curve** (water content vs. log blow count or cone penetration, with the LL reference construction drawn at N=25 / 20 mm) and the **USCS plasticity chart** (A-line, U-line, 50 % divider, hatched CL-ML zone, classification regions, this test's own LL/PI point) side by side |
+| `ParticleSizeTest` | Curated layout; sieve and hydrometer data as tables; **grain-size distribution curve** pooling every sieve and hydrometer stage into one smooth spline on a fixed comparative 0.001–125 mm × 0–100 % frame |
+| `PorePressureDissipationTest` | **Dissipation time-series plot** from the procedure's own temporal result |
+| `DrivenPenetrationTest` | **Drive Sets** summary column (e.g. `5/9/10`) in the result table |
+| `StaticConePenetrationTest` | Curated layout including pore-pressure element and saturation details |
+| `WaterLevelMonitoring` | Curated layout; **reference points as an interval table** (start/end), so a reference point reset mid-monitoring reads correctly |
+| `GeophysicalProcessing` | One badge per `geophysicalMethod` rather than one generic badge, so ERT, seismic refraction, GPR and magnetometry on the same feature stay separate |
+
+**All procedure types recognized** (baseline coverage as above):
+
+*In-situ* — `DrivenPenetrationTest`, `DynamicProbeTest`, `FlatPlateDilatometerTest`,
+`GP_FieldProcedure`, `InSituPenetrometerTest`, `InsituCBRTest`, `InsituDensityTest`,
+`InsituPermeabilityTest`, `InsituResistivityTest`, `InsituVaneTest`, `LugeonTest`,
+`MWDProcedure`, `PorePressureDissipationTest`, `PressuremeterTest`, `PumpingTest`,
+`StaticConePenetrationTest`, `WaterLevelMonitoring`, `WirelineLog`
+
+*Laboratory* — `AggregateAbrasionValueTest`, `AggregateCrushingValueTest`,
+`AggregateElongationIndexTest`, `AggregateFlakinessIndexTest`,
+`AggregateImpactValueTest`, `AggregatePolishedStoneValueTest`,
+`AggregateSlakeDurabilityTest`, `AggregateSoundnessTest`,
+`AggregateTenPercentFinesTest`, `AggregateWaterAbsorptionTest`,
+`AtterbergLimitsTest`, `ChalkCrushingValueTest`, `ConsolidationTest`,
+`DirectShearTest`, `EnvironmentalScreeningTest`, `FrostSusceptibilityTest`,
+`LabCBRTest`, `LabChemicalTest`, `LabCompactionTest`, `LabDensityTest`,
+`LabPenetrometerTest`, `LabPermeabilityTest`, `LabResistivityTest`, `LabVaneTest`,
+`LabVelocityTest`, `LinearShrinkageTest`, `LosAngelesAbrasionTest`,
+`LossOnIgnitionTest`, `MCVTest`, `MicroDevalTest`, `ParticleSizeTest`,
+`PocketPenetrometerTest`, `PointLoadTest`, `RedoxTest`, `RelativeDensityTest`,
+`RockPorosityDensityTest`, `SchmidtReboundHardnessTest`,
+`ShoreScleroscopeHardnessTest`, `SpecificGravityTest`, `SuctionTest`,
+`TensileStrengthTest`, `TriaxialTest`, `UnconfinedCompressiveStrengthTest`,
+`WaterContentTest`
+
+*Material* — `BleedTest`, `FlowConeTest`, `LineLossTest`, `MarshFunnelTest`,
+`MaterialGradationTest`, `MudBalanceTest`, `PressureFiltrationTest`, `SetTimeTest`,
+`ShrinkageTest`, `SlumpTest`, `SyneresisTest`, `TiltCupTest`, `ViscometerTest`,
+`WashoutTest`
+
+*Geophysical* — `GeophysicalProcessing` (all methods)
+
+> **Legacy namespace tolerance.** Real-world hybrid files sometimes keep the
+> DIGGS 2.6 `.../schemas/2.6/geotechnical` namespace on their in-situ test
+> procedures while the rest of the document is 3.x. Those subtrees are read
+> correctly, including cross-references that leave the subtree.
+
+### Result domains and visualization
+
+The display chosen for a result set is driven by the shape of its *domain*, not
+by which test produced it — so a new instrument reporting an existing domain
+shape works with no changes.
+
+| Domain | Recognized geometry | Display |
+|---|---|---|
+| **Spatial (point / interval)** | `PointLocation`, `LinearExtent`, `MultiPointLocation`, `MultiCurve` | Depth-indexed result table; depth profile plots (interval domains draw as a true staircase); lithology reference column alongside |
+| **Temporal** | `TimeInterval`, elapsed time | Time-indexed result table; time-series plots |
+| **Grid — 2D** | `ReferenceableGridByArray`, `RectifiedGrid`, `Grid` | Heat-map section with **Blocky** (per-cell polygon) and **Smooth** (continuous field) modes, topography line, axis ticks, vertical-exaggeration note, and a colour legend with ramp and log/linear toggles. One section per reported property. |
+| **Grid — 3D** | Same, three-dimensional | 3D volume renderer — point cloud, three interpolated orthogonal slice planes, optional ray-marched translucent volume, hover readout of `(i, j, k)` and value |
+
+Grid traversal follows the grid's own `sequenceRule` (linear and boustrophedonic).
+Colour ramps are a registry, not hard-coded — a categorical or diverging ramp is a
+data addition, not a code change.
+
+> **Grid result tables.** For a grid domain the Results pane currently shows a row
+> count rather than a full table; a grid can carry tens of thousands of rows and
+> table virtualization is not built yet. The section or volume view *is* the
+> display for this domain.
+
+### Project and document metadata
+
+| Object | Coverage |
+|---|---|
+| `DocumentInformation` (file name, creation date, author, application) | ✅ Full |
+| `Project` (names, purpose, dates, roles, locality, status, remarks, associated files, other properties) | ✅ Full |
+| `Contract`, `ProjectEvent` | ✅ Full |
+| `BusinessAssociate` (contacts, addresses, roles) | ✅ Full |
+| Project geometry (reference point, linear extent, areal extent) | ✅ Full, on-demand map plotting |
+| Multiple projects per file | ✅ Full, with filtering |
 
 ---
 
-## Modifying Descriptors
+## Architecture and privacy
 
-The config-driven architecture means that most display changes — adding fields, changing labels, reordering sections, adding formatters — require only editing descriptor objects. No display function logic needs to change.
+The Inspector is a **single self-contained HTML file**. There is no build step,
+no package manager, no bundler and no module system. Every dependency is embedded
+in the file itself:
 
-### Changing a Field Label
+| Library | Version | Used for |
+|---|---|---|
+| [proj4js](http://proj4js.org/) | embedded | Coordinate reference system transformation |
+| [Leaflet](https://leafletjs.com/) | 1.9.4 | Interactive map |
+| [three.js](https://threejs.org/) | r128 | 3D trajectory, surface/solid and volume viewers |
 
-Labels in the SF Detail Panel come from the `label` property of descriptor entries in `SF_DETAIL_DESCRIPTORS`. For example, to change "Purpose" to "Borehole Purpose" for Borehole:
+**All processing is local.** The file you load is read by the browser's own
+`FileReader`, parsed in memory with the browser's `DOMParser`, and rendered
+entirely on your machine. **No part of your DIGGS file is ever uploaded,
+transmitted, logged or sent to any server** — including to the makers of this
+tool. You can verify this yourself: open the file's Network tab while loading a
+document, or run the whole thing on an air-gapped machine.
 
-```js
-// Before:
-{ label: 'Purpose', path: 'diggs:boreholePurpose' }
+### What works offline
 
-// After:
-{ label: 'Borehole Purpose', path: 'diggs:boreholePurpose' }
-```
+The Inspector is fully usable with no internet connection. The table below is
+precise about what changes.
 
-For labels throughout the application that derive from element names (rather than explicit `label` properties), edit `DIGGS_DISPLAY_LABELS`.
+| Feature | Offline | Notes |
+|---|---|---|
+| Loading and parsing any DIGGS file | ✅ Works | Entirely local |
+| Feature tables, tabs, project filtering | ✅ Works | |
+| Detail panels and all metadata rendering | ✅ Works | |
+| Lithology logs, FGDC patterns, legends | ✅ Works | Patterns are drawn, not downloaded |
+| Sample graphics, construction graphics, well diagrams | ✅ Works | |
+| Result tables, depth/time plots, procedure plots | ✅ Works | |
+| 2D grid sections and 3D grid volumes | ✅ Works | three.js is embedded |
+| 3D trajectory, surface and solid viewers | ✅ Works | |
+| Coordinate transformation for the 236 embedded CRSs | ✅ Works | See below |
+| Local Cartesian CRS georeferencing | ✅ Works | Definition is inside the file |
+| Cross-references *within* the loaded file | ✅ Works | |
+| **Map basemap tiles** | ❌ Blank | The map, markers, legend and selection all still work — the background imagery is simply grey |
+| **CRS definitions not in the embedded table** | ❌ Unresolved | Falls back gracefully: the feature is still listed and inspectable, and the Location panel says the CRS could not be resolved. Normally fetched from epsg.io. |
+| **Vertical datum units not in the embedded table** | ❌ Falls back | Uses the file's own `uomLabels` when present |
+| **Remote `xlink:href` references to diggsml.org** | ❌ Not resolved | Used for linear-referencing-system unit definitions and shared dictionary objects; the row shows as an unresolved reference rather than an error |
+| **Clicking a 🔗 code-space link** | ❌ No page | Opens an external dictionary URL in a new tab |
 
-### Adding a New Field to an SF Detail Panel
-
-Find the appropriate type's array in `SF_DETAIL_DESCRIPTORS` and add a descriptor entry at the desired position:
-
-```js
-// Add a simple text field to Borehole:
-{ label: 'Drilling Fluid', path: 'diggs:drillingFluid' }
-
-// Add a field that formats its value:
-{ label: 'Start Date', parentPath: 'diggs:whenConstructed/diggs:TimeInterval',
-  rawFormat: 'renderTimeInterval' }
-```
-
-If the element you are adding uses a format not yet in `KV_FORMAT`, add a function there first (see the **Adding a Custom Formatter** section below).
-
-### Adding a New Section to an SF Detail Panel
-
-Insert a `sectionHeader` sentinel followed by field entries:
-
-```js
-{ sectionHeader: 'Rock Quality' },
-{ label: 'RQD',          path: 'diggs:rqd' },
-{ label: 'RQD Length',   path: 'diggs:rqdLength' },
-```
-
-Sections are purely visual dividers; they have no effect on XPath evaluation.
-
-### Adding a Field to a Lithology Popup
-
-The Properties popup is driven by `LITH_PROPS_SOIL` (for soil and universal fields) and `LITH_PROPS_ROCK` (for rock-specific fields). Add entries using the `renderFields` pipeline shape. For a simple text field on the LithProperties element:
-
-```js
-{ label: 'Organic Content', path: 'diggs:organicContent' }
-```
-
-For a field on a child element:
-```js
-{ label: 'Induration', parentPath: 'diggs:induration/diggs:Induration',
-  composite: [{ path: 'diggs:indurationDescription' }] }
-```
-
-If you add a `subHeader` entry and only want it to appear when data is present, add `guardPath`:
-```js
-{ subHeader: 'Induration', guardPath: 'diggs:induration/diggs:indurationDescription' },
-```
-
-Fields added to `LITH_PROPS_SOIL` render for both LithProperties and ComponentProperties (because both use `LITH_PROPERTIES_GROUPS`). Fields that only apply to rock specimens should go in `LITH_PROPS_ROCK`.
-
-### Adding a Custom Formatter
-
-1. Add an implementation to `FORMAT_FN`:
-
-```js
-const FORMAT_FN = {
-  // ... existing entries ...
-
-  myFormatter(node) {
-    const val = node.textContent.trim();
-    return val ? `<em>${escHtml(val)}</em>` : '';
-  }
-};
-```
-
-2. Add a `KV_FORMAT` delegate if you need to use it from `renderKVTable` descriptors:
-
-```js
-const KV_FORMAT = {
-  // ... existing entries ...
-  myFormatter(el) { return FORMAT_FN.myFormatter(el); }
-};
-```
-
-3. Reference it in a descriptor:
-
-```js
-// In SF_DETAIL_DESCRIPTORS (KV pipeline):
-{ label: 'My Field', parentPath: 'diggs:myElement', rawFormat: 'myFormatter' }
-
-// In LITH_PROPERTIES_GROUPS (renderFields pipeline):
-{ label: 'My Field', path: 'diggs:myElement', format: 'myFormatter' }
-```
-
-Note that `rawFormat` (string key) is used in `renderKVTable` descriptors, while `format` (string key into `FORMAT_FN`) is used in `renderFields` descriptors.
-
-### Adding Support for a New SF Type's Detail Panel
-
-1. Add the type to `SF_DETAIL_DESCRIPTORS` with a descriptor array:
-
-```js
-SF_DETAIL_DESCRIPTORS.TrialPit = [
-  { sectionHeader: 'Classification' },
-  { label: 'Purpose', path: 'diggs:trialPitPurpose' },
-  // ...
-];
-```
-
-2. The rendering infrastructure (`showSFDetail` → `renderSFMetadata`) automatically picks up the new entry. No other changes are required for basic KV-table display.
-
-For interval-based child data (like borehole construction tables), write a `KV_FORMAT` function that calls `buildIntervalTable()` with the appropriate config, then reference it from a `rawFormat` descriptor entry.
+Outbound requests are restricted by design. XML documents are only fetched from
+`diggsml.org` (or a local `file://` path); any other host in an `xlink:href` is
+simply not followed.
 
 ---
 
-## Running the Application
+## Coordinate reference systems
 
-No build step is required. Open `diggs_file_inspector.html` in any modern browser (Chrome, Firefox, Edge, Safari). Use the file picker or drag-and-drop a DIGGS 3.0 XML file onto the drop zone to load it.
+DIGGS geometry is genuinely 3D and routinely compound: a horizontal CRS
+(geographic or projected) paired with an independent vertical datum, each with
+its own linear unit. The Inspector treats them independently throughout — it
+never assumes elevation shares the horizontal unit, and it distinguishes the US
+survey foot (`ftUS`, 1200/3937 m) from the international foot (`ft`, exactly
+0.3048 m).
 
-The application has been tested with DIGGS 3.0 instance documents conforming to the `https://diggsml.org/schemas/3` namespace. Files using the earlier `schema-dev` namespace may parse with partial results.
+### Embedded CRS support
+
+**236 CRS definitions are compiled into the file** and resolve with no network
+access:
+
+| Family | EPSG range | Coverage |
+|---|---|---|
+| WGS 84 / UTM north | 32601–32660 | All 60 zones |
+| WGS 84 / UTM south | 32701–32760 | All 60 zones |
+| NAD83 / UTM | 26901–26923 | Zones 1–23 |
+| NAD27 / UTM | 26701–26722 | Zones 1–22 |
+| Geographic 2D / 3D | 4326, 4979, 4269, 4267, 4258, 4230, 4277, 4283, 7844, 4289 | WGS 84, WGS 84 3D, NAD83, NAD27, ETRS89, ED50, OSGB36, GDA94, GDA2020, Amersfoort |
+| Geocentric (ECEF) | 4978 | WGS 84 geocentric |
+| Web Mercator | 3857, 900913 | |
+| British National Grid | 27700 | OSGB36 |
+| Irish Grid | 29902 | |
+| Amersfoort / RD New | 28992 | Netherlands |
+| SWEREF99 TM | 3006 | Sweden |
+| ETRS89 / UTM | 25828–25837 | Zones 28–37 |
+| GDA94 / MGA | 28348–28356 | Zones 48–56 |
+| GDA2020 / MGA | 7850–7856 | Zones 50–56 |
+| NAD83 State Plane (US) | see ---> | California I–VI (2225–2230), Texas N/NC/C/SC/S (2275–2279), Florida E/W/N (2236–2238), New York E/C/W/Long Island (2260–2263), Illinois E/W (3435, 3436), Washington N/S (2285, 2286), Oregon N/S (2269, 2270), Louisiana N/S (3451, 3452), Virginia N/S (2283, 2284) |
+
+**Any other EPSG code** is fetched on demand from [epsg.io](https://epsg.io/)
+(both the proj4 definition and the CRS name) and cached for the session. If that
+fetch fails — offline, or an unknown code — the feature is still fully listed and
+inspectable; it just carries no map marker and the Location panel says so.
+
+Geocentric (ECEF) source coordinates are rotated into a true local East-North-Up
+frame before any horizontal/vertical decomposition, so an inclined hole in an
+ECEF file is classified correctly rather than being flattened by naive per-axis
+scaling.
+
+### Vertical datums
+
+Embedded vertical CRS table (name and elevation unit, used to label elevations
+and reconcile units):
+
+| EPSG | Datum | Unit |
+|---|---|---|
+| 5703 | NAVD88 | m |
+| 8228 | NAVD88 | ft |
+| 6360 | NAVD88 | ftUS |
+| 5702 | NGVD29 | ftUS |
+| 5714 | MSL (height) | m |
+| 5715 | MSL (depth) | m |
+| 5773 | EGM96 geoid | m |
+| 3855 | EGM2008 geoid | m |
+| 5701 | ODN (Newlyn) | m |
+| 5711 | AHD (Australia) | m |
+| 5705 | Baltic (height) | m |
+| 5706 | Baltic (depth) | m |
+| 5709 | NAP (Netherlands) | m |
+| 5621 | EVRF2007 | m |
+| 6647 | CGVD2013 | m |
+| 4979 | WGS 84 ellipsoidal height | m |
+
+Any other vertical EPSG code is resolved from epsg.io (parsing `+vunits` /
+`+vto_meter`) and cached; failing that, the file's own `uomLabels` is used, and
+the Location panel marks the display unit's provenance as *reported* or
+*mismatch* accordingly.
+
+### Non-EPSG reference systems
+
+| Reference system | Support |
+|---|---|
+| **`diggs:LocalCartesianCRS`** | ✅ Read from the document's own `DocumentInformation/crs`. Georeferenced through its origin, axis direction vectors, scale factor and per-axis `originOffset` — so a site grid or an ERT line laid out in local metres maps to real-world coordinates with no network access. Its origin and axis definitions are also displayed directly on the features that reference it. |
+| **`LinearSpatialReferenceSystem` (LRS)** | ✅ Depth and station values are interpreted against the file's own linear referencing system, including its unit of measure. An LRS defined only by reference to `diggsml.org` is fetched when online. |
+| **`LinearReferencingMethod`** | ✅ Displayed, including deprecated `glr:` namespace variants |
+| **Compound CRS** | ✅ Horizontal and vertical components parsed and applied independently |
+
+### srsName formats recognized
+
+All of the following resolve to the right EPSG code(s):
+
+```
+urn:ogc:def:crs:EPSG::4326
+urn:ogc:def:crs:EPSG:6.6:4326
+urn:ogc:def:crs,crs:EPSG::9357,crs:EPSG::5773
+http://www.opengis.net/def/crs/EPSG/0/26911
+https://www.opengis.net/def/crs-compound?1=http://www.opengis.net/def/crs/EPSG/0/4326&2=http://www.opengis.net/def/crs/EPSG/0/6360
+.../epsg.xml#4326
+#4326
+#<local-crs-id>            → a LocalCartesianCRS defined in the file
+https://diggsml.org/def/crs/DIGGS/0.1/lrs.xml#<id>   → a linear referencing system
+```
+
+Legacy longitude/latitude axis-order mis-encoding in geographic CRSs is detected
+and corrected, and flagged in the Location panel with a **⇄ axis swapped** note
+rather than being silently fixed.
+
+### Reference registries and dictionaries
+
+| Resource | Link | Used for |
+|---|---|---|
+| DIGGS home | <https://www.diggsml.org/> | The standard itself |
+| DIGGS schema (3.1-dev) | <https://github.com/DIGGSml/schema-dev/tree/3.1-dev> | The schema this tool targets |
+| DIGGS code dictionaries | <https://diggsml.org/def/codes/DIGGS/0.1/> | Property, classification and method code spaces referenced by `codeSpace` |
+| DIGGS CRS / LRS definitions | <https://diggsml.org/def/crs/DIGGS/0.1/> | Shared linear referencing system definitions |
+| EPSG Geodetic Parameter Registry | <https://epsg.org/> | Authoritative CRS definitions |
+| epsg.io | <https://epsg.io/> | Runtime lookup source for CRSs not embedded |
+| OGC Definitions Server | <https://www.opengis.net/def/crs/> | The URI form most DIGGS files use for `srsName` |
+| FGDC cartographic standard | <https://www.fgdc.gov/standards/projects/FGDC-standards-projects/geologic-symbol> | Source of the lithologic patterns |
+| USCS (ASTM D2487) | <https://www.astm.org/d2487-17e01.html> | Soil classification groups used by the pattern resolver |
 
 ---
 
-## Status and Roadmap
+## Known limitations
 
-This application is actively developed. Current focus areas:
+Being explicit about what is *not* there yet:
 
-- Expanding Detail Panel coverage to `TrialPit`, `Station`, and geophysical SF types
-- Rendering associated `*System` subtypes beyond `LithologySystem` and `MonitoringSystem` (e.g., `SamplingSystem`, `SpecimenCollectionSystem`, measurement result systems)
-- Basemap layer switching improvements
-- Validation feedback overlays for schema-conformance issues
+- **2D/3D lithology and sampling display.** Patterned trench-wall and outcrop
+  polygons, and sampling tables for planar/volumetric features, show a
+  placeholder rather than a rendering.
+- **Observation systems other than `LithologySystem`** are not yet parsed.
+- **Objects belonging to the ConstructionActivity and Program object classes** are not yet parsed.
+- **Feature metadata (section 4)** is not yet written for `TrialPit`, `Station`,
+  `Transect`, `GroutTrenchCutoffWall`, `TrenchWall`, `GP_ArealSurvey`,
+  `GP_MultiTrack` and the four pile types.
+- **Grid result tables** show a row count instead of a table pending
+  virtualization.
+- **Fence diagrams** (several 2D sections in shared 3D space) and
+  **isosurfacing** are not built.
+- **Solid feature-extent area/volume computation** is implemented but has not yet
+  been validated against a real-world instance.
+- **No schema validation.** The Inspector shows you what a file contains; it does
+  not tell you whether the file is schema-valid. Use the official DIGGS validator 
+  hosted at: https://diggs.geosetta.org/?app=xsl_validator, `xmllint` or an XML editor
+  for that.
+- Additional procedure-specific plots (compaction, e-log-p, stress-strain) are
+  planned but not built; those tests currently render as result tables plus
+  automatic profiles.
 
-Contributions and issue reports are welcome. When reporting a display problem, please include the relevant fragment of the DIGGS XML that is not rendering correctly.
+---
+
+## Reporting problems
+
+Issues and suggestions are welcome. When reporting a display problem, please
+include:
+
+1. The **fragment of DIGGS XML** that is not rendering as expected (a minimal
+   snippet is ideal — please remove anything confidential).
+2. What you expected to see, and what appeared instead.
+3. Your browser and version.
+
+Because the Inspector never transmits your file, a bug can only be reproduced
+from a sample you choose to share.
 
 ---
 
 ## License
 
-[To be added]
+[MIT](LICENSE) © 2026 dponti

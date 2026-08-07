@@ -1343,19 +1343,22 @@ html,body{height:100%;font-family:var(--font-ui);background:var(--bg);color:var(
    see wrapGeometryCategoryHeader/_toggleProjGeomOnMap). Same pill shape as
    .pill-3d-view but its own class since it lives inside a category HEADER
    (next to the label, not under it like the 3D-view keyExtra), and its
-   .active state (currently shown on the map) uses the same cyan
-   (#00FEFC) selectSF() already uses to highlight a chosen SF's own marker,
-   so "this is the thing you're currently looking at" reads consistently
-   across both the SF table and Project geometry. */
+   .active state (currently shown on the map) uses the same medium-tone
+   bright pink (MAP_SELECTED_COLOR, '#FF2D95' — see its own comment) a
+   line/polygon selectSF() highlight uses, so "this is the thing you're
+   currently looking at" reads consistently across both the SF table and
+   Project geometry line/polygon toggles (a Project point toggle keeps the
+   old cyan, matching every other point-marker highlight — see
+   MAP_SELECTED_COLOR's own comment for why). */
 .pill-map-toggle {
   display:inline-block;margin-left:8px;padding:2px 9px;border-radius:999px;
   background:transparent;border:1px solid var(--text-muted);color:var(--text-muted);
   font-size:10px;font-weight:600;cursor:pointer;white-space:nowrap;
   transition:background .12s,color .12s,border-color .12s;
 }
-.pill-map-toggle:hover { border-color:#00FEFC;color:#00FEFC; }
-.pill-map-toggle.active { background:#00FEFC;border-color:#00FEFC;color:#062024; }
-.pill-map-toggle.active:hover { background:#33fffd; }
+.pill-map-toggle:hover { border-color:#FF2D95;color:#FF2D95; }
+.pill-map-toggle.active { background:#FF2D95;border-color:#FF2D95;color:#3a0620; }
+.pill-map-toggle.active:hover { background:#FF66B3; }
 /* General (unscoped) fallback for the triangle-column spacer — a
    .kv-interval-row-scoped rule already existed for the interval-table
    engine; wrapGeometryCategoryHeader's always-visible-but-not-always-
@@ -4452,6 +4455,109 @@ function localCartesianToWGS84(pos, localCRS) {
   return result;
 }
 
+/**
+ * _localCrsPointDeltaMeters(pos, localCRS) — real-world-oriented
+ * [dE-like, dN-like, dUp-like] delta, in real meters, for one raw
+ * local-coordinate tuple relative to localCRS's own origin. Shares the
+ * exact delta math localCartesianToWGS84 already uses (axis direction
+ * vectors × scaleFactor, offset-adjusted) but stops short of adding it to
+ * the origin/converting to WGS84 — for anything that just needs a real
+ * LOCAL metric position (Orientation classification, the "View 3D" feature
+ * mesh), not a lat/lon.
+ *
+ * Unlike localCartesianToWGS84's own delta (left in the local axis's raw
+ * unit, added directly to origin.rawPos on the assumption both share the
+ * origin CRS's own unit), this scales the local coordinate to real METERS
+ * first via the CRS's own axis unit (same "GML guarantees one CartesianCS
+ * shares one linear unit" assumption coordsToLocalMeters's own local-CRS
+ * branch already relies on) — since this delta is only ever used as a
+ * standalone relative offset (never added to an origin in a possibly
+ * different unit), it must be metric on its own.
+ */
+function _localCrsPointDeltaMeters(pos, localCRS) {
+  const rawUnit = (localCRS.axisUnits && localCRS.axisUnits[0]) ? mapProjUnitLabel(localCRS.axisUnits[0]) : 'm';
+  const f = unitToMeters(rawUnit) || 1;
+  const spatialDim = (localCRS.axes[0] && localCRS.axes[0].vec.length) || 3;
+  const delta = new Array(spatialDim).fill(0);
+  for (let i = 0; i < pos.length && i < localCRS.axes.length; i++) {
+    const v = localCRS.axes[i].vec;
+    const localCoord = (pos[i] - (localCRS.axes[i].offset || 0)) * f;
+    for (let d = 0; d < spatialDim; d++) delta[d] += localCoord * localCRS.scaleFactor * (v[d] || 0);
+  }
+  return delta;
+}
+
+/**
+ * _toRealMeterPts(coords, srsName) — real-world-oriented local meters for a
+ * set of raw coordinate tuples, regardless of CRS kind; index 2 of every
+ * returned point is real-world "up" either way, so callers never need their
+ * own per-CRS branching.
+ *
+ * For a real geographic/projected/geocentric CRS this is exactly
+ * coordsToLocalMeters's own output (it already rotates/scales correctly for
+ * those). For a LocalCartesianCRS, coordsToLocalMeters does NOT rotate —
+ * see its own "scaled by CartesianCS axis unit" branch — it just
+ * unit-scales the RAW local coordinate components as-is, which silently
+ * discards the CRS's own real-world tilt whenever the coordinate has fewer
+ * raw components than 3 (the common case: a planar patch's posList only
+ * ever carries as many components as the local CRS axes it was authored
+ * against — e.g. 2, for a simple strike/dip pair — so the 3rd component is
+ * always 0 and a Newell normal computed from THAT would read as dead flat
+ * no matter how steeply the CRS's own D/dip axis actually tilts). Routes a
+ * local-CRS coordinate through _localCrsPointDeltaMeters instead, which
+ * projects along each axis's own real-world direction vector — verified
+ * live against PlanarSamplingFeatureTest.xml's own psf-2d-crs-001 (a 2D
+ * strike/dip CRS with a 60°-from-horizontal dip axis): the resulting
+ * points carry real elevation spread matching that dip, where the naive
+ * coordsToLocalMeters output would have every point at z=0.
+ */
+function _toRealMeterPts(coords, srsName) {
+  const { horiz } = parseEPSG(srsName);
+  const frag = (srsName || '').replace(/^.*#/, '').trim();
+  const localCRS = (!horiz && frag) ? LOCAL_CRS_INDEX[frag] : null;
+  if (localCRS && localCRS.axes && localCRS.axes.length) {
+    return coords.map(c => _localCrsPointDeltaMeters(c, localCRS));
+  }
+  return coordsToLocalMeters(coords, srsName).pts;
+}
+
+/**
+ * _localCrsRowHtml(srsName) — if `srsName` references an embedded
+ * diggs:LocalCartesianCRS (a local #fragment resolving via LOCAL_CRS_INDEX,
+ * not a real horizontal EPSG), renders that CRS's own origin/axis/
+ * originOffset data as a small HTML block for a config's Geometry-section
+ * "Local CRS" row (PlanarSamplingFeature/VolumetricSamplingFeature/
+ * GP_Trackline, 2026-08-06 — the first place any config surfaces a
+ * LocalCartesianCRS's own content directly; every prior use of
+ * LOCAL_CRS_INDEX was internal coordinate math only, never displayed).
+ * Returns null when srsName isn't local-CRS-referenced (the ordinary case
+ * — most SFs report absolute/geographic coordinates), so the row simply
+ * doesn't render (renderPropertyRow's compute-empty path).
+ */
+function _localCrsRowHtml(srsName) {
+  if (!srsName) return null;
+  const { horiz } = parseEPSG(srsName);
+  if (horiz) return null;   // resolvable real CRS -- not a local one
+  const frag = srsName.replace(/^.*#/, '').trim();
+  const crs = frag && LOCAL_CRS_INDEX[frag];
+  if (!crs) return null;
+
+  const lines = [`<div>${escHtml(crs.name)}</div>`];
+  if (crs.origin && crs.origin.lat !== null && crs.origin.lat !== undefined) {
+    const elevStr = (crs.origin.elev !== null && crs.origin.elev !== undefined) ? `, elev ${fmtNum(crs.origin.elev, 2)} m` : '';
+    lines.push(`<div>Origin: ${fmtNum(crs.origin.lat, 6)}°, ${fmtNum(crs.origin.lon, 6)}°${elevStr}</div>`);
+  } else if (crs.origin && crs.origin.rawPos) {
+    lines.push(`<div>Origin: ${crs.origin.rawPos.map(v => fmtNum(v, 3)).join(', ')} (${escHtml(crs.origin.srsName || 'unresolved CRS')})</div>`);
+  }
+  if (crs.scaleFactor && crs.scaleFactor !== 1) lines.push(`<div>Scale Factor: ${fmtNum(crs.scaleFactor, 4)}</div>`);
+  for (const ax of crs.axes) {
+    const unit = crs.axisUnits[ax.order - 1] || '';
+    const offsetStr = ax.offset ? `, origin offset ${fmtNum(ax.offset, 3)}` : '';
+    lines.push(`<div>Axis ${ax.order}: direction [${ax.vec.map(v => fmtNum(v, 4)).join(', ')}]${unit ? ' ' + escHtml(unit) : ''}${offsetStr}</div>`);
+  }
+  return lines.join('');
+}
+
 // ══════════════════════════════════════════════════════════════
 //  COMPUTED GEOMETRY METRICS
 //  Depth/length from centerLine, area from featureExtent — cross-checked
@@ -4695,6 +4801,43 @@ function newellAreaMeters(pts) {
     nz += (x1 - x2) * (y1 + y2);
   }
   return 0.5 * Math.sqrt(nx * nx + ny * ny + nz * nz);
+}
+
+/**
+ * Unit normal of a (possibly tilted, but coplanar) 3D polygon ring, via the
+ * same Newell's-method summation newellAreaMeters uses for magnitude only —
+ * this sibling keeps the direction, needed to classify a planar/volumetric
+ * sampling feature's own face orientation (Horizontal/Vertical/Sloping,
+ * Prism/Polyhedra/Curved — see _planarSFGeometryInfo/_volumeSFShape).
+ * `pts` are already-converted local-meter [x,y,z] triples. Returns null for
+ * a degenerate ring (fewer than 3 points, or zero-area/colinear).
+ */
+function _newellNormal(pts) {
+  const n = pts.length;
+  if (n < 3) return null;
+  let nx = 0, ny = 0, nz = 0;
+  for (let i = 0; i < n; i++) {
+    const [x1, y1, z1] = pts[i];
+    const [x2, y2, z2] = pts[(i + 1) % n];
+    nx += (y1 - y2) * (z1 + z2);
+    ny += (z1 - z2) * (x1 + x2);
+    nz += (x1 - x2) * (y1 + y2);
+  }
+  const mag = Math.hypot(nx, ny, nz);
+  return mag > 0 ? [nx / mag, ny / mag, nz / mag] : null;
+}
+
+/** [x1,y1,..., x2,y2,...] flat token list -> array of per-vertex coordinate
+ *  tuples, `dim` components each. Small shared utility for the featureExtent
+ *  geometry-classification/3D-view code (_planarSFGeometryInfo, _volumeSFShape,
+ *  extractFeatureGeometry3D) — several existing functions inline this exact
+ *  loop for their own single purpose; this is a plain reusable version for
+ *  the new call sites rather than a refactor of those. */
+function _tokensToCoords(tokens, dim) {
+  const n = Math.floor(tokens.length / dim);
+  const coords = [];
+  for (let i = 0; i < n; i++) coords.push(tokens.slice(i * dim, (i + 1) * dim));
+  return coords;
 }
 
 /**
@@ -5420,6 +5563,16 @@ function xText(doc, expr, ctx) {
 //  APP STATE
 // ══════════════════════════════════════════════════════════════
 let mapInstance = null;
+// Selected-feature highlight color for a line/polygon map layer (setStyle
+// color/fillColor) — a medium-tone bright pink, chosen (2026-08-06, per
+// explicit user request) to replace a too-light cyan (#00FEFC) that washed
+// out against the light street/topo basemaps. Deliberately NOT applied to a
+// plain point/dot marker's own selected style (CMC piles, RigidInclusion
+// dots, a Project point geometry toggle) — those are a separate, much
+// smaller highlight already legible in isolation, and the user's own report
+// was specifically about polygon/line visibility; those few dot-marker call
+// sites keep '#00FEFC' literally, unchanged.
+const MAP_SELECTED_COLOR = '#FF2D95';
 // sfMarkers: Map<sfId (string) → { mapObj: L.Marker|L.Polyline, type: string }>
 let sfMarkers = new Map();
 // ── UNIFIED SF REGISTRY ────────────────────────────────────────
@@ -5599,7 +5752,12 @@ const SF_TYPE_CONFIG = {
     depthPath: 'diggs:totalTracklineLength',
     parentPath: null,
     date: 'diggs:whenTracklineOccupied/diggs:TimeInterval/diggs:start',
-    marker: { color: '#ff0090', weight: 3, opacity: 1.0, dashArray: null },
+    // Was '#ff0090' (hot pink) — too close to MAP_SELECTED_COLOR ('#FF2D95')
+    // for a selected trackline to read as distinct from an unselected one
+    // (2026-08-06, per explicit user report). Teal instead — far enough in
+    // hue from the pink selection highlight to stay distinguishable, and
+    // still dark/saturated enough not to wash out against a light basemap.
+    marker: { color: '#00A99D', weight: 3, opacity: 1.0, dashArray: null },
   },
 
   // ── Point SF types ───────────────────────────────────────────────────────────────
@@ -5650,7 +5808,13 @@ const SF_TYPE_CONFIG = {
     // extraction as GP_ArealSurvey (posListToLatLngs drops Z, i.e. projects
     // onto the horizontal plane regardless of how the wall is sloped/oriented).
     // polygon marker style: color = stroke, fillColor = fill (use 'none' for transparent)
-    marker: { color: '#FF3333', weight: 2, opacity: 1.0, fillColor: '#FF3333', fillOpacity: 0.4 },
+    // Was '#FF3333' (red) — too close to MAP_SELECTED_COLOR ('#FF2D95') for a
+    // selected trench wall to read as distinct from an unselected one
+    // (2026-08-06, per explicit user report). Dark navy instead — clearly
+    // apart from the pink selection highlight, and darker than
+    // PlanarSamplingFeature's own '#3B82F6' so the two polygon types stay
+    // distinguishable from each other too.
+    marker: { color: '#1B3A6B', weight: 2, opacity: 1.0, fillColor: '#1B3A6B', fillOpacity: 0.4 },
   },
 
   // ── Volumetric SF types (featureExtent volume geometry) ──────────────────
@@ -5843,7 +6007,13 @@ function showError(msg) {
 }
 
 function handleFile(file) {
-  if (!file.name.toLowerCase().endsWith('.xml' || '.diggs')) {
+  // Both extensions carry the same payload (a DIGGS XML instance document);
+  // `.diggs` is just the convention some producers use. Tested with a real
+  // alternation regex, NOT `endsWith('.xml' || '.diggs')` — that expression
+  // evaluates to endsWith('.xml') (|| short-circuits on the truthy first
+  // string), which silently rejected every .diggs file the drop zone and the
+  // file picker's own accept="" both advertise as valid.
+  if (!/\.(xml|diggs)$/i.test(file.name)) {
     showError('Please select a DIGGS XML file (.xml or .diggs)');
     return;
   }
@@ -6395,6 +6565,55 @@ const FORMAT_FN = {
     const pb = FORMAT_FN._plungeBearingFromPts(pts[0], pts[1]);
     if (!pb) return kind;
     return `${kind} (calculated plunge ${fmtNum(pb.plunge, 1)}°, bearing ${fmtNum(pb.bearing, 1)}°)`;
+  },
+
+  // GP_Trackline's own "Trajectory" row classification (2026-08-06) — a
+  // trackline is a horizontal survey line (a ground transect, marine or
+  // airborne track), not a drilled hole, so Vertical/Inclined/Deviated/
+  // Multilateral (Borehole's own vocabulary) doesn't fit. Classifies the
+  // horizontal SHAPE of the path instead: 'Straight' (every intermediate
+  // vertex lies on the line between the first/last points, within
+  // tolerance) or 'Curving'. Ignores Z entirely (a trackline that runs dead
+  // straight in plan but climbs/descends along the way is still a
+  // "Straight" trackline in the sense this row means — elevation is a
+  // separate concern, see tracklineHasElevationChange, which drives the
+  // "View 3D" pill independently). Returns '' if there's nothing to
+  // classify (no centerLine, or a single lone point).
+  tracklineShape(sf) {
+    if (!sf || !sf.centerLineRaw) return '';
+    const t = FORMAT_FN._rawCLToCoords(sf.centerLineRaw);
+    if (!t || t.coords.length < 2) return '';
+    if (t.coords.length === 2) return 'Straight';
+    const { pts } = coordsToLocalMeters(t.coords, t.srsName);
+    const first = pts[0], last = pts[pts.length - 1];
+    const a = [first[0], first[1], 0], b = [last[0], last[1], 0];
+    const total = Math.hypot(b[0] - a[0], b[1] - a[1]);
+    // 2%-relative / floored-absolute tolerance — same shape of tolerance
+    // computedValueMismatch uses elsewhere in this file for reported-vs-
+    // computed geometry checks, applied here to "how far off a straight
+    // line" instead.
+    const tolerance = Math.max(total * 0.02, 0.5);
+    for (let i = 1; i < pts.length - 1; i++) {
+      const p = [pts[i][0], pts[i][1], 0];
+      if (pointToSegmentDist3(p, a, b) > tolerance) return 'Curving';
+    }
+    return 'Straight';
+  },
+
+  // Whether a linear SF's centerLine has any real elevation change along
+  // its length — drives GP_Trackline's own "View 3D" pill (a trackline
+  // that's dead flat has nothing worth a 3D view; one with real relief
+  // does, regardless of whether its plan-view shape is Straight or
+  // Curving). 5cm absolute floor — well above typical GNSS/measurement
+  // noise, well below any real reported elevation change.
+  tracklineHasElevationChange(sf) {
+    if (!sf || !sf.centerLineRaw) return false;
+    const t = FORMAT_FN._rawCLToCoords(sf.centerLineRaw);
+    if (!t) return false;
+    const { pts } = coordsToLocalMeters(t.coords, t.srsName);
+    let zMin = Infinity, zMax = -Infinity;
+    for (const p of pts) { if (p[2] < zMin) zMin = p[2]; if (p[2] > zMax) zMax = p[2]; }
+    return (zMax - zMin) > 0.05;
   },
 
 };
@@ -7894,6 +8113,19 @@ function _humanizeName(ln) {
   const s = splitCamelCase(String(ln || ''));
   return s.replace(/^./, c => c.toUpperCase());
 }
+/** Naive auto-pluralization for a config-free (no human-authored
+ *  labelPlural) category banner in renderGenericObject/_renderGenericDataTable
+ *  — a schema element whose own name is already a plural noun (e.g.
+ *  `referencePoints` -> "Reference Points") must not get a second trailing
+ *  's' appended ("Reference Pointss"). Found live: WaterLevelMonitoring's
+ *  own referencePoints (no OBJECT_CONFIGS entry exists for it, so there is
+ *  no rowCfg.labelPlural to set — see the hand-authored-config precedent at
+ *  OBJECT_CONFIGS.Sample's own "Associated Measurements" comment). Only used
+ *  by the config-free path; a hand-authored OBJECT_CONFIGS row keeps using
+ *  its own explicit rowCfg.labelPlural convention unchanged. */
+function _autoPlural(label) {
+  return (!label || /s$/i.test(label)) ? label : label + 's';
+}
 function _hasElementChildren(el) {
   for (const c of el.childNodes) if (c.nodeType === 1) return true;
   return false;
@@ -7977,7 +8209,7 @@ function _renderGenericDataTable(resolved, label) {
   }
   const cols = [...common, ...occasional];
   if (!cols.length) return '';
-  return renderDataTable(resolved, { dataTable: { column: cols, expands: false } }, label);
+  return renderDataTable(resolved, { dataTable: { column: cols, expands: false }, labelPlural: _autoPlural(label) }, label);
 }
 
 /** A procedure's TemporalResult (pattern C) → result table + a queued plot
@@ -8087,7 +8319,7 @@ function renderGenericObject(el, ctx, depth) {
       }).filter(Boolean);
       if (!rows.length) continue;
       if (rows.length === 1) { leafHtml += rows[0]; continue; }
-      blockHtml += wrapCategoryHeader(_humanizeName(ln) + 's', rows.join(''), false);
+      blockHtml += wrapCategoryHeader(_autoPlural(_humanizeName(ln)), rows.join(''), false);
       continue;
     }
     const nestedCfg = OBJECT_CONFIGS[first.localName];
@@ -10040,6 +10272,118 @@ OBJECT_CONFIGS.StaticConePenetrationTest = [
     },
   },
   ..._FEATURE_TRAILING,
+];
+
+// ReferencePoint — ReferencePointType (core/CoreProcedures.xsd:612) extends
+// AbstractComponentObjectType (core/AbstractTypes.xsd:118) — same
+// description?/identifier?/name*/status?/remark* shape as AbstractObjectType
+// (_OBJ_BASE_FIELDS + _OBJ_TYPE_TRAILING), plus its own required {time,
+// rpLocation} and optional {datumDescription}. Reached only via
+// WaterLevelMonitoring's own `referencePoints` wrapper
+// (ReferencePointArrayPropertyType — one wrapper element holding 1+
+// ReferencePoint children, resolved generically via resolveXlinkChildren's
+// count(*) branch, same as any other true DIGGS "Array Property Type"). Own
+// `rpLocation` (the point — often a well's top of casing — that
+// depth-to-water was measured relative to) is a real standalone 3D
+// geographic PointLocation, not a depth/LRM-referenced one, hence
+// `geoLocation: true` (though in practice this row's own KV render is
+// rarely reached — see OBJECT_CONFIGS.WaterLevelMonitoring's own
+// `referencePoints` row below, whose `interval.column` already consumes
+// `rpLocation`/`datumDescription`/`time`, so this full config mainly backs
+// the interval table's remaining-fields expand panel — e.g. a populated
+// name/status/remark on some future instance).
+OBJECT_CONFIGS.ReferencePoint = [
+  ..._OBJ_BASE_FIELDS,
+  { path: 'diggs:time', label: 'Time' },
+  { path: 'diggs:rpLocation', label: 'Reference Point Location', geoLocation: true },
+  { path: 'diggs:datumDescription', label: 'Datum Description' },
+  ..._OBJ_TYPE_TRAILING,
+];
+
+// WaterLevelMonitoring (2026-08-06) — WaterLevelMonitoringType
+// (core/CoreProcedures.xsd:583) extends AbstractInsituTestProcedureType ->
+// AbstractTestProcedureType -> AbstractProcedureType (empty own <sequence/>,
+// extends AbstractFeatureType directly — same _FEATURE_LEADING/
+// _FEATURE_TRAILING shape as Equipment/Calibration/Sensor/Specification, per
+// _FEATURE_LEADING's own comment) -> AbstractFeatureType. The process of
+// monitoring water levels in a piezometer or well, manually (tape/sensor
+// lowered down the casing) or automated (an in-well pressure transducer) —
+// this is a `procedure` object on a Monitor measurement, dispatched via
+// renderProcedureSection's `OBJECT_CONFIGS[proc.localName]` lookup (see
+// CLAUDE.md's "Procedure content" section), NOT a sampling-feature type, so
+// none of SF_TYPE_CONFIG/parseSamplingFeature/the SF-list wiring applies.
+// testProcedureEquipment/testEvent/otherTestProperty mirror
+// OBJECT_CONFIGS.StaticConePenetrationTest's own field choices/labels
+// exactly (same AbstractInsituTestProcedureType base, testEvent stays a
+// plain multi row there — not the interval-table treatment — so this
+// matches rather than diverges); testProcedureEquipment resolves to the
+// already-existing OBJECT_CONFIGS.Sensor (a pressure transducer, with its
+// own `detector` row resolving each Detector via the already-existing
+// OBJECT_CONFIGS.Detector) with zero changes needed to either.
+//
+// `referencePoints` is this type's own real addition and the reason a
+// hand-authored config is worth it: the interval-table engine on `time`
+// (Start/End when a point has since been superseded, else a lone Time for
+// the currently-active one) gives a compact table instead of one full KV
+// block per reference point — useful specifically because a reference point
+// can change mid-monitoring (e.g. a top-of-casing reset after a protective
+// monument repair, verified live against inspectorMockup.xml's
+// Well-Mockup-1-MW2, which carries two ReferencePoint entries for exactly
+// this reason), so more than one row is a real, expected case, not a schema
+// edge case. Before this config existed, WaterLevelMonitoring fell through
+// to renderGenericObject/_renderGenericDataTable, which (a) auto-derived
+// generic "Rp Location"/"Datum Description" column labels instead of these
+// curated ones, and (b) is what surfaced the `_autoPlural` "Reference
+// Pointss" pluralization bug (see that helper's own comment) in the first
+// place — fixed generically there, but this dedicated config is the
+// intended long-term path for this type regardless.
+OBJECT_CONFIGS.WaterLevelMonitoring = [
+  ..._OBJ_BASE_FIELDS,
+  ..._FEATURE_LEADING,
+  ..._FEATURE_TRAILING,
+  { sectionHeader: 'Procedures and Sensors' },
+  { path: 'diggs:testProcedureMethod', multi: true, label: 'Test Method' },
+  {
+    path: 'diggs:referencePoints', multi: true, label: 'Reference Point', labelPlural: 'Reference Points',
+    interval: {
+      index: [{ path: 'diggs:time' }],
+      column: [
+        {
+          // Object-valued (PointLocation) — _resolveDataColumnCell's shared
+          // column engine deliberately never renders an object-valued match
+          // as a cell itself (v1 scope is simple-leaf columns only, per its
+          // own doc comment/IntervalTableNotes.md); `compute` is its
+          // documented escape hatch for exactly this, mirroring what
+          // _renderGenericDataTable's own auto-built column descriptors do
+          // for a SPECIAL_OBJECT_FORMATTERS-covered object (locationInline
+          // here). `path` is kept alongside `compute` purely so
+          // _buildTableConsumedPaths still excludes diggs:rpLocation from
+          // the expand panel — _resolveDataColumnCell checks `compute`
+          // before ever touching `path`, so the two don't conflict.
+          path: 'diggs:rpLocation', label: 'Reference Point Elevation',
+          compute: c => {
+            const propEl = evalXPath(c, 'diggs:rpLocation')[0];
+            const target = propEl && resolveXlinkChildren(propEl)[0];
+            const fmt = target && SPECIAL_OBJECT_FORMATTERS[target.localName];
+            return fmt ? { html: fmt(target) } : null;
+          },
+        },
+        { path: 'diggs:datumDescription', label: 'Datum Description' },
+      ],
+    },
+  },
+  { path: 'diggs:testProcedureEquipment', multi: true, label: 'Equipment', labelPlural: 'Equipment' },
+  { path: 'diggs:testingEnvironment', multi: true, label: 'Testing Environment' },
+  { path: 'diggs:testEvent', multi: true, label: 'Test Event', labelPlural: 'Test Events' },
+  {
+    path: 'diggs:otherTestProperty', multi: true,
+    label: 'Other Property', labelPlural: 'Other Properties', alwaysGroup: true,
+    itemLabel: el => {
+      const nameEl = evalXPath(el, 'diggs:parameterName')[0];
+      const txt = nodeText(nameEl);
+      return txt ? escHtml(txt) + _codeSpaceKeyExtra(nameEl) : null;
+    },
+  },
 ];
 
 // PorePressureDissipationTest (2026-08-03) — PorePressureDissipationTestType
@@ -12779,6 +13123,315 @@ OBJECT_CONFIGS.RigidInclusion = [
   },
 ];
 
+// ══════════════════════════════════════════════════════════════
+//  OBJECT_CONFIGS — GP_Trackline / PlanarSamplingFeature /
+//  VolumetricSamplingFeature (2026-08-06, built in preparation for the ERT
+//  geophysics display work — see CLAUDE.md's ERT section). Full schema
+//  trace via ../diggs-schema:
+//
+//  GP_TracklineType (specialty/Geophysics.xsd:509) extends
+//  AbstractLinearSamplingFeatureType (core/Core.xsd:171) — the same base
+//  chain Borehole/Well/Sounding/RigidInclusion use, so General Info/
+//  Geometry mirror theirs for every shared field. Its own additions
+//  (sensorMix, required; whenTracklineOccupied?; totalTracklineLength?) sit
+//  in a small "Survey Info" section.
+//
+//  PlanarSamplingFeatureType (extended/ExtSamplingFeatures.xsd:236) extends
+//  AbstractPlanarSamplingFeatureType (same base RIFoundationSystem/
+//  LoadTransferPlatform use — _PLANAR_SF_GEOM_TRAILING, reused as-is) with
+//  an EMPTY own sequence — no type-specific fields at all beyond the
+//  abstract base.
+//
+//  VolumetricSamplingFeatureType (extended/ExtSamplingFeatures.xsd:386)
+//  extends AbstractVolumeSamplingFeatureType (extended/ExtSamplingFeatures.xsd:352)
+//  — its own base-chain additions (referenceEdge?/featureExtent/
+//  relativeFeatureExtent?/volumeReferencing*, all but featureExtent
+//  deprecated 1/26 per the schema's own appinfo — same "deprecated but
+//  still shown for older instances" convention as _PLANAR_SF_GEOM_TRAILING)
+//  — likewise an EMPTY own concrete-type sequence, hence the new
+//  _VOLUME_SF_GEOM_TRAILING const below.
+//
+//  Trajectory/Orientation/Shape are all CALCULATED rows, not schema
+//  elements — see FORMAT_FN.tracklineShape/tracklineHasElevationChange
+//  (GP_Trackline), _planarSFGeometryInfo (PlanarSamplingFeature), and
+//  _volumeSFShape (VolumetricSamplingFeature). GP_Trackline's own "View 3D"
+//  pill (open3DTrajectoryView, thick-LINE render mode — see
+//  init3DTrajectoryViewer's own renderMode comment) only appears when the
+//  centerLine has real elevation change (a dead-flat trackline has nothing
+//  worth a 3D view). PlanarSamplingFeature/VolumetricSamplingFeature's own
+//  pill (open3DFeatureView — a NEW sibling viewer for a surface/solid
+//  featureExtent rather than a centerLine path) shows UNCONDITIONALLY, per
+//  explicit user request/correction — independent of whatever the computed
+//  Orientation/Shape value ends up being, gated only on the geometry itself
+//  actually being resolvable (extractFeatureGeometry3D).
+//
+//  All three also get a "Local CRS" row (_localCrsRowHtml) that renders an
+//  embedded LocalCartesianCRS's own origin/axis/originOffset data when the
+//  feature's own geometry references one by srsName fragment — the first
+//  place any config surfaces that content directly (every prior
+//  LOCAL_CRS_INDEX use was internal coordinate math only, never displayed).
+//
+//  None of the three needed a new SF_TYPE_CONFIG entry, parse hook, or
+//  DIGGS_SF wiring — all three types were already listed in SF_TYPE_CONFIG
+//  (tabLabel/mapGeom/marker) and already flow through the generic SF-loop
+//  parse path (same "most of this is already generic" finding as every SF
+//  config session since Well) — the ONLY gap was these config arrays plus
+//  the new compute helpers/3D viewer they call into.
+// ══════════════════════════════════════════════════════════════
+
+// AbstractVolumeSamplingFeatureType's own additions on top of
+// AbstractSamplingFeatureType (extended/ExtSamplingFeatures.xsd:352):
+// referenceEdge?/featureExtent/relativeFeatureExtent?/volumeReferencing*
+// — referenceEdge/relativeFeatureExtent/volumeReferencing are all
+// DEPRECATED 1/26 (superseded by featureExtent's own srsName/
+// LocalCartesianCRS support, same as _PLANAR_SF_GEOM_TRAILING's own fields)
+// but still shown for older instances. featureExtent itself drives the
+// map/3D-view/Shape-classification generically and is omitted here, same
+// convention as centerLine on the linear types.
+const _VOLUME_SF_GEOM_TRAILING = [
+  { path: 'diggs:referenceEdge', label: 'Reference Edge (deprecated)' },
+  { path: 'diggs:relativeFeatureExtent', label: 'Relative Feature Extent (deprecated)' },
+  { path: 'diggs:volumeReferencing', multi: true, label: 'Volume Referencing (deprecated)' },
+];
+
+OBJECT_CONFIGS.GP_Trackline = [
+  { sectionHeader: 'General Info' },
+  { path: '@gml:id', label: 'ID' },
+  { path: 'gml:name', multi: true, splitRows: true },
+  { path: 'gml:description' },
+  { path: 'diggs:status' },
+  { path: 'gml:identifier', multi: true },
+  { path: 'diggs:internalIdentifier', label: 'Internal Identifier' },
+  { path: 'diggs:implementationStatus', label: 'Implementation Status' },
+  { path: 'diggs:investigationTarget', multi: true, label: 'Investigation Target' },
+  { path: 'diggs:locality', label: 'Locality' },
+  { path: 'diggs:sensorMix', label: 'Sensor Mix' },
+  ..._FEATURE_TRAILING,
+
+  { sectionHeader: 'Geometry' },
+  {
+    // Calculated — see FORMAT_FN.tracklineShape's own comment for why this
+    // is Straight/Curving rather than Borehole's Vertical/Inclined/
+    // Deviated/Multilateral vocabulary: a trackline is a horizontal survey
+    // path, not a drilled hole. The "View 3D" pill (thick-LINE render
+    // mode) shows only when the centerLine has real elevation change
+    // (tracklineHasElevationChange), independent of Straight/Curving — a
+    // dead-flat trackline has nothing worth a 3D view even if curving in
+    // plan, and a straight-in-plan trackline that climbs a hillside still
+    // deserves one.
+    label: 'Trajectory',
+    compute: el => {
+      const id = el.getAttributeNS(NS.gml, 'id') || el.getAttribute('gml:id') || el.getAttribute('id') || '';
+      const sf = (DIGGS_SF.get('GP_Trackline') || []).find(s => s.id === id);
+      if (!sf) return '';
+      const shape = FORMAT_FN.tracklineShape(sf);
+      if (!shape) return '';
+      if (FORMAT_FN.tracklineHasElevationChange(sf)) {
+        return {
+          val: shape,
+          keyExtra: `<button class="pill-3d-view" onclick="open3DTrajectoryView('${esc(id)}', 'line')">View 3D</button>`,
+        };
+      }
+      return shape;
+    },
+  },
+  { path: 'diggs:plunge', label: 'Reported Plunge' },
+  { path: 'diggs:bearing', label: 'Reported Bearing' },
+  {
+    path: 'diggs:referencePoint/diggs:PointLocation/gml:description',
+    label: 'Reference Point Description',
+  },
+  { path: 'diggs:linearReferencing', multi: true, label: 'Linear Referencing' },
+  { path: 'diggs:localCoordinates', label: 'Local Coordinates' },
+  {
+    label: 'Local CRS',
+    compute: el => {
+      const id = el.getAttributeNS(NS.gml, 'id') || el.getAttribute('gml:id') || el.getAttribute('id') || '';
+      const sf = (DIGGS_SF.get('GP_Trackline') || []).find(s => s.id === id);
+      const srsName = sf && sf.centerLineRaw ? sf.centerLineRaw.srsName : '';
+      return _localCrsRowHtml(srsName);
+    },
+  },
+
+  { sectionHeader: 'Survey Info' },
+  { path: 'diggs:whenTracklineOccupied', label: 'When Occupied' },
+  { path: 'diggs:totalTracklineLength', label: 'Total Trackline Length' },
+
+  { sectionHeader: 'Environment' },
+  {
+    path: 'diggs:environment', multi: true, labelPlural: 'Environment Readings',
+    interval: {
+      index: [{ path: 'diggs:dateTime' }],
+      column: [{ path: 'diggs:ambientTemperature' }],
+    },
+  },
+
+  { sectionHeader: '' },
+  {
+    path: 'diggs:otherSamplingFeatureProperty', multi: true,
+    label: 'Other Property', labelPlural: 'Other Properties', alwaysGroup: true,
+    itemLabel: el => {
+      const nameEl = evalXPath(el, 'diggs:parameterName')[0];
+      const txt = nodeText(nameEl);
+      return txt ? escHtml(txt) + _codeSpaceKeyExtra(nameEl) : null;
+    },
+  },
+];
+
+OBJECT_CONFIGS.PlanarSamplingFeature = [
+  { sectionHeader: 'General Info' },
+  { path: '@gml:id', label: 'ID' },
+  { path: 'gml:name', multi: true, splitRows: true },
+  { path: 'gml:description' },
+  { path: 'diggs:status' },
+  { path: 'gml:identifier', multi: true },
+  { path: 'diggs:internalIdentifier', label: 'Internal Identifier' },
+  { path: 'diggs:implementationStatus', label: 'Implementation Status' },
+  { path: 'diggs:investigationTarget', multi: true, label: 'Investigation Target' },
+  { path: 'diggs:locality', label: 'Locality' },
+  ..._FEATURE_TRAILING,
+
+  { sectionHeader: 'Geometry' },
+  {
+    // Calculated — Horizontal/Vertical/Sloping, from featureExtent's own
+    // representative-patch normal vs. local "up" (see
+    // _planarSFGeometryInfo). Named "Orientation" per explicit user
+    // request/correction — NOT "Trajectory" (Borehole/GP_Trackline's own
+    // label) — a planar feature has no path to traverse.
+    label: 'Orientation',
+    compute: el => {
+      const info = _planarSFGeometryInfo(el);
+      return (info && info.orientation) || '';
+    },
+  },
+  {
+    // Calculated — Planar/Multi-Planar/Composite/Triangulated/Multi
+    // Surface, from featureExtent's own resolved child element type (see
+    // _planarSFGeometryInfo). "View 3D" (open3DFeatureView) shows
+    // UNCONDITIONALLY whenever the geometry itself is resolvable — per
+    // explicit user request, independent of the Shape value.
+    label: 'Shape',
+    compute: el => {
+      const info = _planarSFGeometryInfo(el);
+      const shapeLabel = (info && info.shapeLabel) || '';
+      if (!shapeLabel) return '';
+      const id = el.getAttributeNS(NS.gml, 'id') || el.getAttribute('gml:id') || el.getAttribute('id') || '';
+      const sf = (DIGGS_SF.get('PlanarSamplingFeature') || []).find(s => s.id === id);
+      const geom3d = sf ? extractFeatureGeometry3D(sf) : null;
+      if (!geom3d) return shapeLabel;
+      return {
+        val: shapeLabel,
+        keyExtra: `<button class="pill-3d-view" onclick="open3DFeatureView('${esc(id)}')">View 3D</button>`,
+      };
+    },
+  },
+  {
+    path: 'diggs:referencePoint/diggs:PointLocation/gml:description',
+    label: 'Reference Point Description',
+  },
+  { path: 'diggs:localCoordinates', label: 'Local Coordinates' },
+  {
+    label: 'Local CRS',
+    compute: el => {
+      const info = _planarSFGeometryInfo(el);
+      return info ? _localCrsRowHtml(info.srsName) : null;
+    },
+  },
+  ..._PLANAR_SF_GEOM_TRAILING,
+
+  { sectionHeader: 'Environment' },
+  {
+    path: 'diggs:environment', multi: true, labelPlural: 'Environment Readings',
+    interval: {
+      index: [{ path: 'diggs:dateTime' }],
+      column: [{ path: 'diggs:ambientTemperature' }],
+    },
+  },
+
+  { sectionHeader: '' },
+  {
+    path: 'diggs:otherSamplingFeatureProperty', multi: true,
+    label: 'Other Property', labelPlural: 'Other Properties', alwaysGroup: true,
+    itemLabel: el => {
+      const nameEl = evalXPath(el, 'diggs:parameterName')[0];
+      const txt = nodeText(nameEl);
+      return txt ? escHtml(txt) + _codeSpaceKeyExtra(nameEl) : null;
+    },
+  },
+];
+
+OBJECT_CONFIGS.VolumetricSamplingFeature = [
+  { sectionHeader: 'General Info' },
+  { path: '@gml:id', label: 'ID' },
+  { path: 'gml:name', multi: true, splitRows: true },
+  { path: 'gml:description' },
+  { path: 'diggs:status' },
+  { path: 'gml:identifier', multi: true },
+  { path: 'diggs:internalIdentifier', label: 'Internal Identifier' },
+  { path: 'diggs:implementationStatus', label: 'Implementation Status' },
+  { path: 'diggs:investigationTarget', multi: true, label: 'Investigation Target' },
+  { path: 'diggs:locality', label: 'Locality' },
+  ..._FEATURE_TRAILING,
+
+  { sectionHeader: 'Geometry' },
+  {
+    // Calculated — Prism/Polyhedra/Curved, from featureExtent's own Solid
+    // exterior-shell face composition (see _volumeSFShape). Only a Shape
+    // row here, no Orientation — per explicit user request, a solid has no
+    // single "which way does it face" answer the way a planar surface
+    // does. "View 3D" (open3DFeatureView) shows UNCONDITIONALLY whenever
+    // the geometry itself is resolvable, same reasoning as
+    // PlanarSamplingFeature's own Shape row.
+    label: 'Shape',
+    compute: el => {
+      const info = _volumeSFShape(el);
+      const shapeLabel = (info && info.shapeLabel) || '';
+      if (!shapeLabel) return '';
+      const id = el.getAttributeNS(NS.gml, 'id') || el.getAttribute('gml:id') || el.getAttribute('id') || '';
+      const sf = (DIGGS_SF.get('VolumetricSamplingFeature') || []).find(s => s.id === id);
+      const geom3d = sf ? extractFeatureGeometry3D(sf) : null;
+      if (!geom3d) return shapeLabel;
+      return {
+        val: shapeLabel,
+        keyExtra: `<button class="pill-3d-view" onclick="open3DFeatureView('${esc(id)}')">View 3D</button>`,
+      };
+    },
+  },
+  {
+    path: 'diggs:referencePoint/diggs:PointLocation/gml:description',
+    label: 'Reference Point Description',
+  },
+  { path: 'diggs:localCoordinates', label: 'Local Coordinates' },
+  {
+    label: 'Local CRS',
+    compute: el => {
+      const info = _volumeSFShape(el);
+      return info ? _localCrsRowHtml(info.srsName) : null;
+    },
+  },
+  ..._VOLUME_SF_GEOM_TRAILING,
+
+  { sectionHeader: 'Environment' },
+  {
+    path: 'diggs:environment', multi: true, labelPlural: 'Environment Readings',
+    interval: {
+      index: [{ path: 'diggs:dateTime' }],
+      column: [{ path: 'diggs:ambientTemperature' }],
+    },
+  },
+
+  { sectionHeader: '' },
+  {
+    path: 'diggs:otherSamplingFeatureProperty', multi: true,
+    label: 'Other Property', labelPlural: 'Other Properties', alwaysGroup: true,
+    itemLabel: el => {
+      const nameEl = evalXPath(el, 'diggs:parameterName')[0];
+      const txt = nodeText(nameEl);
+      return txt ? escHtml(txt) + _codeSpaceKeyExtra(nameEl) : null;
+    },
+  },
+];
+
 // 24-colour palette for LTP zone polygons (distinct, dark-theme friendly)
 const LTP_ZONE_PALETTE = [
   '#e05c00','#0288d1','#2e7d32','#7b1fa2','#f9a825','#00838f',
@@ -14603,6 +15256,197 @@ function _resolvePolygonRings(el, rawSrsName, rawSrsDimension) {
   return _extractSurfaceRings(feExtEl, rawSrsName, rawSrsDimension);
 }
 
+/**
+ * _planarSFGeometryInfo(el) — resolves a PlanarSamplingFeature-shaped
+ * (AbstractPlanarSamplingFeatureType) SF's own featureExtent for its
+ * config's calculated "Orientation" (Horizontal/Vertical/Sloping) and
+ * "Shape" (Planar/Multi-Planar/Composite/Triangulated/Multi Surface) rows —
+ * neither is a schema element, both are read off the actual geometry. `el`
+ * is the SF's own DOM element (compute() only ever receives that).
+ *
+ * Shape comes straight from featureExtent's own resolved child element name
+ * (SurfacePropertyType's choice: gml:AbstractSurface — which for DIGGS
+ * means diggs:PlanarSurface/MultiPlanarSurface/CompositeSurface/
+ * TriangulatedSurface — or diggs:MultiSurface directly; core/Core.xsd:7923,
+ * extended/ExtSamplingFeatures.xsd). Orientation is derived from ONE
+ * representative patch's own normal vector (the first patch
+ * collectFeatureExtentRawPatches finds), computed from its points in REAL
+ * local meters (_toRealMeterPts — correctly rotated for a LocalCartesianCRS
+ * too, unlike a naive coordsToLocalMeters call; see that function's own
+ * comment for why this matters here specifically) vs. real-world "up"
+ * (always index 2, per _toRealMeterPts's own contract) — a single
+ * representative plane is sufficient since a genuinely mixed-orientation
+ * featureExtent has no single correct Orientation label anyway. Returns
+ * null only when featureExtent itself can't be resolved at all (schema
+ * technically allows relativeFeatureExtent alone instead, deprecated).
+ */
+function _planarSFGeometryInfo(el) {
+  const doc = el.ownerDocument;
+  const feExtEl = xFirst(doc, 'diggs:featureExtent', el);
+  if (!feExtEl) return null;
+  const target = resolveXlinkEl(feExtEl);
+  if (!target) return null;
+
+  const SHAPE_LABELS = {
+    PlanarSurface: 'Planar',
+    MultiPlanarSurface: 'Multi-Planar',
+    CompositeSurface: 'Composite',
+    TriangulatedSurface: 'Triangulated',
+    MultiSurface: 'Multi Surface',
+  };
+  const shapeLabel = SHAPE_LABELS[target.localName] || splitCamelCase(target.localName);
+
+  const patches = collectFeatureExtentRawPatches(feExtEl, '', '2');
+  if (!patches.length) return { shapeLabel, orientation: '', srsName: '' };
+  const p = patches[0];
+  const pts = _toRealMeterPts(_tokensToCoords(p.tokens, p.dim), p.srsName);
+  const normal = _newellNormal(pts);
+  if (!normal) return { shapeLabel, orientation: '', srsName: p.srsName };
+
+  // Angle between the patch's own normal and real-world "up" (index 2): ~0°
+  // (normal parallel to vertical) means the SURFACE itself is horizontal (a
+  // floor/roof's normal points straight up/down); ~90° (normal
+  // perpendicular to vertical) means the surface is vertical (a wall's
+  // normal points sideways). abs() so a downward-facing normal (the base of
+  // an excavation, say) still reads as Horizontal, not "negative".
+  const angleFromUp = Math.acos(Math.max(-1, Math.min(1, Math.abs(normal[2])))) * 180 / Math.PI;
+  const orientation = angleFromUp <= 15 ? 'Horizontal' : angleFromUp >= 75 ? 'Vertical' : 'Sloping';
+
+  return { shapeLabel, orientation, srsName: p.srsName };
+}
+
+/**
+ * _volumeSFShape(el) — VolumetricSamplingFeature's own "Shape" row
+ * (Prism/Polyhedra/Curved), read off featureExtent's actual Solid geometry
+ * — not a schema element. `el` is the SF's own DOM element.
+ *
+ * Resolves featureExtent -> Solid -> exterior (ShellPropertyType) -> Shell
+ * itself, skipping past the Solid's own literally-"exterior"/"interior"-
+ * named wrapper elements before collecting patches — collectFeatureExtentRawPatches
+ * does a flat 'exterior'-localName subtree search, and Solid's own exterior/
+ * interior fields would otherwise collide with that same search (see
+ * CLAUDE.md's "Solid path... unvalidated" flag — this sidesteps exactly
+ * that trap for this new code path). Interior (void) shells are
+ * deliberately not analyzed — v1 scope is the outer boundary only, same
+ * "don't over-engineer" precedent as every other deferred item in this file.
+ *
+ * - Any TriangulatedSurface or MultiPlanarSurface face anywhere in the
+ *   shell (both represent an approximated non-planar surface per their own
+ *   schema docstrings) -> 'Curved'.
+ * - Otherwise every face is a flat PlanarSurface (possibly nested inside a
+ *   CompositeSurface wrapper, flattened via _resolveSurfaceEls) -> classify
+ *   Prism (exactly one pair of congruent, anti-parallel "cap" faces plus
+ *   quadrilateral side faces, one per cap edge — the standard definition of
+ *   a prism) vs. Polyhedra (every other flat-faced solid: pyramids, wedges,
+ *   general polyhedra).
+ */
+function _volumeSFShape(el) {
+  const doc = el.ownerDocument;
+  const feExtEl = xFirst(doc, 'diggs:featureExtent', el);
+  if (!feExtEl) return null;
+  const solidEl = resolveXlinkEl(feExtEl);
+  if (!solidEl) return null;
+  const extWrapEl = xFirst(doc, 'diggs:exterior', solidEl);
+  const shellEl = extWrapEl ? resolveXlinkEl(extWrapEl) : null;
+  if (!shellEl) return { shapeLabel: '', srsName: '' };
+
+  if (findAllByLocalName(shellEl, 'TriangulatedSurface').length
+      || findAllByLocalName(shellEl, 'MultiPlanarSurface').length) {
+    return { shapeLabel: 'Curved', srsName: '' };
+  }
+
+  const faceEls = _resolveSurfaceEls(shellEl, new Set(), 0);
+  const faces = [];
+  let srsName = '';
+  for (const faceEl of faceEls) {
+    const extEl = findByLocalName(faceEl, 'exterior');
+    const lrEl = extEl && findByLocalName(extEl, 'LinearRing');
+    if (!lrEl) continue;
+    let plEl = null;
+    for (const c of lrEl.childNodes) { if (c.nodeType === 1 && c.localName === 'posList') { plEl = c; break; } }
+    if (!plEl) continue;
+    const dim = parseInt(plEl.getAttribute('srsDimension') || '3') || 3;
+    const faceSrsName = plEl.getAttribute('srsName') || _ancestorSrsInfo(faceEl, shellEl).srsName || '';
+    if (!srsName && faceSrsName) srsName = faceSrsName;
+    const tokens = numTokens(plEl.textContent);
+    const coords = _tokensToCoords(tokens, dim);
+    if (coords.length < 4) continue;   // need >=3 distinct verts (closed ring repeats the first)
+    const pts = _toRealMeterPts(coords, faceSrsName);
+    const normal = _newellNormal(pts);
+    if (!normal) continue;
+    faces.push({ vcount: coords.length - 1, normal });
+  }
+  if (faces.length < 4) return { shapeLabel: 'Polyhedra', srsName };
+
+  for (let i = 0; i < faces.length; i++) {
+    for (let j = i + 1; j < faces.length; j++) {
+      const a = faces[i], b = faces[j];
+      if (a.vcount !== b.vcount || a.vcount < 3) continue;
+      const dot = a.normal[0] * b.normal[0] + a.normal[1] * b.normal[1] + a.normal[2] * b.normal[2];
+      if (dot > -0.98) continue;   // not anti-parallel -- not a cap-face pair
+      const others = faces.filter((_, k) => k !== i && k !== j);
+      if (others.length === a.vcount && others.every(f => f.vcount === 4)) {
+        return { shapeLabel: 'Prism', srsName };
+      }
+    }
+  }
+  return { shapeLabel: 'Polyhedra', srsName };
+}
+
+/**
+ * extractFeatureGeometry3D(sf) — geometry source for the "View 3D" pill on
+ * PlanarSamplingFeature/VolumetricSamplingFeature's config (open3DFeatureView,
+ * see init3DFeatureViewer) — shown regardless of the computed
+ * Orientation/Shape value (unlike Borehole/Sounding/GP_Trackline's own
+ * pill, gated on a non-trivial trajectory). `sf` is the parsed SF object.
+ *
+ * Reuses the exact same patch-collection path as _volumeSFShape/
+ * _planarSFGeometryInfo — for a Volumetric SF this means resolving down to
+ * the Solid's own exterior Shell FIRST (same reasoning as _volumeSFShape's
+ * own comment). Interior (void) shells are not rendered — v1 scope is the
+ * outer boundary.
+ *
+ * Returns { ptPatches, upAxis, flipUp } where each ptPatches[] entry is
+ * { pts, holes } — pts/each holes[] entry already in REAL local meters, via
+ * _toRealMeterPts (correctly rotated for a LocalCartesianCRS too — see that
+ * function's own comment), but NOT yet re-centered for Three.js —
+ * init3DFeatureViewer does that, the same two-step convention
+ * extractBoreholeTrajectory/init3DTrajectoryViewer already use. upAxis/
+ * flipUp are always {2, true} — _toRealMeterPts's own contract guarantees
+ * index 2 is real-world "up" regardless of source CRS kind, so there's no
+ * per-CRS resolution left to do here (kept as an explicit return field
+ * anyway since init3DFeatureViewer's _gridVecFromLocal call expects it).
+ */
+function extractFeatureGeometry3D(sf) {
+  if (!sf || !sf.el) return null;
+  const doc = sf.el.ownerDocument;
+  const feExtEl = xFirst(doc, 'diggs:featureExtent', sf.el);
+  if (!feExtEl) return null;
+
+  let rootEl = feExtEl;
+  const target = resolveXlinkEl(feExtEl);
+  if (target && target.localName === 'Solid') {
+    const extWrapEl = xFirst(doc, 'diggs:exterior', target);
+    const shellEl = extWrapEl ? resolveXlinkEl(extWrapEl) : null;
+    if (!shellEl) return null;
+    rootEl = shellEl;
+  }
+
+  const rawPatches = collectFeatureExtentRawPatches(rootEl, '', '2');
+  if (!rawPatches.length) return null;
+
+  const ptPatches = rawPatches.map(p => ({
+    pts: _toRealMeterPts(_tokensToCoords(p.tokens, p.dim), p.srsName),
+    holes: (p.holes || []).map(h => _toRealMeterPts(_tokensToCoords(h.tokens, h.dim), h.srsName)),
+  })).filter(pp => pp.pts.length >= 3);
+  if (!ptPatches.length) return null;
+
+  // _toRealMeterPts always returns real-world-oriented points with index 2
+  // = "up", for either CRS kind (see its own comment) — no per-CRS
+  // upAxis/flipUp resolution needed here.
+  return { ptPatches, upAxis: 2, flipUp: true };
+}
+
 function parseSamplingFeature(doc, el, type) {
   const id   = el.getAttribute('id') || el.getAttributeNS(NS.gml, 'id') || '';
   const name = xText(doc, 'gml:name', el);
@@ -15343,7 +16187,7 @@ function selectMultiTrackMember(multiTrackId, memberId) {
     const geom = SF_TYPE_CONFIG[entry.type] ? SF_TYPE_CONFIG[entry.type].mapGeom : 'point';
     if (geom === 'line') {
       const cfg = (SF_TYPE_CONFIG[entry.type] && SF_TYPE_CONFIG[entry.type].marker) || {};
-      entry.mapObj.setStyle({ color: '#00FEFC', weight: (cfg.weight || 2) + 1, opacity: 1.0, dashArray: null });
+      entry.mapObj.setStyle({ color: MAP_SELECTED_COLOR, weight: (cfg.weight || 2) + 1, opacity: 1.0, dashArray: null });
       const b = entry.mapObj.getBounds();
       if (b.isValid()) mapInstance.fitBounds(b, { padding: [40, 40], animate: true });
     } else {
@@ -15423,7 +16267,7 @@ function toggleRIFS(rifsId, headerTr, tbody) {
     if (rifsEntry && mapInstance && typeof rifsEntry.mapObj.setStyle === 'function') {
       const cfg = SF_TYPE_CONFIG['RIFoundationSystem'] || {};
       const mc  = cfg.marker || {};
-      rifsEntry.mapObj.setStyle({ color: '#00FEFC', weight: (mc.weight || 2) + 1.5,
+      rifsEntry.mapObj.setStyle({ color: MAP_SELECTED_COLOR, weight: (mc.weight || 2) + 1.5,
         fillColor: mc.fillColor || '#e05c00', fillOpacity: 0.25 });
     }
     if (rifsSF3) showSFDetail(rifsSF3);
@@ -15444,7 +16288,7 @@ function toggleRIFS(rifsId, headerTr, tbody) {
     const cfg = SF_TYPE_CONFIG['RIFoundationSystem'] || {};
     const mc = cfg.marker || {};
     rifsEntry.mapObj.setStyle({
-      color: '#00FEFC', weight: (mc.weight || 2) + 1.5,
+      color: MAP_SELECTED_COLOR, weight: (mc.weight || 2) + 1.5,
       fillColor: mc.fillColor || '#e05c00', fillOpacity: 0.25,
     });
   }
@@ -15573,7 +16417,7 @@ function selectLTP(rifsId, ltpId) {
       }
       // Restore LTP polygon highlight
       _rifsState.ltpPolygons.forEach((poly, pid) => {
-        if (pid === ltpId) { poly.setStyle({ color: '#00FEFC', weight: 2.5, fillOpacity: 0.45 }); poly.bringToFront(); }
+        if (pid === ltpId) { poly.setStyle({ color: MAP_SELECTED_COLOR, weight: 2.5, fillOpacity: 0.45 }); poly.bringToFront(); }
         else { const ltp2 = (rifsSF.ltps || []).find(l => l.id === pid); poly.setStyle({ color: ltp2 ? ltp2.zoneColor : '#888', weight: 1.8, fillOpacity: 0.20 }); }
       });
       showSFDetail(ltpSF);
@@ -15613,7 +16457,7 @@ function selectLTP(rifsId, ltpId) {
   // Highlight LTP polygon; dim others
   _rifsState.ltpPolygons.forEach((poly, pid) => {
     if (pid === ltpId) {
-      poly.setStyle({ color: '#00FEFC', weight: 2.5, fillOpacity: 0.45 });
+      poly.setStyle({ color: MAP_SELECTED_COLOR, weight: 2.5, fillOpacity: 0.45 });
       poly.bringToFront();
     } else {
       const ltpSF2 = (rifsSF.ltps || []).find(l => l.id === pid);
@@ -15995,8 +16839,10 @@ let _activeProjGeomLayer = null;
  *  currently-active geometry off just clears it; toggling any other
  *  geometry on first clears whatever was showing (only one Project
  *  geometry is ever shown at once), then adds the new layer and pans/zooms
- *  to it — same cyan (#00FEFC) highlight + fitBounds convention selectSF()
- *  uses for a chosen SF's own marker/polygon/line. */
+ *  to it — a line/polygon uses the same MAP_SELECTED_COLOR pink + fitBounds
+ *  convention selectSF() uses for a chosen SF's own polygon/line; a point
+ *  keeps the old cyan, matching every other point-marker highlight (see
+ *  MAP_SELECTED_COLOR's own comment for why). */
 function _toggleProjGeomOnMap(key) {
   const wasActive = _activeProjGeomKey === key;
   _clearActiveProjGeom();
@@ -16005,14 +16851,14 @@ function _toggleProjGeomOnMap(key) {
   const entry = _projGeomMap.get(key);
   if (!entry) return;
 
-  const HIGHLIGHT = { color: '#00FEFC', weight: 3, opacity: 1 };
+  const HIGHLIGHT = { color: MAP_SELECTED_COLOR, weight: 3, opacity: 1 };
   let layer;
   if (entry.kind === 'point') {
     layer = L.circleMarker(entry.latlngs, { radius: 14, weight: 2, color: '#00FEFC', opacity: 1, fillColor: '#00FEFC', fillOpacity: 0.9 });
   } else if (entry.kind === 'line') {
     layer = L.polyline(entry.latlngs, { ...HIGHLIGHT, weight: 4 });
   } else {
-    layer = L.polygon(entry.latlngs, { ...HIGHLIGHT, fillColor: '#00FEFC', fillOpacity: 0.25 });
+    layer = L.polygon(entry.latlngs, { ...HIGHLIGHT, fillColor: MAP_SELECTED_COLOR, fillOpacity: 0.25 });
   }
   layer.bindPopup(`<strong>${escHtml(entry.label)}</strong>`, { maxWidth: 260 }).addTo(mapInstance);
   _activeProjGeomLayer = layer;
@@ -16716,8 +17562,8 @@ function makeSFPolyline(sf, selected) {
   const baseWeight = cfg.weight  || 2;
   const dashArray  = cfg.dashArray || null;
 
-  // Selected: bright cyan + 1px heavier stroke
-  const color  = selected ? '#00FEFC' : baseColor;
+  // Selected: bright pink (MAP_SELECTED_COLOR) + 1px heavier stroke
+  const color  = selected ? MAP_SELECTED_COLOR : baseColor;
   const weight = selected ? baseWeight + 1 : baseWeight;
   const opacity = selected ? 1.0 : (cfg.opacity !== undefined ? cfg.opacity : 0.85);
 
@@ -16733,7 +17579,7 @@ function makeSFPolyline(sf, selected) {
  * Returns an L.polygon for planar SF types (GP_ArealSurvey etc.).
  * Uses sf.polygonLatLngs — either a flat [[lat,lon],...] exterior ring,
  * or [[extRing],[holeRing],...] for surfaces with interior holes / multi-patch.
- * selected=true uses bright cyan stroke + stronger fill opacity.
+ * selected=true uses bright pink (MAP_SELECTED_COLOR) stroke + stronger fill opacity.
  */
 function makeSFPolygon(sf, selected) {
   const cfg = (SF_TYPE_CONFIG[sf.type] && SF_TYPE_CONFIG[sf.type].marker) || {};
@@ -16747,10 +17593,10 @@ function makeSFPolygon(sf, selected) {
                      : (cfg.fillOpacity !== undefined ? cfg.fillOpacity : 0.15);
   const baseOpacity  = cfg.opacity     !== undefined ? cfg.opacity : 0.9;
 
-  const color       = selected ? '#00FEFC' : baseColor;
+  const color       = selected ? MAP_SELECTED_COLOR : baseColor;
   const weight      = selected ? baseWeight + 1 : baseWeight;
   const opacity     = selected ? 1.0 : baseOpacity;
-  const fillColor   = selected ? '#00FEFC' : baseFill;
+  const fillColor   = selected ? MAP_SELECTED_COLOR : baseFill;
   const fillOpacity = selected ? 0.55 : baseFillOp;
 
   return L.polygon(sf.polygonLatLngs, {
@@ -16917,7 +17763,7 @@ function selectSF(type, id) {
         if (entry && mapInstance && typeof entry.mapObj.setStyle === 'function') {
           const cfg = SF_TYPE_CONFIG['RIFoundationSystem'] || {};
           const mc = cfg.marker || {};
-          entry.mapObj.setStyle({ color: '#00FEFC', weight: (mc.weight || 2) + 1.5,
+          entry.mapObj.setStyle({ color: MAP_SELECTED_COLOR, weight: (mc.weight || 2) + 1.5,
             fillColor: mc.fillColor || '#e05c00', fillOpacity: 0.25 });
         }
         // Show RIFS detail (user may be coming from an RI or LTP selection)
@@ -16974,14 +17820,14 @@ function selectSF(type, id) {
 
   if (geom === 'line') {
     const cfg = (SF_TYPE_CONFIG[type] && SF_TYPE_CONFIG[type].marker) || {};
-    entry.mapObj.setStyle({ color: '#00FEFC', weight: (cfg.weight || 2) + 1, opacity: 1.0, dashArray: null });
+    entry.mapObj.setStyle({ color: MAP_SELECTED_COLOR, weight: (cfg.weight || 2) + 1, opacity: 1.0, dashArray: null });
     entry.mapObj.bringToFront();
     const b = entry.mapObj.getBounds();
     if (b.isValid()) mapInstance.fitBounds(b, { padding: [40, 40], animate: true });
   } else if (geom === 'polygon') {
     if (typeof entry.mapObj.setStyle === 'function') {
-      entry.mapObj.setStyle({ color: '#00FEFC', weight: (entry.mapObj.options.weight || 2) + 1,
-        opacity: 1.0, fillColor: '#00FEFC', fillOpacity: 0.30 });
+      entry.mapObj.setStyle({ color: MAP_SELECTED_COLOR, weight: (entry.mapObj.options.weight || 2) + 1,
+        opacity: 1.0, fillColor: MAP_SELECTED_COLOR, fillOpacity: 0.30 });
       entry.mapObj.bringToFront();
       const b = entry.mapObj.getBounds();
       if (b.isValid()) mapInstance.fitBounds(b, { padding: [40, 40], animate: true });
@@ -17534,16 +18380,35 @@ function initMeasSplit(containerId) {
     available = Math.max(260, Math.round(assocContent.clientHeight - (contRect.top - assocRect.top) - 12));
   }
   container.style.height = available + 'px';
-  // Initial split ratio: with all three panes present, DOM order is always
-  // Plot/Results/Metadata (see _buildMeasSplitHtml's pane push order in
-  // buildMeasurementDisplay) — an even three-way split gave Metadata as much
-  // room as Plot/Results even though it typically needs far less, so default
-  // to 50/25/25 instead (Plot given half the pane; Results and Metadata
-  // split the remainder evenly). Any other pane count (a 2-pane Plot+Results
-  // or Results+Metadata split) keeps an even share — flex-grow ratios with a
-  // shared flex-basis of 0 is what makes an uneven initial split simple.
-  const initGrow = panes.length === 3 ? [50, 25, 25] : panes.map(() => 1);
-  panes.forEach((p, i) => { p.style.flex = `${initGrow[i]} 1 0`; });
+  // Initial split ratio: with all three panes present AND open, DOM order is
+  // always Plot/Results/Metadata (see _buildMeasSplitHtml's pane push order
+  // in buildMeasurementDisplay) — an even three-way split gave Metadata as
+  // much room as Plot/Results even though it typically needs far less, so
+  // default to 50/25/25 instead (Plot given half the pane; Results and
+  // Metadata split the remainder evenly). Any other pane count (a 2-pane
+  // Plot+Results or Results+Metadata split) keeps an even share — flex-grow
+  // ratios with a shared flex-basis of 0 is what makes an uneven initial
+  // split simple.
+  //
+  // A pane _buildMeasSplitHtml rendered pre-collapsed (its own `startOpen:
+  // false` — e.g. Results/Metadata start closed whenever a Plot pane exists,
+  // so the plot gets maximum initial height) gets `flex:0 0 auto` here
+  // instead of a grow share, same as toggleMeasPane gives a pane the user
+  // collapses by hand — its header is real content height, nothing more.
+  // The 50/25/25 preset only applies when all three panes are open; with any
+  // pane pre-collapsed, the remaining open panes just split evenly (usually
+  // just Plot alone, which then gets the whole available height).
+  const isPaneOpen = p => {
+    const b = p.querySelector('.meas-pane-body');
+    return !b || b.style.display !== 'none';
+  };
+  const openCount = panes.filter(isPaneOpen).length;
+  const useThreeWayPreset = panes.length === 3 && openCount === 3;
+  panes.forEach((p, i) => {
+    if (!isPaneOpen(p)) { p.style.flex = '0 0 auto'; return; }
+    const grow = useThreeWayPreset ? [50, 25, 25][i] : 1;
+    p.style.flex = `${grow} 1 0`;
+  });
 
   // Each handle only resizes its own two immediate neighbor panes — plain
   // sequential-splitter behavior, so dragging one boundary never disturbs
@@ -17614,9 +18479,14 @@ function toggleMeasPane(headerEl) {
  * instead of Metadata sitting as ordinary unbounded flow content below a
  * tall Results table (e.g. a multi-depth CPT profile), which pushed it out
  * of view and forced scrolling the whole Associated-Data pane to reach it.
- * A lone pane falls back to a plain `wrapCategoryHeader` — nothing to split
- * against; `startOpen` (default true) only matters for this fallback, since
- * every pane inside an actual split always starts visible.
+ * A lone pane falls back to a plain `wrapCategoryHeader`, where `startOpen`
+ * (default true) is the only thing controlling its collapse state. Inside a
+ * real multi-pane split, `startOpen` (default true) ALSO now controls each
+ * pane's own initial collapse state (e.g. buildMeasurementDisplay collapses
+ * every non-Plot pane when a Plot pane is present, so the plot gets maximum
+ * initial height) — `initMeasSplit` reads each pane's rendered body/tri
+ * state back off the DOM to decide initial flex sizing, so this and that
+ * function must stay in sync on how "collapsed" is represented.
  */
 function _buildMeasSplitHtml(splitId, panes) {
   panes = (panes || []).filter(p => p && p.html);
@@ -17626,9 +18496,10 @@ function _buildMeasSplitHtml(splitId, panes) {
   let html = `<div class="meas-vsplit" id="${splitId}">`;
   panes.forEach((p, i) => {
     if (i > 0) html += `<div class="meas-vsplit-handle"></div>`;
+    const open = p.startOpen !== false;
     html += `<div class="meas-vsplit-pane">
-      <div class="kv-section-header meas-pane-header" onclick="toggleMeasPane(this)"><span class="kv-tri">▾</span>${p.label}</div>
-      <div class="meas-pane-body">${p.html}</div>
+      <div class="kv-section-header meas-pane-header" onclick="toggleMeasPane(this)"><span class="kv-tri">${open ? '▾' : '▸'}</span>${p.label}</div>
+      <div class="meas-pane-body"${open ? '' : ' style="display:none"'}>${p.html}</div>
     </div>`;
   });
   html += `</div>`;
@@ -17814,6 +18685,16 @@ function buildMeasurementDisplay(sf) {
         // just above the procedure's KV fields.
         const metaProcHtml = plotHtml + metaHtml + procHtml;
         if (metaProcHtml) panes.push({ label: `${diggsLabel(procType)} Metadata`, html: metaProcHtml });
+      }
+
+      // When a Plot pane is present, start Results/Metadata collapsed so the
+      // plot gets maximum initial height — the user has to actively expand
+      // a table/metadata pane, rather than the split defaulting to an even
+      // (or 50/25/25) share that shrinks the plot before they've seen it.
+      // No effect when there's no Plot pane (e.g. a non-plottable badge) —
+      // those keep the previous all-open default.
+      if (panes.some(p => p.label === 'Plot')) {
+        for (const p of panes) if (p.label !== 'Plot') p.startOpen = false;
       }
 
       let html = '';
@@ -18187,6 +19068,84 @@ function _makeGizmoTextSprite(text, colorHex) {
   return sprite;
 }
 
+/**
+ * _buildOrientationGizmo(renderer, camera, controls, width, height) — small
+ * inset viewport (bottom-left) showing labeled N/E/Up arrows, re-posed each
+ * render to mirror the main camera's own viewing direction. Extracted
+ * 2026-08-07 from what was init3DTrajectoryViewer's own inline block, so
+ * init3DFeatureViewer (the PlanarSamplingFeature/VolumetricSamplingFeature
+ * "View 3D" viewer) gets an identical gizmo, sized the same way, per
+ * explicit user request — every property (arrow length/colors/labels,
+ * viewport sizing formula) is unchanged from the original. Deliberately NOT
+ * shared with _drawGridVolume3D's own separate (slightly smaller-sized,
+ * 80/140/0.16 vs. this one's 90/160/0.18) gizmo implementation — that one
+ * predates this extraction, already works, and touching it wasn't asked for.
+ *
+ * MUST be called by the caller before its own fitIso()/controls.update():
+ * controls.update() can synchronously fire the OrbitControls 'change'
+ * listener (-> render() -> renderGizmo()) before a later-declared `const`
+ * has initialized, throwing a temporal-dead-zone ReferenceError — the exact
+ * hazard the original inline implementation's own comment already flagged,
+ * still applies here since this returns plain values, not a lazy accessor.
+ *
+ * Returns { renderGizmo, resize(w,h), dispose() }. renderGizmo() must be
+ * called from the caller's own render(), AFTER the main scene render, with
+ * `renderer.setScissorTest(false); renderer.setViewport(0,0,width,height);`
+ * issued first (undoes the PREVIOUS frame's gizmo scissor rect before the
+ * main scene draws) — matches the original call site exactly.
+ */
+function _buildOrientationGizmo(renderer, camera, controls, width, height) {
+  // Sized relative to the canvas (not a fixed pixel size) — see the
+  // original 2026-07-16 comment this was extracted from: a fixed size looks
+  // proportionally tiny once the canvas grows to fill the pane's full
+  // height. `let`, updated by the caller's own resize(w,h) call.
+  let gizmoPx = Math.round(Math.max(90, Math.min(160, Math.min(width, height) * 0.18)));
+  let gizmoMargin = Math.round(gizmoPx * 0.15);
+  const gizmoScene  = new THREE.Scene();
+  // Arrow length 3x the original (1 -> 3); frustum widened to match
+  // (1.5 -> 4.5) so the longer arrows + their tip labels still fit
+  // comfortably inside the gizmo viewport.
+  const GIZMO_ARROW_LEN = 3;
+  const gizmoCamera = new THREE.OrthographicCamera(-4.5, 4.5, 4.5, -4.5, 0.1, 10);
+  const gizmoArrows = [];
+  const gizmoLabels = [];
+  for (const { dir, color, label } of [
+    { dir: new THREE.Vector3(1, 0, 0),  color: 0xff6b6b, label: 'E'  },
+    { dir: new THREE.Vector3(0, 0, -1), color: 0x5ee6a0, label: 'N'  },
+    { dir: new THREE.Vector3(0, 1, 0),  color: 0xc9d1d9, label: 'Up' },
+  ]) {
+    const arrow = new THREE.ArrowHelper(dir, new THREE.Vector3(), GIZMO_ARROW_LEN, color, GIZMO_ARROW_LEN * 0.32, GIZMO_ARROW_LEN * 0.18);
+    gizmoScene.add(arrow);
+    gizmoArrows.push(arrow);
+    const text = _makeGizmoTextSprite(label, color);
+    text.position.copy(dir).multiplyScalar(GIZMO_ARROW_LEN + 0.9);
+    gizmoScene.add(text);
+    gizmoLabels.push(text);
+  }
+
+  function renderGizmo() {
+    gizmoCamera.position.copy(camera.position).sub(controls.target).normalize().multiplyScalar(3);
+    gizmoCamera.up.copy(camera.up);
+    gizmoCamera.lookAt(0, 0, 0);
+    renderer.setViewport(gizmoMargin, gizmoMargin, gizmoPx, gizmoPx);
+    renderer.setScissor(gizmoMargin, gizmoMargin, gizmoPx, gizmoPx);
+    renderer.setScissorTest(true);
+    renderer.render(gizmoScene, gizmoCamera);
+  }
+
+  return {
+    renderGizmo,
+    resize(w, h) {
+      gizmoPx = Math.round(Math.max(90, Math.min(160, Math.min(w, h) * 0.18)));
+      gizmoMargin = Math.round(gizmoPx * 0.15);
+    },
+    dispose() {
+      gizmoArrows.forEach(a => { a.line.material.dispose(); a.cone.material.dispose(); });
+      gizmoLabels.forEach(s => { s.material.map.dispose(); s.material.dispose(); });
+    },
+  };
+}
+
 // Rounds a raw tick-spacing value up to a "nice" 1/2/5 x 10^n step — the
 // standard axis-labeling trick, so elevation ticks land on round numbers
 // (10, 20, 50, ...; or 2, 4, ...) instead of an arbitrary fraction of the
@@ -18236,7 +19195,10 @@ function _fmtTrajCoord(c) {
 // Searches every SF type, not just Borehole — any AbstractLinearSamplingFeatureType
 // descendant (Borehole, Well, ...) carries a centerLine and can attach this
 // pill (see OBJECT_CONFIGS.Borehole/.Well's own Trajectory row compute()).
-function open3DTrajectoryView(sfId) {
+// `renderMode` ('tube', default, or 'line' — GP_Trackline's own Trajectory
+// row compute() passes 'line') is forwarded to init3DTrajectoryViewer
+// unchanged; every existing caller omits it and gets the original tube.
+function open3DTrajectoryView(sfId, renderMode) {
   let sf = null;
   for (const arr of DIGGS_SF.values()) {
     sf = arr.find(s => s.id === sfId);
@@ -18296,12 +19258,12 @@ function open3DTrajectoryView(sfId) {
   // clientWidth/Height) before the renderer is sized against it.
   requestAnimationFrame(() => requestAnimationFrame(() => {
     const host = document.getElementById(hostId);
-    if (host) init3DTrajectoryViewer(host, trajectory, sf.el);
+    if (host) init3DTrajectoryViewer(host, trajectory, sf.el, renderMode);
   }));
 }
 
 // ── init3DTrajectoryViewer: builds the Three.js scene into `host` ──────────
-function init3DTrajectoryViewer(host, trajectory, sfEl) {
+function init3DTrajectoryViewer(host, trajectory, sfEl, renderMode) {
   disposeTrajectoryViewer();
   const myGen = _trajViewerGen;
 
@@ -18394,7 +19356,27 @@ function init3DTrajectoryViewer(host, trajectory, sfEl) {
   // fixes above are enough on their own). Vertex marker spheres that used
   // to scale off this same radius were removed in the first thinning pass
   // (see Collar/TD labels below — those are the only per-vertex visuals left).
-  const radius = Math.min(Math.max(diag * 0.015, 0.15), 1.5) * 0.25;
+  //
+  // `renderMode === 'line'` (2026-08-06, GP_Trackline's own "View 3D" pill)
+  // draws a thick LINE instead of a round tube — a trackline is a survey
+  // path, not a drilled hole, so the borehole tube's rounded/lit-cylinder
+  // look reads wrong for it. r128 has no fat-line module inlined (a real
+  // THREE.Line's linewidth is capped at 1px on most WebGL backends — an
+  // ANGLE/ WebGL platform limitation, not a Three.js choice), so "thick
+  // line, same renderer" is built the practical way within this pinned
+  // build: the SAME TubeGeometry/CatmullRomCurve3 pipeline (identical
+  // scene/camera/controls/gizmo/render-on-demand/dispose — only the
+  // trajectory mesh construction differs), just with a much smaller fixed
+  // radius (not scaled off the scene's own bounding diagonal — a trackline
+  // can span kilometers, where the tube's own diag-relative sizing would
+  // read as absurdly fat) and a low-poly hexagonal cross-section (6 radial
+  // segments, vs. the tube's smooth 24) plus a flat, unlit
+  // MeshBasicMaterial (vs. the tube's lit MeshStandardMaterial) — together
+  // these read as "a thick line" rather than "a lit 3D pipe" at any zoom.
+  const isLineMode = renderMode === 'line';
+  const radius = isLineMode
+    ? Math.min(Math.max(diag * 0.004, 0.05), 0.4)
+    : Math.min(Math.max(diag * 0.015, 0.15), 1.5) * 0.25;
   // 'centripetal' (three.js's own default curveType, not overridden here) —
   // unlike 'catmullrom', it ignores `tension` and instead parametrizes by
   // inter-point distance, which stays well-behaved (no flattening near a
@@ -18413,13 +19395,18 @@ function init3DTrajectoryViewer(host, trajectory, sfEl) {
   // radialSegments (sides of the cross-section) higher for a rounder tube,
   // less faceted under specular light — both were contributing to the
   // "bumpy/wavy" look reported above, on top of the fixed-light issue.
+  // Line mode keeps radialSegments low (6) deliberately — see the comment
+  // above.
   const tubeSegments = Math.max(pts3.length * 40, 200);
-  const tubeGeom = new THREE.TubeGeometry(curve, tubeSegments, radius, 24, false);
+  const tubeGeom = new THREE.TubeGeometry(curve, tubeSegments, radius, isLineMode ? 6 : 24, false);
   // roughness raised / metalness dropped from the original 0.55/0.05 — a
   // more matte, diffuse surface is much less sensitive to the subtle
   // per-segment normal variation that a glossier material turns into
-  // visible banding.
-  const tubeMat  = new THREE.MeshStandardMaterial({ color: 0x58a6ff, roughness: 0.85, metalness: 0 });
+  // visible banding. Line mode uses a flat unlit MeshBasicMaterial instead
+  // (see the comment above) — no roughness/metalness concept applies.
+  const tubeMat  = isLineMode
+    ? new THREE.MeshBasicMaterial({ color: 0x00A99D })
+    : new THREE.MeshStandardMaterial({ color: 0x58a6ff, roughness: 0.85, metalness: 0 });
   const tubeMesh = new THREE.Mesh(tubeGeom, tubeMat);
   scene.add(tubeMesh);
 
@@ -18608,56 +19595,10 @@ function init3DTrajectoryViewer(host, trajectory, sfEl) {
   controls.target.copy(center);
   controls.enableDamping = false;
 
-  // ── Orientation gizmo — small inset viewport (bottom-left) showing
-  // labeled N/E/Up arrows, re-posed each render to mirror the main
-  // camera's viewing direction. Each arrow gets its own text label right
-  // past its tip (2026-07-16, replaces the old HTML color-only legend —
-  // "clearer than colors" per user request). Declared before render()/
-  // fitIso() below: controls.update() inside fitIso() can fire the
-  // 'change' listener (render -> renderGizmo) synchronously, so gizmoScene/
-  // gizmoCamera must already exist by then, not just be hoisted function
-  // declarations — a `const` referenced before this point would throw a
-  // temporal-dead-zone ReferenceError (caught via live-browser testing).
-  // Sized relative to the canvas (not a fixed 68px) — a fixed pixel size
-  // looked proportionally tiny once the canvas itself grew to fill the
-  // pane's full height (2026-07-16 change); scaling with the canvas keeps
-  // the gizmo (and everything drawn in its viewport, at the same fixed
-  // world-space size — see GIZMO_ARROW_LEN etc. below) a legible size
-  // regardless of how big or small the host ends up. `let`, kept in sync
-  // by the ResizeObserver below, same reasoning as width/height.
-  let gizmoPx = Math.round(Math.max(90, Math.min(160, Math.min(width, height) * 0.18)));
-  let gizmoMargin = Math.round(gizmoPx * 0.15);
-  const gizmoScene  = new THREE.Scene();
-  // Arrow length 3x the original (1 -> 3, user request); frustum widened
-  // to match (1.5 -> 4.5) so the longer arrows + their tip labels still
-  // fit comfortably inside the gizmo viewport.
-  const GIZMO_ARROW_LEN = 3;
-  const gizmoCamera = new THREE.OrthographicCamera(-4.5, 4.5, 4.5, -4.5, 0.1, 10);
-  const gizmoArrows = [];
-  const gizmoLabels = [];
-  for (const { dir, color, label } of [
-    { dir: new THREE.Vector3(1, 0, 0),  color: 0xff6b6b, label: 'E'  },
-    { dir: new THREE.Vector3(0, 0, -1), color: 0x5ee6a0, label: 'N'  },
-    { dir: new THREE.Vector3(0, 1, 0),  color: 0xc9d1d9, label: 'Up' },
-  ]) {
-    const arrow = new THREE.ArrowHelper(dir, new THREE.Vector3(), GIZMO_ARROW_LEN, color, GIZMO_ARROW_LEN * 0.32, GIZMO_ARROW_LEN * 0.18);
-    gizmoScene.add(arrow);
-    gizmoArrows.push(arrow);
-    const text = _makeGizmoTextSprite(label, color);
-    text.position.copy(dir).multiplyScalar(GIZMO_ARROW_LEN + 0.9);
-    gizmoScene.add(text);
-    gizmoLabels.push(text);
-  }
-
-  function renderGizmo() {
-    gizmoCamera.position.copy(camera.position).sub(controls.target).normalize().multiplyScalar(3);
-    gizmoCamera.up.copy(camera.up);
-    gizmoCamera.lookAt(0, 0, 0);
-    renderer.setViewport(gizmoMargin, gizmoMargin, gizmoPx, gizmoPx);
-    renderer.setScissor(gizmoMargin, gizmoMargin, gizmoPx, gizmoPx);
-    renderer.setScissorTest(true);
-    renderer.render(gizmoScene, gizmoCamera);
-  }
+  // ── Orientation gizmo — see _buildOrientationGizmo's own doc comment.
+  // Built before render()/fitIso() below for the same temporal-dead-zone
+  // reason that function's own comment explains.
+  const gizmo = _buildOrientationGizmo(renderer, camera, controls, width, height);
 
   function render() {
     camera.updateMatrixWorld();
@@ -18700,7 +19641,7 @@ function init3DTrajectoryViewer(host, trajectory, sfEl) {
     renderer.setScissorTest(false);
     renderer.setViewport(0, 0, width, height);
     renderer.render(scene, activeCamera);
-    renderGizmo();
+    gizmo.renderGizmo();
   }
   controls.addEventListener('change', render);
 
@@ -18719,8 +19660,7 @@ function init3DTrajectoryViewer(host, trajectory, sfEl) {
   const resizeObserver = new ResizeObserver(() => {
     width  = host.clientWidth  || width;
     height = host.clientHeight || height;
-    gizmoPx = Math.round(Math.max(90, Math.min(160, Math.min(width, height) * 0.18)));
-    gizmoMargin = Math.round(gizmoPx * 0.15);
+    gizmo.resize(width, height);
     renderer.setSize(width, height);
     camera.aspect = width / height;
     camera.updateProjectionMatrix();
@@ -18746,12 +19686,285 @@ function init3DTrajectoryViewer(host, trajectory, sfEl) {
       tickGeoms.forEach(g => g.dispose());
       if (tickMat) tickMat.dispose();
       tickSprites.forEach(s => { s.material.map.dispose(); s.material.dispose(); });
-      [collarLabel, toeLabel, ...otherLegLabels.map(l => l.sprite), ...vertexLabels.map(l => l.sprite), ...gizmoLabels].forEach(s => { s.material.map.dispose(); s.material.dispose(); });
+      [collarLabel, toeLabel, ...otherLegLabels.map(l => l.sprite), ...vertexLabels.map(l => l.sprite)].forEach(s => { s.material.map.dispose(); s.material.dispose(); });
       [collarLeader, toeLeader, ...vertexLabels.map(l => l.leader)].forEach(l => { l.geom.dispose(); l.mat.dispose(); });
-      // ArrowHelper's line/cone geometries are cached+shared at the THREE
-      // module level (r128), not per-instance — only their per-instance
-      // materials are ours to dispose.
-      gizmoArrows.forEach(a => { a.line.material.dispose(); a.cone.material.dispose(); });
+      gizmo.dispose();
+      if (renderer.domElement.parentNode) renderer.domElement.parentNode.removeChild(renderer.domElement);
+    },
+  };
+}
+
+// ── open3DFeatureView: pill onclick entry point for PlanarSamplingFeature/
+// VolumetricSamplingFeature's own "View 3D" button (2026-08-06) — sibling
+// of open3DTrajectoryView for a surface/solid featureExtent rather than a
+// centerLine path. Shown UNCONDITIONALLY on the Shape row (not gated on any
+// particular Orientation/Shape value, unlike Borehole/Sounding/GP_Trackline's
+// own pill) per explicit user request.
+function open3DFeatureView(sfId) {
+  let sf = null;
+  for (const arr of DIGGS_SF.values()) {
+    sf = arr.find(s => s.id === sfId);
+    if (sf) break;
+  }
+  if (!sf) sf = _rifsNestedById.get(sfId) || null;
+  if (!sf) return;
+  const geometry = extractFeatureGeometry3D(sf);
+  if (!geometry) return;
+
+  const hostId = `feat3d-${sfId.replace(/[^a-zA-Z0-9]/g, '_')}`;
+  const infoHtml = `<span>Faces: <strong>${geometry.ptPatches.length}</strong></span>`;
+
+  // Reuses the exact same toolbar/host markup (and the shared
+  // setTrajectoryView/toggleTrajectoryProjection handlers below) as
+  // open3DTrajectoryView — those two functions operate purely off
+  // _activeTrajectoryViewer's own generic {camera,controls,center,diag,
+  // render,projectionMode} shape, which init3DFeatureViewer populates the
+  // same way init3DTrajectoryViewer does, so nothing toolbar-related needs
+  // its own copy for this viewer kind. The trailing "Solid" opacity toggle
+  // (2026-08-07, per explicit user request) is unique to this viewer — a
+  // trajectory tube/line has no fill to make opaque, so it's not part of
+  // open3DTrajectoryView's own toolbar.
+  const html = `
+    <div class="trajectory-widget">
+      <div class="trajectory-toolbar">
+        <button onclick="setTrajectoryView('iso')">Reset</button>
+        <button onclick="setTrajectoryView('plan')">Plan</button>
+        <button onclick="setTrajectoryView('north')">N Elevation</button>
+        <button onclick="setTrajectoryView('east')">E Elevation</button>
+        <span class="trajectory-toolbar-sep"></span>
+        <button id="traj-projection-toggle" onclick="toggleTrajectoryProjection()">Isometric</button>
+        <span class="trajectory-toolbar-sep"></span>
+        <button id="feat-opacity-toggle" onclick="toggleFeatureOpacity()">Solid</button>
+      </div>
+      <div id="${hostId}" class="trajectory-canvas-host"></div>
+      <div class="trajectory-info-strip">${infoHtml}</div>
+    </div>
+  `;
+
+  showAssoc('3D View — ' + (sf.name || sf.id), html);
+  const hdrEl = document.getElementById('assoc-header');
+  if (hdrEl) hdrEl.style.color = 'var(--accent)';
+
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    const host = document.getElementById(hostId);
+    if (host) init3DFeatureViewer(host, geometry);
+  }));
+}
+
+// ── init3DFeatureViewer: builds the Three.js scene for a
+// PlanarSamplingFeature/VolumetricSamplingFeature's own featureExtent (a
+// surface, or a solid's boundary shell) — sibling of init3DTrajectoryViewer,
+// reusing the same render-on-demand/OrbitControls/dispose conventions and
+// populating the SAME _activeTrajectoryViewer slot (so setTrajectoryView/
+// toggleTrajectoryProjection and disposeTrajectoryViewer's own
+// every-existing-choke-point teardown all work completely unchanged, zero
+// extra wiring — the same reuse benefit CLAUDE.md notes for
+// _activeGridVolumeViewers/disposeGridVolumeViewers). No collar/TD labels or
+// elevation ticks (those describe a path's own stations, meaningless for a
+// surface/solid) — but DOES get the same orientation gizmo
+// (_buildOrientationGizmo) as the trajectory viewer, sized identically, per
+// explicit user request — a flat/solid shape's own outline alone doesn't
+// tell you which way is north/up the way a labeled path does. Also gets an
+// opacity toggle (toggleFeatureOpacity) the trajectory viewer has no
+// equivalent for, since a tube/line has no fill to make opaque.
+function init3DFeatureViewer(host, geometry) {
+  disposeTrajectoryViewer();
+
+  let width  = host.clientWidth  || 400;
+  let height = host.clientHeight || 420;
+
+  // Re-center around the first patch's first vertex — same float32-
+  // precision reasoning as init3DTrajectoryViewer's own originPt (real-
+  // world absolute meters are far too large for a 32-bit vertex buffer to
+  // resolve to sub-meter precision).
+  const axes = { upAxis: geometry.upAxis, flipUp: geometry.flipUp };
+  const originPt = _gridVecFromLocal(geometry.ptPatches[0].pts[0], axes).clone();
+  const toVec3 = p => _gridVecFromLocal(p, axes).sub(originPt);
+
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x161b22);
+
+  let projectionMode = 'perspective';
+  const camera = new THREE.PerspectiveCamera(45, width / height, 0.01, 1e6);
+  const orthoCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.01, 1e6);
+
+  const renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  renderer.setSize(width, height);
+  host.insertBefore(renderer.domElement, host.firstChild);
+
+  scene.add(new THREE.AmbientLight(0xffffff, 0.7));
+  const dirLight = new THREE.DirectionalLight(0xffffff, 0.55);
+  scene.add(dirLight);
+
+  // ── One translucent mesh + one edge outline per patch. Each patch's own
+  // ring is triangulated in ITS OWN plane via THREE.Shape/ShapeGeometry
+  // (handles a concave ring and its holes correctly, unlike a naive
+  // vertex-0 fan) — a patch's own points are already coplanar per the
+  // DIGGS/GML surface-patch contract, so a 2D projection basis derived
+  // from the patch's own Newell normal is exact, not approximate.
+  const allVerts = [];
+  const meshResources = [];
+  // Subset of meshResources — just the filled-face materials (not the edge
+  // LineLoop materials), tracked separately so toggleFeatureOpacity can
+  // target only the faces.
+  const faceMats = [];
+  for (const patch of geometry.ptPatches) {
+    let scenePts = patch.pts.map(toVec3);
+    // Drop a duplicate closing vertex (GML LinearRing convention: first ===
+    // last) before triangulating -- ShapeGeometry closes its own loop.
+    if (scenePts.length > 1 && scenePts[0].distanceTo(scenePts[scenePts.length - 1]) < 1e-6) {
+      scenePts = scenePts.slice(0, -1);
+    }
+    if (scenePts.length < 3) continue;
+
+    const normalArr = _newellNormal(scenePts.map(v => v.toArray()));
+    if (!normalArr) continue;
+    const normal = new THREE.Vector3(normalArr[0], normalArr[1], normalArr[2]);
+
+    // First non-degenerate edge from vertex 0 (not always scenePts[1] --
+    // a shared/duplicate vertex there would normalize to NaN).
+    let uAxis = null;
+    for (let i = 1; i < scenePts.length; i++) {
+      const cand = scenePts[i].clone().sub(scenePts[0]);
+      if (cand.length() > 1e-6) { uAxis = cand.normalize(); break; }
+    }
+    if (!uAxis) continue;
+    let vAxis = normal.clone().cross(uAxis).normalize();
+    if (!(vAxis.length() > 0.5)) continue;   // normal/uAxis were parallel -- degenerate patch
+    uAxis = vAxis.clone().cross(normal).normalize();   // re-orthogonalize
+    const origin = scenePts[0];
+
+    const project = p => {
+      const d = p.clone().sub(origin);
+      return new THREE.Vector2(d.dot(uAxis), d.dot(vAxis));
+    };
+    const shape = new THREE.Shape(scenePts.map(project));
+    for (const holePts of patch.holes) {
+      let hScene = holePts.map(toVec3);
+      if (hScene.length > 1 && hScene[0].distanceTo(hScene[hScene.length - 1]) < 1e-6) hScene = hScene.slice(0, -1);
+      if (hScene.length < 3) continue;
+      shape.holes.push(new THREE.Path(hScene.map(project)));
+    }
+
+    const shapeGeom = new THREE.ShapeGeometry(shape);
+    const basis = new THREE.Matrix4().makeBasis(uAxis, vAxis, normal).setPosition(origin);
+    shapeGeom.applyMatrix4(basis);
+
+    const mat = new THREE.MeshStandardMaterial({
+      color: 0x3B82F6, roughness: 0.85, metalness: 0,
+      side: THREE.DoubleSide, transparent: true, opacity: 0.55,
+    });
+    const mesh = new THREE.Mesh(shapeGeom, mat);
+    scene.add(mesh);
+    faceMats.push(mat);
+
+    const edgeGeom = new THREE.BufferGeometry().setFromPoints([...scenePts, scenePts[0]]);
+    const edgeMat = new THREE.LineBasicMaterial({ color: 0x58a6ff });
+    const edgeLine = new THREE.LineLoop(edgeGeom, edgeMat);
+    scene.add(edgeLine);
+
+    meshResources.push({ geom: shapeGeom, mat }, { geom: edgeGeom, mat: edgeMat });
+    allVerts.push(...scenePts);
+  }
+  // Nothing triangulatable (fully degenerate geometry) -- still show an
+  // empty-but-valid scene rather than throwing; the pill simply wasn't
+  // worth clicking for this instance.
+  if (!allVerts.length) allVerts.push(new THREE.Vector3(0, 0, 0));
+
+  const box    = new THREE.Box3().setFromPoints(allVerts);
+  const center = box.getCenter(new THREE.Vector3());
+  const size   = box.getSize(new THREE.Vector3());
+  const diag   = Math.max(size.length(), 1);
+
+  const gridSize = Math.max(diag * 1.5, 5);
+  const grid = new THREE.GridHelper(gridSize, 10, 0x3e4752, 0x3e4752);
+  grid.position.set(center.x, box.min.y, center.z);
+  grid.material.opacity = 0.35;
+  grid.material.transparent = true;
+  scene.add(grid);
+
+  const controls = new THREE.OrbitControls(camera, renderer.domElement);
+  controls.target.copy(center);
+  controls.enableDamping = false;
+
+  // ── Orientation gizmo — see _buildOrientationGizmo's own doc comment.
+  // Built before render()/fitIso() below for the same temporal-dead-zone
+  // reason that function's own comment explains.
+  const gizmo = _buildOrientationGizmo(renderer, camera, controls, width, height);
+
+  function render() {
+    camera.updateMatrixWorld();
+    dirLight.position.copy(camera.position);
+    let activeCamera = camera;
+    if (projectionMode === 'ortho') {
+      const dist = camera.position.distanceTo(controls.target);
+      const halfH = dist * Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2);
+      const halfW = halfH * camera.aspect;
+      orthoCamera.left = -halfW; orthoCamera.right = halfW;
+      orthoCamera.top = halfH; orthoCamera.bottom = -halfH;
+      orthoCamera.near = camera.near; orthoCamera.far = camera.far;
+      orthoCamera.position.copy(camera.position);
+      orthoCamera.quaternion.copy(camera.quaternion);
+      orthoCamera.updateProjectionMatrix();
+      orthoCamera.updateMatrixWorld();
+      activeCamera = orthoCamera;
+    }
+    renderer.setScissorTest(false);
+    renderer.setViewport(0, 0, width, height);
+    renderer.render(scene, activeCamera);
+    gizmo.renderGizmo();
+  }
+  controls.addEventListener('change', render);
+
+  function fitIso() {
+    camera.position.set(center.x + diag * 0.9, center.y + diag * 0.7, center.z + diag * 0.9);
+    camera.near = diag * 0.001; camera.far = diag * 100;
+    camera.updateProjectionMatrix();
+    controls.target.copy(center);
+    controls.update();
+  }
+  fitIso();
+  render();
+
+  const resizeObserver = new ResizeObserver(() => {
+    width  = host.clientWidth  || width;
+    height = host.clientHeight || height;
+    gizmo.resize(width, height);
+    renderer.setSize(width, height);
+    camera.aspect = width / height;
+    camera.updateProjectionMatrix();
+    render();
+  });
+  resizeObserver.observe(host);
+
+  // Opacity toggle state (toggleFeatureOpacity) — starts translucent
+  // (matches every face material's own construction above, opacity:0.55)
+  // so a multi-patch solid/surface doesn't hide its own far side by
+  // default; "Solid" makes every face fully opaque instead, e.g. to check
+  // a shape reads correctly without seeing through it.
+  let isSolid = false;
+
+  _activeTrajectoryViewer = {
+    camera, controls, center, diag, render,
+    get projectionMode() { return projectionMode; },
+    setProjectionMode(mode) { projectionMode = mode; render(); },
+    get isSolid() { return isSolid; },
+    setSolid(solid) {
+      isSolid = solid;
+      for (const mat of faceMats) {
+        mat.opacity = solid ? 1 : 0.55;
+        mat.transparent = !solid;
+      }
+      render();
+    },
+    dispose() {
+      resizeObserver.disconnect();
+      controls.dispose();
+      renderer.dispose();
+      meshResources.forEach(({ geom, mat }) => { geom.dispose(); mat.dispose(); });
+      grid.geometry.dispose(); grid.material.dispose();
+      gizmo.dispose();
       if (renderer.domElement.parentNode) renderer.domElement.parentNode.removeChild(renderer.domElement);
     },
   };
@@ -18763,6 +19976,9 @@ function init3DTrajectoryViewer(host, trajectory, sfEl) {
 // not a true flattened map view; orthographic has no such depth-dependent
 // scaling. Most useful combined with the Plan preset, but works with any
 // view angle (Iso + Ortho gives a classic technical-drawing isometric look).
+// Shared by both init3DTrajectoryViewer and init3DFeatureViewer (2026-08-06)
+// — operates purely on _activeTrajectoryViewer's own generic shape, so
+// whichever viewer kind is currently live just works.
 function toggleTrajectoryProjection() {
   const v = _activeTrajectoryViewer;
   if (!v) return;
@@ -18778,7 +19994,28 @@ function toggleTrajectoryProjection() {
   }
 }
 
+// ── toggleFeatureOpacity: translucent <-> solid, init3DFeatureViewer only ──
+// A trajectory tube/line has no fill to make opaque, so there's no
+// equivalent button on that toolbar — `v.setSolid` only exists on a feature
+// viewer's own _activeTrajectoryViewer object (see init3DFeatureViewer), so
+// this is a silent no-op if somehow called while a trajectory viewer is
+// live instead (can't happen from the UI — only init3DFeatureViewer's own
+// toolbar HTML includes the "Solid" button).
+function toggleFeatureOpacity() {
+  const v = _activeTrajectoryViewer;
+  if (!v || typeof v.setSolid !== 'function') return;
+  const newSolid = !v.isSolid;
+  v.setSolid(newSolid);
+  const btn = document.getElementById('feat-opacity-toggle');
+  if (btn) {
+    btn.textContent = newSolid ? 'Translucent' : 'Solid';
+    btn.classList.toggle('active', newSolid);
+  }
+}
+
 // ── setTrajectoryView: toolbar preset buttons ───────────────
+// Shared by both init3DTrajectoryViewer and init3DFeatureViewer (2026-08-06)
+// — same _activeTrajectoryViewer-only dependency as toggleTrajectoryProjection.
 function setTrajectoryView(preset) {
   const v = _activeTrajectoryViewer;
   if (!v) return;
@@ -20922,9 +22159,27 @@ function initBadgeGraphic(scopeId, jobs) {
   const row = container.querySelector('.sample-graphic-row, .lith-log-row');
   let svgH = available;
   if (row) {
-    const overhead = (captionRow ? captionRow.getBoundingClientRect().height : 0)
-      + (legend ? legend.getBoundingClientRect().height : 0);
-    if (overhead > 0) svgH = Math.max(120, Math.round(available - overhead));
+    // Outer height (border-box height + its own margin-top/-bottom), not
+    // just getBoundingClientRect().height — .lith-log-caption-row/
+    // .sample-graphic-caption-row (margin-top:4px) and .lith-legend/
+    // .constr-legend-row (margin-top:2px) each carry a CSS margin that sits
+    // OUTSIDE their own box, so a plain rect-height sum silently undercounts
+    // the real vertical space they occupy by ~6px — enough that, now the
+    // legend starts closed by default (see buildLithLegend's own comment),
+    // the log/marker row (sized to fill the "leftover" budget) routinely
+    // overflowed .lith-log-col's fixed height and triggered its own
+    // overflow-y:auto scrollbar. Found live via a Lithology-badge screenshot
+    // (2026-08-06) after the legend-always-closed change landed.
+    const outerH = el => {
+      if (!el) return 0;
+      const cs = getComputedStyle(el);
+      return el.getBoundingClientRect().height + parseFloat(cs.marginTop || 0) + parseFloat(cs.marginBottom || 0);
+    };
+    const overhead = outerH(captionRow) + outerH(legend);
+    // floor, not round — errs toward a hair short rather than a hair over,
+    // since rendered rect heights are sub-pixel floats and rounding UP here
+    // is exactly what re-triggers the overflow this fix is for.
+    if (overhead > 0) svgH = Math.max(120, Math.floor(available - overhead));
   }
 
   // The Hole Diameter chart AND the Casing column each need a much taller
@@ -22230,7 +23485,10 @@ function buildLithLegend(obsArray) {
         <rect x="0" y="0" width="20" height="14" fill="${meta.color}"/>${layerRects}
       </svg><span>${esc(meta.label)}</span></div>`;
   }).join('');
-  const open = present.length <= 6;
+  // Always starts closed (per explicit user request) — was previously
+  // open-if-<=6-materials; matches .sample-legend's own always-closed
+  // convention, now shared by every collapsible legend in this file.
+  const open = false;
   return `<div class="lith-legend">
     <div class="kv-section-header lith-legend-title" onclick="toggleKVSection(this)">
       <span class="kv-tri">${open ? '▼' : '▶'}</span>Legend</div>
@@ -22261,7 +23519,9 @@ function buildBackfillLegend(layers) {
         <rect x="0" y="0" width="20" height="14" fill="${meta.color}"/>${layerRects}
       </svg><span>${esc(meta.label)}</span></div>`;
   }).join('');
-  const open = present.length <= 6;
+  // Always starts closed (per explicit user request) — see buildLithLegend's
+  // own comment.
+  const open = false;
   return `<div class="lith-legend">
     <div class="kv-section-header lith-legend-title" onclick="toggleKVSection(this)">
       <span class="kv-tri">${open ? '▼' : '▶'}</span>Legend</div>
@@ -22287,7 +23547,9 @@ function buildCasingLegend(legend) {
       <svg class="lith-legend-sw" viewBox="0 0 20 14" width="20" height="14">
         <rect x="0" y="0" width="20" height="14" fill="${item.color}"/>
       </svg><span>${esc(item.label)}</span></div>`).join('');
-  const open = legend.length <= 6;
+  // Always starts closed (per explicit user request) — see buildLithLegend's
+  // own comment.
+  const open = false;
   return `<div class="lith-legend">
     <div class="kv-section-header lith-legend-title" onclick="toggleKVSection(this)">
       <span class="kv-tri">${open ? '▼' : '▶'}</span>Legend</div>

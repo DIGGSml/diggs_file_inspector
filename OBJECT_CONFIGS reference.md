@@ -1,20 +1,12 @@
 # OBJECT_CONFIGS reference
 
 Reference for the row-config schema that drives the KV-table rendering
-engine in `diggs_file_inspector.html` (the "2026-07-13 rebuild" — see
-`KV formatting.md` for the original design discussion). This describes the
+engine in `diggs_file_inspector.html`. This describes the
 **actual current implementation**, verified directly against the engine
 source (`renderKVObject`, `renderPropertyRow`, `renderResolvedObject`,
 `wrapCategoryHeader`, `renderSimpleRow`, `renderSimplePropertyCell`,
-`renderIntervalTable`), not the original design draft — a few things
-sketched during design (`multi` as originally conceived, raw-CSS-string
-styling) were changed or dropped before landing; this file reflects what's
-real. Last verified 2026-07-19 against the shipped engine, after: generic
-array-property-type handling (`resolveXlinkChildren`), dynamic `itemLabel`,
-`alwaysGroup`, the `labelClass`/`valueClass`/`attrClass`/`categoryClass`
-style overrides, `borderTop`/`borderBottom`, the switch to closed-by-default
-section headers, and the `interval` key (compact expandable interval
-tables — see "Interval tables" below).
+`renderIntervalTable`, `renderDataTable`, `resolveIntervalIndexCells`,
+`_resolveDataColumnCell`). Last verified 2026-08-06 against the shipped engine.
 
 ## Top-level shape
 
@@ -73,6 +65,9 @@ Not currently used by any shipped config — implemented, available, unexercised
 | `borderTop` | boolean | `undefined` — no top border | `true` → adds a top border to this row's `.kv-row` (`kv-row-border-top` class). Only affects plain KV rows (`renderSimpleRow`) — a category/banner header has its own separate default divider (always a top border, via `.kv-section-header`) and isn't affected by this key. |
 | `borderBottom` | boolean | `undefined` — automatic (bottom border on every row except the last child of its container) | `true` forces a bottom border on (`kv-row-border-bottom`) — meaningful mainly for a row that would otherwise be a container's last child. `false` suppresses the default bottom border (`kv-row-no-border-bottom`) — e.g. to visually merge a row with the one below it. |
 | `interval` | object `{ expands?, index[], column[] }` | none — falls through to the default per-instance full-KV rendering described above | Only takes effect when `multi:true`. Renders the property as a compact interval table instead — see "Interval tables" below for the full sub-schema. |
+| `dataTable` | object `{ expands?, column[], sort? }` | none | `interval`'s sibling for a `multi:true` row with no natural index — see "Data tables" below. |
+| `compute` | `(el) => string \| {val, keyExtra} \| falsy` | none | Escape hatch for a **single** row whose value has no schema element of its own — derived from the object's context element (`el`) by arbitrary JS instead of an XPath `path`. See "Computed rows" below. When present, bypasses `path`/object resolution entirely — `path` is not read. |
+| `computeRows` | `(el) => {label, val}[] \| falsy` | none | Escape hatch for a **group** of rows computed from state outside `el`'s own schema fields entirely (e.g. a cross-document lookup). See "Computed rows" below. Also bypasses `path` entirely. |
 
 **`path` on an ordinary row must be a plain string or a real `'a | b'` XPath
 union — never an array.** The array-of-alternatives, priority-fallback
@@ -105,6 +100,58 @@ union-path use in this engine already requires.
 The engine only attempts object-resolution (`resolveXlinkChildren`, see
 below) on `Element` nodes (`nodeType === 1`) — an attribute node is always
 treated as simple/leaf, safely, regardless of what it's named.
+
+## Computed rows (`compute`, `computeRows`)
+
+Both are checked at the very top of `renderPropertyRow`, before `path` is
+even read — a row using either key never touches XPath resolution at all.
+
+**`compute: (el) => result`** — a single row whose value is derived from the
+object's context element (`el`) by arbitrary JS rather than a schema
+element. Used for a value that genuinely has no XML backing of its own (e.g.
+Borehole's Trajectory/Orientation row, classified from `centerLine`'s
+`posList` tuples). Renders as one plain row, exactly like a simple
+XML-backed property would:
+
+- Return a falsy value → the row renders nothing (or, with `rowCfg.showEmpty`,
+  an em-dash placeholder).
+- Return a plain string → used as the value cell, same as any leaf value.
+- Return `{val, keyExtra}` → `val` is the value cell; `keyExtra` is extra HTML
+  rendered on its own line **under the label** (in the key column, not next
+  to the value) — added for Borehole's Trajectory row, whose "View 3D" pill
+  belongs with the label, not the value text.
+
+```js
+{ label: 'Trajectory', compute: el => FORMAT_FN.centerLineOrientationDetail(sf) }
+```
+
+**`computeRows: (el) => [{label, val}, ...]`** — a **group** of rows computed
+from state outside `el`'s own schema fields entirely — typically a
+cross-document lookup, not a child element of `el` at all. The motivating
+cases are both on `Sample`-adjacent configs: `OBJECT_CONFIGS.Sample`'s
+"Associated Measurements" row (every procedure that tested this Sample,
+found by searching the whole document, not a property of `Sample` itself)
+and the shared `_sampleRefRows` row on `OBJECT_CONFIGS.SoilSpecimen`/
+`_MEAS_META_TRAILING` ("Sample Name" — resolves that object's own
+`sampleRef` children to the linked Sample's display name).
+
+Grouping follows the **same convention** every ordinary multi-occurrence row
+already uses (see "Multi-occurrence grouping" below): a falsy/empty array
+renders nothing; exactly one item renders as a plain row (`it.label` as its
+key, e.g. a lone "Sample Name" reads just like any other field) with no
+group header; two or more are wrapped in one `wrapCategoryHeader` (title =
+`rowCfg.labelPlural` or `rowCfg.label + 's'`), each item its own row
+underneath. `rowCfg.alwaysGroup: true` forces the header even for a single
+result (used for "Associated Measurements", so it's always its own named
+section rather than sometimes reading as a bare unlabeled row). **A
+`computeRows` row using `alwaysGroup` with a `label` that already reads
+plural must also set `labelPlural` explicitly** — found live:
+"Associated Measurements" with no `labelPlural` fell through to the
+`label + 's'` default and rendered "Associated Measurementss".
+
+```js
+{ label: 'Sample Name', computeRows: el => _sampleRefRows(el) }
+```
 
 ## How a property row decides simple vs. object — fully automatic
 
@@ -169,8 +216,9 @@ Once a property resolves to one or more objects, each is rendered via
    `SPECIAL_OBJECT_FORMATTERS`, then `OBJECT_CONFIGS`, automatically.
 
 **`SPECIAL_OBJECT_FORMATTERS`** (`Role`, `Remark`, `TimeInterval`,
-`LinearExtent`, `PointLocation`, `BusinessAssociate`, `Parameter`) render as
-one formatted line/link instead of a nested table — checked *before*
+`LinearExtent`, `PointLocation`, `BusinessAssociate`, `Parameter`,
+`DelayEvent`) render as one formatted line/link instead of a nested table
+— checked *before*
 `OBJECT_CONFIGS`, so one of these can't be overridden back to table
 rendering via a same-named `OBJECT_CONFIGS` entry (only via `configOverride`
 pointing elsewhere). Each formatter is called with the **resolved object**
@@ -248,9 +296,35 @@ child's `OBJECT_CONFIGS`).
 | `pointLabel` | string | `'At'` | Column label when the resolved node is a `PointLocation` (one value). |
 | `lineLabel1` | string | `'From'` | First column label when the resolved node is a `LinearExtent` (a range). |
 | `lineLabel2` | string | `'To'` | Second column label for a `LinearExtent`'s end value (omitted entirely if the range has no end token). |
-| `timeLabel1` | string | `'Time'` | First column label when the resolved node is a `TimeInterval` (or a plain dateTime leaf). |
-| `timeLabel2` | string | `'End'` | Second column label for a `TimeInterval`'s `end`, if present. |
+| `timeLabel1` | string | `'Time'` | First-column label when a `TimeInterval` (or bare dateTime leaf) resolves with **no pairing** — just a lone reported time. See "Shape-dependent `TimeInterval` labels" below for when this applies vs. `startLabel`. |
+| `startLabel` | string | `'Start'` | First-column label when a `TimeInterval` resolves **paired** with an `end` *or* a `duration`. |
+| `timeLabel2` | string | `'End'` | Second-column label for a `TimeInterval`'s `end`, when present. |
+| `durationLabel` | string | `'Duration'` | Second-column label for a `TimeInterval`'s `duration`, when present and there's no `end` (a start+duration pairing, no absolute end). |
 | `elapsedTimeLabel` | string | `'Elapsed Time'` | Column label when the resolved node is a plain elapsed-time/duration leaf (a bare measure, no wrapper object), **or** a `TimeInterval` with a `duration` but no `start`/`end` at all (see below). |
+
+### Shape-dependent `TimeInterval` labels (2026-07-22)
+
+A `TimeInterval` index's **default** first-column label is not fixed — it's
+computed per-occurrence from that row's own shape, since which shape a given
+occurrence has is a per-instance data fact, not something the config can
+know ahead of time (the same reason the fixed-column-width reconciliation
+below exists):
+
+| Occurrence's own shape | First column | Second column |
+|---|---|---|
+| `start` only (no `end`, no `duration`) | `timeLabel1` (`'Time'`) | — |
+| `start` + `end` | `startLabel` (`'Start'`) | `timeLabel2` (`'End'`) |
+| `start` + `duration`, no `end` | `startLabel` (`'Start'`) | `durationLabel` (`'Duration'`) |
+| `duration` only, no `start`/`end` | `elapsedTimeLabel` (`'Elapsed Time'`) | — |
+| Plain elapsed-time/duration leaf (no `TimeInterval` wrapper) | `elapsedTimeLabel` (`'Elapsed Time'`) | — |
+| Plain dateTime leaf (no `TimeInterval` wrapper) | `timeLabel1` (`'Time'`) — always, never `startLabel`, since a bare leaf has no pairing concept | — |
+
+Every one of these is still overridable per row via the matching `idxCfg`
+key; only the *default selection* between `timeLabel1`/`startLabel` is
+shape-dependent. `idxCfg.label` (see above) overrides all of this
+unconditionally for every cell the descriptor produces, regardless of shape
+— use it when a union `path`'s resolved kind can differ row to row and a
+single consistent header is wanted (e.g. `'Time \| Elapsed Time'`).
 
 **2026-07-19 bug, fixed**: when an occurrence's index path failed to resolve
 entirely, the em-dash-cell fallback used to check only `pointLabel`/
@@ -259,9 +333,10 @@ ignoring `timeLabel1`/`elapsedTimeLabel`/`label` even when set, **and**
 running `_labelFromPath` on the *whole raw union string* (e.g. `'diggs:time
 | diggs:elapsedTime'`), which only strips a `diggs:`-prefix at the very
 start — producing a garbled header like `"Time | diggs:elapsed Time"`. Now
-checks `label`/`pointLabel`/`lineLabel1`/`timeLabel1`/`elapsedTimeLabel` (in
-that order) before falling back to `_labelFromPath` on just the union's
-*first* branch.
+checks `label`/`pointLabel`/`lineLabel1`/`timeLabel1`/`startLabel`/
+`elapsedTimeLabel` (in that order — `startLabel` was added to this fallback
+chain alongside the shape-dependent labels above) before falling back to
+`_labelFromPath` on just the union's *first* branch.
 
 Node-shape detection (`resolveIntervalIndexCells`) mirrors
 `FORMAT_FN.locationInline`/`timeIntervalInline` — `LinearExtent` vs.
@@ -343,19 +418,63 @@ sorts after every occurrence that did.
 
 | Key | Type | Default if absent | Behavior |
 |---|---|---|---|
-| `path` | XPath string, **or an array of XPath strings** | — (required) | Where to find the column's value, relative to the repeating child object. An array is a **priority fallback list** (2026-07-19) — see below. |
+| `path` | XPath string, **or an array of XPath strings** | required, unless `compute` is set | Where to find the column's value, relative to the repeating child object. An array is a **priority fallback list** (2026-07-19) — see below. When `compute` is also set, `path` is only consulted for the expand-panel exclusion set (`_buildTableConsumedPaths`) — the cell's own content comes from `compute` instead (see below). |
 | `label` | string | Auto-derived from `path` (same `_labelFromPath` camelCase→Title Case rule as an ordinary row's label; for an array `path`, derived from the *first* alternative — in practice always set `label` explicitly for an array path, since an auto-derived name from whichever alternative happens to be first is rarely the right header text) | The column header text. |
 | `boolean` | boolean | `false` | Same Yes/No normalization as an ordinary property row's `boolean` key. |
 | `attrClass` | string (CSS class) | none | Same "other attributes" parenthetical override as an ordinary property row's `attrClass`. |
+| `compute` | `(childEl) => {html, sortVal?} \| string \| falsy` | none | Escape hatch that bypasses path-based cell resolution entirely — see "Object-valued columns via `compute`" below. Checked *before* `path`, so the two aren't mutually exclusive: keep `path` alongside `compute` purely so the expand panel still excludes that field (see the `path` row above). |
 
-A column is rendered via the same `renderSimplePropertyCell` every ordinary
-leaf property row uses — value + uom (inline, not header-hoisted like an
-index column) + any other attributes in one parenthetical + codeSpace. If a
-`column.path` unexpectedly resolves to an **object-valued** property (not
-part of the intended v1 scope — column entries are meant for simple leaf
-values only, per `IntervalTableNotes.md`), it's silently left out of the
-table and falls back into the expand panel instead, rather than being
-dropped or crashing.
+A column with no `compute` is rendered via the same `renderSimplePropertyCell`
+every ordinary leaf property row uses — value + uom (inline, not
+header-hoisted like an index column) + any other attributes in one
+parenthetical + codeSpace. If a `column.path` (with no `compute`) resolves to
+an **object-valued** property, it's silently left out of the table and falls
+back into the expand panel instead, rather than being dropped or crashing —
+the intended v1 scope for a plain `path` column is simple leaf values only,
+per `IntervalTableNotes.md`. Use `compute` (below) when an object-valued
+summary is genuinely wanted in the column itself.
+
+### Object-valued columns via `compute` (2026-08-06)
+
+A plain `path` column deliberately never renders an object-valued match as a
+cell — only a leaf value. When a column genuinely needs to summarize an
+*object*-valued property (e.g. a `PointLocation`), set `compute` instead:
+
+```js
+{
+  // Object-valued (PointLocation) — a plain `path` column would leave this
+  // as an em-dash and fall back to the expand panel; `compute` resolves and
+  // formats it directly, mirroring what _renderGenericDataTable's own
+  // auto-built column descriptors already do internally for exactly this
+  // case (locationInline here).
+  path: 'diggs:rpLocation', label: 'Reference Point Elevation',
+  compute: c => {
+    const propEl = evalXPath(c, 'diggs:rpLocation')[0];
+    const target = propEl && resolveXlinkChildren(propEl)[0];
+    const fmt = target && SPECIAL_OBJECT_FORMATTERS[target.localName];
+    return fmt ? { html: fmt(target) } : null;
+  },
+}
+```
+
+`compute(childEl)` is called by `_resolveDataColumnCell` in place of path
+resolution. Its return value:
+
+- Falsy → the cell renders an em-dash.
+- An object `{html, sortVal?}` → `html` is the cell content; `sortVal`
+  feeds `dataTable.sort` (below) when present, else defaults to `''`.
+- A bare string/value → used as **both** the cell HTML and (stringified)
+  the sort value.
+
+`path` is kept alongside `compute` (as shown above) purely so
+`_buildTableConsumedPaths` still excludes that field from the per-row
+expand panel — `_resolveDataColumnCell` checks `compute` before ever
+touching `path`, so the two never conflict; `path` here does no resolution
+work of its own. First shipped use: `OBJECT_CONFIGS.WaterLevelMonitoring`'s
+`referencePoints` row (its `rpLocation` column, above) — the first
+hand-authored `interval`/`dataTable` column descriptor in the file to use
+`compute`. Apply the same pattern to any future column needing to show an
+object-valued (not plain-leaf) summary value.
 
 **`path` as a priority-fallback array** (2026-07-19) — `['a', 'b', 'c']`
 tries each alternative in order against the repeating child object,
@@ -785,13 +904,16 @@ expander) rather than XML paths on a repeating child element, and its row
 click **selects** the feature (`selectSF`) rather than expanding a KV panel.
 Migrating it onto this engine is a deliberately separate, not-yet-done pass —
 but `_resolveDataColumnCell` already has the forward seam for it:
-`colCfg.compute(child)`, when `compute` is a function, bypasses path
-resolution entirely and returns `{html, sortVal}` (or a bare value) directly —
-exactly what a computed SF-table column (a resolved link, a formatted
-depth/date) would need. No current caller uses it. A future migration would
-also need a `rowMode: 'select'`-style config (swap the row's onclick for a
-select callback, omit the expand row) that is **not implemented yet** — only
-the default expand-on-click row is.
+`colCfg.compute(child)` (see "Object-valued columns via `compute`" above),
+which bypasses path resolution entirely and returns `{html, sortVal}` (or a
+bare value) directly — exactly what a computed SF-table column (a resolved
+link, a formatted depth/date) would need. `compute` now has its first real
+caller (`OBJECT_CONFIGS.WaterLevelMonitoring`'s `referencePoints` column,
+for an object-valued cell — not an SF-table column), so the mechanism itself
+is proven in production, just not yet for this specific migration. A future
+migration would also need a `rowMode: 'select'`-style config (swap the row's
+onclick for a select callback, omit the expand row) that is **not
+implemented yet** — only the default expand-on-click row is.
 
 ## Geometry rows (`geoLocation`, `mapToggle`)
 
