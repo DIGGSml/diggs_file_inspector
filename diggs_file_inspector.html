@@ -1759,8 +1759,21 @@ table.data-table tbody tr.selected {
    an auto-width table column once its header/sibling cells are wider than the
    number itself. white-space:nowrap stops the mid-number wrap outright;
    min-width keeps a column of short values (e.g. "3", "0") from reading as a
-   cramped single character. Paired with _fmtResultValue's own 2dp rounding. */
-.meas-result-table td.result-val-numeric { text-align:right; white-space:nowrap; min-width:3.5em; }
+   cramped single character. Paired with _fmtResultValue's own 2dp rounding.
+   text-align:left (2026-09-15, was right) — a column's width is driven by
+   its OWN header text (th is left-aligned; see .sub-table th above), which
+   for a property with a long name (e.g. "CBR @ 95% MDD") can be far wider
+   than the value itself; right-aligning then strands the value at the far
+   right edge of that width, visually detached from the label sitting at its
+   left edge. Left-aligning keeps the value directly under its own label
+   regardless of how wide the column ends up — correct however the column
+   got that wide (a long header, or #assoc-content .sub-table's own
+   min-width:360px distributing extra space into it) — at the cost of losing
+   right-alignment's usual "digits line up for a quick magnitude scan down a
+   column" benefit on a table with many rows; most Results tables using this
+   class are single-row (one Test's own outcome), where that benefit doesn't
+   apply anyway. */
+.meas-result-table td.result-val-numeric { text-align:left; white-space:nowrap; min-width:3.5em; }
 
 /* .meas-vsplit — a resizable N-pane vertical split (any combination of Plot/
    Results/Metadata a measurement badge has content for — see
@@ -3814,6 +3827,63 @@ function _resolveRemoteOrLocalHref(el) {
     return { __remoteRef: true, url, fragment };
   }
   return resolveHref(el);
+}
+
+/** DIGGS Unit Conversion API whitelist (2026-09-13) — the ONE external
+ *  service (beyond REMOTE_XML_WHITELIST's xlink:href document fetches
+ *  above, a different mechanism for a different purpose) this app calls
+ *  directly. Used only by the LabCompactionTest compaction-curve plot (see
+ *  _resolveDryDensityKNm3Factor) to resolve a dryDensity uom of ambiguous
+ *  quantityClass — DensityOrUnitWeightMeasureType allows EITHER a
+ *  massPerVolume unit (true density) or a forcePerVolume unit (unit
+ *  weight); per standard practice the plot needs unit weight (kN/m3), and
+ *  you can't tell which quantityClass a given uom belongs to without either
+ *  a hardcoded per-unit table or asking this service. Edit the constant
+ *  directly to point at a different deployment — there's no dynamic list to
+ *  extend, since this is the only endpoint ever called. Docs:
+ *  https://diggs.geosetta.org/api/docs#/ (GET /units/convert?sourceValue=
+ *  &sourceUnit=&targetUnit= — returns {targetValue, quantityClass, ...} on
+ *  success, HTTP 400 `{detail:"Units are not compatible..."}` when the two
+ *  units don't share a quantity class OR when a unit string isn't
+ *  recognized at all — verified live, both cases return the same generic
+ *  400, so _diggsUnitsConvert treats any non-2xx/network failure alike:
+ *  return null, let the caller fall through to its own next step).
+ *
+ *  KNOWN LIMITATION (verified live, 2026-09-13): the service currently
+ *  sends no `Access-Control-Allow-Origin` header at all (confirmed by
+ *  inspecting its response headers directly, for both a `null` — file://
+ *  page — origin and an ordinary `https://` origin), so a browser `fetch()`
+ *  to it is CORS-blocked from every origin except diggs.geosetta.org
+ *  itself, regardless of how this app is hosted. In practice this means
+ *  _diggsUnitsConvert always resolves null today, and only
+ *  _resolveDryDensityKNm3Factor's two hardcoded shortcuts (uom already
+ *  'kN/m3' or 'g/cm3', needing no network call) ever actually resolve — the
+ *  API call path is kept anyway (explicit user decision) since it costs
+ *  nothing, degrades to the documented raw-units fallback exactly as
+ *  designed, and starts working automatically with no code change if
+ *  geosetta.org ever adds CORS support. Don't "fix" the silent failure by
+ *  adding a `mode:'no-cors'` fetch — that makes the request resolve instead
+ *  of erroring, but the response becomes opaque (status/body unreadable),
+ *  which is useless for a call whose whole point is reading `targetValue`
+ *  back out. */
+const DIGGS_UNITS_API_BASE = 'https://diggs.geosetta.org/api/units';
+
+/** GET DIGGS_UNITS_API_BASE/convert?sourceValue&sourceUnit&targetUnit — a
+ *  single unit conversion. Never throws: a network error, non-2xx response
+ *  (including the 400 "incompatible quantity class" case above), or
+ *  malformed JSON all resolve to `null`, so a caller can chain multiple
+ *  attempts (see _resolveDryDensityKNm3Factor) without its own try/catch at
+ *  each step. Returns the full parsed response object on success (caller
+ *  reads whichever field it needs — usually just `targetValue`). */
+async function _diggsUnitsConvert(value, sourceUnit, targetUnit) {
+  try {
+    const url = `${DIGGS_UNITS_API_BASE}/convert?sourceValue=${encodeURIComponent(value)}`
+      + `&sourceUnit=${encodeURIComponent(sourceUnit)}&targetUnit=${encodeURIComponent(targetUnit)}`;
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    const data = await res.json();
+    return (data && isFinite(data.targetValue)) ? data : null;
+  } catch { return null; }
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -6933,10 +7003,8 @@ const FORMAT_FN = {
 };
 
 // ── resolvePropertyEl — GML object-property unwrapper ────────
-// Finds the child object element (localName) inside a property wrapper.
-// For types that allow xlink (BusinessAssociate, AssociatedFile), falls back
-// to href resolution when no embedded child is present.
-// All other property types always embed their child, so xlink never fires.
+// Finds the child object element (localName) inside a property wrapper,
+// falling back to xlink:href resolution when no embedded child is present.
 function resolvePropertyEl(propEl, localName) {
   if (!propEl) return null;
   // Dual-mode, matching locationInline/timeIntervalInline: propEl may
@@ -6948,8 +7016,27 @@ function resolvePropertyEl(propEl, localName) {
   const child = [...propEl.childNodes]
     .find(n => n.nodeType === 1 && n.localName === localName);
   if (child) return child;
-  // xlink:href fallback — only meaningful for BA and AssociatedFile in practice
-  return resolveHref(propEl);
+  // xlink:href fallback (2026-09-13 bug fix) — NOT "only meaningful for BA
+  // and AssociatedFile" as this comment used to claim: a LocationPropertyType
+  // (SampleProduced.location, samplingLocation, ...) legitimately allows
+  // xlink:href too, per GML's AssociationAttributeGroup — confirmed live on
+  // JazeraTestCase.xml's sp-CBR-01/sp-CBR-02 (`<location xlink:href="#sal-
+  // CBR-01"/>`, referencing the PointLocation their own SamplingActivity's
+  // samplingLocation already defines inline) and SampleFullCoverageTest.xml's
+  // sa-SOIL. MUST verify the resolved target's own localName matches —
+  // resolveHref doesn't check type, and several callers (e.g.
+  // resolveIntervalIndexCells, _rawLocationFromTo, _resolveLocationType) try
+  // several localNames in sequence against the SAME propEl ('LinearExtent',
+  // then 'PointLocation', then 'TimeInterval'), expecting only the one whose
+  // real type matches to succeed. Without this check, the FIRST candidate
+  // tried always "succeeds" by returning the href target regardless of its
+  // actual type, so `linExt` above silently became a PointLocation for
+  // sp-CBR-01/02 — no `gml:posList` on that element, so
+  // resolveIntervalIndexCells returned null and the Samples badge's "Sample
+  // At"/"Sample From/To" column rendered blank despite the data being
+  // present, which is what surfaced this.
+  const target = resolveHref(propEl);
+  return (target && target.localName === localName) ? target : null;
 }
 
 /**
@@ -8735,6 +8822,16 @@ function renderProcedureSection(procObjs, ctx) {
   const drawJobs = [];
   let html = '';
   let plotHtml = '';
+  // Individual chart count across every plot builder's own contribution —
+  // separate from drawJobs.length, which ALSO accumulates unrelated jobs
+  // renderGenericObject's own config-free fallback path may push (e.g. a
+  // lithology drawJob), so isn't a reliable proxy for "how many charts."
+  // Each builder declares its own `count` (see PROCEDURE_PLOT_BUILDERS'
+  // own doc comment) since only it knows how many of the plots it CAN
+  // produce actually had enough data this time. Read by
+  // buildMeasurementDisplay to choose "Plot" vs "Plots" for the static
+  // category label.
+  let plotCount = 0;
   for (const proc of (procObjs || [])) {
     if (!proc) continue;
     _withProcNS(proc.namespaceURI, () => {
@@ -8744,6 +8841,7 @@ function renderProcedureSection(procObjs, ctx) {
         const built = plotBuilder(proc, ctx);
         if (built && built.html) {
           plotHtml += built.html;
+          plotCount += built.count || 1;
           for (const j of (built.drawJobs || [])) drawJobs.push(j);
         }
       }
@@ -8753,7 +8851,7 @@ function renderProcedureSection(procObjs, ctx) {
       html += kvHtml;
     });
   }
-  return { html, drawJobs, plotHtml };
+  return { html, drawJobs, plotHtml, plotCount };
 }
 
 /**
@@ -8781,6 +8879,8 @@ const PROCEDURE_PLOT_BUILDERS = {
   AtterbergLimitsTest: _buildAtterbergPlots,
   ParticleSizeTest: _buildParticleSizePlot,
   PorePressureDissipationTest: _buildPPDPlot,
+  LabCompactionTest: _buildCompactionPlot,
+  LabCBRTest: _buildCBRPlots,
 };
 
 /** Pulls {i:log10(x), p:waterContent} points from every `tagName` trial
@@ -8869,7 +8969,7 @@ function _buildAtterbergPlots(proc, ctx) {
     return Object.assign({ containerId }, job);
   });
   html += '</div>';
-  return { html, drawJobs };
+  return { html, count: jobs.length, drawJobs };
 }
 
 // ── ParticleSizeTest plot (2026-08-02) ──────────────────────────────────
@@ -8956,7 +9056,7 @@ function _buildParticleSizePlot(proc, ctx) {
   if (pts.length < 2) return null;
   const containerId = 'pst-plot-' + Math.random().toString(36).slice(2, 9);
   const html = `<div style="margin-bottom:10px;"><div id="${containerId}"></div></div>`;
-  return { html, drawJobs: [{ kind: 'particleSizeCurve', containerId, pts }] };
+  return { html, count: 1, drawJobs: [{ kind: 'particleSizeCurve', containerId, pts }] };
 }
 
 /** Every (elapsed time, value) point from a PorePressureDissipationTest
@@ -9016,7 +9116,286 @@ function _buildPPDPlot(proc, ctx) {
   if (series.pts.length < 2) return null;
   const containerId = 'ppd-plot-' + Math.random().toString(36).slice(2, 9);
   const html = `<div style="margin-bottom:10px;"><div id="${containerId}"></div></div>`;
-  return { html, drawJobs: [{ kind: 'ppdCurve', containerId, series }] };
+  return { html, count: 1, drawJobs: [{ kind: 'ppdCurve', containerId, series }] };
+}
+
+// ── LabCompactionTest compaction curve (2026-09-13) ─────────────────────
+// Standard reporting plot: dry unit weight (kN/m3) vs. water content (%),
+// one point per trial, peak marked as Maximum Dry Density/Optimum Water
+// Content, optionally alongside a Zero-Air-Voids (ZAV) reference curve.
+//
+// `dryDensity` is `DensityOrUnitWeightMeasureType` (core/MeasureTypes.xsd:743)
+// — its `uom` can be EITHER a massPerVolume unit (true density, e.g. g/cm3)
+// OR a forcePerVolume unit (unit weight, e.g. kN/m3); the schema doesn't
+// say which quantityClass a given occurrence used, only that it's one or
+// the other. Standard compaction-curve practice plots unit weight
+// (kN/m3), so every value has to be resolved to that regardless of which
+// quantityClass it was actually reported in — see
+// _resolveDryDensityKNm3Factor for the exact per-explicit-user-spec
+// resolution order (exact-match shortcuts, then the DIGGS Units API via
+// DIGGS_UNITS_API_BASE, degrading to the reported units if neither
+// resolves). This is why the plot draws in two phases: _buildCompactionPlot
+// (sync, called from renderProcedureSection's synchronous KV pass) hands
+// back only RAW trial data + a placeholder container id; the actual
+// unit resolution + draw happens in _drawCompactionCurveAsync, dispatched
+// from buildMeasurementDisplay's `afterRender` (already async-safe — the
+// same seam _toggleRemoteRef's lazy remote-ref fetch uses), since a network
+// round-trip can't block the synchronous badge-content build.
+//
+// 1 g/cm3 of water weighs 1 kgf = 9.80665 N, i.e. exactly the standard
+// gravity constant — reused for BOTH "g/cm3 -> kN/m3" (user-specified
+// shortcut, no API call needed) and the ZAV curve's own unit-weight-of-water
+// term, since both are the same physical constant.
+const _STD_GRAVITY = 9.80665;
+
+// Per-uom conversion-factor cache (uom string -> Promise<number|null>,
+// resolving to "1 <uom> = X kN/m3", or null if unresolvable) — memoized at
+// module scope (not per-plot-build) so re-opening a badge, or a second
+// LabCompactionTest badge reporting the same uom, never re-hits the network
+// for a uom already resolved this session. A factor (not a per-value
+// conversion) is fetched once per DISTINCT uom and applied locally to every
+// trial's own raw value — one/two API calls total per uom actually seen in
+// the document, not one per trial or per redraw.
+const _DRY_DENSITY_KNM3_FACTOR_CACHE = new Map();
+
+/** Resolves "1 <uom> = ? kN/m3" for a DensityOrUnitWeightMeasureType uom,
+ *  per the exact procedure specified for this feature:
+ *   1. uom is already 'kN/m3' -> factor 1, no lookup.
+ *   2. uom is 'g/cm3' -> factor _STD_GRAVITY (see the banner above), no
+ *      lookup — the one case the user called out as not needing the API.
+ *   3. Otherwise, ask the DIGGS Units API to convert straight to kN/m3. A
+ *      successful conversion means the uom is itself forcePerVolume-class.
+ *   4. If that fails (the API's only failure mode observed is the generic
+ *      "not the same quantity class" 400 — see DIGGS_UNITS_API_BASE's own
+ *      comment), the uom is presumed massPerVolume-class instead: ask the
+ *      API to convert to g/cm3, then multiply by _STD_GRAVITY (step 2's
+ *      same factor) to reach kN/m3.
+ *   5. If THAT also fails, give up — returns null, and the caller falls
+ *      back to plotting the reported units unconverted rather than
+ *      guessing.
+ *  Returns a Promise (cached per uom — see _DRY_DENSITY_KNM3_FACTOR_CACHE
+ *  above) so concurrent callers for the same uom share one in-flight
+ *  request instead of racing duplicate fetches. */
+function _resolveDryDensityKNm3Factor(uom) {
+  if (!uom) return Promise.resolve(null);
+  if (uom === 'kN/m3') return Promise.resolve(1);
+  if (uom === 'g/cm3') return Promise.resolve(_STD_GRAVITY);
+  if (_DRY_DENSITY_KNM3_FACTOR_CACHE.has(uom)) return _DRY_DENSITY_KNM3_FACTOR_CACHE.get(uom);
+  const p = (async () => {
+    const direct = await _diggsUnitsConvert(1, uom, 'kN/m3');
+    if (direct) return direct.targetValue;
+    const toGcm3 = await _diggsUnitsConvert(1, uom, 'g/cm3');
+    if (toGcm3) return toGcm3.targetValue * _STD_GRAVITY;
+    return null;
+  })();
+  _DRY_DENSITY_KNM3_FACTOR_CACHE.set(uom, p);
+  return p;
+}
+
+/** Every (waterContent%, dryDensity+uom, specimen Gs) trial reading on a
+ *  LabCompactionTest procedure element, RAW — no unit conversion here (see
+ *  the banner above for why that's deferred). `gs` is the compacted
+ *  specimen's (trial's own `specimenRef` target) specificGravityOfSolids,
+ *  used only for the optional ZAV curve — null when absent, never guessed.
+ *  waterContent is assumed to already be percent (every real instance in
+ *  this repo reports it that way; WaterContentMeasureType's uom isn't run
+ *  through any conversion here, unlike dryDensity — out of scope for what
+ *  was actually requested). */
+function _compactionTrialPoints(proc) {
+  const trials = [];
+  for (const trialPropEl of evalXPath(proc, 'diggs:trial')) {
+    const t = resolveXlinkChildren(trialPropEl)[0];
+    if (!t || t.nodeType !== 1) continue;
+    const wcEl = evalXPath(t, 'diggs:waterContent')[0];
+    const ddEl = evalXPath(t, 'diggs:dryDensity')[0];
+    const wc = wcEl ? parseFloat(nodeText(wcEl)) : NaN;
+    const dd = ddEl ? parseFloat(nodeText(ddEl)) : NaN;
+    if (!isFinite(wc) || !isFinite(dd)) continue;
+    const ddUom = (ddEl.getAttribute('uom') || '').trim();
+    const specRefEl = evalXPath(t, 'diggs:specimenRef')[0];
+    const specEl = specRefEl ? resolveXlinkChildren(specRefEl)[0] : null;
+    const gsEl = (specEl && specEl.nodeType === 1) ? evalXPath(specEl, 'diggs:specificGravityOfSolids')[0] : null;
+    const gs = gsEl ? parseFloat(nodeText(gsEl)) : NaN;
+    trials.push({ wc, dd, ddUom, gs: isFinite(gs) ? gs : null });
+  }
+  // Ascending by water content — same sort precedent as
+  // _atterbergTrialPoints. Both the connecting line (drawn in array order)
+  // and drawPlot's own hover binary search assume `pts` is sorted by `i`;
+  // a schema-order trial sequence isn't guaranteed to already be
+  // water-content-ascending.
+  trials.sort((a, b) => a.wc - b.wc);
+  return trials;
+}
+
+/** Maximum Dry Density / Optimum Water Content off the Test's own outcome
+ *  ResultSet (the officially reported/curve-fit peak, not a re-derivation
+ *  from the raw trial points) — same codeSpace-fragment matching convention
+ *  as _atterbergLLPI, against DIGGS property dictionary terms
+ *  `dry_density_max`/`water_content_optimum` (confirmed against a real
+ *  instance's own ResultSet). Returns null if either is missing. */
+function _compactionMDDOMC(resultSet) {
+  if (!resultSet || !resultSet.rows.length) return null;
+  const row = resultSet.rows[0];
+  const find = frag => {
+    const idx = resultSet.props.findIndex(p => p.codeSpace && p.codeSpace.endsWith('#' + frag));
+    if (idx < 0) return null;
+    const raw = row[idx];
+    const v = (raw == null || raw === '') ? NaN : parseFloat(raw);
+    return isFinite(v) ? { value: v, uom: (resultSet.props[idx].uom || '').trim() } : null;
+  };
+  const mdd = find('dry_density_max'), omc = find('water_content_optimum');
+  return (mdd && omc) ? { mdd, omc } : null;
+}
+
+/** PROCEDURE_PLOT_BUILDERS entry for LabCompactionTest. Synchronous half of
+ *  the two-phase build (see the banner above `_STD_GRAVITY`) — gathers raw
+ *  trial/outcome data and reserves a placeholder container; the actual
+ *  unit-resolved draw happens later via the `compactionCurve` drawJob
+ *  (_drawCompactionCurveAsync). Needs at least 2 trials with both
+ *  waterContent and dryDensity to draw anything meaningful (same "need 2
+ *  points" precedent as every other curve here). */
+function _buildCompactionPlot(proc, ctx) {
+  const trials = _compactionTrialPoints(proc);
+  if (trials.length < 2) return null;
+  const mddOmc = _compactionMDDOMC(ctx.resultSet);
+  const containerId = 'compaction-plot-' + Math.random().toString(36).slice(2, 9);
+  const html = `<div style="margin-bottom:10px;"><div id="${containerId}"></div></div>`;
+  return { html, count: 1, drawJobs: [{ kind: 'compactionCurve', containerId, trials, mddOmc }] };
+}
+
+// ── LabCBRTest plots (2026-09-15) ───────────────────────────────────────
+// Two stacked plots, same PROCEDURE_PLOT_BUILDERS/embedded-in-Results seam
+// as LabCompactionTest's own compaction curve (see that section's own
+// banner comment) — both entirely synchronous (unlike the compaction
+// curve, neither needs the DIGGS Units API: penetration/load/CBR/density
+// are all plotted in their own reported units, no quantityClass ambiguity
+// to resolve). See ../rigid-inclusions/CBR.pdf for the reference layout
+// both plots reproduce.
+
+/** Every trial's own penetration/load series — one point per
+ *  `penetrationIncrement` (`measuredPenetration` vs. `calculatedStress`,
+ *  the corrected load-per-unit-area column CBR.pdf's own "Load Kg/cm2"
+ *  axis plots — NOT the raw `measuredLoad`), sorted by penetration
+ *  ascending. Trials with fewer than 2 usable increments are dropped (same
+ *  "need 2 points" precedent as every curve in this file) rather than
+ *  drawing a lone dot with no line. */
+function _cbrPenetrationLoadSeries(proc) {
+  const series = [];
+  for (const trialPropEl of evalXPath(proc, 'diggs:trial')) {
+    const t = resolveXlinkChildren(trialPropEl)[0];
+    if (!t || t.nodeType !== 1) continue;
+    const trialNoEl = evalXPath(t, 'diggs:trialNo')[0];
+    const trialNo = trialNoEl ? nodeText(trialNoEl) : null;
+    const incs = [];
+    let stressUom = '';
+    for (const incPropEl of evalXPath(t, 'diggs:penetrationIncrement')) {
+      const inc = resolveXlinkChildren(incPropEl)[0];
+      if (!inc || inc.nodeType !== 1) continue;
+      const penEl = evalXPath(inc, 'diggs:measuredPenetration')[0];
+      const stressEl = evalXPath(inc, 'diggs:calculatedStress')[0];
+      const pen = penEl ? parseFloat(nodeText(penEl)) : NaN;
+      const stress = stressEl ? parseFloat(nodeText(stressEl)) : NaN;
+      if (isFinite(pen) && isFinite(stress)) {
+        incs.push({ pen, stress });
+        if (!stressUom && stressEl) stressUom = (stressEl.getAttribute('uom') || '').trim();
+      }
+    }
+    incs.sort((a, b) => a.pen - b.pen);
+    if (incs.length >= 2) series.push({ trialNo, incs, stressUom });
+  }
+  return series;
+}
+
+/** Each trial's (CBR, dry density) reading for the CBR-vs-density chart —
+ *  CBR is `max(cbr_0.1, cbr_0.2)` per explicit spec (whichever penetration
+ *  depth governed that trial's reported CBR); density is the COMPACTED
+ *  specimen's own molding dry density (`specimenRef` -> SoilSpecimen ->
+ *  conditionPreTest/SpecimenConditions/dryDensity — LabCBRTestTrialType
+ *  has no dryDensity field of its own, per schema; confirmed against
+ *  ../rigid-inclusions/CBR.pdf, whose "Unit Dry Mass g/cm3" row is exactly
+ *  this same specimen-condition value). Sorted by CBR ascending (CBR is
+ *  the independent/x axis on this chart, per the reference). No unit
+ *  conversion attempted (unlike the compaction curve's dryDensity handling)
+ *  — out of scope for what was actually requested; plotted in whatever
+ *  uom the specimen reports. */
+function _cbrTrialCbrDensity(proc) {
+  const rows = [];
+  for (const trialPropEl of evalXPath(proc, 'diggs:trial')) {
+    const t = resolveXlinkChildren(trialPropEl)[0];
+    if (!t || t.nodeType !== 1) continue;
+    const cbr01El = evalXPath(t, 'diggs:cbr_0.1')[0];
+    const cbr02El = evalXPath(t, 'diggs:cbr_0.2')[0];
+    const cbr01 = cbr01El ? parseFloat(nodeText(cbr01El)) : NaN;
+    const cbr02 = cbr02El ? parseFloat(nodeText(cbr02El)) : NaN;
+    const cbrCands = [cbr01, cbr02].filter(isFinite);
+    if (!cbrCands.length) continue;
+    const cbr = Math.max(...cbrCands);
+
+    const specRefEl = evalXPath(t, 'diggs:specimenRef')[0];
+    const specEl = specRefEl ? resolveXlinkChildren(specRefEl)[0] : null;
+    const ddEl = (specEl && specEl.nodeType === 1)
+      ? evalXPath(specEl, 'diggs:conditionPreTest/diggs:SpecimenConditions/diggs:dryDensity')[0] : null;
+    const dd = ddEl ? parseFloat(nodeText(ddEl)) : NaN;
+    if (!isFinite(dd)) continue;
+
+    const trialNoEl = evalXPath(t, 'diggs:trialNo')[0];
+    rows.push({ trialNo: trialNoEl ? nodeText(trialNoEl) : null, cbr, dd, ddUom: (ddEl.getAttribute('uom') || '').trim() });
+  }
+  rows.sort((a, b) => a.cbr - b.cbr);
+  return rows;
+}
+
+/** LabCBRTest's own target dry density — targetMaxDryDensity *
+ *  (targetPctMaxDryDensity/100), both top-level fields on the procedure
+ *  itself (not per-trial). Returns null if either is absent, or if
+ *  targetMaxDryDensity's own uom doesn't match `expectUom` (the density
+ *  chart's own plotted uom) — no cross-unit conversion attempted here
+ *  either (same scope decision as _cbrTrialCbrDensity), so a mismatch just
+ *  means the reference construction is skipped rather than drawn wrong. */
+function _cbrTargetDryDensity(proc, expectUom) {
+  const tmddEl = evalXPath(proc, 'diggs:targetMaxDryDensity')[0];
+  const tpctEl = evalXPath(proc, 'diggs:targetPctMaxDryDensity')[0];
+  const tmdd = tmddEl ? parseFloat(nodeText(tmddEl)) : NaN;
+  const tpct = tpctEl ? parseFloat(nodeText(tpctEl)) : NaN;
+  if (!isFinite(tmdd) || !isFinite(tpct)) return null;
+  const tmddUom = (tmddEl.getAttribute('uom') || '').trim();
+  if (expectUom && tmddUom !== expectUom) return null;
+  return tmdd * (tpct / 100);
+}
+
+/** PROCEDURE_PLOT_BUILDERS entry for LabCBRTest — two stacked placeholder
+ *  containers (one drawJob each), matching _buildAtterbergPlots' own
+ *  "one builder, several plot placeholders" precedent, stacked full-width
+ *  instead of side-by-side. Either plot independently degrades to absent
+ *  if its own data isn't there (e.g. an instance with penetration data but
+ *  no specimen density) — `count` reflects how many actually got included,
+ *  read by buildMeasurementDisplay to pick "Plot" vs "Plots" for the
+ *  static category label. */
+function _buildCBRPlots(proc, ctx) {
+  const idBase = 'cbr-plot-' + Math.random().toString(36).slice(2, 9);
+  let html = '', count = 0;
+  const drawJobs = [];
+
+  const series = _cbrPenetrationLoadSeries(proc);
+  if (series.length) {
+    const containerId = `${idBase}-pl`;
+    html += `<div style="margin-bottom:10px;"><div id="${containerId}"></div></div>`;
+    drawJobs.push({ kind: 'cbrPenetrationLoad', containerId, series });
+    count++;
+  }
+
+  const rows = _cbrTrialCbrDensity(proc);
+  if (rows.length >= 2) {
+    const expectUom = rows[0].ddUom;
+    const target = _cbrTargetDryDensity(proc, expectUom);
+    const containerId = `${idBase}-cd`;
+    html += `<div style="margin-bottom:10px;"><div id="${containerId}"></div></div>`;
+    drawJobs.push({ kind: 'cbrDensity', containerId, rows, target, densityUom: expectUom });
+    count++;
+  }
+
+  if (!count) return null;
+  return { html, count, drawJobs };
 }
 
 /** Render one property row from rowCfg, evaluated against context
@@ -9151,9 +9530,42 @@ function renderPropertyRow(el, rowCfg) {
   if (!nodes.length) {
     return rowCfg.showEmpty ? renderSimpleRow(label, _KV_EMPTY_DASH, rowCfg.labelClass, rowCfg.valueClass, rowCfg.borderTop, rowCfg.borderBottom) : '';
   }
-  const targets = rowCfg.multi ? nodes : nodes.slice(0, 1);
+  let targets = rowCfg.multi ? nodes : nodes.slice(0, 1);
 
-  if (targets.every(n => /Ref$/.test(n.localName || ''))) return '';
+  // `rowCfg.filterTargets(node, el)` — opt-in predicate excluding specific
+  // occurrences of a repeating property from this row entirely (as opposed
+  // to `showEmpty`, which is about the row having zero occurrences to begin
+  // with). Added for LabCBRTest/LabCompactionTest's own `specimen` row: a
+  // top-level specimen already reachable via some trial's `specimenRef`/
+  // `waterContentSpecimenRef` (an `expandRef` row elsewhere in the same
+  // config) shouldn't also render redundantly in the flat top-level list —
+  // see _labProcUnreferencedSpecimen. Filtering all occurrences away is the
+  // same "renders nothing" outcome as zero occurrences to begin with.
+  if (typeof rowCfg.filterTargets === 'function') targets = targets.filter(n => rowCfg.filterTargets(n, el));
+  if (!targets.length) {
+    return rowCfg.showEmpty ? renderSimpleRow(label, _KV_EMPTY_DASH, rowCfg.labelClass, rowCfg.valueClass, rowCfg.borderTop, rowCfg.borderBottom) : '';
+  }
+
+  if (!rowCfg.expandRef && targets.every(n => /Ref$/.test(n.localName || ''))) return '';
+
+  // `expandRef` row whose ref is present (an xlink:href attribute exists)
+  // but doesn't resolve to any object — an actual data problem in the
+  // instance, not the ordinary "optional ref, absent" case (already handled
+  // above by the `!nodes.length` check) — so it's surfaced rather than
+  // silently rendering nothing. Scoped to `!rowCfg.multi` (every current
+  // `expandRef` row is a singular 0..1 ref) so "some occurrences resolved,
+  // some didn't" is never a case this has to reconcile — revisit if a
+  // future `multi:true` + `expandRef` row needs mixed resolved/broken
+  // occurrences shown side by side.
+  if (rowCfg.expandRef && !rowCfg.multi) {
+    const unresolved = targets.filter(n => n.nodeType === 1
+      && (n.getAttributeNS(NS.xlink, 'href') || n.getAttribute('xlink:href'))
+      && !resolveXlinkChildren(n).length);
+    if (unresolved.length) {
+      return renderSimpleRow(label, `<span style="color:#f85149">⚠ Can't locate</span>`,
+        rowCfg.labelClass, rowCfg.valueClass, rowCfg.borderTop, rowCfg.borderBottom);
+    }
+  }
 
   if (typeof rowCfg.configOverride === 'function') {
     const blocks = targets
@@ -9380,12 +9792,21 @@ const _FEATURE_TRAILING = [
 // shape as _OBJ_TYPE_TRAILING; kept as its own name since it comes from a
 // different base type (used by Environment, LocationUncertainty).
 const _COMPONENT_TRAILING = _OBJ_TYPE_TRAILING;
-// AbstractNamedRoleObjectType (core/AbstractTypes.xsd:628, a restriction) —
-// used only by BoreholeConstructionMethod. Drops internalIdentifier/
-// associatedFile relative to _FEATURE_TRAILING but keeps role; name is
-// required (1+) here, unlike _OBJ_TYPE_TRAILING's optional name.
+// AbstractNamedRoleObjectType (core/AbstractTypes.xsd:1392, a restriction of
+// AbstractNamedFeatureType) — used by BoreholeConstructionMethod,
+// SoundingConstructionMethod, RIConstructionMethod and
+// TrenchConstructionMethod. Drops internalIdentifier/implementationStatus/
+// associatedFile relative to _FEATURE_LEADING/_FEATURE_TRAILING but keeps
+// role; name is required (1+) here, unlike _OBJ_TYPE_TRAILING's optional name.
+// gml:description/gml:identifier were MISSING from this array until
+// 2026-09-09 — the restriction really does keep both (verified against the
+// XSD), so every config spreading it silently dropped them wherever an
+// instance stated one. Added here rather than per-config, since all four
+// consumers share the same base and none listed them separately.
 const _NAMED_ROLE_LEADING = [
   { path: 'gml:name', multi: true, label: 'Name', splitRows: true },
+  { path: 'gml:description' },
+  { path: 'gml:identifier', multi: true },
   { path: 'diggs:status' },
 ];
 const _NAMED_ROLE_TRAILING = [
@@ -10153,9 +10574,16 @@ OBJECT_CONFIGS.SpecimenConditions = [
   { path: 'diggs:index' },
   { path: 'diggs:waterContent', label: 'Water Content' },
   { path: 'diggs:wetWeight', label: 'Wet Weight' },
+  // wetMass/dryMass/bulkDensity/dryDensity (2026-09-11, schema commit
+  // 7835c55, Core.xsd:8294) — mass/density twins of the existing
+  // weight/unit-weight fields. See the "LabCBR/LabCompactionTest" handoff.
+  { path: 'diggs:wetMass', label: 'Wet Mass' },
   { path: 'diggs:dryWeight', label: 'Dry Weight' },
+  { path: 'diggs:dryMass', label: 'Dry Mass' },
   { path: 'diggs:bulkUnitWeight', label: 'Bulk Unit Weight' },
+  { path: 'diggs:bulkDensity', label: 'Bulk Density' },
   { path: 'diggs:dryUnitWeight', label: 'Dry Unit Weight' },
+  { path: 'diggs:dryDensity', label: 'Dry Density' },
   { path: 'diggs:voidRatio', label: 'Void Ratio' },
   { path: 'diggs:percentSaturation', label: 'Percent Saturation' },
   { path: 'diggs:shape' },
@@ -10201,11 +10629,24 @@ OBJECT_CONFIGS.IntactSpecimenPreparationInfo = [
 ];
 
 // ReconstitutedSpecimenPreparationInfo — ReconstitutedSpecimenPreparationInfoType
-// (core/Core.xsd:7107) extends AbstractObjectType.
+// (core/Core.xsd:8179) extends AbstractObjectType. blowsPerLift/mouldDiameter/
+// mouldVolume/rammerDiameter/rammerMass/rammerWeight/rammerDrop/rammerIsManual
+// (2026-09-11, schema commit 1fb4b6c) MOVED here from LabCBRTestTrialType/
+// were deprecated in place on LabCompactionTestType — see the "LabCBR/
+// LabCompactionTest" handoff (snippets and plan docs/) for the full move.
+// rammerIsManual is boolean -> needs `boolean: true`.
 OBJECT_CONFIGS.ReconstitutedSpecimenPreparationInfo = [
   ..._OBJ_BASE_FIELDS,
   { path: 'diggs:compactorType', label: 'Compactor Type' },
   { path: 'diggs:numberOfLifts', label: 'Number of Lifts' },
+  { path: 'diggs:blowsPerLift', label: 'Blows per Lift' },
+  { path: 'diggs:mouldDiameter', label: 'Mould Diameter' },
+  { path: 'diggs:mouldVolume', label: 'Mould Volume' },
+  { path: 'diggs:rammerDiameter', label: 'Rammer Diameter' },
+  { path: 'diggs:rammerMass', label: 'Rammer Mass' },
+  { path: 'diggs:rammerWeight', label: 'Rammer Weight' },
+  { path: 'diggs:rammerDrop', label: 'Rammer Drop' },
+  { path: 'diggs:rammerIsManual', label: 'Rammer Is Manual', boolean: true },
   { path: 'diggs:relativeCompaction', label: 'Relative Compaction' },
   { path: 'diggs:waterContentRelativeToOptimum', label: 'Water Content Relative to Optimum' },
   ..._OBJ_TYPE_TRAILING,
@@ -10505,6 +10946,292 @@ OBJECT_CONFIGS.Sedimentation = [
   { path: 'diggs:effectiveLength', label: 'Effective Length' },
   { path: 'diggs:particleDiameter', label: 'Particle Diameter' },
   { path: 'diggs:percentPassing', label: '% Passing' },
+  ..._OBJ_TYPE_TRAILING,
+];
+
+// ══════════════════════════════════════════════════════════════
+//  LabCBRTest / LabCompactionTest configs (2026-09-11/2026-09-13) — the
+//  "LabCBR/LabCompactionTest" handoff (snippets and plan docs/
+//  LabCBR_LabCompaction_handoff_2026-09-11.md), steps 3 and 4.
+//  CBRIncrement/LabCBRTestTrial/LabCompactionTestTrial (step 3) supply the
+//  per-row EXPAND panel used by both the trial array's own dataTable below
+//  AND, previously, the config-free generic table — the fix for the
+//  CBRIncrement data-loss bug: _buildTableExpandHtml resolves
+//  OBJECT_CONFIGS[child.localName] for a row's expand content, and with no
+//  entry for LabCBRTestTrial it resolved to `renderKVObject(el, [])` ->
+//  empty, silently dropping every nested penetrationIncrement.
+//  OBJECT_CONFIGS.LabCBRTest/.LabCompactionTest themselves (step 4, below)
+//  now exist too, primarily to give their own `specimen` row a
+//  `filterTargets` — see _labProcReferencedSpecimens/
+//  _labProcUnreferencedSpecimen just below.
+// ══════════════════════════════════════════════════════════════
+
+// Shared by LabCBRTest/LabCompactionTest's own `specimen` row (filterTargets,
+// below) — a properly-encoded instance references every top-level specimen
+// from the trial(s) that used it (specimenRef/waterContentSpecimenRef,
+// rendered inline there via `expandRef` — see LabCBRTestTrial/
+// LabCompactionTestTrial below), so showing that SAME SoilSpecimen again in
+// the flat top-level list would be a redundant duplicate. specimenRef/
+// waterContentSpecimenRef are themselves optional — a CBR/compaction test
+// can be reported with no per-trial specimen attribution at all, or with
+// extra specimens no trial happens to reference — so a specimen that isn't
+// reached by any trial's ref stays visible at the top level; that's the
+// graceful-absence case, not a bug. Only a RESOLVING ref counts as
+// "referenced" — a specimenRef/waterContentSpecimenRef present but broken
+// doesn't hide anything at the top level (that instead surfaces as "Can't
+// locate" on the trial itself, via renderPropertyRow's own `expandRef`
+// handling).
+function _labProcReferencedSpecimens(procEl) {
+  const referenced = new Set();
+  for (const trialPropEl of evalXPath(procEl, 'diggs:trial')) {
+    const trialEl = resolveXlinkChildren(trialPropEl)[0];
+    if (!trialEl || trialEl.nodeType !== 1) continue;
+    for (const refPath of ['diggs:specimenRef', 'diggs:waterContentSpecimenRef']) {
+      const refEl = evalXPath(trialEl, refPath)[0];
+      if (!refEl) continue;
+      const target = resolveXlinkChildren(refEl)[0];
+      if (target && target.nodeType === 1) referenced.add(target);
+    }
+  }
+  return referenced;
+}
+
+// `rowCfg.filterTargets` for LabCBRTest/LabCompactionTest's own `specimen`
+// row — excludes a specimen occurrence already reachable via
+// _labProcReferencedSpecimens above.
+function _labProcUnreferencedSpecimen(specimenPropEl, procEl) {
+  const target = resolveXlinkChildren(specimenPropEl)[0];
+  return !(target && target.nodeType === 1 && _labProcReferencedSpecimens(procEl).has(target));
+}
+
+// LabCBRTest — LabCBRTestType (core/CoreProcedures.xsd:1652) extends
+// AbstractLaboratoryTestProcedureType -> AbstractTestProcedureType ->
+// AbstractProcedureType (empty own sequence) -> AbstractFeatureType. Row
+// order is the same curated (not strict schema-sequence) pattern already
+// used by AtterbergLimitsTest/ParticleSizeTest above: method/specimen
+// first, the type's own leaf fields, its trial array, then
+// equipment/environment/event/otherProperty last.
+//
+// `trial`'s dataTable summary columns (Trial No./CBR at 0.1/CBR at 0.2)
+// surface the two headline results; the full trial content — including the
+// Compacted Specimen/Water Content Specimen accordions and the
+// penetrationIncrement load-penetration data — is in each row's own expand
+// panel via OBJECT_CONFIGS.LabCBRTestTrial below.
+OBJECT_CONFIGS.LabCBRTest = [
+  { sectionHeader: 'Procedure Metadata'},
+  ..._OBJ_BASE_FIELDS,
+  ..._FEATURE_LEADING,
+  { path: 'diggs:specimen', multi: true, label: 'Specimen', filterTargets: _labProcUnreferencedSpecimen },
+  { path: 'diggs:targetMaxDryDensity', label: 'Target Max Dry Density' },
+  { path: 'diggs:targetPctMaxDryDensity', label: 'Target % Max Dry Density' },
+  { path: 'diggs:targetOptWaterContent', label: 'Target Optimum Water Content' },
+  { path: 'diggs:loadCellCalibrationConstant', label: 'Load Cell Calibration Constant' },
+  { path: 'diggs:waterTemperature', label: 'Water Temperature' },
+  { path: 'diggs:testProcedureEquipment', multi: true, label: 'Equipment', labelPlural: 'Equipment' },
+  { path: 'diggs:testingEnvironment', multi: true, label: 'Testing Environment' },
+  { path: 'diggs:testEvent', label: 'Test Event' },
+  { sectionHeader: ''},
+  {
+    path: 'diggs:trial', multi: true,
+    label: 'Trial', labelPlural: 'Trials',
+    dataTable: {
+      column: [
+        { path: 'diggs:trialNo', label: 'Trial' },
+        { path: 'diggs:cbr_0.1', label: 'CBR at 0.1 in' },
+        { path: 'diggs:cbr_0.2', label: 'CBR at 0.2 in' },
+      ],
+    },
+  },
+      { path: 'diggs:testProcedureMethod', multi: true, label: 'Test Method' },
+
+  {
+    path: 'diggs:otherTestProperty', multi: true,
+    label: 'Other Property', labelPlural: 'Other Properties', alwaysGroup: true,
+    itemLabel: el => {
+      const nameEl = evalXPath(el, 'diggs:parameterName')[0];
+      const txt = nodeText(nameEl);
+      return txt ? escHtml(txt) + _codeSpaceKeyExtra(nameEl) : null;
+    },
+  },
+  ..._FEATURE_TRAILING,
+];
+
+// CBRIncrement — CBRIncrementType (core/CoreProcedures.xsd:1823) extends
+// AbstractProcedureTrialType -> AbstractObjectType (_OBJ_BASE_FIELDS/
+// _OBJ_TYPE_TRAILING shape) + AbstractProcedureTrialType's own otherProperty*
+// (same base CasagrandeTrial/FallConeTrial/PlasticLimitTrial use above).
+// Supplies LabCBRTestTrial's own penetrationIncrement dataTable's per-row
+// expand — measuredPenetration/measuredLoad/calculatedStress are repeated
+// here (not just left to the dataTable's own columns) so a CBRIncrement
+// shown outside a table context still renders every field, same convention
+// as Grading/Sedimentation above.
+OBJECT_CONFIGS.CBRIncrement = [
+  ..._OBJ_BASE_FIELDS,
+  { path: 'diggs:measuredPenetration', label: 'Penetration' },
+  { path: 'diggs:measuredLoad', label: 'Measured Load' },
+  { path: 'diggs:calculatedStress', label: 'Calculated Stress' },
+  {
+    path: 'diggs:otherProperty', multi: true,
+    label: 'Other Property', labelPlural: 'Other Properties', alwaysGroup: true,
+    itemLabel: el => {
+      const nameEl = evalXPath(el, 'diggs:parameterName')[0];
+      const txt = nodeText(nameEl);
+      return txt ? escHtml(txt) + _codeSpaceKeyExtra(nameEl) : null;
+    },
+  },
+  ..._OBJ_TYPE_TRAILING,
+];
+
+// LabCBRTestTrial — LabCBRTestTrialType (core/CoreProcedures.xsd:1706)
+// extends AbstractObjectType DIRECTLY (not AbstractProcedureTrialType — no
+// otherProperty, same shape as ShrinkageLimitTrial above). The eight
+// mould/rammer/blows-per-layer fields briefly proposed here (schema commit
+// 7835c55) were REMOVED outright by 1fb4b6c before ever being released or
+// used in any instance — they now live on
+// SoilSpecimen/reconstitutedSpecimenPreparationInfo instead (see
+// OBJECT_CONFIGS.ReconstitutedSpecimenPreparationInfo). Don't add them here.
+//
+// specimenRef/waterContentSpecimenRef render as full nested "Compacted
+// Specimen"/"Water Content Specimen" accordions via `expandRef: true`,
+// same as LabCompactionTestTrial — see that config's own comment for the
+// mechanism (renderPropertyRow's `/Ref$/` auto-suppression opt-out).
+//
+// penetrationIncrement (unbounded) is the actual substance of a CBR test —
+// the load-penetration data that rendered nowhere before this config
+// existed (see the banner above). Rendered via `dataTable`, matching the
+// same "table, not stacked KV blocks" choice made for Atterberg's own
+// trial rows and ParticleSizeTest's grading/sedimentation rows.
+OBJECT_CONFIGS.LabCBRTestTrial = [
+  ..._OBJ_BASE_FIELDS,
+  { path: 'diggs:trialNo', label: 'Trial No.' },
+    {
+    path: 'diggs:penetrationIncrement', multi: true,
+    label: 'Penetration Increment', labelPlural: 'Penetration Increments',
+    dataTable: {
+      column: [
+        { path: 'diggs:measuredPenetration', label: 'Penetration' },
+        { path: 'diggs:measuredLoad', label: 'Measured Load' },
+        { path: 'diggs:calculatedStress', label: 'Calculated Stress' },
+      ],
+    },
+  },
+  { path: 'diggs:cbr_0.1', label: 'CBR at 0.1 in' },
+  { path: 'diggs:cbr_0.2', label: 'CBR at 0.2 in' },
+  { path: 'diggs:soaking', label: 'Soaked', boolean: true },
+  { path: 'diggs:swellFromSoaking', label: 'Swell from Soaking' },
+  { path: 'diggs:soakingDetails', label: 'Soaking Details' },
+  { path: 'diggs:surchargePressure', label: 'Surcharge Pressure' },
+  { path: 'diggs:topWaterContent', label: 'Water Content — Top' },
+  { path: 'diggs:bottomWaterContent', label: 'Water Content — Bottom' },
+  { path: 'diggs:wtPercentRetained19mm', label: 'Wt. % Retained on 19mm Sieve' },
+  { path: 'diggs:pistonDiameter', label: 'Piston Diameter' },
+  { path: 'diggs:pistonArea', label: 'Piston Area' },
+  { path: 'diggs:seatingForce', label: 'Seating Force' },
+  { path: 'diggs:specimenRef', label: 'Compacted Specimen', expandRef: true },
+  { path: 'diggs:waterContentSpecimenRef', label: 'Water Content Specimen', expandRef: true },
+  ..._OBJ_TYPE_TRAILING,
+];
+
+// LabCompactionTest — LabCompactionTestType (core/CoreProcedures.xsd:1868)
+// extends AbstractLaboratoryTestProcedureType -> AbstractTestProcedureType
+// -> AbstractProcedureType (empty own sequence) -> AbstractFeatureType. Row
+// order/specimen filtering follow the same conventions as LabCBRTest above
+// — see that config's own comment and _labProcReferencedSpecimens.
+//
+// mouldDiameter/mouldVolume/rammerDiameter/rammerMass/rammerWeight/
+// rammerDrop/rammerIsManual/numberOfLayers/blowsPerLayer are all DEPRECATED
+// 9/26 in favor of the equivalent fields on
+// SoilSpecimen/reconstitutedSpecimenPreparationInfo (already populated —
+// see OBJECT_CONFIGS.ReconstitutedSpecimenPreparationInfo) but kept as rows
+// here, labeled "(legacy)", for graceful display of any pre-migration
+// instance that still carries them at this level — same precedent as
+// LabCompactionTestTrial's own convertedWetDensityDensity below.
+//
+// `trial`'s dataTable summary columns (Trial No./Water Content/Dry Density)
+// surface the two headline results; the full trial content — including the
+// Compacted Specimen/Water Content Specimen accordions — is in each row's
+// own expand panel via OBJECT_CONFIGS.LabCompactionTestTrial below.
+OBJECT_CONFIGS.LabCompactionTest = [
+  ..._OBJ_BASE_FIELDS,
+  ..._FEATURE_LEADING,
+  { path: 'diggs:specimen', multi: true, label: 'Specimen', filterTargets: _labProcUnreferencedSpecimen },
+  { path: 'diggs:compactionTestType', label: 'Compaction Test Type' },
+  { path: 'diggs:fieldWetDensity', label: 'Field Wet Density' },
+  { path: 'diggs:fieldDryDensity', label: 'Field Dry Density' },
+  { path: 'diggs:fieldWaterContent', label: 'Field Water Content' },
+  { path: 'diggs:mouldDiameter', label: 'Mould Diameter (legacy)' },
+  { path: 'diggs:mouldVolume', label: 'Mould Volume (legacy)' },
+  { path: 'diggs:rammerDiameter', label: 'Rammer Diameter (legacy)' },
+  { path: 'diggs:rammerMass', label: 'Rammer Mass (legacy)' },
+  { path: 'diggs:rammerWeight', label: 'Rammer Weight (legacy)' },
+  { path: 'diggs:rammerDrop', label: 'Rammer Drop (legacy)' },
+  { path: 'diggs:rammerIsManual', label: 'Rammer Is Manual (legacy)', boolean: true },
+  { path: 'diggs:numberOfLayers', label: 'Number of Layers (legacy)' },
+  { path: 'diggs:blowsPerLayer', label: 'Blows per Layer (legacy)' },
+  {
+    path: 'diggs:trial', multi: true,
+    label: 'Trial', labelPlural: 'Trials',
+    dataTable: {
+      column: [
+        { path: 'diggs:trialNo', label: 'Trial' },
+        { path: 'diggs:waterContent', label: 'Water Content' },
+        { path: 'diggs:wetDensity', label: 'Wet Density' },
+        { path: 'diggs:dryDensity', label: 'Dry Density' },
+      ],
+    },
+  },
+  { path: 'diggs:testProcedureMethod', multi: true, label: 'Test Method' },
+  { path: 'diggs:testProcedureEquipment', multi: true, label: 'Equipment', labelPlural: 'Equipment' },
+  { path: 'diggs:testingEnvironment', multi: true, label: 'Testing Environment' },
+  { path: 'diggs:testEvent', label: 'Test Event' },
+  {
+    path: 'diggs:otherTestProperty', multi: true,
+    label: 'Other Property', labelPlural: 'Other Properties', alwaysGroup: true,
+    itemLabel: el => {
+      const nameEl = evalXPath(el, 'diggs:parameterName')[0];
+      const txt = nodeText(nameEl);
+      return txt ? escHtml(txt) + _codeSpaceKeyExtra(nameEl) : null;
+    },
+  },
+  ..._FEATURE_TRAILING,
+];
+
+// LabCompactionTestTrial — LabCompactionTestTrialType
+// (core/CoreProcedures.xsd:1981) extends AbstractObjectType DIRECTLY (same
+// shape as LabCBRTestTrial/ShrinkageLimitTrial above — no otherProperty).
+// specimenRef/waterContentSpecimenRef render as full nested "Compacted
+// Specimen"/"Water Content Specimen" accordions via `expandRef: true`
+// (renderPropertyRow's `/Ref$/` auto-suppression opt-out, 2026-09), same as
+// LabCBRTestTrial above — these are FeatureReferenceType (href-only), so
+// resolveXlinkChildren resolves the target SoilSpecimen and feeds it back
+// through the normal renderResolvedObject/wrapCategoryHeader pipeline,
+// rendering the full object rather than a flattened one-line link.
+//
+// convertedWetDensityDensity is a verbatim schema misspelling, deprecated
+// 9/26 in favor of convertedWetDensity (a real instance may still carry the
+// old name) — path preserved, label reads plainly, same
+// preserve-path/fix-label precedent as coreDistkurbance/parceI.
+OBJECT_CONFIGS.LabCompactionTestTrial = [
+  ..._OBJ_BASE_FIELDS,
+  { path: 'diggs:trialNo', label: 'Trial No.' },
+  { path: 'diggs:specimenRef', label: 'Compacted Specimen', expandRef: true },
+  { path: 'diggs:waterContentSpecimenRef', label: 'Water Content Specimen', expandRef: true },
+  { path: 'diggs:waterContent', label: 'Water Content' },
+  { path: 'diggs:wetDensity', label: 'Wet Density' },
+  { path: 'diggs:dryDensity', label: 'Dry Density' },
+  { path: 'diggs:convertedWetDensity', label: 'Converted Wet Density' },
+  { path: 'diggs:convertedWetDensityDensity', label: 'Converted Wet Density (legacy)' },
+  { path: 'diggs:moistureAdjustment', label: 'Moisture Adjustment' },
+  { path: 'diggs:tamperReading', label: 'Tamper Reading' },
+  {
+    path: 'diggs:otherTrialProperty', multi: true,
+    label: 'Other Property', labelPlural: 'Other Properties', alwaysGroup: true,
+    itemLabel: el => {
+      const nameEl = evalXPath(el, 'diggs:parameterName')[0];
+      const txt = nodeText(nameEl);
+      return txt ? escHtml(txt) + _codeSpaceKeyExtra(nameEl) : null;
+    },
+  },
   ..._OBJ_TYPE_TRAILING,
 ];
 
@@ -10953,6 +11680,11 @@ OBJECT_CONFIGS.SamplingActivity = [
   },
   { path: 'diggs:samplingDate', label: 'Sampling Date' },
   { path: 'diggs:samplerInsertionMethod', label: 'Sampler Insertion Method' },
+  // samplingCategory (2026-09-11, R16, AbstractTypes.xsd:2245) — ISO 22475-1
+  // sampling category (A-E), how much this activity's own technique/equipment
+  // disturbs the material sampled. Distinct from Sample's own qualityClass
+  // (the sample-side, soil-only quality class) — see that field's own comment.
+  { path: 'diggs:samplingCategory', label: 'Sampling Category' },
   { path: 'diggs:totalSampleRecoveryLength', label: 'Total Sample Recovery Length' },
   { path: 'diggs:totalSampleRecovery', label: 'Total Sample Recovery' },
   { path: 'diggs:mixingTime', label: 'Mixing Time' },
@@ -11326,6 +12058,11 @@ OBJECT_CONFIGS.Sample = [
   { path: 'diggs:type', label: 'Type' },
   { path: 'diggs:purpose' },
   { path: 'diggs:condition' },
+  // qualityClass (2026-09-11, R16, Core.xsd:2100) — ISO 22475-1 / EC7-2 soil
+  // sample quality class (1-5), a SOIL-only concept (the standard doesn't
+  // apply it to rock). Distinct from SamplingActivity's own samplingCategory
+  // (the activity-side technique category, applying to both soil and rock).
+  { path: 'diggs:qualityClass', label: 'Quality Class' },
   { path: 'diggs:coreDistkurbance', label: 'Core Disturbance' },
   { path: 'diggs:sampleMatrix', label: 'Sample Matrix' },
   { path: 'diggs:initialPreservationMethod', label: 'Initial Preservation Method' },
@@ -11381,6 +12118,15 @@ OBJECT_CONFIGS.Sample = [
     alwaysGroup: true,
     computeRows: el => _sampleDerivedRows(el),
   },
+  // nonConformance/acceptanceCheck (2026-09-12) — found while tracing
+  // AbstractSampleType (core/AbstractTypes.xsd:2074/2099) for full-coverage
+  // verification: both are declared there too, not just on
+  // AbstractSamplingFeatureType (the TrialPit config's own banner comment
+  // for OBJECT_CONFIGS.NonConformance/.AcceptanceCheck already says "every
+  // sampling feature can carry them" — a Sample can too). Reuses those same
+  // configs, same row shape as OBJECT_CONFIGS.TrialPit's own rows.
+  { path: 'diggs:nonConformance', multi: true, label: 'Non-Conformance', labelPlural: 'Non-Conformances' },
+  { path: 'diggs:acceptanceCheck', multi: true, label: 'Acceptance Check', labelPlural: 'Acceptance Checks' },
 ];
 
 // SampleProduced — SampleProducedType (core/Common.xsd:2267) extends
@@ -13093,6 +13839,255 @@ OBJECT_CONFIGS.Sounding = [
       column: [{ path: 'diggs:ambientTemperature' }],
     },
   },
+
+  { sectionHeader: '' },
+  {
+    path: 'diggs:otherSamplingFeatureProperty', multi: true,
+    label: 'Other Property', labelPlural: 'Other Properties', alwaysGroup: true,
+    categoryClass: 'kv-cat-accent',
+    itemLabel: el => {
+      const nameEl = evalXPath(el, 'diggs:parameterName')[0];
+      const txt = nodeText(nameEl);
+      return txt ? escHtml(txt) + _codeSpaceKeyExtra(nameEl) : null;
+    },
+  },
+];
+
+// ══════════════════════════════════════════════════════════════
+//  NonConformance / AcceptanceCheck — NOT TrialPit-specific.
+//  Both are fields of AbstractSamplingFeatureType (core/AbstractTypes.xsd),
+//  so EVERY sampling feature can carry them; they are authored here because
+//  OBJECT_CONFIGS.TrialPit below is the first config to surface them. The
+//  older Borehole/Sounding/Well/RI configs still omit their own
+//  nonConformance/acceptanceCheck rows and would render nothing for an
+//  instance that states one — adding the two rows to those configs is all
+//  that is needed now that these object configs exist.
+// ══════════════════════════════════════════════════════════════
+
+// NonConformance — NonConformanceType (core/Common.xsd:3060) extends
+// AbstractObjectType (_OBJ_BASE_FIELDS + _OBJ_TYPE_TRAILING).
+// breachedSpecificationRef/detectedByRef are Reference Properties, omitted per
+// the engine convention — neither is a sole carrier (the nonconformance is
+// already displayed in the context of the feature it was raised against).
+OBJECT_CONFIGS.NonConformance = [
+  ..._OBJ_BASE_FIELDS,
+  { path: 'diggs:disposition', label: 'Disposition' },
+  { path: 'diggs:correctiveAction', multi: true, label: 'Corrective Action', labelPlural: 'Corrective Actions' },
+  { path: 'diggs:dateIdentified', label: 'Date Identified' },
+  { path: 'diggs:dateResolved', label: 'Date Resolved' },
+  ..._OBJ_TYPE_TRAILING,
+];
+
+// AcceptanceCheck — AcceptanceCheckType (core/Common.xsd:3234) extends
+// AbstractObjectType. criterionRef/evidenceRef/nonConformanceRef are all
+// Reference Properties, omitted. `limit`/`observedValue` are
+// ParameterPropertyType: SPECIAL_OBJECT_FORMATTERS.Parameter renders only
+// "value (min-max) uom", which is exactly right here — unlike an
+// otherSamplingFeatureProperty row, these two have specific static labels of
+// their own, so no itemLabel is wanted (the parameter's identity is carried
+// by `checkedProperty`, its own field).
+OBJECT_CONFIGS.AcceptanceCheck = [
+  ..._OBJ_BASE_FIELDS,
+  { path: 'diggs:outcome', label: 'Outcome' },
+  { path: 'diggs:checkedProperty', label: 'Checked Property' },
+  { path: 'diggs:operator', label: 'Operator' },
+  { path: 'diggs:limit', label: 'Limit' },
+  { path: 'diggs:observedValue', label: 'Observed Value' },
+  { path: 'diggs:checkDate', label: 'Check Date' },
+  ..._OBJ_TYPE_TRAILING,
+];
+
+// TrenchConstructionMethod — TrenchConstructionMethodType (core/Core.xsd:1702)
+// extends AbstractNamedRoleObjectType, the same base
+// BoreholeConstructionMethod/SoundingConstructionMethod/RIConstructionMethod
+// use (see _NAMED_ROLE_LEADING/_NAMED_ROLE_TRAILING). Shared by TrialPit and
+// TrenchWall — it is the trench/pit-shaped sibling of those three, and its own
+// field list is SoundingConstructionMethod's with `trenchStability` in place
+// of `holeStability`: no cuttingToolInfo/drillPipeInfo/hydraulicFluidFlowRate
+// (a pit is excavated, not drilled). `constructionMethod` (own field,
+// SpecificationPropertyType) shares its element name with the parent's own
+// `constructionMethod` — the schema-wide naming convention, not a collision.
+OBJECT_CONFIGS.TrenchConstructionMethod = [
+  ..._NAMED_ROLE_LEADING,
+  { path: 'diggs:location' },
+  { path: 'diggs:methodTime', label: 'Time' },
+  { path: 'diggs:trenchStability', label: 'Trench Stability' },
+  { path: 'diggs:constructionMethod', multi: true, label: 'Specification', labelPlural: 'Specifications' },
+  { path: 'diggs:constructionEquipment', multi: true, label: 'Equipment', labelPlural: 'Equipment', itemLabel: n => diggsLabel(n.localName) },
+  ..._NAMED_ROLE_TRAILING,
+];
+
+// TrialPitEvent — TrialPitEventType (core/Core.xsd:1588) extends
+// AbstractEventType (-> AbstractComponentObjectType, the same
+// _OBJ_BASE_FIELDS/_OBJ_TYPE_TRAILING + time/location/infoRecorded shape
+// BoreholeEvent/SoundingEvent/RIEvent use). Its own additions are the pit's
+// dimensions AT that moment in time (depth/length/width) plus a free-text
+// stability note — all four plain leaves, so no interval/dataTable nesting.
+// `depth` here is the pit's own LRM-referenced depth-to-base, deliberately
+// distinct from the feature-level totalMeasuredDepth.
+OBJECT_CONFIGS.TrialPitEvent = [
+  { path: 'diggs:time', label: 'When' },
+  { path: 'diggs:location', label: 'Where' },
+  ..._OBJ_BASE_FIELDS,
+  { path: 'diggs:depth', label: 'Depth to Base' },
+  { path: 'diggs:length', label: 'Length' },
+  { path: 'diggs:width', label: 'Width' },
+  { path: 'diggs:stability', label: 'Stability' },
+  ..._OBJ_TYPE_TRAILING,
+  { path: 'diggs:infoRecorded', label: 'Event Parameter', multi: true,
+    itemLabel: el => {
+      const nameEl = evalXPath(el, 'diggs:parameterName')[0];
+      const txt = nodeText(nameEl);
+      return txt ? escHtml(txt) + _codeSpaceKeyExtra(nameEl) : null;
+    },
+  },
+];
+
+// TrialPit — TrialPitType (core/Core.xsd:1625) extends
+// AbstractLinearSamplingFeatureType -> AbstractSamplingFeatureType ->
+// AbstractNamedFeatureType: the SAME base chain Borehole/Sounding/Well/
+// GP_Trackline use, so General Info and Geometry mirror Sounding's rows for
+// every shared field. A trial pit is a shallow excavation whose samples and
+// observations are referenced in a 1D linear referencing system only — hence
+// a linear, not planar, sampling feature despite being a pit (the schema's own
+// note points at TrenchWall for real 2D wall detail).
+//
+// OMITTED, all deliberately and all still displayed elsewhere — same
+// convention as Borehole/Sounding (see OBJECT_CONFIGS.Borehole's own banner):
+// centerLine and referencePoint's coordinates (Section 2's coordinate grid and
+// the map), totalMeasuredDepth (Section 2's depth/extent cell, via
+// SF_TYPE_CONFIG.TrialPit.depthPath). Every *Ref property
+// (projectRef/originalProjectRef/associatedProjectRef/programRef/
+// programDesignRef/programSpecificationRef/samplingFeatureGroupRef) is omitted
+// per the Reference-Property convention; samplingFeatureGroupRef in particular
+// is already surfaced structurally by the group accordion, which is the only
+// way a grouped TrialPit is reachable at all.
+//
+// `backfill` is a SINGLE occurrence here (schema maxOccurs defaults to 1),
+// like Sounding and unlike Borehole's unbounded one — a plain object row, no
+// multi/interval.
+OBJECT_CONFIGS.TrialPit = [
+  { sectionHeader: 'General Info' },
+  { path: '@gml:id', label: 'ID' },
+  { path: 'gml:name', multi: true, splitRows: true },
+  { path: 'gml:description' },
+  { path: 'diggs:status' },
+  { path: 'gml:identifier', multi: true },
+  { path: 'diggs:internalIdentifier', label: 'Internal Identifier' },
+  { path: 'diggs:implementationStatus', label: 'Implementation Status' },
+  { path: 'diggs:investigationTarget', multi: true, label: 'Investigation Target' },
+  { path: 'diggs:trialPitPurpose', label: 'Purpose' },
+  { path: 'diggs:locality', label: 'Locality' },
+  // AbstractSamplingFeatureType's own realizesGridIndex — a gml:integerList
+  // naming this feature's cell in a program's planned sampling grid.
+  { path: 'diggs:realizesGridIndex', label: 'Grid Index' },
+  ..._FEATURE_TRAILING,
+
+  { sectionHeader: 'Geometry' },
+  {
+    // Same generic classification/pill every AbstractLinearSamplingFeatureType
+    // config carries — centerLine/plunge/bearing are a shared base and
+    // parseSamplingFeature()/extractBoreholeTrajectory()/
+    // open3DTrajectoryView() are all already type-agnostic. Looks up
+    // DIGGS_SF.get('TrialPit'). A pit is normally a single vertical
+    // centerLine, so in practice this reads "Vertical" with no pill — but the
+    // schema permits an inclined/deviated one, and nothing here assumes
+    // otherwise.
+    label: 'Trajectory',
+    compute: el => {
+      const id = el.getAttributeNS(NS.gml, 'id') || el.getAttribute('gml:id') || el.getAttribute('id') || '';
+      const sf = (DIGGS_SF.get('TrialPit') || []).find(s => s.id === id);
+      if (!sf) return '';
+      const kind = FORMAT_FN.centerLineOrientation(sf);
+      const detail = FORMAT_FN.centerLineOrientationDetail(sf);
+      if (!detail) return detail;
+      if (kind === 'Inclined' || kind === 'Deviated' || kind === 'Multilateral') {
+        return {
+          val: detail,
+          keyExtra: `<button class="pill-3d-view" onclick="open3DTrajectoryView('${esc(id)}')">View 3D</button>`,
+        };
+      }
+      return detail;
+    },
+  },
+  { path: 'diggs:plunge', label: 'Reported Plunge' },
+  { path: 'diggs:bearing', label: 'Reported Bearing' },
+  // The three remaining AbstractLinearSamplingFeatureType alignment fields —
+  // absent from every sibling config, included here for full coverage.
+  { path: 'diggs:intendedPlunge', label: 'Intended Plunge' },
+  { path: 'diggs:alignmentDeviation', label: 'Alignment Deviation' },
+  { path: 'diggs:alignmentDeterminationMethod', label: 'Alignment Determination Method' },
+  {
+    path: 'diggs:referencePoint/diggs:PointLocation/gml:description',
+    label: 'Reference Point Description',
+  },
+  { path: 'diggs:linearReferencing', multi: true, label: 'Linear Referencing' },
+  { path: 'diggs:localCoordinates', label: 'Local Coordinates' },
+
+  { sectionHeader: 'Pit Dimensions' },
+  // The pit's own plan dimensions. Depth is NOT repeated here — see the
+  // banner's omission note.
+  { path: 'diggs:pitLength', label: 'Pit Length' },
+  { path: 'diggs:pitWidth', label: 'Pit Width' },
+  { path: 'diggs:shoring', label: 'Shoring' },
+
+  { sectionHeader: 'Construction Info' },
+  { path: 'diggs:whenConstructed', label: 'When Constructed' },
+  { path: 'diggs:backfill', label: 'Backfill' },
+
+  { sectionHeader: '' },
+  {
+    // Interval-table engine — location + methodTime as index descriptors, the
+    // same shape/column-priority-array Borehole/Sounding's own
+    // constructionMethod rows use (TrenchConstructionMethodType's own
+    // `constructionMethod` is the identical SpecificationPropertyType).
+    path: 'diggs:constructionMethod', multi: true, labelPlural: 'Construction Methods',
+    interval: {
+      index: [{ path: 'diggs:location' }, { path: 'diggs:methodTime' }],
+      column: [{
+        path: ['diggs:constructionMethod/diggs:Specification/gml:name[1]', 'gml:name[1]', 'diggs:constructionMethod/diggs:Specification/diggs:shortMethodName'],
+        label: 'Method',
+      }],
+    },
+  },
+
+  { sectionHeader: '' },
+  {
+    // Interval-table engine — location/time both independently optional on
+    // AbstractEventType (not a <choice>). Unlike Borehole/Sounding's own
+    // construction-event rows, TrialPitEventType DOES have simple-leaf column
+    // candidates of its own (depth/length/width are plain measures, not
+    // PointLocation-valued), so the pit's size at each event is tabulated
+    // directly instead of falling back to name/description text.
+    path: 'diggs:constructionEvent', multi: true, labelPlural: 'Construction Events',
+    interval: {
+      index: [{ path: 'diggs:location' }, { path: 'diggs:time' }],
+      column: [
+        { path: 'diggs:depth', label: 'Depth' },
+        { path: 'diggs:length', label: 'Length' },
+        { path: 'diggs:width', label: 'Width' },
+        { path: ['gml:name[1]', 'gml:description', 'diggs:remark/diggs:Remark/diggs:content'], label: 'Event' },
+      ],
+    },
+  },
+
+  { sectionHeader: 'Environment' },
+  {
+    // Same shape as Borehole/Sounding/Well.environment — EnvironmentPropertyType
+    // is identical regardless of the parent SF type.
+    path: 'diggs:environment', multi: true, labelPlural: 'Environment Readings',
+    interval: {
+      index: [{ path: 'diggs:dateTime' }],
+      column: [{ path: 'diggs:ambientTemperature' }],
+    },
+  },
+
+  { sectionHeader: 'Quality' },
+  // AbstractSamplingFeatureType's own nonConformance/acceptanceCheck — see the
+  // NonConformance/AcceptanceCheck banner above; this is the first config in
+  // the file to surface either.
+  { path: 'diggs:nonConformance', multi: true, label: 'Non-Conformance', labelPlural: 'Non-Conformances' },
+  { path: 'diggs:acceptanceCheck', multi: true, label: 'Acceptance Check', labelPlural: 'Acceptance Checks' },
 
   { sectionHeader: '' },
   {
@@ -15459,6 +16454,10 @@ function loadDIGGS(doc, filename) {
 
   // Asynchronously enrich water strike depth UOMs (independent of CRS).
   enrichLsrUoms(doc);
+  // Asynchronously resolve any external-registry samplingMethod references
+  // (see enrichSamplingMethodRefs, near LSR_UOM) so the Samples badge's
+  // Method column doesn't render blank for them.
+  enrichSamplingMethodRefs(doc);
 
   // Prefetch any unknown CRS definitions from epsg.io, then init the map.
   // enrichElevUnits runs AFTER prefetchUnknownCRS so that vertEPSG is correctly
@@ -15692,6 +16691,60 @@ async function enrichLsrUoms(doc) {
   //  on the SF objects so the detail panel re-render below picks them up.)
 
   // Refresh open detail panel so depth columns pick up the newly resolved UOMs
+  if (window._selectedFeatureId) {
+    const allSFs = [...DIGGS_SF.values()].flat();
+    const sf = allSFs.find(s => s.id === window._selectedFeatureId);
+    if (sf) showSFDetail(sf);
+  }
+}
+
+// Cache for a SamplingActivity.samplingMethod that resolves to a whitelisted
+// EXTERNAL registry reference (see _resolveRemoteOrLocalHref/
+// REMOTE_XML_WHITELIST) — keyed by `${remoteUrl}#${fragment}`, populated by
+// enrichSamplingMethodRefs below, consulted by _samplingMethodLabel. NOT
+// cleared in resetToLoad(), same reasoning as _REMOTE_XML_DOC_CACHE: the key
+// is an absolute external URL + a fragment id meaningful within THAT remote
+// document, not the local DIGGS file being loaded, so a cached label stays
+// valid and reusable across different files/loads.
+const SAMPLING_METHOD_REMOTE_LABEL = {};
+
+/**
+ * Async post-pass, sibling of enrichLsrUoms — resolves every
+ * SamplingActivity.samplingMethod that turned out to be a whitelisted
+ * EXTERNAL registry reference rather than a local/inline Specification (e.g.
+ * ../rigid-inclusions/JazeraTestCase.xml's CBR/Compaction SamplingActivities,
+ * which cite https://diggsml.org/def/registry/DIGGS/0/specifications.xml#iso_22475_1).
+ * _samplingMethodLabel can't resolve these synchronously — the whole
+ * KV-rendering pipeline is sync — so without this pass the Samples badge's
+ * Method column renders blank for them indefinitely, which is exactly the
+ * bug this closes. The click-to-fetch idiom used elsewhere in this app
+ * (wrapRemoteRefPlaceholder/_toggleRemoteRef) is built for an expandable KV
+ * category, not a plain flat table cell, so this instead follows
+ * enrichLsrUoms' own precedent: fetch eagerly (deduped by URL+fragment, one
+ * request per referenced URL no matter how many SamplingActivities share it
+ * — real instances commonly do, since one registry Specification covers
+ * every sample taken with that method), cache the resolved label, then
+ * refresh whatever SF detail is currently open so an already-rendered badge
+ * picks it up without the user having to reselect the feature.
+ */
+async function enrichSamplingMethodRefs(doc) {
+  const refs = new Map(); // `${url}#${fragment}` -> {url, fragment}
+  for (const saEls of Object.values(DIGGS_SAMPLES)) {
+    for (const sa of saEls) {
+      const ref = _samplingMethodRemoteRef(sa);
+      if (!ref) continue;
+      const key = `${ref.url}#${ref.fragment}`;
+      if (!(key in SAMPLING_METHOD_REMOTE_LABEL)) refs.set(key, ref);
+    }
+  }
+  if (!refs.size) return;
+
+  await Promise.all([...refs.entries()].map(async ([key, ref]) => {
+    const remoteDoc = await _fetchRemoteXmlDoc(ref.url);
+    const target = remoteDoc ? getIdIndex(remoteDoc).get(ref.fragment) : null;
+    SAMPLING_METHOD_REMOTE_LABEL[key] = target ? _labelForResolvedMethodTarget(target) : '';
+  }));
+
   if (window._selectedFeatureId) {
     const allSFs = [...DIGGS_SF.values()].flat();
     const sf = allSFs.find(s => s.id === window._selectedFeatureId);
@@ -17113,10 +18166,29 @@ function _groupExpansionModel(group) {
     sections.push({ level, rows });
   }
 
+  // Leftover members get a synthetic top-level `level` descriptor, built ONCE
+  // here and reused by _sfgExpansionHtml, so a flat row is a first-class row
+  // of the model rather than only a rendered one. Registering them in rowById
+  // is load-bearing, not bookkeeping: selectGroupMember resolves every click
+  // (table row AND map layer alike) through `rowById.get(id)` and returns
+  // early when it misses, so an unregistered member renders and draws
+  // perfectly but is silently unselectable — its SF Detail unreachable, with
+  // no error to notice. Found live 2026-09-09 on JazeraTestCase.xml's two
+  // TrialPits; it applied equally to every other leftover type (an
+  // exploratory Borehole citing the group, a trial RIColumn under no
+  // platform). `path` is a single element because a leftover row is by
+  // definition claimed by no level, so it has no ancestors.
   const flat = [];
   for (const [type, arr] of group.membersByType) {
     const left = arr.filter(sf => !rowById.has(sf.id));
-    if (left.length) flat.push({ type, rows: left });
+    if (!left.length) continue;
+    // children:null keeps selectGroupMember's own collapse branch inert and
+    // _sfgCategoryHtml from trying to nest a child table; no drawOnSelect,
+    // since a leftover member's own geometry is already drawn by
+    // _sfgSyncMap's flatMemberMarkers pass.
+    const level = { type, columns: _SFG_FLAT_COLUMNS, children: null, label: humanizeSFType(type) };
+    for (const sf of left) rowById.set(sf.id, { sf, level, path: [sf.id] });
+    flat.push({ type, rows: left, level });
   }
   flat.sort((a, b) => humanizeSFType(a.type).localeCompare(humanizeSFType(b.type)));
 
@@ -17190,9 +18262,13 @@ function _sfgExpansionHtml(group) {
     html += _sfgCategoryHtml(model, sec.level, sec.rows, `${group.id}/${sec.level.type}`);
   }
   for (const fc of model.flat) {
-    const pseudoLevel = { type: fc.type, columns: _SFG_FLAT_COLUMNS, children: null };
+    // fc.level is the SAME descriptor object rowById holds for these rows (see
+    // _groupExpansionModel) — not a fresh one built here. That identity
+    // matters: selectGroupMember reads entry.level.children and _sfgSyncMap
+    // reads entry.level.drawOnSelect, so a rendering-only copy could drift
+    // from the one selection actually consults.
     const label = humanizeSFType(fc.type);
-    html += _sfgCategoryHtml(model, pseudoLevel, fc.rows, `${group.id}/flat/${fc.type}`,
+    html += _sfgCategoryHtml(model, fc.level, fc.rows, `${group.id}/flat/${fc.type}`,
       fc.rows.length === 1 ? label : _autoPlural(label));
   }
   if (!html) html = '<div class="sfg-empty">No member sampling features cite this group</div>';
@@ -19583,6 +20659,29 @@ function buildMeasurementDisplay(sf) {
       // multi-depth CPT profile).
       const panes = [];
 
+      // Procedure metadata/plot content (single-measurement badges only —
+      // procObjs/resultSet below come from group[0] specifically, same
+      // restriction the old post-Results computation had) is built EARLY
+      // now (2026-09-15) so a PROCEDURE_PLOT_BUILDERS plot (plotHtml) can
+      // be embedded directly into the Results pane's own html below —
+      // NOT pushed as its own top-level pane (tried, then reverted per
+      // explicit request: a separate collapsible pane was more than this
+      // needed). metaHtml/procHtml are still used later, in the Metadata
+      // pane push.
+      let metaHtml = '', procHtml = '', plotHtml = '', plotCount = 0;
+      if (!isMulti) {
+        const measType = group[0].measType;
+        const metaCfg = OBJECT_CONFIGS[measType];
+        metaHtml = metaCfg ? renderKVObject(group[0].el, metaCfg) : '';
+
+        const allProcs = group[0].procObjs || [];
+        const procResult = renderProcedureSection(allProcs, { depthUom, resultSet: group[0].resultSet });
+        procHtml = procResult.html;
+        plotHtml = procResult.plotHtml;
+        plotCount = procResult.plotCount;
+        for (const j of procResult.drawJobs) drawJobs.push(j);
+      }
+
       // § Plot / § Results — merged result table (+ optional plots). Built
       // from the FULL records (not a stripped {domain,resultSet} copy) so
       // each row carries `sourceRecord` — buildResultTableModel's per-row
@@ -19670,42 +20769,61 @@ function buildMeasurementDisplay(sf) {
             return el ? (el.getAttributeNS(NS.gml, 'id') || el.getAttribute('gml:id') || el.getAttribute('id') || '') : '';
           };
           const tableHtml = renderResultTable(model, { rowExpand, rowKey });
-          panes.push({ label: 'Results', html: tableHtml });
+          // A PROCEDURE_PLOT_BUILDERS plot (2026-09-15) is embedded directly
+          // below the results table, INSIDE this same Results pane — a
+          // static (non-collapsible) "Plot"/"Plots" category label,
+          // `.kv-static-header` (already the established "looks like
+          // .kv-section-header minus the pointer/triangle/click" convention
+          // — see its own CSS comment — and already orange via --accent, no
+          // new class needed), not a separate top-level split pane.
+          // Singular/plural is `plotCount` (e.g. LabCompactionTest's one
+          // compaction curve vs. LabCBRTest's two stacked charts), not
+          // just "plotHtml is non-empty" — see renderProcedureSection's own
+          // comment on why that's tracked separately from drawJobs.length.
+          // `isMulti` is already false here (plotHtml is only ever
+          // non-empty when it is — see its computation above).
+          const plotSectionHtml = plotHtml
+            ? `<div class="kv-static-header">${plotCount === 1 ? 'Plot' : 'Plots'}</div><div class="kv-section-body">${plotHtml}</div>`
+            : '';
+          panes.push({ label: 'Results', html: tableHtml + plotSectionHtml });
         }
       }
 
-      // § "<Procedure Name> Metadata" — merges the measurement's own
-      // metadata with every procedure object's content (no separate
-      // Metadata/Procedure/per-object headers) — ONLY for a
-      // single-measurement badge. A multi-measurement badge shows this same
-      // merged content per-row instead (via rowExpand above, see
-      // _measRowExpandHtml); repeating one "representative" measurement's
+      // § "<Procedure Name> Metadata" — ONLY for a single-measurement badge
+      // (metaHtml/procHtml were already built above, before the Results
+      // push, so plotHtml could be embedded into that pane's own html — see
+      // that block's own comment). A multi-measurement badge shows this
+      // same content per-row instead (via rowExpand above, see
+      // _measRowExpandHtml, which keeps its own plotHtml+metaHtml+procHtml
+      // merged into one block — no Results pane of its own to sit
+      // alongside); repeating one "representative" measurement's
       // metadata/procedure at the top while the other N-1 measurements' own
       // data went into the table with no attribution was the bug the
       // original 3-section restructure fixed, and still applies here.
       if (!isMulti) {
-        const measType = group[0].measType;
-        const metaCfg = OBJECT_CONFIGS[measType];
-        const metaHtml = metaCfg ? renderKVObject(group[0].el, metaCfg) : '';
-
-        const allProcs = group[0].procObjs || [];
-        const { html: procHtml, drawJobs: procJobs, plotHtml } = renderProcedureSection(allProcs, { depthUom, resultSet: group[0].resultSet });
-        for (const j of procJobs) drawJobs.push(j);
-
-        // plotHtml first — above the measurement's own metadata too, not
-        // just above the procedure's KV fields.
-        const metaProcHtml = plotHtml + metaHtml + procHtml;
+        const metaProcHtml = metaHtml + procHtml;
         if (metaProcHtml) panes.push({ label: `${diggsLabel(procType)} Metadata`, html: metaProcHtml });
       }
 
-      // When a Plot pane is present, start Results/Metadata collapsed so the
-      // plot gets maximum initial height — the user has to actively expand
-      // a table/metadata pane, rather than the split defaulting to an even
-      // (or 50/25/25) share that shrinks the plot before they've seen it.
-      // No effect when there's no Plot pane (e.g. a non-plottable badge) —
-      // those keep the previous all-open default.
+      // Default open/collapsed state once a plot exists, so the plot gets
+      // real initial height instead of an even (or 50/25/25) split share
+      // that shrinks it before the user's seen it — `_buildMeasSplitHtml`/
+      // `initMeasSplit` give every OPEN pane an equal `flex:1 1 0` share and
+      // a collapsed one `flex:0 0 auto`, so collapsing a sibling hands its
+      // share to whatever's left open.
+      // - The depth/time-domain result plot (drawResultPlots, its own
+      //   separate 'Plot' pane above) collapses EVERY other pane (Results
+      //   included) — unchanged from before.
+      // - A PROCEDURE_PLOT_BUILDERS plot (2026-09-15) is no longer a
+      //   separate pane at all (embedded into Results, see above) — per
+      //   explicit request its default is just "Results open (it already
+      //   is), Metadata closed."
+      // No effect when neither applies (e.g. a non-plottable badge) — those
+      // keep the previous all-open default.
       if (panes.some(p => p.label === 'Plot')) {
         for (const p of panes) if (p.label !== 'Plot') p.startOpen = false;
+      } else if (!isMulti && plotHtml) {
+        for (const p of panes) if (p.label !== 'Results') p.startOpen = false;
       }
 
       let html = '';
@@ -19745,6 +20863,21 @@ function buildMeasurementDisplay(sf) {
             if (j.kind === 'ppdCurve') {
               const c = document.getElementById(j.containerId);
               if (c) _drawPPDCurve(c, j.series);
+              continue;
+            }
+            if (j.kind === 'compactionCurve') {
+              const c = document.getElementById(j.containerId);
+              if (c) _drawCompactionCurveAsync(c, j);
+              continue;
+            }
+            if (j.kind === 'cbrPenetrationLoad') {
+              const c = document.getElementById(j.containerId);
+              if (c) _drawCBRPenetrationLoadChart(c, j.series);
+              continue;
+            }
+            if (j.kind === 'cbrDensity') {
+              const c = document.getElementById(j.containerId);
+              if (c) _drawCBRDensityChart(c, j);
               continue;
             }
             const c = document.getElementById(j.plotId);
@@ -22635,16 +23768,18 @@ function _buildSamplingActivityRows(sfId) {
   return rows;
 }
 
-/** Resolves a SamplingActivity's samplingMethod[1] to a display label — the
- *  rule is deliberately different depending on the resolved target's own
- *  type, not just whether samplingMethod embeds it inline or references it
- *  by xlink:href:
- *  - **Specification** (embedded inline OR referenced by href — Specification
- *    objects are schema-designed to always carry a real, method-describing
- *    name, e.g. an `xlink:href` shared by several occurrences of the same
- *    method that only embeds the Specification inline once): that object's
- *    OWN gml:name (a direct child only — see below), falling back to its
- *    split-case humanized element name if it somehow has none.
+/** Resolves an already-resolved samplingMethod TARGET (a real Element — never
+ *  the `{__remoteRef}` marker, see _samplingMethodLabel/_samplingMethodRemoteRef
+ *  below) to a display label — the rule is deliberately different depending
+ *  on the target's own type, not just whether samplingMethod embeds it
+ *  inline or references it by xlink:href:
+ *  - **Specification** (embedded inline OR referenced by href, local OR a
+ *    whitelisted external registry — Specification objects are schema-
+ *    designed to always carry a real, method-describing name, e.g. an
+ *    `xlink:href` shared by several occurrences of the same method that only
+ *    embeds the Specification inline once): that object's OWN gml:name (a
+ *    direct child only — see below), falling back to its split-case
+ *    humanized element name if it somehow has none.
  *  - **Any other referenced procedure object** (an xlink:href to something
  *    other than a Specification, e.g. a DrivenPenetrationTest): ALWAYS the
  *    split-case humanized element name of the referenced object (e.g.
@@ -22662,15 +23797,53 @@ function _buildSamplingActivityRows(sfId) {
  *  direct children only), not `getElementsByTagNameNS` (searches every
  *  descendant) — same reasoning as the other branch, just scoped to one
  *  level. */
-function _samplingMethodLabel(saEl) {
-  const smEl = evalXPath(saEl, 'diggs:samplingMethod[1]')[0];
-  if (!smEl) return '';
-  const target = resolveXlinkEl(smEl);
+function _labelForResolvedMethodTarget(target) {
   if (!target) return '';
   if (target.localName !== 'Specification') return humanizeSFType(target.localName) || '';
   const nameEl = evalXPath(target, 'gml:name')[0];
   const ownName = nameEl && nodeText(nameEl);
   return ownName || humanizeSFType(target.localName) || '';
+}
+
+/** Resolves a SamplingActivity's samplingMethod[1] to a display string —
+ *  see _labelForResolvedMethodTarget for the actual labeling rule. Returns
+ *  '' when there's no samplingMethod at all, OR when the target is a
+ *  whitelisted EXTERNAL registry reference (see _resolveRemoteOrLocalHref/
+ *  REMOTE_XML_WHITELIST) that hasn't been resolved yet — resolveXlinkEl
+ *  returns the `{__remoteRef, url, fragment}` marker in that case, not a
+ *  real Element, since fetching it needs a network round trip this
+ *  synchronous rendering pipeline can't make inline (2026-09-12 bug fix:
+ *  found live on JazeraTestCase.xml's CBR/Compaction SamplingActivities,
+ *  whose samplingMethod cites
+ *  https://diggsml.org/def/registry/DIGGS/0/specifications.xml#iso_22475_1
+ *  rather than a local Specification — the Samples badge's Method column
+ *  rendered blank for them, since the marker object has no `localName` and
+ *  every downstream check against it silently failed). Once
+ *  enrichSamplingMethodRefs (near LSR_UOM) resolves the reference in the
+ *  background and caches it in SAMPLING_METHOD_REMOTE_LABEL, this function
+ *  picks the cached label up on the next call — see that function's own
+ *  comment for the fetch-and-refresh mechanism, modeled directly on
+ *  enrichLsrUoms' own async post-pass. */
+function _samplingMethodLabel(saEl) {
+  const smEl = evalXPath(saEl, 'diggs:samplingMethod[1]')[0];
+  if (!smEl) return '';
+  const target = resolveXlinkEl(smEl);
+  if (!target) return '';
+  if (target.__remoteRef) return SAMPLING_METHOD_REMOTE_LABEL[`${target.url}#${target.fragment}`] || '';
+  return _labelForResolvedMethodTarget(target);
+}
+
+/** Companion to _samplingMethodLabel, consulted only by
+ *  enrichSamplingMethodRefs (near LSR_UOM) to find which SamplingActivities
+ *  need a background fetch — returns the `{__remoteRef, url, fragment}`
+ *  marker itself when samplingMethod[1] resolves to one, else null (no
+ *  samplingMethod, or a normal local/inline target _samplingMethodLabel
+ *  already handles synchronously). */
+function _samplingMethodRemoteRef(saEl) {
+  const smEl = evalXPath(saEl, 'diggs:samplingMethod[1]')[0];
+  if (!smEl) return null;
+  const target = resolveXlinkEl(smEl);
+  return (target && target.__remoteRef) ? target : null;
 }
 
 /** Resolves a LocationPropertyType wrapper (SamplingActivity.samplingLocation
@@ -23594,10 +24767,18 @@ function renderSamplingBadgeContent(sfId, sf, drawJobs) {
         captionsHtml += logCaptionItem(g.label);
       });
     } else {
+      // No LithologySystem: the column is drawSampleLogFallback's hollow
+      // rectangle spanning the feature's own total depth, so the caption names
+      // the FEATURE, not a material. It read a hardcoded 'Borehole' until
+      // 2026-09-09 — wrong for every other 1D sampling feature that can carry
+      // samples without lithology (found live on a TrialPit, and equally wrong
+      // for a Sounding/Well/RIColumn). humanizeSFType is the same splitter
+      // showSFDetail's own header falls back to, so "TrialPit" reads
+      // "Trial Pit".
       const logId = `${scopeId}-log-0`;
       if (drawJobs) drawJobs.push({ kind: 'fallback', containerId: logId, sf, dMin, dMax, sfFrom, sfTo, uom: depthUom, pad: logPad });
       logsHtml = logColItem(logId);
-      captionsHtml = logCaptionItem('Borehole');
+      captionsHtml = logCaptionItem(humanizeSFType(sf.type) || 'Sampling Feature');
     }
 
     const { colorOf, legend } = _assignCategoricalColors(builtRows.map(row => row.methodKey));
@@ -24872,7 +26053,17 @@ function drawPlot(container, spec) {
   // measurement's own data points happen to fall, instead of auto-zooming
   // to just the data's own min/max. Falls back to the data extent if the
   // override isn't finite (e.g. the SF reports no total depth).
-  const iVals = pts.map(p => p.i), pVals = pts.map(p => p.p);
+  const iVals = pts.map(p => p.i);
+  // Dependent-axis values feeding the initial full-range/padding calc below
+  // include every spec.extraLines[] series' own points too (opt-in via
+  // spec.extraLines — e.g. a compaction curve's Zero-Air-Voids overlay
+  // routinely runs higher than the main measured curve) so the default
+  // view accommodates the WHOLE overlay, not just spec.points — otherwise
+  // its far end could sit above/below the initial visible window and read
+  // as clipped. refitDep() (interactive zoom/pan re-fit) deliberately stays
+  // scoped to `pts` only — this only affects the plot's initial/reset scale.
+  const pVals = pts.map(p => p.p)
+    .concat((spec.extraLines || []).flatMap(el => (el.points || []).map(p => p.p)));
   const ovr = spec.indFullOverride;
   const ovrValid = ovr && isFinite(ovr.min) && isFinite(ovr.max) && ovr.max > ovr.min;
   const iMinFull = ovrValid ? Math.min(ovr.min, ...iVals) : Math.min(...iVals);
@@ -24968,6 +26159,32 @@ function drawPlot(container, spec) {
   refG.setAttribute('clip-path', `url(#${clipId})`);
   svg.appendChild(refG);
 
+  // Secondary overlay series (opt-in via spec.extraLines = [{points, color?,
+  // dashed?, dashArray?, smooth?, strokeWidth?, pointMarkers?,
+  // pointMarkerRadius?, label?}, ...]) — any number of additional,
+  // independently-computed curves on the SAME axes, e.g. a compaction
+  // curve's zero-air-voids boundary (one extra line), or a CBR
+  // penetration/load chart's other trials beyond the main one (many extra
+  // lines — see spec.legend below for identifying which is which). Each
+  // gets its own `<path>` + optional own marker `<g>`, ALL drawn UNDER the
+  // main data path/markers (same reasoning as refG above) so `spec.points`
+  // stays the visually dominant series. No hover of its own — spec.points
+  // is still the only thing the crosshair/tooltip tracks (2026-09-15: was
+  // singular `spec.extraLine` for one session, generalized to an array once
+  // the CBR penetration/load chart needed more than one overlay).
+  const extraLines = spec.extraLines || [];
+  const extraPaths = extraLines.map(el => {
+    const p = document.createElementNS(NS_SVG, 'path');
+    p.setAttribute('fill', 'none');
+    p.setAttribute('stroke', el.color || C.axisText);
+    p.setAttribute('stroke-width', el.strokeWidth || '1.25');
+    if (el.dashed !== false) p.setAttribute('stroke-dasharray', el.dashArray || '5,3');
+    p.setAttribute('stroke-linejoin', 'round');
+    p.setAttribute('clip-path', `url(#${clipId})`);
+    svg.appendChild(p);
+    return p;
+  });
+
   // <path> rather than <polyline> so the data line can render either straight
   // segments (default, via _straightPathD) or a smooth interpolating spline
   // (spec.smooth, via _smoothPathD) through the same element — see redraw().
@@ -24983,6 +26200,16 @@ function drawPlot(container, spec) {
   const markerG = document.createElementNS(NS_SVG, 'g');
   markerG.setAttribute('clip-path', `url(#${clipId})`);
   svg.appendChild(markerG);
+
+  // Each extraLines[] entry's own markers (opt-in via el.pointMarkers) —
+  // same convention as markerG above, own group/color per series so
+  // overlapping lines stay visually distinguishable.
+  const extraMarkerGs = extraLines.map(() => {
+    const g = document.createElementNS(NS_SVG, 'g');
+    g.setAttribute('clip-path', `url(#${clipId})`);
+    svg.appendChild(g);
+    return g;
+  });
 
   const mkText = (attrs, txt) => {
     const t = document.createElementNS(NS_SVG, 'text');
@@ -25024,6 +26251,46 @@ function drawPlot(container, spec) {
       }
       svg.appendChild(title);
     });
+  }
+
+  // Legend (opt-in via spec.legend = [{label, color}, ...]) — a small,
+  // static box (built once here, NOT inside redraw() — entries/colors
+  // don't change with zoom/pan) identifying each series by color, e.g. the
+  // CBR penetration/load chart's one-row-per-trial legend. Positioned
+  // inside the plot area's own top-left corner: correct for every current
+  // caller, whose curves all rise away from the origin so that corner
+  // starts empty — a future caller with a different curve shape may need
+  // its own positioning escape hatch, not built yet since nothing needs it.
+  // `_measureTextWidth` (canvas-based) sizes the background box accurately
+  // without needing the SVG live in the DOM yet (unlike getComputedTextLength).
+  if (spec.legend && spec.legend.length) {
+    const lfont = (spec.legend.fontSize || spec.axisFontSize || 11);
+    const swatch = 10, rowH = lfont + 6, padX = 6, padY = 5;
+    const font = `${lfont}px ${F.mono}`;
+    const maxTextW = Math.max(...spec.legend.map(e => _measureTextWidth(e.label, font)));
+    const boxW = padX * 2 + swatch + 5 + maxTextW;
+    const boxH = padY * 2 + rowH * spec.legend.length;
+    const boxX = PAD.left + 6, boxY = PAD.top + 6;
+    const legendG = document.createElementNS(NS_SVG, 'g');
+    const bg = document.createElementNS(NS_SVG, 'rect');
+    bg.setAttribute('x', boxX); bg.setAttribute('y', boxY);
+    bg.setAttribute('width', boxW); bg.setAttribute('height', boxH);
+    bg.setAttribute('fill', C.plot); bg.setAttribute('fill-opacity', '0.85');
+    bg.setAttribute('stroke', C.border); bg.setAttribute('rx', '3');
+    legendG.appendChild(bg);
+    spec.legend.forEach((entry, i) => {
+      const cy = boxY + padY + i * rowH + rowH / 2;
+      const sw = document.createElementNS(NS_SVG, 'rect');
+      sw.setAttribute('x', boxX + padX); sw.setAttribute('y', cy - swatch / 2);
+      sw.setAttribute('width', swatch); sw.setAttribute('height', swatch);
+      sw.setAttribute('fill', entry.color);
+      legendG.appendChild(sw);
+      legendG.appendChild(mkText({
+        x: boxX + padX + swatch + 5, y: cy + lfont * 0.35,
+        'font-size': lfont, fill: C.axisText, 'font-family': F.mono,
+      }, entry.label));
+    });
+    svg.appendChild(legendG);
   }
 
   // Crosshair + hover dot + tooltip.
@@ -25115,6 +26382,25 @@ function drawPlot(container, spec) {
     const screenPts = vis.map(p => ({ x: sx(p), y: sy(p) }));
     dataPath.setAttribute('d', spec.smooth ? _smoothPathD(screenPts) : _straightPathD(screenPts));
 
+    extraLines.forEach((el, idx) => {
+      const evis = (el.points || []).filter(p => p.i >= view.iMin - buf && p.i <= view.iMax + buf);
+      const escreenPts = evis.map(p => ({ x: sx(p), y: sy(p) }));
+      extraPaths[idx].setAttribute('d', el.smooth ? _smoothPathD(escreenPts) : _straightPathD(escreenPts));
+
+      const g = extraMarkerGs[idx];
+      while (g.firstChild) g.removeChild(g.firstChild);
+      if (el.pointMarkers) {
+        for (const p of evis) {
+          const c = document.createElementNS(NS_SVG, 'circle');
+          c.setAttribute('cx', sx(p).toFixed(2)); c.setAttribute('cy', sy(p).toFixed(2));
+          c.setAttribute('r', el.pointMarkerRadius || 3.5);
+          c.setAttribute('fill', el.color || C.axisText);
+          c.setAttribute('stroke', C.outer); c.setAttribute('stroke-width', '1');
+          g.appendChild(c);
+        }
+      }
+    });
+
     // Permanent point markers — one small filled circle per visible data
     // point (rebuilt every redraw since zoom/pan changes both which points
     // are visible and their screen position).
@@ -25152,8 +26438,18 @@ function drawPlot(container, spec) {
       dot.setAttribute('fill', refColor); dot.setAttribute('stroke', C.outer); dot.setAttribute('stroke-width', '1');
       refG.appendChild(dot);
       if (spec.refPoint.label) {
-        refG.appendChild(mkText({ x: rx + 6, y: ry - 6, 'font-size': spec.axisFontSize || 12,
-          fill: refColor, 'font-family': F.mono }, spec.refPoint.label));
+        // spec.refPoint.labelPos ('right', default, or 'left') — opt-in
+        // side flip, added for the compaction curve's MDD/OMC label (its
+        // default right-of-point position overlapped the ZAV overlay line,
+        // which routinely runs above/near the MDD point) without changing
+        // the Atterberg flow curve's own LL label, which stays right-of-point.
+        const onLeft = spec.refPoint.labelPos === 'left';
+        refG.appendChild(mkText({
+          x: onLeft ? rx - 6 : rx + 6, y: ry - 6,
+          'text-anchor': onLeft ? 'end' : 'start',
+          'font-size': spec.axisFontSize || 12,
+          fill: refColor, 'font-family': F.mono,
+        }, spec.refPoint.label));
       }
     }
   }
@@ -27274,6 +28570,28 @@ function _interpAtX(pts, targetI) {
   return a.p + t * (b.p - a.p);
 }
 
+/** Inverse of _interpAtX above — given `pts` and a target DEPENDENT-axis
+ *  value, finds the independent-axis value where the piecewise-linear line
+ *  through `pts` crosses it. Used by the CBR-vs-density chart's "target dry
+ *  density -> CBR" reference construction: unlike _interpAtX, this does NOT
+ *  extrapolate past either end — returns null if targetP falls outside
+ *  [min(p), max(p)] among `pts`, matching that chart's own "the curve
+ *  doesn't extend beyond its own data points" convention (the reference
+ *  construction shouldn't imply a crossing the drawn line itself doesn't
+ *  show). Scans segments in array order (not assumed monotonic in `p`) and
+ *  returns the FIRST bracketing segment found. */
+function _interpAtY(pts, targetP) {
+  if (pts.length < 2) return null;
+  for (let k = 1; k < pts.length; k++) {
+    const a = pts[k - 1], b = pts[k];
+    const lo = Math.min(a.p, b.p), hi = Math.max(a.p, b.p);
+    if (targetP < lo || targetP > hi) continue;
+    const t = (targetP - a.p) / (b.p - a.p || 1);
+    return a.i + t * (b.i - a.i);
+  }
+  return null;
+}
+
 /** Target width (px) for one Atterberg plot — half of the real available
  *  width of `.att-plot-stack` (container's direct parent — the flex row
  *  holding both plot placeholders), minus half the stack's own 12px gap so
@@ -27679,6 +28997,319 @@ function _drawPPDCurve(container, series) {
     titleSize: fonts.title,
     wrapper: { className: 'ppd-curve-plot-wrapper', style: 'margin-bottom:0; position:relative;' },
   });
+}
+
+/** Async half of the LabCompactionTest compaction-curve build (sync half:
+ *  _buildCompactionPlot) — dispatched from buildMeasurementDisplay's
+ *  afterRender via the `compactionCurve` drawJob, same seam a lazy remote
+ *  xlink:href fetch uses (_toggleRemoteRef), since resolving an ambiguous
+ *  dryDensity uom can involve a real network round-trip (see
+ *  _resolveDryDensityKNm3Factor) that the synchronous KV-render pass can't
+ *  block on. Resolves every DISTINCT uom actually present (trials +
+ *  Maximum Dry Density's own, if reported) ONCE each; only if EVERY one
+ *  resolves does it convert and label the axis "kN/m3" — any single
+ *  unresolvable uom falls back to plotting every trial's RAW reported value
+ *  (assumed to share one uom in practice — DensityOrUnitWeightMeasureType
+ *  is `uom` `use="required"` per-occurrence, but a real lab report doesn't
+ *  mix mass and force conventions within one test) rather than guessing at
+ *  a partial conversion. The Zero-Air-Voids curve is gated on `converted`
+ *  — its own formula (see below) is expressed in kN/m3 terms, so it isn't
+ *  meaningful to overlay on an un-converted, unrecognized-uom axis. */
+async function _drawCompactionCurveAsync(container, job) {
+  const { trials, mddOmc } = job;
+  const uoms = new Set(trials.map(t => t.ddUom).filter(Boolean));
+  if (mddOmc) uoms.add(mddOmc.mdd.uom);
+  const factors = new Map();
+  for (const u of uoms) factors.set(u, await _resolveDryDensityKNm3Factor(u));
+  const converted = [...uoms].every(u => isFinite(factors.get(u)));
+
+  let points, depUom, refPoint = null;
+  if (converted) {
+    points = trials.map(t => ({ i: t.wc, p: t.dd * factors.get(t.ddUom) }));
+    depUom = 'kN/m3';
+    if (mddOmc) refPoint = { i: mddOmc.omc.value, p: mddOmc.mdd.value * factors.get(mddOmc.mdd.uom), color: '#f0883e', labelPos: 'left' };
+  } else {
+    points = trials.map(t => ({ i: t.wc, p: t.dd }));
+    depUom = trials[0].ddUom || '';
+    if (mddOmc && mddOmc.mdd.uom === depUom) refPoint = { i: mddOmc.omc.value, p: mddOmc.mdd.value, color: '#f0883e', labelPos: 'left' };
+  }
+  if (refPoint) refPoint.label = `MDD ${_fmtCompactionDensity(refPoint.p)}${depUom ? ' ' + depUom : ''} @ OMC ${refPoint.i.toFixed(1)}%`;
+
+  // The reported MDD/OMC is the Test's own OUTCOME value (see
+  // _compactionMDDOMC) — in practice often curve-fit/derived rather than
+  // literally the highest-measured trial (e.g. a lab may report a
+  // regression-fit peak that falls between two trials, or use a different
+  // MDD convention than "the single densest trial run"), so it is NOT
+  // guaranteed to already coincide with any trial's own (waterContent,
+  // dryDensity) reading. Per explicit correction (2026-09-14): fold it into
+  // `points` itself (re-sorted by water content) so the drawn curve
+  // actually PASSES THROUGH the reported peak — not just a `refPoint`
+  // overlay dot/dashed-guide sitting near, but structurally off, the line —
+  // regardless of whether the observed trial values happen to reach it.
+  // ZAV (below) derives its own points from this same, now-extended array,
+  // so it likewise gets an evaluated point at OMC's water content, keeping
+  // the two curves' vertex sets aligned exactly like every other water
+  // content they share.
+  if (refPoint) {
+    points = points.concat([{ i: refPoint.i, p: refPoint.p }]).sort((a, b) => a.i - b.i);
+  }
+
+  // Zero-Air-Voids curve — gamma_zav(w) = gamma_water * Gs / (1 + w*Gs), w
+  // as a fraction — the standard relation, using the same std-gravity
+  // constant (gamma_water = 9.80665 kN/m3) already established above. A
+  // single averaged Gs draws the whole curve: Gs is a material property of
+  // the tested soil, not a per-trial reading, so trial-to-trial variation
+  // is measurement noise around one true value, not something a
+  // theoretical reference curve should show as jagged input. Per explicit
+  // request, skip entirely (not a partial/best-effort curve) if even one
+  // trial's compacted specimen has no reported Gs.
+  //
+  // Per explicit correction (2026-09-14, matching the standard compaction
+  // datasheet layout — e.g. ../rigid-inclusions/Compaction.pdf): ZAV is
+  // evaluated ONLY at each trial's own water content — same x-coordinates
+  // as `points` (already sorted ascending, see _compactionTrialPoints) —
+  // not a separately-sampled smooth grid. This is what makes "only between
+  // the data points, don't extend" automatic: the line simply has no
+  // vertices outside [min trial wc, max trial wc], with no interpolation
+  // grid to pad in the first place.
+  let zav = null;
+  if (converted && trials.every(t => t.gs != null)) {
+    const gs = trials.reduce((sum, t) => sum + t.gs, 0) / trials.length;
+    const zavPts = points.map(pt => ({ i: pt.i, p: _STD_GRAVITY * gs / (1 + (pt.i / 100) * gs) }));
+    zav = { points: zavPts, gs };
+  }
+
+  _drawCompactionCurve(container, { points, depUom, converted, refPoint, zav, n: trials.length });
+}
+
+function _fmtCompactionDensity(v) {
+  return Math.abs(v) >= 100 ? v.toFixed(1) : v.toFixed(2);
+}
+
+/** Sync render — assembles the drawPlot spec once every value is already
+ *  unit-resolved (see _drawCompactionCurveAsync above). Layout/sizing
+ *  conventions (full-pane width, VW=880, _attPsdFontSizes) match
+ *  _drawParticleSizeCurve/_drawPPDCurve exactly, per the established
+ *  "reads like the app's other single full-width procedure plots"
+ *  precedent — permanent point markers ARE kept (unlike PPD's continuous
+ *  time series) since each trial is a genuinely distinct, individually
+ *  meaningful test point, same reasoning as Atterberg/ParticleSizeTest.
+ *  `spec.smooth` is deliberately OFF (straight segments), unlike the
+ *  particle-size curve's own spline — matching the reference compaction
+ *  datasheet's own straight-segment polyline style (see
+ *  ../rigid-inclusions/Compaction.pdf), and, more importantly, because a
+ *  Catmull-Rom spline through a hump-shaped (rise-then-fall) curve can
+ *  overshoot ABOVE the peak point's own value between it and its neighbors
+ *  — which visually contradicted the MDD refPoint construction (drawn
+ *  exactly at the reported peak) once the curve bulged past it. A
+ *  straight-segment polyline can never exceed either endpoint's own value
+ *  between two points, so this isn't just a style choice — it structurally
+ *  guarantees the curve never reads above MDD. */
+function _drawCompactionCurve(container, curve) {
+  const { points, depUom, converted, refPoint, zav, n } = curve;
+  const w = _particleSizePlotTargetWidth(container);
+  container.style.width = w + 'px';
+  container.style.minWidth = w + 'px';
+  const col = PLOT_COLORS[0];
+  const VW = 880;
+  const targetHeightPx = 300;
+  const VH = targetHeightPx * VW / w;
+  const fonts = _attPsdFontSizes(w, VW);
+  const wcs = points.map(p => p.i);
+  const wcMin = Math.min(...wcs), wcMax = Math.max(...wcs);
+  const wcPad = Math.max((wcMax - wcMin) * 0.12, 0.5);
+
+  const spec = {
+    points, orientation: 'x-ind', smooth: false, pointMarkers: true, pointMarkerRadius: 5,
+    indFullOverride: { min: Math.max(0, wcMin - wcPad), max: wcMax + wcPad },
+    viewport: { VW, VH, PAD: { top: 26, bottom: 42, left: 54, right: 16 } },
+    clipPrefix: 'compaction-curve', infoText: `n=${n}`,
+    axisFontSize: fonts.axis, tooltipFontSize: fonts.axis,
+    ind: {
+      ticks: 5,
+      fmtTick: v => v.toFixed(1),
+      fmtTip: v => 'w = ' + v.toFixed(1) + '%',
+    },
+    dep: {
+      color: col, ticks: 5, flip: false, padFrac: 0.1, padAbsFrac: 0.05, padConst: 0.5,
+      fmtTick: v => _fmtCompactionDensity(v),
+      fmtTip: v => _fmtCompactionDensity(v) + (depUom ? ' ' + depUom : ''),
+    },
+    leftLabel: { text: 'Dry Unit Weight' + (depUom ? ` (${depUom})` : ''), color: col, size: fonts.axis },
+    bottomLabel: { text: 'Water Content (%)', color: '#8b949e', size: fonts.axis },
+    titleParts: [{ text: 'Compaction Curve', color: col, size: fonts.title }],
+    titleSize: fonts.title,
+    wrapper: { className: 'compaction-curve-plot-wrapper', style: 'margin-bottom:0; position:relative;' },
+  };
+  if (refPoint) spec.refPoint = refPoint;
+  // Solid line + its own markers (not dashed, matching the reference
+  // compaction datasheet's own ZAV styling — a distinct marker color on a
+  // plain connecting line, same "solid line" treatment as the main curve,
+  // not the axis-drop guide-construction dashed style spec.refPoint uses).
+  // smooth:false — straight segments between the actual trial water
+  // contents (there are exactly as few vertices as trials, same as the
+  // main curve's own points; a spline fit across that few real points
+  // would misrepresent it as smoother/more continuous than it is).
+  if (zav) spec.extraLines = [{
+    points: zav.points, color: PLOT_COLORS[2], dashed: false, smooth: false,
+    pointMarkers: true, pointMarkerRadius: 4,
+  }];
+
+  const chipParts = [];
+  if (zav) chipParts.push(`Zero-Air-Voids curve (Gs = ${zav.gs.toFixed(2)})`);
+  if (!converted && depUom) chipParts.push(`Plotted in reported units (${depUom}) — unit-conversion service unavailable or unit not recognized`);
+  if (chipParts.length) spec.extraChipHtml = chipParts.map(escHtml).join(' &middot; ');
+
+  drawPlot(container, spec);
+}
+
+/** LabCBRTest plot 1: penetration vs. load — one line per trial (real
+ *  measured `penetrationIncrement` points), individually colored via
+ *  `PLOT_COLORS`, with a legend (`spec.legend`) identifying which is which
+ *  — per explicit request, matching ../rigid-inclusions/CBR.pdf's own
+ *  multi-trial chart. Entirely synchronous, unlike the compaction curve —
+ *  penetration/load need no unit-quantityClass resolution.
+ *
+ *  The independent axis is penetration, but plotted by INDEX (0..N-1
+ *  across the standard penetration increments), not the raw mm value —
+ *  ASTM D1883's own standard schedule (0, 0.64, 1.27, 1.9, 2.54, 3.81,
+ *  5.08, 7.62mm) is non-uniformly spaced, yet the reference datasheet
+ *  chart draws it with EVENLY spaced ticks (a categorical axis, not a true
+ *  linear mm scale) — same "encode as index, decode the real value only in
+ *  fmtTick" trick already used for the Atterberg flow curve's log10(blow
+ *  count) and the particle-size curve's log10(size) axes. `mmValues`
+ *  (the FIRST trial's own penetration schedule — real instances share one
+ *  schedule across every trial) supplies the tick labels; every trial's own
+ *  points are indexed by their OWN array position (sorted ascending by mm
+ *  already, see _cbrPenetrationLoadSeries), not by matching mm values
+ *  across trials, so a trial reporting a slightly different value at some
+ *  position still lines up at the same index/tick.
+ *
+ *  `series[0]` (by array order, not necessarily trialNo order) drives the
+ *  chart's own hover crosshair/zoom (drawPlot's `spec.points`) — the other
+ *  trials are `spec.extraLines`, which have no hover of their own; visually
+ *  inspectable via the line/markers/legend, same simplification precedent
+ *  as every other multi-series-shaped need in this app choosing NOT to
+ *  fully generalize hover across N series. */
+function _drawCBRPenetrationLoadChart(container, series) {
+  const w = _particleSizePlotTargetWidth(container);
+  container.style.width = w + 'px';
+  container.style.minWidth = w + 'px';
+  const VW = 880, targetHeightPx = 300, VH = targetHeightPx * VW / w;
+  const fonts = _attPsdFontSizes(w, VW);
+  const stressUomEntry = series.find(s => s.stressUom);
+  const stressUom = stressUomEntry ? stressUomEntry.stressUom : '';
+  const mmValues = series[0].incs.map(inc => inc.pen);
+
+  const trials = series.map((s, idx) => ({
+    trialNo: s.trialNo,
+    color: PLOT_COLORS[idx % PLOT_COLORS.length],
+    points: s.incs.map((inc, i) => ({ i, p: inc.stress })),
+  }));
+  const main = trials[0];
+  const extras = trials.slice(1).map(t => ({
+    points: t.points, color: t.color, dashed: false, smooth: false,
+    pointMarkers: true, pointMarkerRadius: 4,
+  }));
+  const legend = trials.map(t => ({ label: `Trial ${t.trialNo != null ? t.trialNo : '?'}`, color: t.color }));
+
+  drawPlot(container, {
+    points: main.points, orientation: 'x-ind', smooth: false,
+    pointMarkers: true, pointMarkerRadius: 4,
+    indFullOverride: { min: 0, max: mmValues.length - 1 },
+    extraLines: extras,
+    legend,
+    viewport: { VW, VH, PAD: { top: 26, bottom: 42, left: 54, right: 16 } },
+    clipPrefix: 'cbr-pl', infoText: `n=${trials.length} trials`,
+    axisFontSize: fonts.axis, tooltipFontSize: fonts.axis,
+    ind: {
+      ticks: mmValues.length - 1, minSpanAbs: 1,
+      fmtTick: v => { const mm = mmValues[Math.round(v)]; return mm != null ? mm.toFixed(2) : v.toFixed(2); },
+      fmtTip: v => { const mm = mmValues[Math.round(v)]; return 'Penetration = ' + (mm != null ? mm.toFixed(2) : v.toFixed(2)) + ' mm'; },
+    },
+    dep: {
+      color: main.color, ticks: 6, flip: false, padFrac: 0.1, padAbsFrac: 0.05, padConst: 0.5,
+      fmtTick: v => v.toFixed(1),
+      fmtTip: v => v.toFixed(1) + (stressUom ? ' ' + stressUom : ''),
+    },
+    leftLabel: { text: 'Load' + (stressUom ? ` (${stressUom})` : ''), color: main.color, size: fonts.axis },
+    bottomLabel: { text: 'Penetration (mm)', color: '#8b949e', size: fonts.axis },
+    titleParts: [{ text: 'Penetration vs. Load', color: main.color, size: fonts.title }],
+    titleSize: fonts.title,
+    wrapper: { className: 'cbr-pl-plot-wrapper', style: 'margin-bottom:0; position:relative;' },
+  });
+}
+
+/** LabCBRTest plot 2: CBR vs. dry density — one point per trial
+ *  (`max(cbr_0.1, cbr_0.2)` vs. the compacted specimen's own molding dry
+ *  density, see _cbrTrialCbrDensity), connected by straight segments that
+ *  stop exactly at the real data (`smooth: false`, same "curve doesn't
+ *  extend beyond its own points" reasoning as the compaction curve).
+ *  Matches ../rigid-inclusions/CBR.pdf's second chart, CBR as the
+ *  independent/x axis.
+ *
+ *  The dashed reference construction (target dry density -> the curve ->
+ *  down to the CBR axis) is `spec.refPoint` — reused exactly as-is, no
+ *  drawPlot changes needed — but unlike every other refPoint in this app
+ *  (a value already KNOWN in both axes), only the dependent value (target
+ *  density) is known here; the independent value (CBR) has to be read OFF
+ *  the actual drawn line via `_interpAtY` (per explicit spec: "should fall
+ *  at the result CBR" — this computes that crossing geometrically from the
+ *  same points the curve draws, rather than substituting the Test's own
+ *  separately-reported "CBR @ 95% MDD" outcome value, so the construction
+ *  stays visually honest about what line it's reading from). Skipped
+ *  entirely (no refPoint) when `target` is null (missing/unit-mismatched
+ *  target fields — see _cbrTargetDryDensity) or when target density falls
+ *  outside the curve's own plotted range (interpolation, not
+ *  extrapolation) — either way, no reference construction is drawn rather
+ *  than drawing a wrong or extrapolated one. */
+function _drawCBRDensityChart(container, data) {
+  const { rows, target, densityUom } = data;
+  const w = _particleSizePlotTargetWidth(container);
+  container.style.width = w + 'px';
+  container.style.minWidth = w + 'px';
+  const VW = 880, targetHeightPx = 300, VH = targetHeightPx * VW / w;
+  const fonts = _attPsdFontSizes(w, VW);
+  const col = PLOT_COLORS[0];
+  const points = rows.map(r => ({ i: r.cbr, p: r.dd }));
+  const cbrs = points.map(p => p.i);
+  const cbrMin = Math.min(...cbrs), cbrMax = Math.max(...cbrs);
+  const cbrPad = Math.max((cbrMax - cbrMin) * 0.12, 0.5);
+
+  const spec = {
+    points, orientation: 'x-ind', smooth: false, pointMarkers: true, pointMarkerRadius: 5,
+    indFullOverride: { min: Math.max(0, cbrMin - cbrPad), max: cbrMax + cbrPad },
+    viewport: { VW, VH, PAD: { top: 26, bottom: 42, left: 54, right: 16 } },
+    clipPrefix: 'cbr-density', infoText: `n=${rows.length}`,
+    axisFontSize: fonts.axis, tooltipFontSize: fonts.axis,
+    ind: {
+      ticks: 5,
+      fmtTick: v => v.toFixed(1),
+      fmtTip: v => 'CBR = ' + v.toFixed(1) + '%',
+    },
+    dep: {
+      color: col, ticks: 5, flip: false, padFrac: 0.1, padAbsFrac: 0.05, padConst: 0.05,
+      fmtTick: v => v.toFixed(3),
+      fmtTip: v => v.toFixed(3) + (densityUom ? ' ' + densityUom : ''),
+    },
+    leftLabel: { text: 'Dry Density' + (densityUom ? ` (${densityUom})` : ''), color: col, size: fonts.axis },
+    bottomLabel: { text: 'C.B.R (%)', color: '#8b949e', size: fonts.axis },
+    titleParts: [{ text: 'CBR vs. Dry Density', color: col, size: fonts.title }],
+    titleSize: fonts.title,
+    wrapper: { className: 'cbr-density-plot-wrapper', style: 'margin-bottom:0; position:relative;' },
+  };
+
+  if (target != null) {
+    const cbrAtTarget = _interpAtY(points, target);
+    if (cbrAtTarget != null) {
+      spec.refPoint = {
+        i: cbrAtTarget, p: target, color: '#f0883e', labelPos: 'left',
+        label: `CBR ${cbrAtTarget.toFixed(1)}% @ target density ${target.toFixed(3)}${densityUom ? ' ' + densityUom : ''}`,
+      };
+    }
+  }
+
+  drawPlot(container, spec);
 }
 
 /** USCS plasticity (Casagrande) chart: PI vs. LL with the standard A-line
