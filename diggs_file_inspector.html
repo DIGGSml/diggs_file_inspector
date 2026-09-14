@@ -3370,6 +3370,23 @@ function parseDomain(resultEl) {
   // ── Spatial: location → Point/MultiPoint/LinearExtent/MultiCurve/Grid ──
   const locEl = resultEl.getElementsByTagNameNS(D, 'location')[0];
   if (locEl) {
+    // `location` (LocationPropertyType) may embed its geometry inline OR
+    // reference it by xlink:href — GML's AssociationAttributeGroup allows
+    // both, and a Test's TestResult can legitimately reuse a
+    // SamplingActivity's own samplingLocation this way instead of
+    // duplicating the same LinearExtent inline (see resolvePropertyEl's own
+    // doc comment for the identical pattern on SampleProduced.location;
+    // confirmed live on JazeraTestCase.xml's SPT/Atterberg/ParticleSize
+    // Tests, whose `<location xlink:href="#sal-..."/>` was silently
+    // resolving to nothing here — getElementsByTagNameNS on an empty
+    // reference element finds no descendants — so `parseDomain` returned
+    // null and the whole depth-profile Plot pane, lithology column
+    // included, never got built for them). `resolveXlinkEl` (embed-over-
+    // href, first match) resolves either shape to the real target element,
+    // so every check below tests ITS OWN localName instead of searching
+    // `locEl`'s descendants.
+    const geomTarget = resolveXlinkEl(locEl);
+
     // Grid family (diggs:ReferenceableGridByArray / diggs:RectifiedGrid /
     // bare diggs:Grid) — a 2D/3D coverage domain (e.g. a geophysical
     // inversion mesh). Distinct `kind:'grid'` shape, returned early since it
@@ -3377,22 +3394,28 @@ function parseDomain(resultEl) {
     // least-specific: a document is never more than one of these three (they
     // are sibling elements, not a nesting), so this is just a lookup order,
     // not a fallback chain.
-    const refArrEl = locEl.getElementsByTagNameNS(D, 'ReferenceableGridByArray')[0];
-    if (refArrEl) return _parseGridDomain(refArrEl);
-    const rectGridEl = locEl.getElementsByTagNameNS(D, 'RectifiedGrid')[0];
-    if (rectGridEl) return _parseRectifiedGridDomain(rectGridEl);
-    const bareGridEl = locEl.getElementsByTagNameNS(D, 'Grid')[0];
-    if (bareGridEl) return _parseBareGridDomain(bareGridEl);
+    if (geomTarget && geomTarget.localName === 'ReferenceableGridByArray') return _parseGridDomain(geomTarget);
+    if (geomTarget && geomTarget.localName === 'RectifiedGrid') return _parseRectifiedGridDomain(geomTarget);
+    if (geomTarget && geomTarget.localName === 'Grid') return _parseBareGridDomain(geomTarget);
 
-    const geom = locEl.getElementsByTagNameNS(D, 'MultiPointLocation')[0]
-              || locEl.getElementsByTagNameNS(D, 'MultiCurve')[0]
-              || locEl.getElementsByTagNameNS(D, 'LinearExtent')[0]
-              || locEl.getElementsByTagNameNS(D, 'PointLocation')[0];
+    const geom = geomTarget && (
+      geomTarget.localName === 'MultiPointLocation' || geomTarget.localName === 'MultiCurve'
+      || geomTarget.localName === 'LinearExtent' || geomTarget.localName === 'PointLocation'
+    ) ? geomTarget : null;
     if (geom) {
       const geomType     = geom.localName;
       const srsName      = geom.getAttribute('srsName') || '';
       const srsDimAttr   = parseInt(geom.getAttribute('srsDimension') || '', 10);
       const srsDimension = isNaN(srsDimAttr) ? undefined : srsDimAttr;
+      // Instance-declared per-axis labels/units (e.g. axisLabels="easting
+      // northing height" uomLabels="m m m") — a PointLocation genuinely
+      // reporting a 2D/3D real-world position (as opposed to a 1D depth
+      // read off a LinearSpatialReferenceSystem) carries these; captured
+      // here so _resultIndexSpec can use the instance's own stated axis
+      // semantics directly rather than only inferring Easting/Northing vs.
+      // Latitude/Longitude vs. X/Y from the CRS category.
+      const axisLabels = (geom.getAttribute('axisLabels') || '').trim().split(/\s+/).filter(Boolean);
+      const uomLabels = (geom.getAttribute('uomLabels') || '').trim().split(/\s+/).filter(Boolean);
       let positions;
       if (geomType === 'MultiPointLocation') {
         positions = numTokens(_text(geom, G, 'posList'), true);
@@ -3420,7 +3443,7 @@ function parseDomain(resultEl) {
         const toks = numTokens(_text(geom, G, 'pos'), true);
         positions = [toks.length === 1 ? toks[0] : toks];
       }
-      return { kind: 'spatial', geomType, srsName, srsDimension, positions };
+      return { kind: 'spatial', geomType, srsName, srsDimension, positions, axisLabels, uomLabels };
     }
   }
 
@@ -7745,6 +7768,34 @@ function resolveIntervalIndexCells(childEl, idxCfg, dimDefault) {
     if (!posEl) return null;
     const tokens = numTokens(posEl.textContent, true);
     if (!tokens.length) return null;
+    // A PointLocation genuinely reporting a 2D/3D real-world coordinate
+    // (geographic/projected/LocalCartesianCRS — practically always
+    // srsDimension 2 or 3) is NOT a depth/distance read off a
+    // LinearSpatialReferenceSystem (practically always srsDimension 1) —
+    // needs TWO location columns (Easting/Northing, X/Y, or Latitude/
+    // Longitude, spanned by a "Location (EPSG:…)"-style group header a
+    // caller can render) instead of the single mislabeled "At" column.
+    // Same fix/reasoning as _resultIndexSpec's own PointLocation branch
+    // (the result-table engine) — any consumer of this shared resolver
+    // (the interval-table engine, InsituResistivityTest's own Readings
+    // table, …) picks this up for free. Trust the declared srsDimension
+    // when present; otherwise sniff the actual token count (an instance
+    // can omit the optional attribute but still report real multi-axis
+    // coordinates).
+    const srsDimAttr = parseInt(point.getAttribute('srsDimension') || '', 10);
+    const dim2D = (isNaN(srsDimAttr) ? tokens.length : srsDimAttr) >= 2;
+    if (dim2D && tokens.length >= 2) {
+      const axisLabelsAttr = (point.getAttribute('axisLabels') || '').trim().split(/\s+/).filter(Boolean);
+      const uomLabelsAttr = (point.getAttribute('uomLabels') || '').trim().split(/\s+/).filter(Boolean);
+      const { groupLabel, axisLabels, uoms } = _resultLocationColumns({ srsName, axisLabels: axisLabelsAttr, uomLabels: uomLabelsAttr });
+      return {
+        cols: [
+          { label: idxCfg.pointLabel1 || axisLabels[0], uom: uoms[0] || '', value: tokens[0], sortNum: tokens[0],
+            locationGroup: groupLabel, locationGroupSpan: 2 },
+          { label: idxCfg.pointLabel2 || axisLabels[1], uom: uoms[1] || '', value: tokens[1] },
+        ],
+      };
+    }
     const val = tokens[tokens.length - 1];
     if (val == null || isNaN(val)) return null;
     const lsrUom = (srsName && LSR_UOM[srsName]) ? LSR_UOM[srsName] : '';
@@ -8277,15 +8328,61 @@ function _fmtElapsedTime(v, unitShort) {
   return n + (unitShort ? ' ' + unitShort : '');
 }
 
+/** For a spatial PointLocation domain whose position is genuinely 2D/3D (a
+ *  real-world geographic/projected/LocalCartesianCRS coordinate, NOT a 1D
+ *  depth/distance read off a LinearSpatialReferenceSystem) — resolves the
+ *  axis group's spanning header label ("Location (EPSG:4326)"/"Location
+ *  (<Local CRS name>)"/plain "Location") and each axis's own column label +
+ *  uom. Prefers the PointLocation's own instance-declared `axisLabels` (e.g.
+ *  "easting northing", captured onto the domain by parseDomain) when
+ *  present; falls back to a CRS-category-derived default (Easting/Northing
+ *  for a resolvable projected EPSG code, Latitude/Longitude for a
+ *  geographic one, X/Y for an embedded LocalCartesianCRS, Easting/Northing
+ *  as the last-resort fallback for an unresolvable CRS) when the instance
+ *  doesn't state its own. Same EPSG/LocalCartesianCRS resolution
+ *  `crsCategory`/`toWGS84` already use for the SF common grid, just
+ *  operating on a bare `srsName` string — a result-table domain has no
+ *  parsed `sf` object to key off. */
+function _resultLocationColumns(domain) {
+  const srsName = domain.srsName || '';
+  const frag = srsName.replace(/^.*#/, '').trim();
+  const localCRS = frag ? LOCAL_CRS_INDEX[frag] : null;
+  const { horiz } = parseEPSG(srsName);
+  const isGeo = horiz && GEO_CRS.has(horiz);
+
+  let groupLabel;
+  if (localCRS) groupLabel = `Location (${localCRS.name})`;
+  else if (horiz) groupLabel = `Location (EPSG:${horiz})`;
+  else groupLabel = 'Location';
+
+  const defaultAxisLabels = localCRS ? ['X', 'Y'] : isGeo ? ['Latitude', 'Longitude'] : ['Easting', 'Northing'];
+  const AXIS_LABEL_MAP = {
+    easting: 'Easting', northing: 'Northing',
+    latitude: 'Latitude', lat: 'Latitude',
+    longitude: 'Longitude', lon: 'Longitude', long: 'Longitude',
+    x: 'X', y: 'Y',
+  };
+  const declared = (domain.axisLabels || []).slice(0, 2)
+    .map(a => AXIS_LABEL_MAP[a.trim().toLowerCase()] || a);
+  const axisLabels = declared.length === 2 ? declared : defaultAxisLabels;
+  const uoms = (domain.uomLabels || []).slice(0, 2);
+  return { groupLabel, axisLabels, uoms };
+}
+
 /**
  * _resultIndexSpec(domain, depthUom) — a parsed domain → the result table's
  * leading index column(s) + per-row extractors. Returns
  * `{ cols:[{label,uom}], cells(pos)->string[], sortNum(pos)->number|null }`.
  * A LinearExtent OR MultiCurve (its `positions` are both `{from,to}` shaped —
  * MultiCurve just has many rows of it instead of one) yields two columns
- * (From/To); every other spatial geometry a single Depth; a TimeIntervalList
- * an Elapsed Time column; a TimePositionList a (formatted) Time column. A
- * null domain (MaterialTest) yields no index column.
+ * (From/To); a genuinely 2D/3D PointLocation (see _resultLocationColumns)
+ * two LOCATION columns (Easting/Northing, X/Y, or Latitude/Longitude — the
+ * first column carries `locationGroup`/`locationGroupSpan`, which
+ * renderResultTable reads to render the 2-row spanning header); every other
+ * spatial geometry (MultiPointLocation, or a 1D PointLocation reporting a
+ * plain LinearSpatialReferenceSystem-relative distance) a single Depth; a
+ * TimeIntervalList an Elapsed Time column; a TimePositionList a (formatted)
+ * Time column. A null domain (MaterialTest) yields no index column.
  */
 function _resultIndexSpec(domain, depthUom) {
   if (!domain) return { cols: [], cells: () => [], sortNum: () => null };
@@ -8309,7 +8406,34 @@ function _resultIndexSpec(domain, depthUom) {
         sortNum: p => (p && typeof p.from === 'number' && !isNaN(p.from)) ? p.from : null,
       };
     }
-    return {   // MultiPointLocation / PointLocation — single depth
+    // A PointLocation genuinely reporting a 2D/3D real-world position
+    // (practically always srsDimension 2 or 3) is NOT a depth/distance read
+    // off a LinearSpatialReferenceSystem (practically always srsDimension
+    // 1) — per explicit spec, this needs TWO location columns instead of
+    // one mislabeled "Depth" column. Trust `srsDimension` when the instance
+    // states it; otherwise sniff the actual position arrays (an instance
+    // can omit the optional attribute but still report real multi-axis
+    // coordinates — same "trust code, fall back to data" precedent
+    // `_ertClassify` uses for InsituResistivityTest's own arrayType).
+    const dim2D = domain.geomType === 'PointLocation' && (
+      domain.srsDimension != null ? domain.srsDimension >= 2
+        : domain.positions.some(p => Array.isArray(p) && p.length >= 2)
+    );
+    if (dim2D) {
+      const { groupLabel, axisLabels, uoms } = _resultLocationColumns(domain);
+      return {
+        cols: [
+          { label: axisLabels[0], uom: uoms[0] || '', locationGroup: groupLabel, locationGroupSpan: 2 },
+          { label: axisLabels[1], uom: uoms[1] || '' },
+        ],
+        cells: p => { const arr = Array.isArray(p) ? p : [p]; return [_fmtIndexNum(arr[0]), _fmtIndexNum(arr[1])]; },
+        // No natural ascending order for a 2D/3D position (unlike depth) —
+        // rows stay in document/reading order, same constant-comparator
+        // no-op convention the grid-domain branch above already uses.
+        sortNum: () => 0,
+      };
+    }
+    return {   // MultiPointLocation, or a 1D PointLocation — single depth
       cols: [{ label: 'Depth', uom: depthUom }],
       cells: p => [_fmtIndexNum(Array.isArray(p) ? p[0] : p)],
       sortNum: p => { const n = parseFloat(Array.isArray(p) ? p[0] : p); return isNaN(n) ? null : n; },
@@ -8460,7 +8584,35 @@ function renderResultTable(model, spec) {
     }
     return `<th>${labelHtml}${uom}</th>`;
   };
-  const thead = `<thead><tr>${model.indexCols.map(hdr).join('')}${model.valueCols.map(hdr).join('')}</tr></thead>`;
+  // A spatial PointLocation index reporting a real 2D/3D coordinate (see
+  // _resultIndexSpec/_resultLocationColumns) marks its first index column
+  // with `locationGroup` (the group's own spanning header text, e.g.
+  // "Location (EPSG:4326)") — rendered as a 2-row <thead> per explicit
+  // spec: row 1 carries the location group's spanning label (colspan 2)
+  // plus every VALUE column's own header (rowspan 2, so each appears once,
+  // vertically centered against both header rows); row 2 carries just the
+  // location's own per-axis sub-labels (Latitude/Longitude, Easting/
+  // Northing, X/Y). Every other domain shape (Depth, Depth From/To, Elapsed
+  // Time, …) keeps the single-row header, unchanged.
+  const locGroup = model.indexCols[0] && model.indexCols[0].locationGroup;
+  let thead;
+  if (locGroup) {
+    const hdrRowspan = c => {
+      const uom = c.uom ? `<br><span class="col-uom">(${escUom(c.uom)})</span>` : '';
+      let labelHtml = escHtml(c.label);
+      if (c.el) {
+        const key = _registerPopup(c.label, c.el, OBJECT_CONFIGS.Property || []);
+        labelHtml = `<span class="result-col-link" onclick="event.stopPropagation();showDetailPopup('${key}')">${labelHtml}</span>`;
+      }
+      return `<th rowspan="2">${labelHtml}${uom}</th>`;
+    };
+    const groupSpan = model.indexCols[0].locationGroupSpan || model.indexCols.length;
+    const row1 = `<th colspan="${groupSpan}">${escHtml(locGroup)}</th>` + model.valueCols.map(hdrRowspan).join('');
+    const row2 = model.indexCols.map(hdr).join('');
+    thead = `<thead><tr>${row1}</tr><tr>${row2}</tr></thead>`;
+  } else {
+    thead = `<thead><tr>${model.indexCols.map(hdr).join('')}${model.valueCols.map(hdr).join('')}</tr></thead>`;
+  }
   const noIdx = model.indexCols.length === 0;
   const totalCols = model.indexCols.length + model.valueCols.length;
 
@@ -8881,6 +9033,7 @@ const PROCEDURE_PLOT_BUILDERS = {
   PorePressureDissipationTest: _buildPPDPlot,
   LabCompactionTest: _buildCompactionPlot,
   LabCBRTest: _buildCBRPlots,
+  InsituResistivityTest: _buildERTPlots,
 };
 
 /** Pulls {i:log10(x), p:waterContent} points from every `tagName` trial
@@ -9396,6 +9549,144 @@ function _buildCBRPlots(proc, ctx) {
 
   if (!count) return null;
   return { html, count, drawJobs };
+}
+
+/** Orientation's own display label for a legend/axis — "0°" style (uom
+ *  "dega" via superscriptUom), or null when absent/blank. Plain text, NOT
+ *  escHtml'd — every caller feeds this to an SVG `<text>` node's
+ *  `textContent` (drawPlot's `mkText`), never innerHTML, so HTML-escaping it
+ *  would show literal "&deg;"-style entities instead of the character. */
+function _ertOrientationLabel(readingEl) {
+  const el = evalXPath(readingEl, 'diggs:orientation')[0];
+  if (!el) return null;
+  const txt = nodeText(el).trim();
+  if (!txt) return null;
+  const uom = el.getAttribute('uom') || '';
+  return txt + (uom ? superscriptUom(uom) : '');
+}
+// First reported `uom` attribute on `path` across `readings` — real
+// instances hold one uom throughout a survey, so the first is
+// representative; used for a plot axis label only (see _buildERTPlots).
+function _ertFirstUom(readings, path) {
+  for (const r of readings) {
+    const el = evalXPath(r, path)[0];
+    if (el && el.getAttribute('uom')) return el.getAttribute('uom');
+  }
+  return '';
+}
+// readingLocation's own resolved uom (LSR-derived, not a plain leaf `uom`
+// attribute — see resolveIntervalIndexCells) across `readings`, for a plot
+// axis label.
+function _ertLocationUom(readings) {
+  for (const r of readings) {
+    const idx = resolveIntervalIndexCells(r, { path: 'diggs:readingLocation' }, 1);
+    if (idx && idx.cols.length && idx.cols[0].uom) return idx.cols[0].uom;
+  }
+  return '';
+}
+
+/** ASTM G57/IEEE 81/D6431's readings-vs-apparent-resistivity plot for
+ *  InsituResistivityTest — shape/axes/grouping depend on the SAME
+ *  arrayType/surveyGeometry classification the Readings table uses
+ *  (_ertClassify/_ertCase, near OBJECT_CONFIGS.InsituResistivityTest), per
+ *  explicit spec:
+ *   - Wenner VES/azimuthal: apparent resistivity vs. electrode spacing, one
+ *     curve per orientation.
+ *   - Wenner CST / Schlumberger CST: apparent resistivity vs. reading
+ *     location, one curve per orientation (if present).
+ *   - Schlumberger VES/azimuthal: apparent resistivity vs. current
+ *     electrode separation, one curve per (orientation, potential electrode
+ *     separation) combination.
+ *   - Wenner single-separation: apparent resistivity vs. reading location,
+ *     ONE curve, ONLY when more than one distinct reading location is
+ *     present (a genuine single reading has nothing to plot).
+ *   - dipole-dipole: apparent resistivity vs. n-factor, one curve per
+ *     dipole length.
+ *  Multiple curves get PLOT_COLORS + a legend, matching the CBR
+ *  penetration/load chart's own multi-trial precedent
+ *  (_drawCBRPenetrationLoadChart) — reused here via the same shared
+ *  drawPlot engine's `extraLines`/`legend` spec keys (see
+ *  _drawERTReadingsChart, near _drawCBRDensityChart), no engine changes
+ *  needed. */
+function _buildERTPlots(proc, ctx) {
+  const readings = evalXPath(proc, 'diggs:reading/diggs:ResistivityReading');
+  if (!readings.length) return null;
+  const { arrayShape, geometryShape } = _ertClassify(proc, readings);
+  const caseKey = _ertCase({ arrayShape, geometryShape });
+
+  const xOf = r => {
+    switch (caseKey) {
+      case 'wenner_cst': case 'wenner_single': case 'schlumberger_cst':
+        return _ertLocationSortNum(r);
+      case 'schlumberger_other':
+        return _ertNum(r, 'diggs:currentElectrodeSeparation');
+      case 'dipole':
+        return _ertNum(r, 'diggs:nFactor');
+      default: // wenner_other
+        return _ertNum(r, 'diggs:electrodeSpacing');
+    }
+  };
+  const groupOf = r => {
+    if (caseKey === 'wenner_single') return { key: '__all__', label: null };
+    if (caseKey === 'dipole') {
+      const el = evalXPath(r, 'diggs:dipoleLength')[0];
+      const txt = el ? nodeText(el).trim() : '';
+      if (!txt) return { key: '__all__', label: null };
+      const label = txt + (el.getAttribute('uom') ? ' ' + el.getAttribute('uom') : '');
+      return { key: label, label };
+    }
+    const oLabel = _ertOrientationLabel(r);
+    if (caseKey !== 'schlumberger_other') {
+      return oLabel ? { key: oLabel, label: oLabel } : { key: '__all__', label: null };
+    }
+    // Schlumberger VES/azimuthal — one curve per (orientation, potential
+    // electrode separation) combination, per explicit spec.
+    const pEl = evalXPath(r, 'diggs:potentialElectrodeSeparation')[0];
+    const pTxt = pEl ? nodeText(pEl).trim() : '';
+    const pLabel = pTxt ? `PES ${pTxt}${pEl.getAttribute('uom') ? ' ' + pEl.getAttribute('uom') : ''}` : null;
+    const parts = [oLabel, pLabel].filter(Boolean);
+    const label = parts.length ? parts.join(', ') : null;
+    return { key: label || '__all__', label };
+  };
+
+  const groups = new Map();
+  for (const r of readings) {
+    const x = xOf(r), y = _ertNum(r, 'diggs:apparentResistivity');
+    if (x == null || y == null) continue;
+    const { key, label } = groupOf(r);
+    if (!groups.has(key)) groups.set(key, { label, points: [] });
+    groups.get(key).points.push({ i: x, p: y });
+  }
+  const series = [...groups.values()].filter(s => s.points.length);
+  for (const s of series) s.points.sort((a, b) => a.i - b.i);
+  if (!series.length) return null;
+
+  // Wenner single-separation: only worth plotting when the survey actually
+  // varied position — a literal single reading (or several readings all at
+  // the same spot) has nothing to show as a curve. Per explicit spec.
+  if (caseKey === 'wenner_single') {
+    const distinctX = new Set(series[0].points.map(p => p.i));
+    if (distinctX.size < 2) return null;
+  }
+
+  const xLabel = caseKey === 'wenner_other' ? 'Electrode Spacing'
+    : caseKey === 'schlumberger_other' ? 'Current Electrode Separation'
+    : caseKey === 'dipole' ? 'n-Factor'
+    : 'Reading Location';
+  const xUom = caseKey === 'schlumberger_other' ? _ertFirstUom(readings, 'diggs:currentElectrodeSeparation')
+    : caseKey === 'dipole' ? ''
+    : caseKey === 'wenner_other' ? _ertFirstUom(readings, 'diggs:electrodeSpacing')
+    : _ertLocationUom(readings);
+  const yUom = _ertFirstUom(readings, 'diggs:apparentResistivity');
+
+  const containerId = 'ert-plot-' + Math.random().toString(36).slice(2, 9);
+  const html = `<div style="margin-bottom:10px;"><div id="${containerId}"></div></div>`;
+  const drawJobs = [{
+    kind: 'ertReadings', containerId,
+    series, xLabel, xUom, yUom,
+    title: 'Apparent Resistivity vs. ' + xLabel,
+  }];
+  return { html, count: 1, drawJobs };
 }
 
 /** Render one property row from rowCfg, evaluated against context
@@ -11422,6 +11713,385 @@ OBJECT_CONFIGS.StaticConePenetrationTest = [
       return txt ? escHtml(txt) + _codeSpaceKeyExtra(nameEl) : null;
     },
   },
+  ..._FEATURE_TRAILING,
+];
+
+// ══════════════════════════════════════════════════════════════
+//  InsituResistivityTest — Readings table (2026-09-14). Full detail below
+//  OBJECT_CONFIGS.InsituResistivityTest's own `reading` row, per explicit
+//  spec. ONE type serves several survey geometries (Wenner/Schlumberger/
+//  dipole-dipole array x VES/azimuthal/CST/single-separation geometry —
+//  see InsituResistivityTestType's own schema doc comment), and which
+//  reading fields are even POPULATED (electrodeSpacing vs. current/
+//  potentialElectrodeSeparation vs. dipoleLength/nFactor; readingLocation;
+//  orientation) depends on that combination — so, unlike every other
+//  dataTable/interval row in this file, the column SET can't be a static
+//  array baked into the config at load time; it has to be computed per
+//  instance from the Test's own arrayType/surveyGeometry. That's exactly
+//  what `rowCfg.dataTable`'s per-instance dispatch (renderPropertyRow ->
+//  renderDataTable) can't do — `rowCfg` is the same shared object every
+//  occurrence renders through — so this uses the `path:'.'` + `configOverride`
+//  FUNCTION escape hatch instead (same convention as SamplingActivity's own
+//  RQD sub-panel), computing the whole table fresh per Test element.
+// ══════════════════════════════════════════════════════════════
+
+// ResistivityReading — ResistivityReadingType (extended/ExtProcedures.xsd:519)
+// extends AbstractObjectType (_OBJ_BASE_FIELDS/_OBJ_TYPE_TRAILING shape).
+// Own fields: a 3-way <choice> of the array geometry (electrodeSpacing |
+// currentElectrodeSeparation+potentialElectrodeSeparation | dipoleLength+
+// nFactor — exactly one populated per instance, per the Test's own
+// arrayType), then orientation?/readingLocation?/measuredResistance
+// (required)/apparentResistivity (required). Every one of these is also a
+// candidate READINGS TABLE COLUMN (see _ertReadingsTableHtml below) — this
+// config backs the per-row expand panel (whatever the table's own dynamic
+// column set for THIS instance didn't consume) and also renders the object
+// standalone/full if ever reached outside the table.
+OBJECT_CONFIGS.ResistivityReading = [
+  ..._OBJ_BASE_FIELDS,
+  { path: 'diggs:electrodeSpacing', label: 'Electrode Spacing' },
+  { path: 'diggs:currentElectrodeSeparation', label: 'Current Electrode Separation' },
+  { path: 'diggs:potentialElectrodeSeparation', label: 'Potential Electrode Separation' },
+  { path: 'diggs:dipoleLength', label: 'Dipole Length' },
+  { path: 'diggs:nFactor', label: 'n-Factor' },
+  { path: 'diggs:orientation', label: 'Orientation' },
+  { path: 'diggs:readingLocation', label: 'Reading Location' },
+  { path: 'diggs:measuredResistance', label: 'Measured Resistance' },
+  { path: 'diggs:apparentResistivity', label: 'Apparent Resistivity' },
+  ..._OBJ_TYPE_TRAILING,
+];
+
+/** Reads a gml:CodeType element's controlled-vocabulary TOKEN — the
+ *  codeSpace URL's fragment (after '#'), the stable machine identifier a
+ *  real instance cites (e.g. codeSpace="…/arrayType.xml#wenner" — see
+ *  JazeraTestCase.xml's own InsituResistivityTest.arrayType) — falling back
+ *  to the element's own text, lowercased/underscored, for an instance that
+ *  only states the human-readable gml:name ("Wenner" -> "wenner",
+ *  "Azimuthal Sounding" -> "azimuthal_sounding"). Matches DIGGS's own
+ *  def/codes/DIGGS/0.1/arrayType.xml / surveyGeometry.xml dictionaries
+ *  (gml:id values). */
+function _ertCodeToken(el) {
+  if (!el) return '';
+  const cs = el.getAttribute('codeSpace') || '';
+  const frag = cs.includes('#') ? cs.split('#').pop() : '';
+  if (frag) return frag.toLowerCase();
+  return nodeText(el).trim().toLowerCase().replace(/[\s-]+/g, '_');
+}
+
+/** Classifies an InsituResistivityTest procedure element's electrode array
+ *  ('wenner'|'schlumberger'|'dipole'|'') and survey geometry
+ *  ('cst'|'single'|'other'|'') for the Readings table/plot dispatch below —
+ *  per explicit spec. `'other'` covers vertical-electrical-sounding,
+ *  azimuthal-sounding, AND an absent/unrecognized surveyGeometry: VES and an
+ *  azimuthal sounding get IDENTICAL table/plot treatment (an azimuthal
+ *  sounding is just a VES that also steps orientation — see the schema's
+ *  own doc comment), so there's no need to tell them apart, and an
+ *  unstated/uncoded geometry most plausibly reads the same way (a plain
+ *  stepped-separation sounding is the default assumption for a survey that
+ *  doesn't otherwise look like a traverse or a single reading).
+ *
+ *  Falls back to sniffing which of ResistivityReading's own choice-branch
+ *  fields are actually populated (electrodeSpacing -> wenner-shaped;
+ *  current/potentialElectrodeSeparation -> schlumberger-shaped;
+ *  dipoleLength/nFactor -> dipole-shaped) when arrayType is missing or
+ *  doesn't match a known code, and similarly for surveyGeometry (a single
+ *  reading -> single; more than one reading, any with readingLocation ->
+ *  cst; else -> other) — an instance that got the DATA right but omitted
+ *  the optional arrayType/surveyGeometry codes should still get a sensible
+ *  table, not whatever the unconditional default would be. */
+function _ertClassify(testEl, readings) {
+  const arrayTypeEl = evalXPath(testEl, 'diggs:arrayType')[0];
+  const surveyGeomEl = evalXPath(testEl, 'diggs:surveyGeometry')[0];
+  const atTok = _ertCodeToken(arrayTypeEl);
+  const sgTok = _ertCodeToken(surveyGeomEl);
+
+  let arrayShape = atTok === 'wenner' ? 'wenner'
+    : atTok === 'schlumberger' ? 'schlumberger'
+    : atTok === 'dipole_dipole' ? 'dipole' : '';
+  if (!arrayShape) {
+    if (readings.some(r => evalXPath(r, 'diggs:electrodeSpacing').length)) arrayShape = 'wenner';
+    else if (readings.some(r => evalXPath(r, 'diggs:currentElectrodeSeparation').length)) arrayShape = 'schlumberger';
+    else if (readings.some(r => evalXPath(r, 'diggs:dipoleLength').length)) arrayShape = 'dipole';
+  }
+
+  let geometryShape = sgTok === 'constant_separation_traversing' ? 'cst'
+    : sgTok === 'single_separation_measurement' ? 'single'
+    : (sgTok === 'vertical_electrical_sounding' || sgTok === 'azimuthal_sounding') ? 'other' : '';
+  if (!geometryShape) {
+    if (readings.length <= 1) geometryShape = 'single';
+    else if (readings.some(r => evalXPath(r, 'diggs:readingLocation').length)) geometryShape = 'cst';
+    else geometryShape = 'other';
+  }
+  return { arrayShape, geometryShape };
+}
+
+/** One of the 6 explicitly-specified table/plot shapes — dipole-dipole
+ *  ignores surveyGeometry entirely (per spec); Wenner/Schlumberger dispatch
+ *  on geometryShape, defaulting an unrecognized/absent one (geometryShape
+ *  never returns '' — see _ertClassify) to the VES/azimuthal shape. A
+ *  Schlumberger single-separation reading (not one of the 6 named cases)
+ *  falls back to the VES/azimuthal Schlumberger shape — closest match,
+ *  since a lone reading sorts/groups the same trivially either way. */
+function _ertCase({ arrayShape, geometryShape }) {
+  if (arrayShape === 'dipole') return 'dipole';
+  if (arrayShape === 'schlumberger') return geometryShape === 'cst' ? 'schlumberger_cst' : 'schlumberger_other';
+  return geometryShape === 'cst' ? 'wenner_cst' : geometryShape === 'single' ? 'wenner_single' : 'wenner_other';
+}
+
+// Raw numeric value of a simple leaf path on a reading, for sort keys —
+// deliberately the RAW reported number (no unit conversion), matching
+// _resolveDataColumnCell's own sortVal convention (a column's sortVal is
+// always the matched node's raw text) — real instances hold one uom
+// throughout a single survey, so this is a fair comparison in practice.
+function _ertNum(readingEl, path) {
+  const n = parseFloat(nodeText(evalXPath(readingEl, path)[0]));
+  return isNaN(n) ? null : n;
+}
+// readingLocation's own sort key — reuses resolveIntervalIndexCells (the
+// same PointLocation/LinearExtent resolution the interval-table engine's
+// own index descriptors use) rather than re-deriving position parsing here.
+function _ertLocationSortNum(readingEl) {
+  const idx = resolveIntervalIndexCells(readingEl, { path: 'diggs:readingLocation' }, 1);
+  return (idx && idx.cols.length && idx.cols[0].sortNum != null) ? idx.cols[0].sortNum : null;
+}
+// Shared `dataTable.column` descriptors — `path` kept on every one (even
+// readingLocation, whose cell rendering goes through `compute` instead)
+// purely so _buildTableConsumedPaths still excludes it from the per-row
+// expand panel; _resolveDataColumnCell checks `compute` before ever
+// touching `path`, so the two don't conflict (same convention
+// WaterLevelMonitoring.referencePoints' own rpLocation column already
+// uses).
+const _ERT_COL_ORIENTATION = { path: 'diggs:orientation', label: 'Orientation' };
+const _ERT_COL_ELECTRODE_SPACING = { path: 'diggs:electrodeSpacing', label: 'Electrode Spacing' };
+const _ERT_COL_CURRENT_SEP = { path: 'diggs:currentElectrodeSeparation', label: 'Current Electrode Separation' };
+const _ERT_COL_POTENTIAL_SEP = { path: 'diggs:potentialElectrodeSeparation', label: 'Potential Electrode Separation' };
+const _ERT_COL_DIPOLE_LENGTH = { path: 'diggs:dipoleLength', label: 'Dipole Length' };
+const _ERT_COL_N_FACTOR = { path: 'diggs:nFactor', label: 'n-Factor' };
+const _ERT_COL_MEASURED_RESISTANCE = { path: 'diggs:measuredResistance', label: 'Measured Resistance' };
+const _ERT_COL_APPARENT_RESISTIVITY = { path: 'diggs:apparentResistivity', label: 'Apparent Resistivity' };
+const _ERT_COL_READING_LOCATION = {
+  path: 'diggs:readingLocation', label: 'Reading Location',
+  compute: readingEl => {
+    const idx = resolveIntervalIndexCells(readingEl, { path: 'diggs:readingLocation', pointLabel: 'Location' }, 1);
+    if (!idx || !idx.cols.length || idx.cols[0].value == null) return null;
+    const c = idx.cols[0];
+    return { html: escHtml(String(c.value)) + (c.uom ? ' ' + escUom(c.uom) : ''), sortVal: c.sortNum != null ? c.sortNum : '' };
+  },
+};
+
+/** readingLocation's own dataTable.column descriptor(s) — ONE
+ *  (`_ERT_COL_READING_LOCATION`, "Reading Location") when it's a 1D
+ *  LinearSpatialReferenceSystem-relative distance along the survey traverse
+ *  (the shape every one of JazeraTestCase.xml's own readings use), TWO
+ *  (Easting/Northing, X/Y, or Latitude/Longitude — with a "Location
+ *  (EPSG:…)"-style spanning group header, via `locationGroup`/
+ *  `locationGroupSpan`, that _ertBuildReadingsTableHtml renders as a 2-row
+ *  thead) when it's a genuine 2D/3D real-world coordinate instead — per
+ *  explicit spec, readingLocation can legitimately be reported either way,
+ *  and resolveIntervalIndexCells (the SAME PointLocation resolver the
+ *  interval-table engine's own index descriptors use) already tells the two
+ *  shapes apart. Sampled ONCE from the first reading that actually has a
+ *  readingLocation (real instances report one shape throughout a survey) —
+ *  this sampling pass only decides the column SHAPE (count/labels); each
+ *  built descriptor's own `compute` hook re-resolves the real per-row value
+ *  exactly like every other column here. */
+function _ertReadingLocationCols(readings) {
+  let sample = null;
+  for (const r of readings) {
+    const idx = resolveIntervalIndexCells(r, { path: 'diggs:readingLocation', pointLabel: 'Location' }, 1);
+    if (idx && idx.cols.length) { sample = idx; break; }
+  }
+  if (!sample || sample.cols.length < 2) return [_ERT_COL_READING_LOCATION];
+  const mkCol = (axisIdx, extra) => Object.assign({
+    path: 'diggs:readingLocation', label: sample.cols[axisIdx].label,
+    compute: readingEl => {
+      const idx = resolveIntervalIndexCells(readingEl, { path: 'diggs:readingLocation' }, 1);
+      if (!idx || !idx.cols[axisIdx] || idx.cols[axisIdx].value == null) return null;
+      const c = idx.cols[axisIdx];
+      return { html: escHtml(String(c.value)) + (c.uom ? ' ' + escUom(c.uom) : ''), sortVal: c.sortNum != null ? c.sortNum : '' };
+    },
+  }, extra);
+  return [
+    mkCol(0, { locationGroup: sample.cols[0].locationGroup, locationGroupSpan: sample.cols[0].locationGroupSpan || 2 }),
+    mkCol(1, {}),
+  ];
+}
+
+/** Per-case {columns, sortKeys} — `sortKeys` is an ARRAY of `reading =>
+ *  number|null` extractors, applied in priority order (tie -> next key ->
+ *  original document order) by _ertSortedReadings below, since
+ *  renderDataTable's own `dataTable.sort` only supports one column and
+ *  several of the 6 specified sorts are two- or three-key. `hasOrientation`/
+ *  `hasLocation` gate the "(if present)" columns per explicit spec — decided
+ *  once per Test from whether ANY reading actually carries a value, not
+ *  from the case alone (e.g. a Wenner VES test with no orientation stepped
+ *  at all still needs to drop that column, not just show it empty).
+ *  `readings` is only needed to determine readingLocation's own 1-vs-2-
+ *  column shape (see _ertReadingLocationCols) — unused by cases that never
+ *  show a location column at all. */
+function _ertTableSpec(caseKey, hasOrientation, hasLocation, readings) {
+  const oCol = hasOrientation ? [_ERT_COL_ORIENTATION] : [];
+  const orientationKey = hasOrientation ? (r => _ertNum(r, 'diggs:orientation')) : (() => 0);
+  const locCols = () => _ertReadingLocationCols(readings);
+  switch (caseKey) {
+    case 'wenner_cst':
+      return {
+        columns: [...oCol, ...locCols(), _ERT_COL_MEASURED_RESISTANCE, _ERT_COL_APPARENT_RESISTIVITY],
+        sortKeys: [orientationKey, _ertLocationSortNum],
+      };
+    case 'wenner_single':
+      return {
+        columns: [...(hasLocation ? locCols() : []), _ERT_COL_MEASURED_RESISTANCE, _ERT_COL_APPARENT_RESISTIVITY],
+        sortKeys: [_ertLocationSortNum],
+      };
+    case 'schlumberger_other':
+      return {
+        columns: [...oCol, _ERT_COL_CURRENT_SEP, _ERT_COL_POTENTIAL_SEP, _ERT_COL_MEASURED_RESISTANCE, _ERT_COL_APPARENT_RESISTIVITY],
+        sortKeys: [orientationKey, r => _ertNum(r, 'diggs:potentialElectrodeSeparation'), r => _ertNum(r, 'diggs:currentElectrodeSeparation')],
+      };
+    case 'schlumberger_cst':
+      return {
+        columns: [...oCol, ...locCols(), _ERT_COL_MEASURED_RESISTANCE, _ERT_COL_APPARENT_RESISTIVITY],
+        sortKeys: [_ertLocationSortNum],
+      };
+    case 'dipole':
+      return {
+        columns: [_ERT_COL_N_FACTOR, _ERT_COL_DIPOLE_LENGTH, _ERT_COL_MEASURED_RESISTANCE, _ERT_COL_APPARENT_RESISTIVITY],
+        sortKeys: [r => _ertNum(r, 'diggs:dipoleLength'), r => _ertNum(r, 'diggs:nFactor')],
+      };
+    default: // 'wenner_other' — VES or azimuthal (also the fallback default)
+      return {
+        columns: [...oCol, _ERT_COL_ELECTRODE_SPACING, _ERT_COL_MEASURED_RESISTANCE, _ERT_COL_APPARENT_RESISTIVITY],
+        sortKeys: [orientationKey, r => _ertNum(r, 'diggs:electrodeSpacing')],
+      };
+  }
+}
+
+// Stable multi-key sort — a null/NaN key always sorts last on that key
+// (falls through to the next key, or original document order once every
+// key is exhausted) rather than corrupting the comparison.
+function _ertSortedReadings(readings, sortKeys) {
+  return readings.map((r, i) => ({ r, i })).sort((a, b) => {
+    for (const key of sortKeys) {
+      const av = key(a.r), bv = key(b.r);
+      const aNull = av == null || isNaN(av), bNull = bv == null || isNaN(bv);
+      if (aNull && bNull) continue;
+      if (aNull) return 1;
+      if (bNull) return -1;
+      if (av !== bv) return av - bv;
+    }
+    return a.i - b.i;
+  }).map(x => x.r);
+}
+
+/** Builds the Readings table's raw `<table>` HTML — deliberately NOT
+ *  `renderDataTable` (which always wraps its own result in
+ *  `wrapCategoryHeader`, and the `path:'.'` + `configOverride` row below
+ *  already wraps ONCE itself — see renderPropertyRow's configOverride
+ *  branch): calling both would double the category header, the same
+ *  "avoid double-wrap" reasoning `dissipationTimeSeries` handles via
+ *  `renderResultTable`'s own `spec.label`-omitted escape hatch, which
+ *  `renderDataTable` doesn't expose an equivalent of. Otherwise identical
+ *  to `renderDataTable`'s own row-building (reuses the exact same
+ *  `_resolveDataColumnCell`/`_buildTableExpandHtml`/
+ *  `_buildTableConsumedPaths` helpers), just pre-sorted (`resolved` is
+ *  already in final row order) and returning the bare table. */
+function _ertBuildReadingsTableHtml(resolved, columns) {
+  const consumedPaths = _buildTableConsumedPaths(columns);
+  const rows = resolved.map(({ child }) => {
+    const colCells = columns.map(colCfg => _resolveDataColumnCell(child, colCfg, consumedPaths));
+    const expandHtml = _buildTableExpandHtml(child, {}, consumedPaths, true);
+    return { colCells, expandHtml };
+  });
+  if (!rows.length) return '';
+  // readingLocation reporting a real 2D/3D coordinate (see
+  // _ertReadingLocationCols) marks its first column with `locationGroup` —
+  // same 2-row <thead> treatment as renderResultTable's own location
+  // handling: row 1 carries the spanning group label (colspan) plus every
+  // OTHER column's own header at rowspan 2; row 2 carries just the
+  // location's two axis sub-labels.
+  const locCol = columns[0] && columns[0].locationGroup ? columns[0] : null;
+  let thead;
+  if (locCol) {
+    const span = locCol.locationGroupSpan || 1;
+    const row1 = `<th colspan="${span}">${escHtml(locCol.locationGroup)}</th>` +
+      rows[0].colCells.slice(span).map(c => `<th rowspan="2">${escHtml(c.label)}</th>`).join('');
+    const row2 = rows[0].colCells.slice(0, span).map(c => `<th>${escHtml(c.label)}</th>`).join('');
+    thead = `<thead><tr>${row1}</tr><tr>${row2}</tr></thead>`;
+  } else {
+    const colHeaders = rows[0].colCells.map(c => `<th>${escHtml(c.label)}</th>`).join('');
+    thead = `<thead><tr>${colHeaders}</tr></thead>`;
+  }
+  let tbody = '<tbody>';
+  for (const r of rows) {
+    const expandable = !!r.expandHtml.trim();
+    const tri = expandable ? '<span class="kv-tri">▶</span>' : '<span class="kv-tri-spacer"></span>';
+    const colTds = r.colCells.map((c, ci) => `<td class="kv-interval-val">${ci === 0 ? tri : ''}${c.html}</td>`).join('');
+    const onclick = expandable ? ' onclick="toggleKVSection(this)"' : '';
+    tbody += `<tr class="kv-interval-row"${onclick}>${colTds}</tr>`;
+    if (expandable) tbody += `<tr class="kv-interval-detail-row" style="display:none"><td colspan="${r.colCells.length}">${r.expandHtml}</td></tr>`;
+  }
+  tbody += '</tbody>';
+  return `<table class="sub-table kv-interval-table">${thead}${tbody}</table>`;
+}
+
+/** OBJECT_CONFIGS.InsituResistivityTest's own `reading` row body — see the
+ *  banner above this section for why this is a `configOverride` function
+ *  rather than a static `dataTable:`. Classifies once per Test
+ *  (_ertClassify/_ertCase), builds that case's column set + multi-key sort,
+ *  and renders. Returns '' (row vanishes, per renderPropertyRow's own
+ *  configOverride-empty-blocks handling) when there are no readings at
+ *  all. */
+function _ertReadingsTableHtml(testEl) {
+  const readings = evalXPath(testEl, 'diggs:reading/diggs:ResistivityReading');
+  if (!readings.length) return '';
+  const { arrayShape, geometryShape } = _ertClassify(testEl, readings);
+  const caseKey = _ertCase({ arrayShape, geometryShape });
+  const hasOrientation = readings.some(r => nodeText(evalXPath(r, 'diggs:orientation')[0]).trim() !== '');
+  const hasLocation = readings.some(r => evalXPath(r, 'diggs:readingLocation').length);
+  const { columns, sortKeys } = _ertTableSpec(caseKey, hasOrientation, hasLocation, readings);
+  const sorted = _ertSortedReadings(readings, sortKeys);
+  return _ertBuildReadingsTableHtml(sorted.map(el => ({ child: el })), columns);
+}
+
+// InsituResistivityTest — InsituResistivityTestType
+// (extended/ExtProcedures.xsd:416) extends AbstractInsituTestProcedureType
+// (adds testEvent*) -> AbstractTestProcedureType (testProcedureMethod*,
+// testProcedureEquipment*, testingEnvironment*) -> AbstractProcedureType ->
+// AbstractFeatureType — the SAME base as DrivenPenetrationTest/
+// StaticConePenetrationTest, so the shared base rows below mirror those
+// configs' own field choices/labels exactly. Own fields, in schema order:
+// testType?/electrodeSpacing? (BOTH deprecated 9/26 in favor of
+// arrayType/surveyGeometry + ResistivityReading's own electrodeSpacing —
+// still included, labeled accordingly, so an older instance still displays
+// fully, same convention as Borehole's holePlunge/holeBearing), arrayType?,
+// surveyGeometry?, electrodeDepth?, reading* (the actual measurements — see
+// the Readings-table banner above OBJECT_CONFIGS.ResistivityReading for why
+// this one row is a `configOverride` function rather than a static
+// `dataTable:`). The computed outcome summary (e.g. Min/Max Apparent
+// Resistivity, a corrosivity classification) lives on the owning Test's OWN
+// outcome/TestResult/ResultSet — the ordinary generic Results pane already
+// renders it (buildResultTableModel/renderResultTable), same as every other
+// procedure type; nothing here duplicates it.
+OBJECT_CONFIGS.InsituResistivityTest = [
+  ..._OBJ_BASE_FIELDS,
+  ..._FEATURE_LEADING,
+  { path: 'diggs:testProcedureMethod', multi: true, label: 'Test Method' },
+  { path: 'diggs:testType', label: 'Test Type (deprecated)' },
+  { path: 'diggs:electrodeSpacing', label: 'Electrode Spacing, Reported (deprecated)' },
+  { path: 'diggs:arrayType', label: 'Array Type' },
+  { path: 'diggs:surveyGeometry', label: 'Survey Geometry' },
+  { path: 'diggs:electrodeDepth', label: 'Electrode Depth' },
+
+  { sectionHeader: '' },
+  {
+    path: '.', label: 'Readings',
+    configOverride: testEl => _ertReadingsTableHtml(testEl),
+  },
+
+  { sectionHeader: '' },
+  { path: 'diggs:testProcedureEquipment', multi: true, label: 'Equipment', labelPlural: 'Equipment' },
+  { path: 'diggs:testingEnvironment', multi: true, label: 'Testing Environment' },
+  { path: 'diggs:testEvent', multi: true, label: 'Test Event', labelPlural: 'Test Events' },
   ..._FEATURE_TRAILING,
 ];
 
@@ -14086,6 +14756,87 @@ OBJECT_CONFIGS.TrialPit = [
   // AbstractSamplingFeatureType's own nonConformance/acceptanceCheck — see the
   // NonConformance/AcceptanceCheck banner above; this is the first config in
   // the file to surface either.
+  { path: 'diggs:nonConformance', multi: true, label: 'Non-Conformance', labelPlural: 'Non-Conformances' },
+  { path: 'diggs:acceptanceCheck', multi: true, label: 'Acceptance Check', labelPlural: 'Acceptance Checks' },
+
+  { sectionHeader: '' },
+  {
+    path: 'diggs:otherSamplingFeatureProperty', multi: true,
+    label: 'Other Property', labelPlural: 'Other Properties', alwaysGroup: true,
+    categoryClass: 'kv-cat-accent',
+    itemLabel: el => {
+      const nameEl = evalXPath(el, 'diggs:parameterName')[0];
+      const txt = nodeText(nameEl);
+      return txt ? escHtml(txt) + _codeSpaceKeyExtra(nameEl) : null;
+    },
+  },
+];
+
+// Station — StationType (extended/ExtSamplingFeatures.xsd:134) extends
+// AbstractPointSamplingFeatureType (extended/ExtSamplingFeatures.xsd:30,
+// itself an EMPTY <sequence/> on top of AbstractSamplingFeatureType — adds
+// nothing of its own) -> AbstractSamplingFeatureType (core/AbstractTypes.xsd:
+// 2367) -> AbstractNamedFeatureType. Same base as Borehole/TrialPit, so the
+// General Info/_FEATURE_TRAILING/Environment/Quality/otherSamplingFeature-
+// Property rows below mirror TrialPit's own (the closest existing full-
+// coverage point-ish SF config) verbatim — but Station carries NONE of
+// AbstractLinearSamplingFeatureType's own fields (no centerLine, so no
+// Trajectory/plunge/bearing/linearReferencing row — a Station is a true 0D
+// point, unlike a vertical-centerLine TrialPit) and NONE of TrialPit's own
+// construction-specific fields (pitLength/shoring/whenConstructed/backfill/
+// constructionMethod/constructionEvent — StationType declares no
+// construction activity at all). StationType's own two additions
+// (whenOccupied, type) are the ONLY fields beyond the shared
+// AbstractSamplingFeatureType base. referencePoint's raw coordinates are
+// deliberately omitted here, same as every other SF config — already shown
+// in Section 2 (buildSFCommonGrid), which is generic across every SF type
+// (verified: driven by sf.rawPos/lat/lon/elev, populated by
+// parseSamplingFeature() for any type with a referencePoint, not
+// Borehole-specific). projectRef/originalProjectRef/associatedProjectRef/
+// programRef/programDesignRef/programSpecificationRef/samplingFeatureGroupRef
+// are Reference Properties (xlink-only, *Ref-named) — never displayed, per
+// engine rule.
+OBJECT_CONFIGS.Station = [
+  { sectionHeader: 'General Info' },
+  { path: '@gml:id', label: 'ID' },
+  { path: 'gml:name', multi: true, splitRows: true },
+  { path: 'gml:description' },
+  { path: 'diggs:status' },
+  { path: 'gml:identifier', multi: true },
+  { path: 'diggs:internalIdentifier', label: 'Internal Identifier' },
+  { path: 'diggs:implementationStatus', label: 'Implementation Status' },
+  { path: 'diggs:investigationTarget', multi: true, label: 'Investigation Target' },
+  { path: 'diggs:locality', label: 'Locality' },
+  // AbstractSamplingFeatureType's own realizesGridIndex — a gml:integerList
+  // naming this feature's cell in a program's planned sampling grid.
+  { path: 'diggs:realizesGridIndex', label: 'Grid Index' },
+  { path: 'diggs:whenOccupied', label: 'When Occupied' },
+  { path: 'diggs:type', label: 'Type' },
+  ..._FEATURE_TRAILING,
+
+  { sectionHeader: 'Geometry' },
+  {
+    // Same convention as Borehole/TrialPit's own "Reference Point
+    // Description" row — describes the reference point itself, so it reads
+    // more naturally here than in the generic (shared-across-every-SF-type)
+    // coordinate summary grid in Section 2.
+    path: 'diggs:referencePoint/diggs:PointLocation/gml:description',
+    label: 'Reference Point Description',
+  },
+  { path: 'diggs:localCoordinates', label: 'Local Coordinates' },
+
+  { sectionHeader: 'Environment' },
+  {
+    // Same shape as Borehole/Sounding/Well/TrialPit.environment —
+    // EnvironmentPropertyType is identical regardless of the parent SF type.
+    path: 'diggs:environment', multi: true, labelPlural: 'Environment Readings',
+    interval: {
+      index: [{ path: 'diggs:dateTime' }],
+      column: [{ path: 'diggs:ambientTemperature' }],
+    },
+  },
+
+  { sectionHeader: 'Quality' },
   { path: 'diggs:nonConformance', multi: true, label: 'Non-Conformance', labelPlural: 'Non-Conformances' },
   { path: 'diggs:acceptanceCheck', multi: true, label: 'Acceptance Check', labelPlural: 'Acceptance Checks' },
 
@@ -20432,10 +21183,10 @@ function _measShouldPlot(model, domainKind, cfg) {
   if (cfg && cfg.plots != null) return cfg.plots;
   // A grid domain always plots (ERT_2D-3D_handoff_2026-08-05.md §6 item 7)
   // — the 2D/3D section IS the display for this domain shape; there's no
-  // row-count threshold analogous to a depth/time profile's "≥5 rows."
+  // row-count threshold analogous to a depth/time profile's "≥3 rows."
   if (domainKind === 'grid') return true;
   if (domainKind !== 'spatial' && domainKind !== 'temporal') return false;
-  return model.rows.length >= 5;
+  return model.rows.length >= 3;
 }
 
 /**
@@ -20878,6 +21629,11 @@ function buildMeasurementDisplay(sf) {
             if (j.kind === 'cbrDensity') {
               const c = document.getElementById(j.containerId);
               if (c) _drawCBRDensityChart(c, j);
+              continue;
+            }
+            if (j.kind === 'ertReadings') {
+              const c = document.getElementById(j.containerId);
+              if (c) _drawERTReadingsChart(c, j);
               continue;
             }
             const c = document.getElementById(j.plotId);
@@ -26039,8 +26795,6 @@ function drawPlot(container, spec) {
   const { orientation } = spec;
   const xInd = orientation !== 'y-ind';           // independent axis is horizontal
   const { VW, VH, PAD } = spec.viewport;
-  const pW = VW - PAD.left - PAD.right;
-  const pH = VH - PAD.top - PAD.bottom;
   const ind = spec.ind, dep = spec.dep;
   const C = Object.assign({ outer:'#0d1117', plot:'#161b22', grid:'#21262d',
     border:'#30363d', tick:'#484f58', axisText:'#8b949e' }, spec.colors || {});
@@ -26088,6 +26842,59 @@ function drawPlot(container, spec) {
                     || (dep.padConst || 0.5);
   const pPad0 = dovrValid ? 0 : depPad(pVals);
   let view = { iMin: iMinFull, iMax: iMaxFull, pMin: pMinFull - pPad0, pMax: pMaxFull + pPad0 };
+
+  // Auto-grow PAD.left (never shrink it) so the rotated axis title
+  // (spec.leftLabel) can't crowd against wide vertical-axis tick VALUE text.
+  // Measures the ACTUAL tick labels this plot's own initial view will draw
+  // (`_plotVAxisTickMaxWidth`, same fmtTick/tick-position math as the
+  // vertical-axis loop in redraw() below, run here against the same `view`
+  // before any zoom/pan) rather than reserving room for some fixed
+  // worst-case string every plot would pay for regardless of its own value
+  // range — so the gap between label and values stays visually constant
+  // whether this instance's ticks read "0.0" or "-1234.56". Mutates the
+  // caller's own PAD object (each call site passes a fresh object literal,
+  // so this is scoped to this one render); drawPlot's own default toolbar
+  // left-padding (below) already derives from PAD.left, so it — and every
+  // plot's grid/plot-area geometry — automatically pick up the adjustment.
+  // See _plotLeftPadForLabel's own doc comment for the one caller (the
+  // depth-profile plot's toolbar alignment with its lithology column) that
+  // has to mirror this computation itself rather than relying on the
+  // default.
+  if (spec.leftLabel) {
+    const vAxisFontSize = spec.axisFontSize || 12;
+    const vAxisFont = `${vAxisFontSize}px ${spec.axisFontFamily || F.mono}`;
+    const tickMaxW = xInd
+      ? _plotVAxisTickMaxWidth(dep, view.pMin, view.pMax, !!dep.flip, vAxisFont)
+      : _plotVAxisTickMaxWidth(ind, view.iMin, view.iMax, true, vAxisFont);
+    PAD.left = _plotLeftPadForLabel(PAD.left, tickMaxW, spec.leftLabel.size || 12, xInd);
+  }
+  // Auto-grow PAD.bottom (purely additive, unlike PAD.left's "at least"
+  // growth above) to reserve a strip below the x-axis tick labels/title for
+  // spec.legend — per explicit request, the legend moved from floating
+  // inside the plot area's own top-left corner (risked overlapping a curve
+  // that dips toward the origin) to a fixed lower-left position below the
+  // plot entirely. `_legendH`/`_legendBoxW` are computed once here and
+  // reused by the actual legend-drawing block further down (near
+  // titleParts) so the two can never disagree about the box's size.
+  // bottomLabel's own y (below) is DERIVED from PAD.bottom instead of a
+  // flat `VH - 4`, so growing PAD.bottom here automatically pushes the
+  // tick-label row and the x-axis title up as a unit, leaving the freed
+  // strip at the very bottom for the legend — and leaves every legend-less
+  // caller's layout byte-for-byte unchanged (PAD.bottom untouched, and the
+  // derived formula reduces to the old hardcoded value at the default
+  // PAD.bottom).
+  let _legendH = 0, _legendBoxW = 0;
+  if (spec.legend && spec.legend.length) {
+    const lfont = (spec.legend.fontSize || spec.axisFontSize || 11);
+    const swatch = 10, rowH = lfont + 6, padX = 6, padY = 5;
+    const font = `${lfont}px ${F.mono}`;
+    const maxTextW = Math.max(...spec.legend.map(e => _measureTextWidth(e.label, font)));
+    _legendBoxW = padX * 2 + swatch + 5 + maxTextW;
+    _legendH = padY * 2 + rowH * spec.legend.length;
+    PAD.bottom += _legendH + 10;
+  }
+  const pW = VW - PAD.left - PAD.right;
+  const pH = VH - PAD.top - PAD.bottom;
 
   // ── DOM scaffolding: wrapper + toolbar ───────────────────────
   const wrapper = document.createElement('div');
@@ -26217,15 +27024,25 @@ function drawPlot(container, spec) {
     if (txt != null) t.textContent = txt;
     return t;
   };
-  // Left (rotated vertical) axis label.
+  // Left (rotated vertical) axis label. x-offset was a flat 13 (matching a
+  // default 12px label) — now `size + 1`, so a caller passing a non-default
+  // leftLabel.size still lands the same relative distance from the SVG's
+  // left edge; the PAD.left auto-grow above (`_plotLeftPadForLabel`) is
+  // what actually keeps this clear of wide tick text, not this offset.
   if (spec.leftLabel) {
-    svg.appendChild(mkText({ transform:`rotate(-90) translate(${-(PAD.top + pH/2)}, 13)`,
+    const leftLabelX = (spec.leftLabel.size || 12) + 1;
+    svg.appendChild(mkText({ transform:`rotate(-90) translate(${-(PAD.top + pH/2)}, ${leftLabelX})`,
       'text-anchor':'middle', 'font-size': spec.leftLabel.size || 12,
       fill: spec.leftLabel.color || C.axisText, 'font-family': F.ui }, spec.leftLabel.text));
   }
-  // Bottom (horizontal) axis label.
+  // Bottom (horizontal) axis label. y is derived from PAD.bottom (24 units
+  // below the tick-label row's own `VH - PAD.bottom + 14`) rather than a
+  // flat `VH - 4`, so the legend's PAD.bottom growth above pushes this up
+  // together with the tick labels, leaving room below for the legend —
+  // reduces to the old flat position at the default (legend-less)
+  // PAD.bottom, so every other caller's layout is unaffected.
   if (spec.bottomLabel) {
-    svg.appendChild(mkText({ x: PAD.left + pW/2, y: VH - 4, 'text-anchor':'middle',
+    svg.appendChild(mkText({ x: PAD.left + pW/2, y: VH - PAD.bottom + 38, 'text-anchor':'middle',
       'font-size': spec.bottomLabel.size || 12, fill: spec.bottomLabel.color || C.axisText,
       'font-family': F.ui }, spec.bottomLabel.text));
   }
@@ -26257,20 +27074,18 @@ function drawPlot(container, spec) {
   // static box (built once here, NOT inside redraw() — entries/colors
   // don't change with zoom/pan) identifying each series by color, e.g. the
   // CBR penetration/load chart's one-row-per-trial legend. Positioned
-  // inside the plot area's own top-left corner: correct for every current
-  // caller, whose curves all rise away from the origin so that corner
-  // starts empty — a future caller with a different curve shape may need
-  // its own positioning escape hatch, not built yet since nothing needs it.
+  // lower-left, BELOW the plot entirely (per explicit request — was inside
+  // the plot area's own top-left corner, which risked overlapping a curve
+  // that dips back toward the origin); `PAD.bottom`'s own auto-grow above
+  // already reserved this exact strip, and `_legendH`/`_legendBoxW` were
+  // computed there so the two blocks can't disagree about the box's size.
   // `_measureTextWidth` (canvas-based) sizes the background box accurately
   // without needing the SVG live in the DOM yet (unlike getComputedTextLength).
   if (spec.legend && spec.legend.length) {
     const lfont = (spec.legend.fontSize || spec.axisFontSize || 11);
     const swatch = 10, rowH = lfont + 6, padX = 6, padY = 5;
-    const font = `${lfont}px ${F.mono}`;
-    const maxTextW = Math.max(...spec.legend.map(e => _measureTextWidth(e.label, font)));
-    const boxW = padX * 2 + swatch + 5 + maxTextW;
-    const boxH = padY * 2 + rowH * spec.legend.length;
-    const boxX = PAD.left + 6, boxY = PAD.top + 6;
+    const boxW = _legendBoxW, boxH = _legendH;
+    const boxX = PAD.left, boxY = VH - boxH - 4;
     const legendG = document.createElementNS(NS_SVG, 'g');
     const bg = document.createElementNS(NS_SVG, 'rect');
     bg.setAttribute('x', boxX); bg.setAttribute('y', boxY);
@@ -26563,6 +27378,54 @@ function _measureTextWidth(text, font) {
   if (!_plotMeasureCtx) _plotMeasureCtx = document.createElement('canvas').getContext('2d');
   _plotMeasureCtx.font = font;
   return _plotMeasureCtx.measureText(text).width;
+}
+
+/** Widest formatted tick-value string's pixel width, for whichever axis
+ *  RUNS VERTICALLY on a drawPlot-style chart (the dependent axis when
+ *  `flipUp` follows `dep.flip`, the independent axis when it's always
+ *  `true`) — the actual labels a plot is about to draw, not an assumed
+ *  worst case, so `_plotLeftPadForLabel` below can reserve exactly enough
+ *  room for THIS plot's own values. Reproduces redraw()'s own vertical-tick
+ *  loop math exactly (tick count/position/value → `axis.fmtTick`) against a
+ *  given `[lo, hi]` range, so calling it with the plot's initial (pre-zoom)
+ *  `view` bounds predicts what that first render will show. `axis` is the
+ *  `ind`/`dep` spec object (supplies `.ticks`/`.fmtTick`); `flipUp` true
+ *  walks ticks upward from `lo` (redraw()'s independent-axis / `dep.flip`
+ *  branch), false walks downward from `hi` (redraw()'s default dependent-
+ *  axis direction). */
+function _plotVAxisTickMaxWidth(axis, lo, hi, flipUp, font) {
+  const ticks = axis.ticks || 5, span = hi - lo;
+  let maxW = 0;
+  for (let k = 0; k <= ticks; k++) {
+    const frac = k / ticks;
+    const val = flipUp ? lo + frac * span : hi - frac * span;
+    maxW = Math.max(maxW, _measureTextWidth(axis.fmtTick(val, span), font));
+  }
+  return maxW;
+}
+
+/** Minimum left padding (viewBox units) drawPlot's vertical axis needs so
+ *  its rotated leftLabel (axis title) can't crowd against wide tick VALUE
+ *  text on the same axis, given `tickLabelMaxW` — the actual widest tick
+ *  label's measured width (`_plotVAxisTickMaxWidth` above), NOT a fixed
+ *  assumed string — so the gap between label and values stays the same
+ *  regardless of whether this instance's own values are short or long.
+ *  Never returns less than `padLeftBase` (the caller's own requested
+ *  minimum) — only grows it. `xInd` mirrors drawPlot's own
+ *  orientation-derived tick-text anchor gap (5 when the vertical axis
+ *  shows the dependent value / x-ind, 4 for y-ind — see drawPlot's
+ *  redraw()). Exposed as its own function (not inlined in drawPlot) so a
+ *  caller that must precompute drawPlot's own eventual PAD.left BEFORE
+ *  calling it — e.g. drawResultPlots' depth-profile plot, whose toolbar has
+ *  to align with an external lithology column drawn separately, see its own
+ *  `paddingLeftPct` — can reproduce the exact same number instead of
+ *  hardcoding a value that would silently drift out of sync with this
+ *  logic. */
+function _plotLeftPadForLabel(padLeftBase, tickLabelMaxW, leftLabelSize, xInd) {
+  const tickGap = xInd ? 5 : 4;
+  const labelGap = 6;
+  const needed = tickGap + tickLabelMaxW + labelGap + (leftLabelSize + 1);
+  return Math.max(padLeftBase, needed);
 }
 
 /** Greedy word-wrap over pre-split `words` into lines whose joined width fits
@@ -28411,7 +29274,28 @@ function drawResultPlots(container, model, opts) {
   const FONT_UI = "DM Sans,'Helvetica Neue',Arial,sans-serif";
   const DEPTH_VW = 200, DEPTH_VH = 420, DEPTH_PAD = { top: 22, bottom: 42, left: 44, right: 6 };
   const DEPTH_TITLE_SIZE = 14, DEPTH_TITLE_LINE_H = 15;
-  const DEPTH_TITLE_MAXW = DEPTH_VW - DEPTH_PAD.left - DEPTH_PAD.right;
+  // Shared with the actual drawPlot() `ind:` spec below (via Object.assign)
+  // so the precomputed tick width here can never drift from what that call
+  // actually draws.
+  const DEPTH_IND_SPEC = { ticks: 5, fmtTick: v => v.toFixed(1) };
+  // drawPlot auto-grows its own PAD.left copy past DEPTH_PAD.left to keep
+  // its leftLabel clear of wide tick VALUES (_plotLeftPadForLabel) — mirror
+  // that same computation here, against the depth range every plot in this
+  // row shares (indFullOverride when a totalDepth is known, else the
+  // aggregate range across every drawable column's own points — a
+  // reasonable common estimate since they're all the same borehole's depth
+  // axis), so the title word-wrap width and toolbar alignment below both
+  // agree with the plot body's REAL (possibly wider) left margin instead of
+  // the narrower nominal 44.
+  const depthLo = indFullOverride ? indFullOverride.min
+    : (drawable.length ? Math.min(...drawable.flatMap(d => d.pts.map(p => p.i))) : 0);
+  const depthHi = indFullOverride ? indFullOverride.max
+    : (drawable.length ? Math.max(...drawable.flatMap(d => d.pts.map(p => p.i))) : 1);
+  const DEPTH_PLOT_LEFT = drawable.length
+    ? _plotLeftPadForLabel(DEPTH_PAD.left,
+        _plotVAxisTickMaxWidth(DEPTH_IND_SPEC, depthLo, depthHi, true, `12px ${FONT_UI}`), 12, false)
+    : DEPTH_PAD.left;
+  const DEPTH_TITLE_MAXW = DEPTH_VW - DEPTH_PLOT_LEFT - DEPTH_PAD.right;
   const DEPTH_TITLE_FONT = `bold ${DEPTH_TITLE_SIZE}px ${FONT_UI}`;
 
   // Pre-wrap every depth-profile title — label words AND the trailing
@@ -28494,15 +29378,15 @@ function drawResultPlots(container, model, opts) {
         clipPrefix: 'rp-d-' + ci, infoText: `n=${pts.length}`,
         indFullOverride,
         fonts: { ui: FONT_UI }, axisFontFamily: FONT_UI, axisFontSize: 12,
-        ind: { ticks: 5, minSpanAbs: 0.5, fmtTick: v => v.toFixed(1),
-               fmtTip: v => v.toFixed(3) + (depthUom ? ' ' + depthUom : '') },
+        ind: Object.assign({}, DEPTH_IND_SPEC, { minSpanAbs: 0.5,
+               fmtTip: v => v.toFixed(3) + (depthUom ? ' ' + depthUom : '') }),
         dep: { color: col, ticks: 3, flip: false, padFrac: 0.05, padAbsFrac: 0.02, padConst: 0.1,
                fmtTick: v => fmtVal(v), fmtTip: v => fmtVal(v) + (uom ? ' ' + uom : '') },
         leftLabel: { text: 'Depth' + (depthUom ? ` (${depthUom})` : ''), color: '#8b949e', size: 12 },
         titleParts: titlePartLines, titleSize: DEPTH_TITLE_SIZE, titleLineHeight: DEPTH_TITLE_LINE_H,
         tooltipFont: FONT_UI, tooltipFontSize: 12, tooltipH: 38, tooltipPad: 5,
         wrapper: { className: 'cpt-plot-wrapper', style: '' },
-        toolbar: { className: 'cpt-plot-toolbar', style: '', paddingLeftPct: (44 * 100 / 200).toFixed(2) + '%' },
+        toolbar: { className: 'cpt-plot-toolbar', style: '', paddingLeftPct: (DEPTH_PLOT_LEFT * 100 / DEPTH_VW).toFixed(2) + '%' },
         svg: { widthAttr: '100%', style: 'display:block;cursor:crosshair;user-select:none;' },
       });
     }
@@ -29310,6 +30194,57 @@ function _drawCBRDensityChart(container, data) {
   }
 
   drawPlot(container, spec);
+}
+
+/** InsituResistivityTest reading plot — draws `spec.series` (see
+ *  _buildERTPlots, near _buildCBRPlots) via the shared drawPlot engine:
+ *  `series[0]` (by array order) drives drawPlot's own hover crosshair/zoom,
+ *  every other series is a `spec.extraLines` overlay with its own color/
+ *  markers, identified via `spec.legend` when there's more than one — same
+ *  multi-trial convention as _drawCBRPenetrationLoadChart. Straight
+ *  segments (real discrete readings, not a fitted curve — matching every
+ *  other raw-data plot in this app, e.g. the CBR/compaction curves). */
+function _drawERTReadingsChart(container, spec) {
+  const w = _particleSizePlotTargetWidth(container);
+  container.style.width = w + 'px';
+  container.style.minWidth = w + 'px';
+  const VW = 880, targetHeightPx = 300, VH = targetHeightPx * VW / w;
+  const fonts = _attPsdFontSizes(w, VW);
+
+  const series = spec.series.map((s, idx) => ({
+    label: s.label, color: PLOT_COLORS[idx % PLOT_COLORS.length], points: s.points,
+  }));
+  const main = series[0];
+  const extras = series.slice(1).map(s => ({
+    points: s.points, color: s.color, dashed: false, smooth: false,
+    pointMarkers: true, pointMarkerRadius: 4,
+  }));
+  const legend = series.length > 1 ? series.map(s => ({ label: s.label || '—', color: s.color })) : null;
+
+  drawPlot(container, {
+    points: main.points, orientation: 'x-ind', smooth: false,
+    pointMarkers: true, pointMarkerRadius: 4,
+    extraLines: extras,
+    legend,
+    viewport: { VW, VH, PAD: { top: 26, bottom: 42, left: 54, right: 16 } },
+    clipPrefix: 'ert-readings', infoText: `n=${spec.series.reduce((n, s) => n + s.points.length, 0)}`,
+    axisFontSize: fonts.axis, tooltipFontSize: fonts.axis,
+    ind: {
+      ticks: 5,
+      fmtTick: v => v.toFixed(2),
+      fmtTip: v => v.toFixed(3) + (spec.xUom ? ' ' + spec.xUom : ''),
+    },
+    dep: {
+      color: main.color, ticks: 5, flip: false, padFrac: 0.1, padAbsFrac: 0.05, padConst: 0.5,
+      fmtTick: v => v.toFixed(2),
+      fmtTip: v => v.toFixed(3) + (spec.yUom ? ' ' + spec.yUom : ''),
+    },
+    leftLabel: { text: 'Apparent Resistivity' + (spec.yUom ? ` (${spec.yUom})` : ''), color: main.color, size: fonts.axis },
+    bottomLabel: { text: spec.xLabel + (spec.xUom ? ` (${spec.xUom})` : ''), color: '#8b949e', size: fonts.axis },
+    titleParts: [{ text: spec.title, color: main.color, size: fonts.title }],
+    titleSize: fonts.title,
+    wrapper: { className: 'ert-readings-plot-wrapper', style: 'margin-bottom:0; position:relative;' },
+  });
 }
 
 /** USCS plasticity (Casagrande) chart: PI vs. LL with the standard A-line
