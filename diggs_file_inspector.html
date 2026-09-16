@@ -1759,7 +1759,9 @@ table.data-table tbody tr.selected {
    an auto-width table column once its header/sibling cells are wider than the
    number itself. white-space:nowrap stops the mid-number wrap outright;
    min-width keeps a column of short values (e.g. "3", "0") from reading as a
-   cramped single character. Paired with _fmtResultValue's own 2dp rounding.
+   cramped single character. _fmtResultValue shows the value verbatim (no
+   rounding, 2026-09-16) — this class's nowrap is what actually prevents the
+   wrap, not any digit-count trimming.
    text-align:left (2026-09-15, was right) — a column's width is driven by
    its OWN header text (th is left-aligned; see .sub-table th above), which
    for a property with a long name (e.g. "CBR @ 95% MDD") can be far wider
@@ -8292,24 +8294,18 @@ function _fmtIndexNum(v) {
 
 /** Format one result-table VALUE cell by its column kind. `raw` is the raw
  *  trimmed string from parseResultSet (null when it matched the column's
- *  nullValue). Numeric values round to at most 2 decimal places (matching
- *  _fmtIndexNum's own index-cell convention) — an authored value like
- *  "0.2257" or "14.3993" otherwise wraps character-by-character in the
- *  narrow numeric columns .result-val-numeric's nowrap enforces — except a
- *  value smaller than 0.1 in magnitude (e.g. a hydrometer-derived D10/D30 in
- *  mm, often 0.001-0.01) rounds to 4dp instead, since 2dp would otherwise
- *  collapse it to a bare "0" or lose all differentiation between distinct
- *  small values; boolean → Yes/No via the shared helper; string as-is. */
+ *  nullValue) — shown VERBATIM, exactly as authored in `dataValues`, no
+ *  rounding (2026-09-16, per explicit correction: an earlier version here
+ *  rounded numeric values to 2dp/4dp to avoid character-by-character
+ *  wrapping in the narrow .result-val-numeric columns — dropping real
+ *  precision an instance actually reported, e.g. "0.3040"/"3.28947" showing
+ *  as "0.3"/"3.32" — .result-val-numeric's own white-space:nowrap already
+ *  solves the wrapping problem on its own, so the rounding wasn't even
+ *  load-bearing for that); boolean → Yes/No via the shared helper; string
+ *  as-is. */
 function _fmtResultValue(raw, kind) {
   if (raw == null || raw === '') return _KV_EMPTY_DASH;
   if (kind === 'boolean') { const yn = _boolYesNo(raw); return yn != null ? yn : escHtml(raw); }
-  if (kind === 'numeric') {
-    const n = parseFloat(raw);
-    if (!isNaN(n)) {
-      const factor = Math.abs(n) < 0.1 ? 10000 : 100;
-      return escHtml(String(Math.round(n * factor) / factor));
-    }
-  }
   return escHtml(raw);
 }
 
@@ -9034,6 +9030,7 @@ const PROCEDURE_PLOT_BUILDERS = {
   LabCompactionTest: _buildCompactionPlot,
   LabCBRTest: _buildCBRPlots,
   InsituResistivityTest: _buildERTPlots,
+  LabThermalConductivityTest: _buildThermalConductivityPlot,
 };
 
 /** Pulls {i:log10(x), p:waterContent} points from every `tagName` trial
@@ -9270,6 +9267,56 @@ function _buildPPDPlot(proc, ctx) {
   const containerId = 'ppd-plot-' + Math.random().toString(36).slice(2, 9);
   const html = `<div style="margin-bottom:10px;"><div id="${containerId}"></div></div>`;
   return { html, count: 1, drawJobs: [{ kind: 'ppdCurve', containerId, series }] };
+}
+
+// ── LabThermalConductivityTest heating-curve plot (2026-09-15) ─────────
+// ASTM D5334/IEEE 442's own interpretation method reads the reported
+// determination (temperatureRiseOverLogCycle) off the slope of the
+// temperature-vs-log(time) heating curve's linear portion — the schema's
+// own doc comment on temperatureRiseOverLogCycle says exactly this — so a
+// log-x plot of the raw `reading` array is the standards-correct
+// visualization, not just a style choice. Same log10(x) trick
+// _buildAtterbergPlots/_drawAtterbergFlowCurve already use for
+// log10(blowCount); one curve per Test (one determination, one specimen —
+// no multi-series/legend needed), so the draw function follows
+// _drawPPDCurve's single-series full-pane-width shape instead of the
+// Atterberg flow curve's half-pane side-by-side one.
+
+/** Every (elapsedTime, temperature) point from a LabThermalConductivityTest
+ *  procedure's own `reading/ThermalProbeReading` occurrences, sorted
+ *  ascending by elapsed time — the shape drawPlot's crosshair binary search
+ *  requires. `i` is `log10(elapsedTime)` (elapsedTime can't be zero/negative
+ *  in practice — a t=0 heater-start reading isn't meaningful on a log axis
+ *  — so a non-positive value is simply skipped, same graceful-drop
+ *  convention as _particleSizePoints' own `sizeMm > 0` guard). `timeUnit`/
+ *  `tempUom` are taken from the first reading that has them, matching
+ *  buildResultTableModel's own first-seen-column convention. */
+function _thermalProbeReadingPoints(proc) {
+  const pts = [];
+  let timeUnit = '', tempUom = '';
+  for (const readingEl of Array.from(proc.getElementsByTagNameNS(NS.diggs, 'ThermalProbeReading'))) {
+    const tEl = readingEl.getElementsByTagNameNS(NS.diggs, 'elapsedTime')[0];
+    const tempEl = readingEl.getElementsByTagNameNS(NS.diggs, 'temperature')[0];
+    if (!tEl || !tempEl) continue;
+    const tv = parseFloat(nodeText(tEl));
+    const temp = parseFloat(nodeText(tempEl));
+    if (!timeUnit) timeUnit = tEl.getAttribute('uom') || '';
+    if (!tempUom) tempUom = tempEl.getAttribute('uom') || '';
+    if (isFinite(tv) && tv > 0 && isFinite(temp)) pts.push({ i: Math.log10(tv), p: temp });
+  }
+  pts.sort((a, b) => a.i - b.i);
+  return { pts, timeUnit, tempUom };
+}
+
+/** Heating-curve plot builder — analogous to _buildPPDPlot (single
+ *  full-pane-width curve, no side-by-side pair). Needs at least 2 points to
+ *  draw anything meaningful. */
+function _buildThermalConductivityPlot(proc, ctx) {
+  const series = _thermalProbeReadingPoints(proc);
+  if (series.pts.length < 2) return null;
+  const containerId = 'tct-plot-' + Math.random().toString(36).slice(2, 9);
+  const html = `<div style="margin-bottom:10px;"><div id="${containerId}"></div></div>`;
+  return { html, count: 1, drawJobs: [{ kind: 'thermalConductivityCurve', containerId, series }] };
 }
 
 // ── LabCompactionTest compaction curve (2026-09-13) ─────────────────────
@@ -11516,6 +11563,89 @@ OBJECT_CONFIGS.LabCompactionTestTrial = [
   { path: 'diggs:tamperReading', label: 'Tamper Reading' },
   {
     path: 'diggs:otherTrialProperty', multi: true,
+    label: 'Other Property', labelPlural: 'Other Properties', alwaysGroup: true,
+    itemLabel: el => {
+      const nameEl = evalXPath(el, 'diggs:parameterName')[0];
+      const txt = nodeText(nameEl);
+      return txt ? escHtml(txt) + _codeSpaceKeyExtra(nameEl) : null;
+    },
+  },
+  ..._OBJ_TYPE_TRAILING,
+];
+
+// LabThermalConductivityTest / ThermalProbeReading (2026-09-15) — full
+// schema trace + implementation writeup lives in
+// `snippets and plan docs/architecture/measurement-procedure-configs.md`'s
+// own "LabThermalConductivityTest" section.
+// LabThermalConductivityTestType (core/CoreProcedures.xsd:2622) extends
+// AbstractLaboratoryTestProcedureType -> AbstractTestProcedureType ->
+// AbstractProcedureType (empty own sequence) -> AbstractFeatureType — the
+// EXACT SAME base chain LabCBRTest/LabCompactionTest use above, so the
+// leading rows (specimen/testProcedureMethod/testProcedureEquipment/
+// testingEnvironment/testEvent/otherTestProperty) mirror those two configs'
+// own choices verbatim. Unlike LabCBRTest/LabCompactionTest, this type has
+// NO `trial` array at all — the schema's own doc comment: "one
+// determination results per test" — so `specimen` needs no
+// _labProcUnreferencedSpecimen filterTargets (nothing else ever references
+// it back) and there's no per-trial expand-panel config to build.
+//
+// `reading*` (ThermalProbeReadingPropertyType, unbounded) is the raw
+// temperature-vs-time heating-curve data (9 points/instance in
+// JazeraTestCase.xml's proc-TR-1..TR-4) — rendered via `dataTable`, the
+// same "table, not stacked KV blocks" choice as every other multi-point raw
+// array in this file (Atterberg's trials, CBR's penetrationIncrement,
+// ParticleSizeTest's grading rows). The outcome ResultSet (Thermal
+// Conductivity/Thermal Resistivity, one row, ordinary 1D depth-indexed
+// PointLocation) needs no config here — it renders through the existing
+// generic Results pane.
+OBJECT_CONFIGS.LabThermalConductivityTest = [
+  {
+    path: 'diggs:reading', multi: true,
+    label: 'Reading', labelPlural: 'Readings',
+    dataTable: {
+      column: [
+        { path: 'diggs:elapsedTime', label: 'Elapsed Time' },
+        { path: 'diggs:temperature', label: 'Temperature' },
+      ],
+    },
+  },
+ { sectionHeader: 'Procedure Metadata'},
+  ..._OBJ_BASE_FIELDS,
+  ..._FEATURE_LEADING,
+  { path: 'diggs:probeLength', label: 'Probe Length' },
+  { path: 'diggs:probeDiameter', label: 'Probe Diameter' },
+  { path: 'diggs:heatingDuration', label: 'Heating Duration' },
+  { path: 'diggs:temperatureRiseOverLogCycle', label: 'Temperature Rise per Log Cycle' },
+  { path: 'diggs:testProcedureEquipment', multi: true, label: 'Equipment', labelPlural: 'Equipment' },
+  { path: 'diggs:testingEnvironment', multi: true, label: 'Testing Environment' },
+  { path: 'diggs:testEvent', label: 'Test Event' },
+  { path: 'diggs:testProcedureMethod', multi: true, label: 'Test Method' },
+  {
+    path: 'diggs:otherTestProperty', multi: true,
+    label: 'Other Property', labelPlural: 'Other Properties', alwaysGroup: true,
+    itemLabel: el => {
+      const nameEl = evalXPath(el, 'diggs:parameterName')[0];
+      const txt = nodeText(nameEl);
+      return txt ? escHtml(txt) + _codeSpaceKeyExtra(nameEl) : null;
+    },
+  },
+  { path: 'diggs:specimen', multi: true, label: 'Specimen' },
+  ..._FEATURE_TRAILING,
+];
+
+// ThermalProbeReading — ThermalProbeReadingType (core/CoreProcedures.xsd:2686)
+// extends AbstractProcedureTrialType (core/AbstractTypes.xsd:1658) ->
+// AbstractObjectType — same base CBRIncrement uses above (_OBJ_BASE_FIELDS +
+// its own otherProperty* + _OBJ_TYPE_TRAILING), one level shallower than a
+// CBR/Compaction trial since there's no further nesting: elapsedTime/
+// temperature are this type's entire own sequence. Supplies the `reading`
+// dataTable's per-row expand panel above.
+OBJECT_CONFIGS.ThermalProbeReading = [
+  ..._OBJ_BASE_FIELDS,
+  { path: 'diggs:elapsedTime', label: 'Elapsed Time' },
+  { path: 'diggs:temperature', label: 'Temperature' },
+  {
+    path: 'diggs:otherProperty', multi: true,
     label: 'Other Property', labelPlural: 'Other Properties', alwaysGroup: true,
     itemLabel: el => {
       const nameEl = evalXPath(el, 'diggs:parameterName')[0];
@@ -21616,6 +21746,11 @@ function buildMeasurementDisplay(sf) {
               if (c) _drawPPDCurve(c, j.series);
               continue;
             }
+            if (j.kind === 'thermalConductivityCurve') {
+              const c = document.getElementById(j.containerId);
+              if (c) _drawThermalConductivityCurve(c, j.series);
+              continue;
+            }
             if (j.kind === 'compactionCurve') {
               const c = document.getElementById(j.containerId);
               if (c) _drawCompactionCurveAsync(c, j);
@@ -29880,6 +30015,56 @@ function _drawPPDCurve(container, series) {
     titleParts: [{ text: 'Pore Pressure Dissipation', color: col, size: fonts.title }],
     titleSize: fonts.title,
     wrapper: { className: 'ppd-curve-plot-wrapper', style: 'margin-bottom:0; position:relative;' },
+  });
+}
+
+/** Heating-curve draw for a LabThermalConductivityTest (2026-09-15) —
+ *  same single-full-pane-width sizing convention as _drawPPDCurve (target
+ *  width via _particleSizePlotTargetWidth, VW pinned to 880 so Atterberg's
+ *  own numeric font/PAD/pointMarkerRadius constants land at the right
+ *  on-screen size — see _drawPPDCurve's own banner comment for the exact
+ *  reasoning), but a LOG-scale x axis (elapsed time) using the same
+ *  log10(x)-in/Math.pow(10,v)-out convention _drawAtterbergFlowCurve uses
+ *  for log10(blowCount) — the standards-correct visualization per
+ *  _buildThermalConductivityPlot's own banner. Permanent point markers
+ *  (unlike PPD's dense continuous trace) since a real instance has only ~9
+ *  discrete readings — sparse enough that each one is worth seeing, same
+ *  call Atterberg's own flow curve makes for its own sparse trial points. */
+function _drawThermalConductivityCurve(container, series) {
+  const { pts, timeUnit, tempUom } = series;
+  const w = _particleSizePlotTargetWidth(container);
+  container.style.width = w + 'px';
+  container.style.minWidth = w + 'px';
+  const col = PLOT_COLORS[0];
+  const VW = 880;
+  const targetHeightPx = 300;
+  const VH = targetHeightPx * VW / w;
+  const fonts = _attPsdFontSizes(w, VW);
+  const unitShort = _shortTimeUnit(timeUnit);
+  const rawXs = pts.map(p => Math.pow(10, p.i));
+  const xMinPadded = Math.max(0.1, Math.floor(Math.min(...rawXs)) - 1);
+  const xMaxPadded = Math.ceil(Math.max(...rawXs)) + 1;
+  drawPlot(container, {
+    points: pts, orientation: 'x-ind', pointMarkers: true, pointMarkerRadius: 5,
+    indFullOverride: { min: Math.log10(xMinPadded), max: Math.log10(xMaxPadded) },
+    viewport: { VW, VH, PAD: { top: 26, bottom: 42, left: 50, right: 16 } },
+    clipPrefix: 'tct-curve', infoText: `n=${pts.length}`,
+    axisFontSize: fonts.axis, tooltipFontSize: fonts.axis,
+    ind: {
+      ticks: 5,
+      fmtTick: v => _fmtElapsedTime(Math.pow(10, v), unitShort),
+      fmtTip: v => _fmtElapsedTime(Math.pow(10, v), unitShort),
+    },
+    dep: {
+      color: col, ticks: 5, flip: false, padFrac: 0.15, padAbsFrac: 0.05, padConst: 0.5,
+      fmtTick: v => v.toFixed(1),
+      fmtTip: v => v.toFixed(1) + (tempUom ? ' ' + tempUom : ''),
+    },
+    leftLabel: { text: 'Temperature' + (tempUom ? ` (${tempUom})` : ''), color: col, size: fonts.axis },
+    bottomLabel: { text: 'Elapsed Time (log scale)', color: '#8b949e', size: fonts.axis },
+    titleParts: [{ text: 'Thermal Conductivity Heating Curve', color: col, size: fonts.title }],
+    titleSize: fonts.title,
+    wrapper: { className: 'tct-curve-plot-wrapper', style: 'margin-bottom:0; position:relative;' },
   });
 }
 
