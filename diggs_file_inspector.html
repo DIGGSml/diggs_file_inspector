@@ -3874,19 +3874,14 @@ function _resolveRemoteOrLocalHref(el) {
  *  400, so _diggsUnitsConvert treats any non-2xx/network failure alike:
  *  return null, let the caller fall through to its own next step).
  *
- *  KNOWN LIMITATION (verified live, 2026-09-13): the service currently
- *  sends no `Access-Control-Allow-Origin` header at all (confirmed by
- *  inspecting its response headers directly, for both a `null` — file://
- *  page — origin and an ordinary `https://` origin), so a browser `fetch()`
- *  to it is CORS-blocked from every origin except diggs.geosetta.org
- *  itself, regardless of how this app is hosted. In practice this means
- *  _diggsUnitsConvert always resolves null today, and only
- *  _resolveDryDensityKNm3Factor's two hardcoded shortcuts (uom already
- *  'kN/m3' or 'g/cm3', needing no network call) ever actually resolve — the
- *  API call path is kept anyway (explicit user decision) since it costs
- *  nothing, degrades to the documented raw-units fallback exactly as
- *  designed, and starts working automatically with no code change if
- *  geosetta.org ever adds CORS support. Don't "fix" the silent failure by
+ *  CORS RESOLVED (verified live, 2026-09-16): the service now sends
+ *  `access-control-allow-origin: *` on every response (confirmed via curl
+ *  with `Origin: null`, and via an in-app fetch() from the real file://
+ *  page in headless Chrome — _diggsUnitsConvert now resolves a real
+ *  conversion instead of always returning null). No code change was needed;
+ *  this call path was kept working-as-designed through the outage exactly
+ *  so it would pick up automatically once geosetta.org fixed CORS, per the
+ *  2026-09-13 decision below. Don't "fix" a future CORS regression by
  *  adding a `mode:'no-cors'` fetch — that makes the request resolve instead
  *  of erroring, but the response becomes opaque (status/body unreadable),
  *  which is useless for a call whose whole point is reading `targetValue`
@@ -11654,6 +11649,47 @@ OBJECT_CONFIGS.ThermalProbeReading = [
     },
   },
   ..._OBJ_TYPE_TRAILING,
+];
+
+// LabChemicalTest (2026-09-16) — LabChemicalTestType (core/CoreProcedures.xsd:2270)
+// extends AbstractLaboratoryTestProcedureType (testEvent?, specimen*) ->
+// AbstractTestProcedureType (testProcedureMethod*, testProcedureEquipment*,
+// testingEnvironment*, otherTestProperty*) -> AbstractProcedureType (empty
+// own sequence) -> AbstractFeatureType, with an EMPTY own `<sequence/>` — no
+// fields of its own at all, purely a marker type for "chemical test" (pH,
+// sulfate/chloride/magnesium content, etc. all live as Property results in
+// the Test's outcome, same as LabThermalConductivityTest's conductivity
+// value). Given that, why a config at all rather than the config-free
+// renderGenericObject fallback: same reason as DrivenPenetrationTest above —
+// testProcedureMethod is an xlink:href-only reference to a Specification in
+// the registry (e.g. .../specifications.xml#bs_1377_3) with no element
+// children, so renderGenericObject's LEAF classification skips it and the
+// citation silently renders as nothing. Only the config path reaches
+// renderResolvedObject -> resolveXlinkChildren -> _resolveRemoteOrLocalHref,
+// which resolves the whitelisted registry href into the fetch-on-demand
+// remote placeholder. Row order: method first (the one field actually
+// present in every instance seen so far — JazeraTestCase.xml's three
+// proc-chem-BH-* procedures each carry only testProcedureMethod +
+// testingEnvironment), then the rest of the shared base fields in the same
+// order convention as every other Lab*Test config above.
+OBJECT_CONFIGS.LabChemicalTest = [
+  ..._OBJ_BASE_FIELDS,
+  ..._FEATURE_LEADING,
+  { path: 'diggs:testProcedureMethod', multi: true, label: 'Test Method' },
+  { path: 'diggs:specimen', multi: true, label: 'Specimen' },
+  { path: 'diggs:testProcedureEquipment', multi: true, label: 'Equipment', labelPlural: 'Equipment' },
+  { path: 'diggs:testingEnvironment', multi: true, label: 'Testing Environment' },
+  { path: 'diggs:testEvent', label: 'Test Event' },
+  {
+    path: 'diggs:otherTestProperty', multi: true,
+    label: 'Other Property', labelPlural: 'Other Properties', alwaysGroup: true,
+    itemLabel: el => {
+      const nameEl = evalXPath(el, 'diggs:parameterName')[0];
+      const txt = nodeText(nameEl);
+      return txt ? escHtml(txt) + _codeSpaceKeyExtra(nameEl) : null;
+    },
+  },
+  ..._FEATURE_TRAILING,
 ];
 
 // ══════════════════════════════════════════════════════════════
