@@ -949,6 +949,14 @@ html,body{height:100%;font-family:var(--font-ui);background:var(--bg);color:var(
 .trajectory-toolbar button:hover { background:var(--surface3);border-color:var(--text-muted); }
 .trajectory-toolbar button.active { border-color:var(--accent);color:var(--accent); }
 .trajectory-toolbar-sep { width:1px;background:var(--border);margin:2px 2px; }
+.trajectory-toolbar .vexag-control {
+  display:flex;align-items:center;gap:5px;padding:0 4px;color:var(--text-muted);font-size:11px;font-weight:500;
+}
+.trajectory-toolbar .vexag-control input {
+  width:52px;padding:4px 6px;background:var(--surface2);border:1px solid var(--border);
+  border-radius:6px;color:var(--text);font-size:11px;font-family:inherit;
+}
+.trajectory-toolbar .vexag-control input:focus { outline:none;border-color:var(--accent); }
 .trajectory-canvas-host {
   width:100%;flex:1;min-height:0;border:1px solid var(--border);border-radius:6px;
   overflow:hidden;background:var(--surface);position:relative;
@@ -5668,6 +5676,13 @@ let DIGGS_CPT = [];  // alias for DIGGS_SF.get('Sounding') ?? []
 let DIGGS_WELL = []; // alias for DIGGS_SF.get('Well') ?? []
 
 let DIGGS_LITH = {};    // keyed by sf gml:id
+// DIGGS_GEOUNITS — keyed by owning sf gml:id (the GeoUnitSystem's samplingFeatureRef)
+// -> [{ id, name, el, locEl, kind }], one per GeoUnitObservation whose
+// diggs:location carries a 3D body (MultiSolid/CompositeSolid/Solid/
+// SurfaceBoundedSolid). A GeoUnitObservation with any other location (or none)
+// has no body to show and is not collected. See the "Geotechnical Units" badge in
+// buildAssocBadges and open3DGeoUnitView.
+let DIGGS_GEOUNITS = {};
 // DIGGS_SAMPLES — keyed by sf gml:id -> SamplingActivity elements. An
 // activity lands here either DIRECTLY (its own samplingFeatureRef — the
 // `collect` shape) or TRANSITIVELY (a `subsample`/`aggregate` activity, which
@@ -6457,7 +6472,7 @@ function resetToLoad() {
   sfMarkers.clear();
   DIGGS_SF = new Map();
   DIGGS_BH = []; DIGGS_CPT = []; DIGGS_WELL = [];
-  DIGGS_LITH = {}; DIGGS_SAMPLES = {}; DIGGS_SAMPLE_BY_SP = new Map(); DIGGS_SP_TO_SF = new Map();
+  DIGGS_LITH = {}; DIGGS_GEOUNITS = {}; DIGGS_SAMPLES = {}; DIGGS_SAMPLE_BY_SP = new Map(); DIGGS_SP_TO_SF = new Map();
   DIGGS_SAMPLE_DERIVED = {}; DIGGS_UNHOMED_ACTIVITIES = [];
   DIGGS_GROUPS = new Map(); GROUP_BY_ID = new Map(); SF_GROUP_REF = new Map();
   DIGGS_PROJECTS = []; DIGGS_ACTIVE_PROJECT = null; DIGGS_BA_MAP = {};
@@ -13157,6 +13172,31 @@ OBJECT_CONFIGS.MultiSurface = [
   { path: 'diggs:uncertainty', label: 'Uncertainty' },
 ];
 
+// SurfaceBoundedSolid — SurfaceBoundedSolidType (extended/ExtSamplingFeatures.xsd)
+// extends AbstractVolumeType -> gml:AbstractSolidType, adding exactly
+// footprint/topSurface/bottomSurface/uncertainty (verified directly against
+// the schema's own <sequence> — nothing else on this type beyond
+// AbstractGeometryType's inherited gml:description, same as every other
+// entry in this block). NOT what makes the "View 3D" pill work — that's
+// _volumeSFShape/extractFeatureGeometry3D/_sbsGeometry above, which read
+// featureExtent's geometry directly, not through this config. This entry
+// only gives a SurfaceBoundedSolid something to expand into if it's ever
+// reached as a resolved-object row elsewhere (e.g. a future arealExtent use
+// — it isn't today; VolumetricSamplingFeature's own featureExtent is served
+// by the computed Geometry-section rows instead, per this block's own
+// banner comment above). `uncertainty` here is LocationUncertaintyPropertyType,
+// not UncertaintyPropertyType (T5 in the SurfaceBoundedSolid render handoff
+// doc) — dispatches to OBJECT_CONFIGS.LocationUncertainty automatically by
+// the resolved element's own localName, same generic mechanism every other
+// entry in this block relies on.
+OBJECT_CONFIGS.SurfaceBoundedSolid = [
+  { path: 'gml:description' },
+  { path: 'diggs:footprint', label: 'Footprint' },
+  { path: 'diggs:topSurface', label: 'Top Surface' },
+  { path: 'diggs:bottomSurface', label: 'Bottom Surface' },
+  { path: 'diggs:uncertainty', label: 'Uncertainty' },
+];
+
 // LocalCoordinate — LocalCoordinateType (core/Common.xsd:1460) extends
 // gml:AbstractMetadataPropertyType — NO gml:id, no name/description (the
 // exact type CLAUDE.md's "gml:id is not universally available" note is
@@ -13247,6 +13287,55 @@ const _OBSERVATION_REFS = [
     label: 'Measurement', labelPlural: 'Measurements',
     computeRows: el => _measurementRefRows(el),
   },
+];
+
+// GeoUnitObservation — GeoUnitObservationType (core/Core.xsd:2833) extends
+// AbstractObservationType (-> AbstractObjectNoDescriptionType: identifier?/
+// status?/remark*, no name/description). `location` is NOT listed as its own
+// row: for a unit with a 3D body it holds the geometry itself (MultiSolid/
+// CompositeSolid/Solid/SurfaceBoundedSolid), which the Shape row below
+// summarises and opens in the 3D viewer instead of dumping as raw nested KV.
+// The vertical-distance/thickness elements apply only to a 1D unit along one
+// borehole log (per the schema's own documentation) and simply don't appear
+// on a site-wide body.
+OBJECT_CONFIGS.GeoUnitObservation = [
+  { path: '@gml:id', label: 'ID' },
+  { path: 'diggs:unitName', multi: true, label: 'Unit Name', labelPlural: 'Unit Names' },
+  { path: 'diggs:unitDescription', label: 'Unit Description' },
+  ..._OBSERVATION_REFS,
+  { path: '@howDetermined', label: 'How Determined' },
+  { path: '@stratumCode', label: 'Stratum Code' },
+  {
+    label: 'Shape',
+    compute: el => {
+      const locEl = xFirst(el.ownerDocument, 'diggs:location', el);
+      const shapeLabel = _geoUnitShapeLabel(locEl);
+      if (!shapeLabel) return '';
+      const id = el.getAttributeNS(NS.gml, 'id') || el.getAttribute('gml:id') || '';
+      if (!id || !_locationVolumeGeometry(locEl)) return shapeLabel;
+      return {
+        val: shapeLabel,
+        keyExtra: `<button class="pill-3d-view" onclick="open3DGeoUnitView('${esc(id)}')">View 3D</button>`,
+      };
+    },
+  },
+  { path: 'diggs:verticalDistanceToTopOfUnit', label: 'Vertical Distance to Top of Unit' },
+  { path: 'diggs:verticalDistanceToBaseOfUnit', label: 'Vertical Distance to Base of Unit' },
+  { path: 'diggs:verticalThicknessOfUnit', label: 'Vertical Thickness of Unit' },
+  { path: 'diggs:verticallThicknessOfUnit', label: 'Vertical Thickness of Unit' },   // DEPRECATED misspelling, still schema-valid
+  { path: 'diggs:trueTopObserved', label: 'True Top Observed', boolean: true },
+  { path: 'diggs:trueBaseObserved', label: 'True Base Observed', boolean: true },
+  {
+    path: 'diggs:characteristicProperty', multi: true,
+    label: 'Characteristic Property', labelPlural: 'Characteristic Properties', alwaysGroup: true,
+    itemLabel: el => {
+      const nameEl = evalXPath(el, 'diggs:parameterName')[0];
+      const txt = nodeText(nameEl);
+      return txt ? escHtml(txt) + _codeSpaceKeyExtra(nameEl) : null;
+    },
+  },
+  { path: 'diggs:baseBoundary', multi: true, label: 'Base Boundary', labelPlural: 'Base Boundaries' },
+  ..._OBJ_NO_DESC_TRAILING,
 ];
 
 // ParticleSize — ParticleSizeType (core/Core.xsd:5543) extends ObjectNoDescriptionType
@@ -16916,6 +17005,26 @@ function loadDIGGS(doc, filename) {
     DIGGS_LITH[href].push(sysObj);
   }
 
+  // ── GEO UNITS (a unit's 3D body, carried by GeoUnitObservation/location) ──
+  // Only observations whose location resolves to a volume are collected — a
+  // 1D unit along a borehole log has no body to draw. MultiSolid is legal here
+  // and ONLY here (not in featureExtent), which is what makes this the sole
+  // entry point for it.
+  DIGGS_GEOUNITS = {};
+  for (const gsEl of xNodes(doc, '//diggs:observation/diggs:GeoUnitSystem')) {
+    const sfHref = xText(doc, 'diggs:samplingFeatureRef/@xlink:href', gsEl).replace('#', '');
+    if (!sfHref) continue;
+    for (const obsEl of xNodes(doc, 'diggs:geoUnitObservation/diggs:GeoUnitObservation', gsEl)) {
+      const locEl = xFirst(doc, 'diggs:location', obsEl);
+      const target = locEl ? resolveXlinkEl(locEl) : null;
+      if (!target || !GEOUNIT_VOLUME_KINDS.has(target.localName)) continue;
+      const id = obsEl.getAttributeNS(NS.gml, 'id') || obsEl.getAttribute('gml:id') || '';
+      if (!id) continue;
+      if (!DIGGS_GEOUNITS[sfHref]) DIGGS_GEOUNITS[sfHref] = [];
+      DIGGS_GEOUNITS[sfHref].push({ id, name: xText(doc, 'diggs:unitName', obsEl), el: obsEl, locEl, kind: target.localName });
+    }
+  }
+
   // ── OBSERVATION → SAMPLE reverse index (DIGGS_SAMPLE_OBSERVATIONS) ─────
   // Deliberately generic over EVERY observation-system type, not just
   // LithologySystem: `sampleRef` is declared on AbstractObservationType, so
@@ -17949,6 +18058,1045 @@ function _planarSFGeometryInfo(el) {
   return { shapeLabel, orientation, srsName: p.srsName };
 }
 
+// ══════════════════════════════════════════════════════════════
+//  diggs:SurfaceBoundedSolid (2026-09-17; steps/pinch-out/MultiSurface
+//  footprint 2026-09-20) — a vertical-sided volume with NO GML counterpart: a
+//  `footprint` (one PlanarSurface, or a MultiSurface of planar parts — one
+//  independent body per part) plus independently-shaped `topSurface`/
+//  `bottomSurface` (each ONE continuous surface, never a MultiSurface), with
+//  the side walls left to be COMPUTED rather than enumerated. Authoritative
+//  construction rule: ../diggs-schema extended/ExtSamplingFeatures.xsd's own
+//  SurfaceBoundedSolid docstring. Design background, the fixture
+//  (../rigid-inclusions/SurfaceBoundedSolidTestCase.xml) and per-feature
+//  expected render: snippets and plan docs/
+//  SurfaceBoundedSolid_render_handoff_2026-09-17.md and
+//  SurfaceBoundedSolid_steps_pinchout_handoff_2026-09-19.md (the later one
+//  wins where they differ).
+//
+//  The solid exists ONLY WHERE top > bottom (crossing is legal: pinch-out).
+//  Caps are an OVERLAY of the two surfaces over the footprint — footprint
+//  triangle ∩ top triangle ∩ bottom triangle, all convex, so every result lies
+//  in one plane of each surface and the thickness there is linear; the
+//  pinch line is one exact half-plane cut (_sbsBuildPart). Walls follow each
+//  surface's PROFILE along the footprint edge, stepping at a vertical member
+//  (_sbsWallForEdge). A vertical member (a step) is a riser, clipped to the
+//  footprint and to the solid's side of the other surface (_sbsRiserPatches).
+//  Coverage of the footprint by both surfaces is a MUST; where it fails the
+//  instance is invalid and is flagged, never extrapolated to look right.
+//  No polygon-clipping library: every clip is Sutherland–Hodgman on convex
+//  pieces (the footprint is triangulated first, so a concave footprint or a
+//  hole needs no special case).
+// ══════════════════════════════════════════════════════════════
+
+/**
+ * _sbsResolveParts(sbsEl) -> {footprintEl, topEl, bottomEl, uncertaintyEl} | null
+ * Resolves SurfaceBoundedSolid's three mandatory geometry properties
+ * (inline or xlink:href) plus the optional uncertainty. Returns null if any
+ * of the three mandatory parts is missing/unresolvable — the schema makes
+ * all three mandatory, so absence means a broken instance and a partial
+ * render would mislead.
+ */
+function _sbsResolveParts(sbsEl) {
+  const doc = sbsEl.ownerDocument;
+  const footprintWrap = xFirst(doc, 'diggs:footprint', sbsEl);
+  const topWrap = xFirst(doc, 'diggs:topSurface', sbsEl);
+  const bottomWrap = xFirst(doc, 'diggs:bottomSurface', sbsEl);
+  const footprintEl = footprintWrap ? resolveXlinkEl(footprintWrap) : null;
+  const topEl = topWrap ? resolveXlinkEl(topWrap) : null;
+  const bottomEl = bottomWrap ? resolveXlinkEl(bottomWrap) : null;
+  if (!footprintEl || !topEl || !bottomEl) return null;
+  const uncertaintyWrap = xFirst(doc, 'diggs:uncertainty', sbsEl);
+  const uncertaintyEl = uncertaintyWrap ? resolveXlinkEl(uncertaintyWrap) : null;
+  return { footprintEl, topEl, bottomEl, uncertaintyEl };
+}
+
+/**
+ * _sbsIsCurvedSurface(surfEl) — true if `surfEl` (a resolved topSurface/
+ * bottomSurface element) is, or contains anywhere in its subtree (through a
+ * CompositeSurface/MultiSurface member), a TriangulatedSurface or
+ * MultiPlanarSurface — the same "approximated non-planar surface" test
+ * _volumeSFShape's own Solid/Shell path already uses (line ~17987) for its
+ * Curved classification, scoped here to one bounding surface at a time.
+ */
+function _sbsIsCurvedSurface(surfEl) {
+  if (!surfEl) return false;
+  return surfEl.localName === 'TriangulatedSurface' || surfEl.localName === 'MultiPlanarSurface'
+    || !!findAllByLocalName(surfEl, 'TriangulatedSurface').length
+    || !!findAllByLocalName(surfEl, 'MultiPlanarSurface').length;
+}
+
+/** Shoelace signed area — positive for a CCW ring, negative for CW. */
+function _sbsRingSignedArea(ring) {
+  let a = 0;
+  for (let i = 0; i < ring.length; i++) {
+    const [x1, y1] = ring[i], [x2, y2] = ring[(i + 1) % ring.length];
+    a += x1 * y2 - x2 * y1;
+  }
+  return a / 2;
+}
+function _sbsRingBBox(ring) {
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  for (const [x, y] of ring) {
+    if (x < minX) minX = x; if (x > maxX) maxX = x;
+    if (y < minY) minY = y; if (y > maxY) maxY = y;
+  }
+  return [minX, minY, maxX, maxY];
+}
+function _sbsBBoxOverlap(a, b) {
+  return a[0] <= b[2] && a[2] >= b[0] && a[1] <= b[3] && a[3] >= b[1];
+}
+/** Standard ray-casting point-in-polygon test (winding-agnostic). */
+function _sbsPointInPoly([x, y], ring) {
+  let inside = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const [xi, yi] = ring[i], [xj, yj] = ring[j];
+    const hit = ((yi > y) !== (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi) + xi);
+    if (hit) inside = !inside;
+  }
+  return inside;
+}
+/**
+ * _sbsTriangulate2D(ringXY, holeRingsXY) -> [[[x,y],[x,y],[x,y]], ...]
+ * Earcut-style triangulation of a flat 2D ring (+holes) via THREE.Shape/
+ * THREE.ShapeGeometry (handles concavity correctly, unlike a vertex-0 fan —
+ * see SurfaceBoundedSolid_render_handoff_2026-09-17.md's SBS-3/SBS-4
+ * traps). Normalizes winding itself (ring CCW, each hole CW) so callers
+ * (in particular a clip's own output, whose winding
+ * convention isn't guaranteed) don't need to track orientation.
+ */
+function _sbsTriangulate2D(ringXY, holeRingsXY) {
+  if (!ringXY || ringXY.length < 3) return [];
+  let ring = ringXY;
+  if (_sbsRingSignedArea(ring) < 0) ring = ring.slice().reverse();
+  const shape = new THREE.Shape(ring.map(([x, y]) => new THREE.Vector2(x, y)));
+  for (let hr of (holeRingsXY || [])) {
+    if (!hr || hr.length < 3) continue;
+    if (_sbsRingSignedArea(hr) > 0) hr = hr.slice().reverse();
+    shape.holes.push(new THREE.Path(hr.map(([x, y]) => new THREE.Vector2(x, y))));
+  }
+  const geom = new THREE.ShapeGeometry(shape);
+  const posAttr = geom.getAttribute('position');
+  const idx = geom.getIndex();
+  const tris = [];
+  const vcount = idx ? idx.count : posAttr.count;
+  for (let i = 0; i + 2 < vcount; i += 3) {
+    const ia = idx ? idx.getX(i) : i, ib = idx ? idx.getX(i + 1) : i + 1, ic = idx ? idx.getX(i + 2) : i + 2;
+    tris.push([
+      [posAttr.getX(ia), posAttr.getY(ia)],
+      [posAttr.getX(ib), posAttr.getY(ib)],
+      [posAttr.getX(ic), posAttr.getY(ic)],
+    ]);
+  }
+  geom.dispose();
+  return tris;
+}
+
+/**
+ * _sbsTriangulatePlanarRing(ringPts3D, holeRingsPts3D) -> [[p,p,p], ...]
+ * Triangulates one already-coplanar 3D ring (+holes) via the SAME Newell-
+ * normal/local-basis projection init3DFeatureViewer's own per-patch loop
+ * uses (line ~22887 below), reduced to 2D via _sbsTriangulate2D, then
+ * unprojected. Used for a MultiPlanarSurface's own >3-vertex
+ * PlanarSurfacePatch (§5.3) — NOT for footprint/cap clipping, which
+ * triangulates directly in true plan-view XY instead (_sbsBuildPart).
+ */
+function _sbsTriangulatePlanarRing(ringPts3D, holeRingsPts3D) {
+  const normal = _newellNormal(ringPts3D);
+  if (!normal) return [];
+  const nrm = new THREE.Vector3(normal[0], normal[1], normal[2]);
+  const origin = new THREE.Vector3(ringPts3D[0][0], ringPts3D[0][1], ringPts3D[0][2]);
+  let uAxis = null;
+  for (let i = 1; i < ringPts3D.length; i++) {
+    const cand = new THREE.Vector3(ringPts3D[i][0], ringPts3D[i][1], ringPts3D[i][2]).sub(origin);
+    if (cand.length() > 1e-6) { uAxis = cand.normalize(); break; }
+  }
+  if (!uAxis) return [];
+  let vAxis = nrm.clone().cross(uAxis).normalize();
+  if (!(vAxis.length() > 0.5)) return [];
+  uAxis = vAxis.clone().cross(nrm).normalize();
+
+  const project = (p) => {
+    const d = new THREE.Vector3(p[0], p[1], p[2]).sub(origin);
+    return [d.dot(uAxis), d.dot(vAxis)];
+  };
+  const unproject = ([u, v]) => {
+    const p = origin.clone().add(uAxis.clone().multiplyScalar(u)).add(vAxis.clone().multiplyScalar(v));
+    return [p.x, p.y, p.z];
+  };
+
+  const ring2D = ringPts3D.map(project);
+  const holes2D = (holeRingsPts3D || []).map(hr => hr.map(project));
+  return _sbsTriangulate2D(ring2D, holes2D).map(t => t.map(unproject));
+}
+
+/**
+ * _sbsFootprintRings(footprintEl) -> {exterior, holes, srsName} | null
+ * footprintEl is ONE PlanarSurface (a MultiSurface footprint is split into
+ * its PlanarSurface members by _sbsFootprintParts first). Extracts exterior +
+ * each interior ring's (x,y) only —
+ * footprint Z is not elevation (§1.6 of the handoff doc) and is discarded
+ * here. Normalizes exterior to CCW / holes to CW (shoelace sign) — both the
+ * wall-panel winding convention (_sbsWallForEdge) and THREE.Shape's own
+ * hole-fill convention depend on it.
+ */
+function _sbsFootprintRings(footprintEl) {
+  const extWrap = findByLocalName(footprintEl, 'exterior');
+  const extLR = extWrap && findByLocalName(extWrap, 'LinearRing');
+  if (!extLR) return null;
+  const extRes = _sbsExtractRingXY(extLR, footprintEl);
+  if (!extRes) return null;
+  let exterior = extRes.ring;
+  if (_sbsRingSignedArea(exterior) < 0) exterior = exterior.slice().reverse();
+
+  const holes = [];
+  for (const child of footprintEl.childNodes) {
+    if (child.nodeType !== 1 || child.localName !== 'interior') continue;
+    const holeLR = findByLocalName(child, 'LinearRing');
+    if (!holeLR) continue;
+    const holeRes = _sbsExtractRingXY(holeLR, footprintEl);
+    if (!holeRes) continue;
+    let hole = holeRes.ring;
+    if (_sbsRingSignedArea(hole) > 0) hole = hole.slice().reverse();
+    holes.push(hole);
+  }
+  return { exterior, holes, srsName: extRes.srsName };
+}
+
+/** Shared LinearRing -> real-meter (x,y) extractor (Z discarded) for the footprint. */
+function _sbsExtractRingXY(linearRingEl, boundEl) {
+  let plEl = null;
+  for (const c of linearRingEl.childNodes) { if (c.nodeType === 1 && c.localName === 'posList') { plEl = c; break; } }
+  if (!plEl) return null;
+  const dim = parseInt(plEl.getAttribute('srsDimension') || '3') || 3;
+  const anc = _ancestorSrsInfo(linearRingEl, boundEl);
+  const srsName = plEl.getAttribute('srsName') || anc.srsName || '';
+  const coords = _tokensToCoords(numTokens(plEl.textContent), dim);
+  if (coords.length < 4) return null;   // need >=3 distinct verts, ring repeats the first
+  let pts = _toRealMeterPts(coords, srsName);
+  if (pts.length > 1) {
+    const a = pts[0], b = pts[pts.length - 1];
+    if (Math.hypot(a[0] - b[0], a[1] - b[1]) < 1e-6) pts = pts.slice(0, -1);
+  }
+  if (pts.length < 3) return null;
+  return { ring: pts.map(p => [p[0], p[1]]), srsName };
+}
+
+/**
+ * _sbsSurfaceToTriangles(surfEl, seen, depth) -> [[[x,y,z]x3], ...]
+ * One normalizer for every admissible topSurface/bottomSurface kind
+ * (SurfacePropertyType's own range — see handoff doc §5.3's table),
+ * reduced to real-meter triangles. Each ring is converted with ITS OWN
+ * resolved srsName (T6 — the three SurfaceBoundedSolid parts need not
+ * share a CRS), so no single overall srsName is tracked or returned.
+ * `seen` dedupes an href-reused member and bounds recursion depth (T8),
+ * mirroring _resolveSurfaceEls's own cycle guard.
+ */
+function _sbsSurfaceToTriangles(surfEl, seen, depth) {
+  if (!surfEl || depth > 6) return [];
+  seen = seen || new Set();
+  if (seen.has(surfEl)) return [];
+  seen.add(surfEl);
+
+  const tris = [];
+  const kind = surfEl.localName;
+
+  const extractRingPts3D = (wrapperEl, boundEl) => {
+    const lrEl = findByLocalName(wrapperEl, 'LinearRing');
+    if (!lrEl) return null;
+    let plEl = null;
+    for (const c of lrEl.childNodes) { if (c.nodeType === 1 && c.localName === 'posList') { plEl = c; break; } }
+    if (!plEl) return null;
+    const dim = parseInt(plEl.getAttribute('srsDimension') || '3') || 3;
+    const anc = _ancestorSrsInfo(lrEl, boundEl);
+    const srsName = plEl.getAttribute('srsName') || anc.srsName || '';
+    const coords = _tokensToCoords(numTokens(plEl.textContent), dim);
+    if (coords.length < 4) return null;
+    let pts = _toRealMeterPts(coords, srsName);
+    if (pts.length > 1) {
+      const a = pts[0], b = pts[pts.length - 1];
+      if (Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]) < 1e-6) pts = pts.slice(0, -1);
+    }
+    return pts.length >= 3 ? pts : null;
+  };
+  const triFromRing = (pts3D) => {
+    if (!pts3D || pts3D.length < 3) return;
+    if (pts3D.length === 3) { tris.push(pts3D); return; }
+    for (const t of _sbsTriangulatePlanarRing(pts3D, [])) tris.push(t);
+  };
+
+  if (kind === 'TriangulatedSurface') {
+    for (const tp of findAllByLocalName(surfEl, 'TrianglePatch')) {   // T10: element is TrianglePatch, not "TriangulatedSurfacePatch"
+      const extWrap = findByLocalName(tp, 'exterior');
+      const pts = extWrap && extractRingPts3D(extWrap, surfEl);
+      if (pts) tris.push(pts.slice(0, 3));   // TrianglePatch's own ring convention is always exactly 3 verts (+ closing repeat)
+    }
+  } else if (kind === 'MultiPlanarSurface') {
+    for (const patch of findAllByLocalName(surfEl, 'PlanarSurfacePatch')) {
+      const extWrap = findByLocalName(patch, 'exterior');
+      const pts = extWrap && extractRingPts3D(extWrap, surfEl);
+      if (pts) triFromRing(pts);
+    }
+  } else if (kind === 'PlanarSurface') {
+    const extWrap = findByLocalName(surfEl, 'exterior');
+    const pts = extWrap && extractRingPts3D(extWrap, surfEl);
+    if (pts) triFromRing(pts);
+    // A hole in a bounding PlanarSurface is schema-legal but not handled
+    // here — see the handoff doc §1's authoring-requirement note; not
+    // exercised by any current test instance.
+  } else if (kind === 'CompositeSurface' || kind === 'MultiSurface') {
+    // topSurface/bottomSurface are never a MultiSurface for a VALID instance
+    // (rule 1 of the 2026-09-19 handoff: each is one continuous surface, and
+    // the schema now rejects it), so this branch is dead for valid input —
+    // kept tolerant rather than dropped, since the same normalizer is cheap
+    // to leave general.
+    // T9: MultiSurface is the OTHER branch of SurfacePropertyType's choice
+    // (extends AbstractGeometricAggregateType, not AbstractSurface) but
+    // shares CompositeSurface's own surfaceMember/surfaceMembers structure
+    // (_resolveSurfaceEls's own banner comment), so one branch covers both.
+    // DIRECT children only (not findAllByLocalName's subtree search) — a
+    // nested CompositeSurface's own surfaceMember children must only be
+    // found once, via this function's own recursion, never doubled by a
+    // flat subtree scan (see _resolveSurfaceEls's CAUTION for the same
+    // trap class).
+    for (const child of [...surfEl.childNodes]) {
+      if (child.nodeType !== 1) continue;
+      if (child.localName !== 'surfaceMember' && child.localName !== 'surfaceMembers') continue;
+      for (const memberEl of resolveXlinkChildren(child)) {
+        if (seen.has(memberEl)) continue;
+        for (const t of _sbsSurfaceToTriangles(memberEl, seen, depth + 1)) tris.push(t);
+      }
+    }
+  }
+  return tris;
+}
+
+/**
+ * _sbsFootprintParts(footprintEl) -> [{exterior, holes, srsName}, ...]
+ * `footprint` is one PlanarSurface OR a MultiSurface of planar parts (rule 2
+ * of the 2026-09-19 handoff). Each part is an independent body over the same
+ * pair of bounding surfaces — this is how disjoint bodies are expressed — so
+ * the caller runs the whole wall+cap pipeline once per part and merges the
+ * results. Members are read from DIRECT surfaceMember/surfaceMembers children
+ * only (the same double-counting trap _sbsSurfaceToTriangles guards against).
+ */
+function _sbsFootprintParts(footprintEl) {
+  const parts = [];
+  if (!footprintEl) return parts;
+  if (footprintEl.localName === 'MultiSurface') {
+    for (const child of [...footprintEl.childNodes]) {
+      if (child.nodeType !== 1) continue;
+      if (child.localName !== 'surfaceMember' && child.localName !== 'surfaceMembers') continue;
+      for (const memberEl of resolveXlinkChildren(child)) {
+        const rings = _sbsFootprintRings(memberEl);
+        if (rings) parts.push(rings);
+      }
+    }
+  } else {
+    const rings = _sbsFootprintRings(footprintEl);
+    if (rings) parts.push(rings);
+  }
+  return parts;
+}
+
+// ── Numeric tolerances (all in real meters, applied to coordinates already
+// re-centred on the footprint's first vertex — see _sbsGeometry — so a UTM-
+// scale absolute coordinate never eats the double's precision). ─────────────
+const SBS_AREA_EPS = 1e-8;      // m² — a clip polygon smaller than this is a sliver from two shapes merely touching
+const SBS_D_EPS    = 1e-9;      // m  — thickness at or below this is "zero" (coincident surfaces)
+const SBS_T_EPS    = 1e-7;      // m  — along-edge stations closer than this are one station
+const SBS_COVER_MIN = 0.9999;   // a bounding surface covering less of the footprint than this is invalid (rule 3)
+
+/** Absolute polygon area of a ring/polygon in any 2-D (x,y) or (t,z) frame. */
+function _sbsPolyArea(poly) { return Math.abs(_sbsRingSignedArea(poly)); }
+
+/** [minX, minY, maxX, maxY] of a polygon. */
+function _sbsPolyBBox(poly) { return _sbsRingBBox(poly); }
+
+/** Drops consecutive (cyclic) duplicate points — half-plane clipping emits them where an edge grazes the cut line. */
+function _sbsDedupe(poly, eps) {
+  eps = eps || 1e-9;
+  const out = [];
+  for (const p of poly) {
+    const q = out[out.length - 1];
+    if (!q || Math.abs(p[0] - q[0]) > eps || Math.abs(p[1] - q[1]) > eps) out.push(p);
+  }
+  while (out.length > 1
+    && Math.abs(out[0][0] - out[out.length - 1][0]) <= eps
+    && Math.abs(out[0][1] - out[out.length - 1][1]) <= eps) out.pop();
+  return out;
+}
+
+/**
+ * _sbsClipByValue(poly, val) — Sutherland–Hodgman against ONE half-plane,
+ * `val(p) >= 0` being the kept side. `val` must be linear in p (a signed
+ * distance, a t-bound, or a thickness difference of two planes), so the
+ * crossing point is found exactly by linear interpolation of the two end
+ * values. A convex input stays convex. This one primitive does every clip in
+ * the solid pipeline: convex-vs-convex (repeated per edge), the pinch-out cut
+ * (`val` = top − bottom), and the riser's t-interval / bounding-surface cuts.
+ */
+function _sbsClipByValue(poly, val) {
+  const n = poly.length;
+  if (!n) return [];
+  const out = [];
+  let prev = poly[n - 1], pv = val(prev);
+  for (const cur of poly) {
+    const cv = val(cur);
+    if ((pv >= 0) !== (cv >= 0)) {
+      const s = pv / (pv - cv);
+      out.push([prev[0] + (cur[0] - prev[0]) * s, prev[1] + (cur[1] - prev[1]) * s]);
+    }
+    if (cv >= 0) out.push(cur);
+    prev = cur; pv = cv;
+  }
+  return out;
+}
+
+/** Convex subject ∩ convex CCW clip polygon, by one half-plane pass per clip edge. */
+function _sbsClipConvex(subject, clipCCW) {
+  let poly = subject;
+  for (let i = 0; i < clipCCW.length && poly.length >= 3; i++) {
+    const a = clipCCW[i], b = clipCCW[(i + 1) % clipCCW.length];
+    const ex = b[0] - a[0], ey = b[1] - a[1];
+    poly = _sbsClipByValue(poly, p => ex * (p[1] - a[1]) - ey * (p[0] - a[0]));
+  }
+  return poly.length >= 3 ? poly : [];
+}
+
+/** z of a prepared flat triangle's plane at (x,y) — local coordinates, so no large-offset cancellation. */
+function _sbsZAt(T, x, y) { return T.z0 + T.gx * (x - T.x0) + T.gy * (y - T.y0); }
+
+/**
+ * _sbsBuildGrid(items) -> {query(bbox) -> [indices]}
+ * Uniform grid over items' `.bbox`, ~1 item per cell. This is the candidate
+ * finder for the surface overlay (1152 × 1152 triangle pairs on SBS-7 would be
+ * the naive product) and for every along-line profile query.
+ */
+function _sbsBuildGrid(items) {
+  const n = items.length;
+  if (!n) return { query: () => [] };
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  for (const it of items) {
+    const b = it.bbox;
+    if (b[0] < minX) minX = b[0]; if (b[1] < minY) minY = b[1];
+    if (b[2] > maxX) maxX = b[2]; if (b[3] > maxY) maxY = b[3];
+  }
+  const w = Math.max(maxX - minX, 1e-6), h = Math.max(maxY - minY, 1e-6);
+  const cell = Math.max(Math.sqrt((w * h) / n), Math.max(w, h) / 256, 1e-3);
+  const cols = Math.max(1, Math.ceil(w / cell)), rows = Math.max(1, Math.ceil(h / cell));
+  const cells = new Array(cols * rows);
+  for (let i = 0; i < cells.length; i++) cells[i] = [];
+  const colOf = x => Math.max(0, Math.min(cols - 1, Math.floor((x - minX) / cell)));
+  const rowOf = y => Math.max(0, Math.min(rows - 1, Math.floor((y - minY) / cell)));
+  items.forEach((it, i) => {
+    const b = it.bbox;
+    for (let cy = rowOf(b[1]); cy <= rowOf(b[3]); cy++)
+      for (let cx = colOf(b[0]); cx <= colOf(b[2]); cx++) cells[cy * cols + cx].push(i);
+  });
+  const stamp = new Int32Array(n);
+  let cur = 0;
+  return {
+    query(bb) {
+      if (bb[2] < minX || bb[0] > maxX || bb[3] < minY || bb[1] > maxY) return [];
+      cur++;
+      const res = [];
+      for (let cy = rowOf(bb[1]); cy <= rowOf(bb[3]); cy++) {
+        for (let cx = colOf(bb[0]); cx <= colOf(bb[2]); cx++) {
+          for (const i of cells[cy * cols + cx]) {
+            if (stamp[i] === cur) continue;
+            stamp[i] = cur;
+            const b = items[i].bbox;
+            if (b[0] <= bb[2] && b[2] >= bb[0] && b[1] <= bb[3] && b[3] >= bb[1]) res.push(i);
+          }
+        }
+      }
+      return res;
+    },
+  };
+}
+
+/**
+ * _sbsPrepSurface(tris, ox, oy) -> {flat, vertical, grid, zRange}
+ * Re-centres a bounding surface's triangles on (ox,oy) and splits them:
+ *  - `flat`: triangles with real plan-view area, made CCW, each with its
+ *    plane's own gradient (gx,gy) for exact z evaluation and a bbox for the
+ *    grid. Together they tile the surface's plan-view footprint.
+ *  - `vertical`: triangles whose plan-view area is ~0 relative to their edge
+ *    lengths — a step riser (rule 4). A height query is single-valued so these
+ *    can never be part of the height field; they are handled separately by
+ *    _sbsRiserPatches.
+ */
+function _sbsPrepSurface(tris, ox, oy) {
+  const flat = [], vertical = [];
+  let zMin = Infinity, zMax = -Infinity;
+  for (const t of tris) {
+    let p = t.map(v => [v[0] - ox, v[1] - oy, v[2]]);
+    for (const q of p) { if (q[2] < zMin) zMin = q[2]; if (q[2] > zMax) zMax = q[2]; }
+    const ext = Math.max(
+      Math.hypot(p[1][0] - p[0][0], p[1][1] - p[0][1]),
+      Math.hypot(p[2][0] - p[1][0], p[2][1] - p[1][1]),
+      Math.hypot(p[0][0] - p[2][0], p[0][1] - p[2][1]));
+    if (ext < 1e-9) continue;   // a vertical line or a point — no area in any frame
+    let area2 = (p[1][0] - p[0][0]) * (p[2][1] - p[0][1]) - (p[1][1] - p[0][1]) * (p[2][0] - p[0][0]);
+    if (Math.abs(area2) <= 1e-9 * ext * ext) { vertical.push(p); continue; }
+    if (area2 < 0) { p = [p[0], p[2], p[1]]; area2 = -area2; }
+    const ax = p[1][0] - p[0][0], ay = p[1][1] - p[0][1];
+    const bx = p[2][0] - p[0][0], by = p[2][1] - p[0][1];
+    const dz1 = p[1][2] - p[0][2], dz2 = p[2][2] - p[0][2];
+    flat.push({
+      p: [[p[0][0], p[0][1]], [p[1][0], p[1][1]], [p[2][0], p[2][1]]],
+      area2, x0: p[0][0], y0: p[0][1], z0: p[0][2],
+      gx: (dz1 * by - dz2 * ay) / area2,
+      gy: (ax * dz2 - bx * dz1) / area2,
+      bbox: [Math.min(p[0][0], p[1][0], p[2][0]), Math.min(p[0][1], p[1][1], p[2][1]),
+             Math.max(p[0][0], p[1][0], p[2][0]), Math.max(p[0][1], p[1][1], p[2][1])],
+    });
+  }
+  return { flat, vertical, grid: _sbsBuildGrid(flat), zRange: [zMin, zMax] };
+}
+
+/**
+ * _sbsProfileAlong(surf, A, B) -> {elems:[{t0,t1,z0,z1}], len}
+ * The surface's height profile along the plan-view segment A→B (t = metres
+ * from A). Over each non-vertical triangle the segment crosses, z is linear in
+ * t; the triangles' pieces are then cut at every station into non-overlapping
+ * ELEMENTARY intervals, each carrying its own two end heights. At a vertical
+ * member the profile therefore JUMPS — the interval on each side keeps its own
+ * end value at the shared t — which is exactly what a wall must follow (rule 4).
+ * A stretch with no covering triangle is simply absent from `elems` (rule 3:
+ * never extrapolated); callers detect it as a gap.
+ */
+function _sbsProfileAlong(surf, A, B) {
+  const dx = B[0] - A[0], dy = B[1] - A[1], len = Math.hypot(dx, dy);
+  if (len < 1e-9) return { elems: [], len };
+  const TOL = 1e-9;   // barycentric slack — a segment lying exactly on a triangle edge must still be "inside"
+  const raw = [];
+  const q = [Math.min(A[0], B[0]) - 1e-6, Math.min(A[1], B[1]) - 1e-6, Math.max(A[0], B[0]) + 1e-6, Math.max(A[1], B[1]) + 1e-6];
+  for (const ti of surf.grid.query(q)) {
+    const T = surf.flat[ti];
+    const [p0, p1, p2] = T.p, a2 = T.area2;
+    const lam = p => [
+      ((p2[0] - p1[0]) * (p[1] - p1[1]) - (p2[1] - p1[1]) * (p[0] - p1[0])) / a2,
+      ((p0[0] - p2[0]) * (p[1] - p2[1]) - (p0[1] - p2[1]) * (p[0] - p2[0])) / a2,
+      ((p1[0] - p0[0]) * (p[1] - p0[1]) - (p1[1] - p0[1]) * (p[0] - p0[0])) / a2,
+    ];
+    const LA = lam(A), LB = lam(B);
+    let lo = 0, hi = 1;
+    for (let k = 0; k < 3; k++) {
+      const la = LA[k], dl = LB[k] - la;
+      if (Math.abs(dl) < 1e-15) { if (la < -TOL) { lo = 1; hi = 0; break; } continue; }
+      const sb = (-TOL - la) / dl;
+      if (dl > 0) lo = Math.max(lo, sb); else hi = Math.min(hi, sb);
+    }
+    if (hi - lo <= 1e-12) continue;
+    raw.push({
+      t0: lo * len, t1: hi * len,
+      z0: _sbsZAt(T, A[0] + dx * lo, A[1] + dy * lo),
+      z1: _sbsZAt(T, A[0] + dx * hi, A[1] + dy * hi),
+    });
+  }
+  const ts = [0, len];
+  for (const r of raw) ts.push(r.t0, r.t1);
+  ts.sort((a, b) => a - b);
+  const bp = [];
+  for (const t of ts) if (!bp.length || t - bp[bp.length - 1] > SBS_T_EPS) bp.push(t);
+  const zOn = (r, t) => r.t1 - r.t0 > 1e-12 ? r.z0 + (t - r.t0) * (r.z1 - r.z0) / (r.t1 - r.t0) : r.z0;
+  const elems = [];
+  for (let k = 0; k + 1 < bp.length; k++) {
+    const t0 = bp[k], t1 = bp[k + 1], mid = (t0 + t1) / 2;
+    const r = raw.find(rr => rr.t0 <= mid && rr.t1 >= mid);
+    if (r) elems.push({ t0, t1, z0: zOn(r, t0), z1: zOn(r, t1) });
+  }
+  return { elems, len };
+}
+
+/**
+ * _sbsWallPanels(topElems, botElems, len) -> {panels, uncovered}
+ * Joins the top and bottom profiles along one footprint edge into planar
+ * trapezoids (rule 3.3): breaks at every station of EITHER profile, so top and
+ * bottom are each linear over a panel; consecutive panels that continue the
+ * same two lines are then re-merged so a flat wall stays one quad. `uncovered`
+ * counts intervals where a surface has no triangle (invalid instance).
+ */
+function _sbsWallPanels(topElems, botElems, len) {
+  const ts = [0, len];
+  for (const e of topElems) ts.push(e.t0, e.t1);
+  for (const e of botElems) ts.push(e.t0, e.t1);
+  ts.sort((a, b) => a - b);
+  const bp = [];
+  for (const t of ts) if (!bp.length || t - bp[bp.length - 1] > SBS_T_EPS) bp.push(t);
+  const find = (elems, mid) => elems.find(e => e.t0 - 1e-6 <= mid && e.t1 + 1e-6 >= mid);
+  const at = (e, t) => e.t1 - e.t0 > 1e-12 ? e.z0 + (t - e.t0) * (e.z1 - e.z0) / (e.t1 - e.t0) : e.z0;
+  const raw = [];
+  let uncovered = 0;
+  for (let k = 0; k + 1 < bp.length; k++) {
+    const t0 = bp[k], t1 = bp[k + 1], mid = (t0 + t1) / 2;
+    const te = find(topElems, mid), be = find(botElems, mid);
+    if (!te || !be) { if (t1 - t0 > 1e-6) uncovered++; continue; }
+    raw.push({ t0, t1, zt0: at(te, t0), zt1: at(te, t1), zb0: at(be, t0), zb1: at(be, t1) });
+  }
+  const slope = (z0, z1, t0, t1) => (z1 - z0) / (t1 - t0);
+  const panels = [];
+  for (const p of raw) {
+    const q = panels[panels.length - 1];
+    if (q && Math.abs(q.t1 - p.t0) < 1e-9
+        && Math.abs(q.zt1 - p.zt0) < 1e-7 && Math.abs(q.zb1 - p.zb0) < 1e-7
+        && Math.abs(slope(q.zt0, q.zt1, q.t0, q.t1) - slope(p.zt0, p.zt1, p.t0, p.t1)) < 1e-8
+        && Math.abs(slope(q.zb0, q.zb1, q.t0, q.t1) - slope(p.zb0, p.zb1, p.t0, p.t1)) < 1e-8) {
+      q.t1 = p.t1; q.zt1 = p.zt1; q.zb1 = p.zb1;
+    } else {
+      panels.push({ ...p });
+    }
+  }
+  return { panels, uncovered };
+}
+
+/**
+ * _sbsWallForEdge(a, b, top, bot, ox, oy, out, st) — the wall on one footprint
+ * edge: one polygon in the vertical plane through a→b, bounded above by the
+ * top profile and below by the bottom profile (schema CONSTRUCTION rule). A
+ * panel is wound [a·bot, b·bot, b·top, a·top] so an exterior (CCW) ring's
+ * walls face outward and a hole's (CW) do too. Pinch-out on the wall: where
+ * thickness d = top − bottom is ≤ 0 at both ends the panel is dropped; where
+ * its sign changes the panel is cut at the zero crossing (a triangle
+ * survives) — the wall therefore stops exactly where the caps stop.
+ */
+function _sbsWallForEdge(a, b, top, bot, ox, oy, out, st) {
+  const dx = b[0] - a[0], dy = b[1] - a[1], len = Math.hypot(dx, dy);
+  if (len < 1e-9) return;
+  const tp = _sbsProfileAlong(top, a, b), bp = _sbsProfileAlong(bot, a, b);
+  const { panels, uncovered } = _sbsWallPanels(tp.elems, bp.elems, len);
+  st.uncoveredSpans += uncovered;
+  const P = (t, z) => [ox + a[0] + dx * t / len, oy + a[1] + dy * t / len, z];
+  for (const p of panels) {
+    const d0 = p.zt0 - p.zb0, d1 = p.zt1 - p.zb1;
+    let pts;
+    if (d0 > SBS_D_EPS && d1 > SBS_D_EPS) {
+      pts = [P(p.t0, p.zb0), P(p.t1, p.zb1), P(p.t1, p.zt1), P(p.t0, p.zt0)];
+    } else if (d0 > SBS_D_EPS) {
+      const s = d0 / (d0 - d1), tc = p.t0 + (p.t1 - p.t0) * s, zc = p.zt0 + (p.zt1 - p.zt0) * s;
+      pts = [P(p.t0, p.zb0), P(tc, zc), P(p.t0, p.zt0)];
+    } else if (d1 > SBS_D_EPS) {
+      const s = d0 / (d0 - d1), tc = p.t0 + (p.t1 - p.t0) * s, zc = p.zt0 + (p.zt1 - p.zt0) * s;
+      pts = [P(tc, zc), P(p.t1, p.zb1), P(p.t1, p.zt1)];
+    } else continue;
+    out.push({ pts, holes: [], kind: 'wall' });
+    st.nWall++;
+  }
+}
+
+/**
+ * _sbsLineInsideIntervals(a, b, len, ext, holes) -> [[t0,t1], ...]
+ * The stretches of segment a→b inside the footprint (exterior, minus every
+ * hole): intersect the line with every ring edge, sort the stations, keep each
+ * interval whose midpoint is inside the exterior and outside every hole. One
+ * vertical member can therefore yield several strips (SBS-8's riser crosses
+ * the annulus hole and yields two).
+ */
+function _sbsLineInsideIntervals(a, b, len, ext, holes) {
+  const dx = b[0] - a[0], dy = b[1] - a[1];
+  const ts = [0, len];
+  for (const ring of [ext, ...holes]) {
+    for (let i = 0; i < ring.length; i++) {
+      const c = ring[i], d = ring[(i + 1) % ring.length];
+      const ex = d[0] - c[0], ey = d[1] - c[1];
+      const den = dx * ey - dy * ex;
+      if (Math.abs(den) < 1e-12 * Math.hypot(dx, dy) * Math.hypot(ex, ey)) continue;   // parallel
+      const s = ((c[0] - a[0]) * ey - (c[1] - a[1]) * ex) / den;
+      const q = ((c[0] - a[0]) * dy - (c[1] - a[1]) * dx) / den;
+      if (s > 0 && s < 1 && q >= -1e-9 && q <= 1 + 1e-9) ts.push(s * len);
+    }
+  }
+  ts.sort((x, y) => x - y);
+  const out = [];
+  for (let k = 0; k + 1 < ts.length; k++) {
+    const t0 = ts[k], t1 = ts[k + 1];
+    if (t1 - t0 < 1e-9) continue;
+    const mid = [a[0] + dx * ((t0 + t1) / 2) / len, a[1] + dy * ((t0 + t1) / 2) / len];
+    if (!_sbsPointInPoly(mid, ext) || holes.some(h => _sbsPointInPoly(mid, h))) continue;
+    const prev = out[out.length - 1];
+    if (prev && Math.abs(prev[1] - t0) < 1e-9) prev[1] = t1; else out.push([t0, t1]);
+  }
+  return out;
+}
+
+/**
+ * _sbsRiserPatches(vt, isTop, other, ext, holes, ox, oy, out, st) — fills one
+ * VERTICAL triangle of a bounding surface (a step, rule 4). The triangle lies
+ * in the vertical plane through a plan-view line L; expressed in (t, z) it is
+ * a plain 2-D triangle. For each stretch of L inside the footprint it is
+ * clipped to that t-interval, then — pinch-out step 5 — to the part on the
+ * solid's side of the OTHER surface (above the bottom for a top-surface riser,
+ * below the top for a bottom-surface one), evaluated piece by piece along L.
+ * No polygon-clipping library: every cut is one half-plane.
+ */
+function _sbsRiserPatches(vt, isTop, other, ext, holes, ox, oy, out, st) {
+  let bi = 0, bj = 1, bd = -1;
+  for (let i = 0; i < 3; i++) for (let j = i + 1; j < 3; j++) {
+    const d = Math.hypot(vt[j][0] - vt[i][0], vt[j][1] - vt[i][1]);
+    if (d > bd) { bd = d; bi = i; bj = j; }
+  }
+  const a = vt[bi], b = vt[bj], len = bd;
+  if (len < 1e-9) return;
+  const ux = (b[0] - a[0]) / len, uy = (b[1] - a[1]) / len;
+  const tz = vt.map(p => [(p[0] - a[0]) * ux + (p[1] - a[1]) * uy, p[2]]);
+  for (const [t0, t1] of _sbsLineInsideIntervals(a, b, len, ext, holes)) {
+    let poly = _sbsClipByValue(tz, p => p[0] - t0);
+    poly = _sbsDedupe(_sbsClipByValue(poly, p => t1 - p[0]));
+    if (poly.length < 3 || _sbsPolyArea(poly) < SBS_AREA_EPS) continue;
+    const A = [a[0] + ux * t0, a[1] + uy * t0], B = [a[0] + ux * t1, a[1] + uy * t1];
+    const prof = _sbsProfileAlong(other, A, B);
+    let covered = 0;
+    for (const pc of prof.elems) {
+      covered += pc.t1 - pc.t0;
+      const pa = t0 + pc.t0, pb = t0 + pc.t1;
+      let sub = _sbsClipByValue(poly, p => p[0] - pa);
+      sub = _sbsClipByValue(sub, p => pb - p[0]);
+      const sl = pb - pa > 1e-12 ? (pc.z1 - pc.z0) / (pb - pa) : 0;
+      const zo = t => pc.z0 + (t - pa) * sl;
+      sub = _sbsDedupe(_sbsClipByValue(sub, isTop ? (p => p[1] - zo(p[0])) : (p => zo(p[0]) - p[1])));
+      if (sub.length < 3 || _sbsPolyArea(sub) < SBS_AREA_EPS) continue;
+      out.push({
+        pts: sub.map(([t, z]) => [ox + a[0] + ux * t, oy + a[1] + uy * t, z]),
+        holes: [], kind: 'riser',
+      });
+      st.nRiser++;
+      st.riserArea += _sbsPolyArea(sub);
+    }
+    if (prof.len - covered > 1e-6) st.uncoveredSpans++;
+  }
+}
+
+/** ∫ d dA of a convex polygon where d = zT − zB is linear: a fan of triangles, each area × mean vertex d. */
+function _sbsPolyVolume(poly, T, B) {
+  const d = p => _sbsZAt(T, p[0], p[1]) - _sbsZAt(B, p[0], p[1]);
+  let vol = 0;
+  const d0 = d(poly[0]);
+  for (let i = 1; i + 1 < poly.length; i++) {
+    const tri = [poly[0], poly[i], poly[i + 1]];
+    vol += _sbsPolyArea(tri) * (d0 + d(poly[i]) + d(poly[i + 1])) / 3;
+  }
+  return vol;
+}
+
+/**
+ * _sbsBuildPart(part, top, bot, ox, oy, out, st) — the whole pipeline for ONE
+ * footprint part against the (already prepared) top and bottom surfaces:
+ *  1. Caps by OVERLAY: triangulate the footprint (convex pieces), then
+ *     footprint-triangle ∩ top-triangle ∩ bottom-triangle by convex clips —
+ *     each result lies in one plane of each surface, so the thickness there is
+ *     linear and the pinch line (d = 0) is one exact half-plane cut. The
+ *     surviving polygon is emitted twice: top cap lifted by the top triangle's
+ *     plane, bottom cap by the bottom triangle's (winding reversed). No face is
+ *     needed along the pinch line — the caps meet there at zero thickness.
+ *  2. Walls that follow each surface's profile along every ring edge.
+ *  3. Vertical risers of either surface, clipped to the footprint and to the
+ *     solid's side of the other surface.
+ * A hole in the footprint needs no special case: it is absent from the
+ * footprint triangulation, and its ring gets its own walls.
+ */
+function _sbsBuildPart(part, top, bot, ox, oy, out, st) {
+  const ext = part.exterior.map(([x, y]) => [x - ox, y - oy]);
+  const holes = part.holes.map(h => h.map(([x, y]) => [x - ox, y - oy]));
+  let fpArea = _sbsPolyArea(ext);
+  for (const h of holes) fpArea -= _sbsPolyArea(h);
+  st.footprintArea += fpArea; st.nHoles += holes.length; st.nParts++;
+
+  const F = [];
+  for (const t of _sbsTriangulate2D(ext, holes)) {
+    const s = _sbsRingSignedArea(t);
+    if (Math.abs(s) < SBS_AREA_EPS) continue;
+    F.push(s < 0 ? [t[0], t[2], t[1]] : t);
+  }
+
+  for (const f of F) {
+    const fb = _sbsPolyBBox(f);
+    for (const ti of top.grid.query(fb)) {
+      const T = top.flat[ti];
+      const P1 = _sbsClipConvex(f, T.p);
+      if (P1.length < 3) continue;
+      const a1 = _sbsPolyArea(P1);
+      if (a1 < SBS_AREA_EPS) continue;
+      st.coverTop += a1;
+      for (const bi of bot.grid.query(_sbsPolyBBox(P1))) {
+        const B = bot.flat[bi];
+        let P2 = _sbsClipConvex(P1, B.p);
+        if (P2.length < 3) continue;
+        P2 = _sbsDedupe(_sbsClipByValue(P2, p => _sbsZAt(T, p[0], p[1]) - _sbsZAt(B, p[0], p[1])));
+        if (P2.length < 3) continue;
+        const a2 = _sbsPolyArea(P2);
+        if (a2 < SBS_AREA_EPS) continue;
+        let dmax = -Infinity;
+        for (const p of P2) dmax = Math.max(dmax, _sbsZAt(T, p[0], p[1]) - _sbsZAt(B, p[0], p[1]));
+        if (dmax < SBS_D_EPS) continue;   // coincident surfaces — no solid here
+        out.push({ pts: P2.map(p => [p[0] + ox, p[1] + oy, _sbsZAt(T, p[0], p[1])]), holes: [], kind: 'top' });
+        out.push({ pts: P2.map(p => [p[0] + ox, p[1] + oy, _sbsZAt(B, p[0], p[1])]).reverse(), holes: [], kind: 'bottom' });
+        st.nCapTop++; st.nCapBot++;
+        st.solidArea += a2;
+        st.volume += _sbsPolyVolume(P2, T, B);
+      }
+    }
+    for (const bi of bot.grid.query(fb)) {
+      const P1 = _sbsClipConvex(f, bot.flat[bi].p);
+      if (P1.length >= 3) st.coverBot += _sbsPolyArea(P1);
+    }
+  }
+
+  for (const ring of [ext, ...holes]) {
+    for (let i = 0; i < ring.length; i++) _sbsWallForEdge(ring[i], ring[(i + 1) % ring.length], top, bot, ox, oy, out, st);
+  }
+  const fpBox = _sbsRingBBox(ext);
+  for (const vt of top.vertical) {
+    if (_sbsBBoxOverlap(_sbsRingBBox(vt), fpBox)) _sbsRiserPatches(vt, true, bot, ext, holes, ox, oy, out, st);
+  }
+  for (const vt of bot.vertical) {
+    if (_sbsBBoxOverlap(_sbsRingBBox(vt), fpBox)) _sbsRiserPatches(vt, false, top, ext, holes, ox, oy, out, st);
+  }
+}
+
+/**
+ * _sbsMergeMeta(metas) — folds several solids' meta (a multi-part footprint's
+ * bodies are already summed inside _sbsGeometry; this is for CompositeSolid/
+ * MultiSolid members) into one: counts/areas/volume add, coverages take the
+ * worst, invalid/pinchedOut re-derive from the sums.
+ */
+function _sbsMergeMeta(metas) {
+  const sum = k => metas.reduce((n, m) => n + (m[k] || 0), 0);
+  const footprintArea = sum('footprintArea'), solidArea = sum('solidArea');
+  const zr = k => metas.reduce((r, m) => [Math.min(r[0], m[k][0]), Math.max(r[1], m[k][1])], [Infinity, -Infinity]);
+  return {
+    mode: 'overlay',
+    nWallPanels: sum('nWallPanels'), nRiserFaces: sum('nRiserFaces'),
+    nCapTrisTop: sum('nCapTrisTop'), nCapTrisBottom: sum('nCapTrisBottom'),
+    nTopTris: sum('nTopTris'), nBottomTris: sum('nBottomTris'),
+    nHoles: sum('nHoles'), nParts: sum('nParts'), nMembers: metas.length,
+    uncoveredSpans: sum('uncoveredSpans'),
+    capCoverageTop: Math.min(...metas.map(m => m.capCoverageTop)),
+    capCoverageBottom: Math.min(...metas.map(m => m.capCoverageBottom)),
+    footprintArea, solidArea, solidFraction: footprintArea > 0 ? solidArea / footprintArea : 0,
+    volume: sum('volume'), riserArea: sum('riserArea'),
+    zRangeTop: zr('zRangeTop'), zRangeBottom: zr('zRangeBottom'),
+    invalid: metas.some(m => m.invalid),
+    pinchedOut: solidArea <= 0,
+  };
+}
+
+/**
+ * _sbsGeometry(sbsEl) -> {ptPatches, upAxis:2, flipUp:true, meta} | null
+ * Orchestrator — see this section's banner for the overall design. Returns
+ * null only on a structural failure (missing part, a surface with no
+ * triangles) so callers fail by absence. A solid that PINCHES OUT ENTIRELY is
+ * not a failure: it returns an empty `ptPatches` with meta.pinchedOut, so the
+ * info line can say so.
+ *
+ * Every coordinate is re-centred on the footprint's first vertex before any
+ * clip and restored on emission: absolute UTM-scale values (~5e5, 3e6) would
+ * otherwise cost the tolerances above ~10 digits.
+ */
+function _sbsGeometry(sbsEl) {
+  const parts = _sbsResolveParts(sbsEl);
+  if (!parts) return null;
+  const fps = _sbsFootprintParts(parts.footprintEl);
+  if (!fps.length) return null;
+  const topTris = _sbsSurfaceToTriangles(parts.topEl, new Set(), 0);
+  const botTris = _sbsSurfaceToTriangles(parts.bottomEl, new Set(), 0);
+  if (!topTris.length || !botTris.length) return null;
+
+  const ox = fps[0].exterior[0][0], oy = fps[0].exterior[0][1];
+  const top = _sbsPrepSurface(topTris, ox, oy), bot = _sbsPrepSurface(botTris, ox, oy);
+  if (!top.flat.length || !bot.flat.length) return null;
+
+  const st = {
+    footprintArea: 0, nHoles: 0, nParts: 0, nWall: 0, nRiser: 0, riserArea: 0,
+    nCapTop: 0, nCapBot: 0, solidArea: 0, volume: 0, coverTop: 0, coverBot: 0, uncoveredSpans: 0,
+  };
+  const ptPatches = [];
+  for (const part of fps) _sbsBuildPart(part, top, bot, ox, oy, ptPatches, st);
+
+  const fa = st.footprintArea;
+  const capCoverageTop = fa > 1e-9 ? Math.min(1, st.coverTop / fa) : 1;
+  const capCoverageBottom = fa > 1e-9 ? Math.min(1, st.coverBot / fa) : 1;
+  const meta = {
+    mode: 'overlay',
+    nWallPanels: st.nWall, nRiserFaces: st.nRiser,
+    nCapTrisTop: st.nCapTop, nCapTrisBottom: st.nCapBot,
+    nTopTris: topTris.length, nBottomTris: botTris.length,
+    nHoles: st.nHoles, nParts: st.nParts, nMembers: 1,
+    uncoveredSpans: st.uncoveredSpans,
+    capCoverageTop, capCoverageBottom,
+    footprintArea: fa, solidArea: st.solidArea, solidFraction: fa > 1e-9 ? st.solidArea / fa : 0,
+    volume: st.volume, riserArea: st.riserArea,
+    zRangeTop: top.zRange, zRangeBottom: bot.zRange,
+    // Rule 3 (coverage is a MUST): a surface covering less of the footprint
+    // than that is an INVALID instance — flagged, never extrapolated to look right.
+    invalid: capCoverageTop < SBS_COVER_MIN || capCoverageBottom < SBS_COVER_MIN || st.uncoveredSpans > 0,
+    pinchedOut: st.solidArea <= 0,
+  };
+  return { ptPatches, upAxis: 2, flipUp: true, meta };
+}
+
+// ══════════════════════════════════════════════════════════════
+//  CompositeSolid / MultiSolid (2026-09-20) — see snippets and plan docs/
+//  MultiSolid_CompositeSolid_render_handoff_2026-09-18.md.
+//    CompositeSolid  IS-A AbstractVolume, so it is legal in featureExtent
+//                    (SBS-9): one body tiled by member volumes.
+//    MultiSolid      is NOT a volume (AbstractGeometricAggregate); it is
+//                    reached only through GeoUnitObservation/location — see
+//                    DIGGS_GEOUNITS and open3DGeoUnitView. Members may be
+//                    disjoint or overlap, and are NEVER unioned: each renders
+//                    independently under its own colour (an overlapped region
+//                    rendered as one opaque colour would z-fight).
+// ══════════════════════════════════════════════════════════════
+
+/**
+ * _volumeLeafGeometries(volEl, seen, depth) -> [{ptPatches, meta|null}, ...]
+ * One entry per leaf volume reachable from `volEl` (an already-resolved
+ * element substitutable for diggs:AbstractVolume). A CompositeSolid recurses
+ * into its own solidMember/solidMembers (direct children only, `seen`-deduped,
+ * depth-capped — the same shape as _sbsSurfaceToTriangles's CompositeSurface
+ * branch). `Solid` goes through the older shell-patch path, which carries no
+ * meta. A MultiSolid is deliberately not recursed into here (see banner).
+ */
+function _volumeLeafGeometries(volEl, seen, depth) {
+  if (!volEl || depth > 6 || seen.has(volEl)) return [];
+  seen.add(volEl);
+  const kind = volEl.localName;
+  if (kind === 'SurfaceBoundedSolid') {
+    const g = _sbsGeometry(volEl);
+    return g ? [g] : [];
+  }
+  if (kind === 'Solid') {
+    // Shell does not substitute diggs:AbstractSurface, so _sbsSurfaceToTriangles
+    // cannot see it — same exterior -> Shell -> flat patch walk as
+    // extractFeatureGeometry3D's own Solid branch.
+    const doc = volEl.ownerDocument;
+    const extWrapEl = xFirst(doc, 'diggs:exterior', volEl);
+    const shellEl = extWrapEl ? resolveXlinkEl(extWrapEl) : null;
+    if (!shellEl) return [];
+    const ptPatches = collectFeatureExtentRawPatches(shellEl, '', '2').map(p => ({
+      pts: _toRealMeterPts(_tokensToCoords(p.tokens, p.dim), p.srsName),
+      holes: (p.holes || []).map(h => _toRealMeterPts(_tokensToCoords(h.tokens, h.dim), h.srsName)),
+    })).filter(pp => pp.pts.length >= 3);
+    return ptPatches.length ? [{ ptPatches, meta: null }] : [];
+  }
+  if (kind === 'CompositeSolid') {
+    const gs = [];
+    for (const child of [...volEl.childNodes]) {
+      if (child.nodeType !== 1) continue;
+      if (child.localName !== 'solidMember' && child.localName !== 'solidMembers') continue;
+      for (const memberEl of resolveXlinkChildren(child)) gs.push(..._volumeLeafGeometries(memberEl, seen, depth + 1));
+    }
+    return gs;
+  }
+  return [];
+}
+
+/** First srsName anywhere at or under `el` — a CompositeSolid/MultiSolid carries none of its own; its members' surfaces do. */
+function _firstSrsNameIn(el) {
+  if (!el) return '';
+  if (el.getAttribute && el.getAttribute('srsName')) return el.getAttribute('srsName');
+  for (const d of el.getElementsByTagName('*')) {
+    const s = d.getAttribute('srsName');
+    if (s) return s;
+  }
+  return '';
+}
+
+/** Concatenates leaf geometries into one {ptPatches, meta, srsName}; `memberIndex` (when given) tags every patch for per-member colouring. */
+function _mergeVolumeGeometries(gs, srsName, memberIndex) {
+  const metas = gs.map(g => g.meta).filter(Boolean);
+  const ptPatches = [];
+  for (const g of gs) for (const p of g.ptPatches) ptPatches.push(memberIndex == null ? p : { ...p, memberIndex });
+  return { ptPatches, upAxis: 2, flipUp: true, srsName: srsName || '', meta: metas.length ? _sbsMergeMeta(metas) : null };
+}
+
+/**
+ * _volumeGeometry(volEl) -> {ptPatches, upAxis, flipUp, meta, srsName} | null
+ * Top-level entry for a CompositeSolid held in featureExtent (and any other
+ * AbstractVolume held directly in a location). null when nothing resolves.
+ */
+function _volumeGeometry(volEl) {
+  const gs = _volumeLeafGeometries(volEl, new Set(), 0);
+  return gs.length ? _mergeVolumeGeometries(gs, _firstSrsNameIn(volEl)) : null;
+}
+
+/**
+ * _locationVolumeGeometry(locEl) -> geometry | null
+ * `locEl` is a GeoUnitObservation's diggs:location wrapper. A MultiSolid's
+ * members are independent bodies: each gets a FRESH `seen` set (sharing one
+ * would silently drop a member that xlink:hrefs the same object a sibling
+ * also references) and its own `memberIndex`. Any other volume held directly
+ * in location is delegated to _volumeGeometry.
+ */
+function _locationVolumeGeometry(locEl) {
+  const target = locEl ? resolveXlinkEl(locEl) : null;
+  if (!target) return null;
+  if (target.localName !== 'MultiSolid') return _volumeGeometry(target);
+  const perMember = [];
+  for (const child of [...target.childNodes]) {
+    if (child.nodeType !== 1) continue;
+    if (child.localName !== 'solidMember' && child.localName !== 'solidMembers') continue;
+    for (const memberEl of resolveXlinkChildren(child)) {
+      const gs = _volumeLeafGeometries(memberEl, new Set(), 0);
+      if (gs.length) perMember.push(_mergeVolumeGeometries(gs, _firstSrsNameIn(memberEl), perMember.length));
+    }
+  }
+  if (!perMember.length) return null;
+  const all = _mergeVolumeGeometries(perMember, _firstSrsNameIn(target));
+  all.ptPatches = perMember.flatMap(g => g.ptPatches);   // keep each member's own memberIndex tag
+  all.nMembers = perMember.length;
+  return all;
+}
+
+const GEOUNIT_VOLUME_KINDS = new Set(['MultiSolid', 'CompositeSolid', 'Solid', 'SurfaceBoundedSolid']);
+
+/** _geoUnitShapeLabel(locEl) — the Shape row's value for a GeoUnitObservation's location body, or '' when there is none. */
+function _geoUnitShapeLabel(locEl) {
+  const target = locEl ? resolveXlinkEl(locEl) : null;
+  if (!target) return '';
+  switch (target.localName) {
+    case 'MultiSolid': {
+      let n = 0;
+      for (const child of [...target.childNodes]) {
+        if (child.nodeType === 1 && (child.localName === 'solidMember' || child.localName === 'solidMembers')) n += resolveXlinkChildren(child).length;
+      }
+      return `Multi-body (${n} member${n !== 1 ? 's' : ''})`;
+    }
+    case 'CompositeSolid': return 'Composite (multi-cell)';
+    case 'SurfaceBoundedSolid': {
+      const parts = _sbsResolveParts(target);
+      if (!parts) return '';
+      return (_sbsIsCurvedSurface(parts.topEl) || _sbsIsCurvedSurface(parts.bottomEl))
+        ? 'Vertical-sided (curved top/bottom)' : 'Vertical-sided (planar top/bottom)';
+    }
+    case 'Solid': return 'Solid';
+    default: return '';
+  }
+}
+
+/** renderGeoUnitBadgeContent(units) — one collapsible block per GeoUnitObservation, via OBJECT_CONFIGS.GeoUnitObservation. */
+function renderGeoUnitBadgeContent(units) {
+  let html = '';
+  for (const u of units) {
+    const body = renderKVObject(u.el, OBJECT_CONFIGS.GeoUnitObservation);
+    html += wrapCategoryHeader(esc(u.name || u.id), body, true);
+  }
+  return html || '<div style="color:var(--text-muted);font-size:12px;padding:8px">No geotechnical unit data.</div>';
+}
+
+/** open3DGeoUnitView(obsId) — "View 3D" pill target for a GeoUnitObservation's location body. */
+function open3DGeoUnitView(obsId) {
+  let unit = null;
+  for (const arr of Object.values(DIGGS_GEOUNITS)) {
+    unit = arr.find(u => u.id === obsId);
+    if (unit) break;
+  }
+  if (!unit) return;
+  const geometry = _locationVolumeGeometry(unit.locEl);
+  if (!geometry) return;
+  _showFeatureGeometry3D(geometry, unit.name || unit.id, obsId);
+}
+
 /**
  * _volumeSFShape(el) — VolumetricSamplingFeature's own "Shape" row
  * (Prism/Polyhedra/Curved), read off featureExtent's actual Solid geometry
@@ -17980,6 +19128,31 @@ function _volumeSFShape(el) {
   if (!feExtEl) return null;
   const solidEl = resolveXlinkEl(feExtEl);
   if (!solidEl) return null;
+
+  // SurfaceBoundedSolid has no diggs:exterior/Shell at all (§2 of the
+  // handoff doc) -- the lookup just below cannot apply to it, so it's
+  // classified here, before that lookup ever runs.
+  if (solidEl.localName === 'SurfaceBoundedSolid') {
+    const parts = _sbsResolveParts(solidEl);
+    if (!parts) return { shapeLabel: '', srsName: '' };
+    const curved = _sbsIsCurvedSurface(parts.topEl) || _sbsIsCurvedSurface(parts.bottomEl);
+    const anc = _ancestorSrsInfo(parts.footprintEl, solidEl);
+    return {
+      shapeLabel: curved ? 'Vertical-sided (curved top/bottom)' : 'Vertical-sided (planar top/bottom)',
+      srsName: anc.srsName || '',
+    };
+  }
+
+  // CompositeSolid (legal in featureExtent) likewise has no exterior/Shell —
+  // its members are solidMember/solidMembers wrappers. Labelled only when its
+  // geometry actually resolves, so the Shape row and the "View 3D" pill can
+  // never disagree.
+  if (solidEl.localName === 'CompositeSolid') {
+    const geom = _volumeGeometry(solidEl);
+    if (!geom) return { shapeLabel: '', srsName: '' };
+    return { shapeLabel: 'Composite (multi-cell)', srsName: geom.srsName || '' };
+  }
+
   const extWrapEl = xFirst(doc, 'diggs:exterior', solidEl);
   const shellEl = extWrapEl ? resolveXlinkEl(extWrapEl) : null;
   if (!shellEl) return { shapeLabel: '', srsName: '' };
@@ -18059,6 +19232,12 @@ function extractFeatureGeometry3D(sf) {
 
   let rootEl = feExtEl;
   const target = resolveXlinkEl(feExtEl);
+  if (target && target.localName === 'SurfaceBoundedSolid') {
+    return _sbsGeometry(target);
+  }
+  if (target && target.localName === 'CompositeSolid') {
+    return _volumeGeometry(target);
+  }
   if (target && target.localName === 'Solid') {
     const extWrapEl = xFirst(doc, 'diggs:exterior', target);
     const shellEl = extWrapEl ? resolveXlinkEl(extWrapEl) : null;
@@ -21164,6 +22343,18 @@ function buildAssocBadges(sf) {
     });
   }
 
+  // ── Geotechnical Units (GeoUnitObservation/location 3D bodies) ─
+  const geoUnits = DIGGS_GEOUNITS[sfId] || [];
+  if (geoUnits.length) {
+    badges.push({
+      id: `assoc-geounit-${sfId.replace(/[^a-zA-Z0-9]/g,'_')}`,
+      label: 'Geotechnical Units',
+      count: `${geoUnits.length} unit${geoUnits.length !== 1 ? 's' : ''}`,
+      contentFn: () => renderGeoUnitBadgeContent(geoUnits),
+      category: 'observations',
+    });
+  }
+
   // ── Samples (SamplingActivity + Sample, joined) ───────────
   const samplingRows = DIGGS_SAMPLES[sfId] ? _buildSamplingActivityRows(sfId) : [];
   if (samplingRows.length) {
@@ -22776,9 +23967,42 @@ function open3DFeatureView(sfId) {
   if (!sf) return;
   const geometry = extractFeatureGeometry3D(sf);
   if (!geometry) return;
+  _showFeatureGeometry3D(geometry, sf.name || sf.id, sfId);
+}
 
-  const hostId = `feat3d-${sfId.replace(/[^a-zA-Z0-9]/g, '_')}`;
-  const infoHtml = `<span>Faces: <strong>${geometry.ptPatches.length}</strong></span>`;
+/**
+ * _featureGeometryInfoHtml(geometry) — the 3D viewer's info strip. Plain
+ * geometries show a face count; a SurfaceBoundedSolid (or a Composite/
+ * MultiSolid built from them) carries `meta` and reports its construction —
+ * including whether it pinches out (and how much survives) and whether its
+ * bounding surfaces fail to cover the footprint (an invalid instance, which is
+ * flagged, never repaired).
+ */
+function _featureGeometryInfoHtml(geometry) {
+  const m = geometry.meta;
+  if (!m) return `<span>Faces: <strong>${geometry.ptPatches.length}</strong></span>`;
+  const warn = t => ` · <span style="color:#f0883e">⚠ ${t}</span>`;
+  const members = geometry.nMembers || m.nMembers || 1;
+  let html = `<span>Walls: <strong>${m.nWallPanels}</strong></span>`;
+  if (m.nRiserFaces) html += ` · <span>Step faces: <strong>${m.nRiserFaces}</strong></span>`;
+  html += ` · <span>Cap faces: <strong>${m.nCapTrisTop}/${m.nCapTrisBottom}</strong></span>`;
+  if (members > 1) html += ` · <span>Members: <strong>${members}</strong></span>`;
+  else if (m.nParts > 1) html += ` · <span>Bodies: <strong>${m.nParts}</strong></span>`;
+  if (m.pinchedOut) {
+    html += warn('solid pinches out entirely — nothing to render');
+  } else if (m.footprintArea > 0 && m.solidFraction < 0.9999) {
+    html += ` · <span>Solid over <strong>${(m.solidFraction * 100).toFixed(1)}%</strong> of footprint (pinch-out)</span>`;
+  }
+  if (m.invalid) html += warn('bounding surface does not cover the footprint — invalid instance');
+  return html;
+}
+
+// ── _showFeatureGeometry3D: shared by open3DFeatureView (a sampling feature's
+// featureExtent) and open3DGeoUnitView (a GeoUnitObservation's location) —
+// everything after "which geometry, and what to call it" is identical.
+function _showFeatureGeometry3D(geometry, title, idKey) {
+  const hostId = `feat3d-${String(idKey).replace(/[^a-zA-Z0-9]/g, '_')}`;
+  const infoHtml = _featureGeometryInfoHtml(geometry);
 
   // Reuses the exact same toolbar/host markup (and the shared
   // setTrajectoryView/toggleTrajectoryProjection handlers below) as
@@ -22787,9 +24011,14 @@ function open3DFeatureView(sfId) {
   // render,projectionMode} shape, which init3DFeatureViewer populates the
   // same way init3DTrajectoryViewer does, so nothing toolbar-related needs
   // its own copy for this viewer kind. The trailing "Solid" opacity toggle
-  // (2026-08-07, per explicit user request) is unique to this viewer — a
-  // trajectory tube/line has no fill to make opaque, so it's not part of
-  // open3DTrajectoryView's own toolbar.
+  // (2026-08-07), "Shadow Light" toggle (2026-09-18 — the default
+  // "headlight" that always shines from the camera's own position reads as
+  // flat, with no raking-light gradient to reveal surface relief), and the
+  // V.E. (vertical exaggeration) number field (2026-09-18) are all unique
+  // to this viewer — a trajectory tube/line has no fill for the first two
+  // to act on, and its own vertical axis is already meaningful depth/
+  // elevation a user would not want silently rescaled, so none of the three
+  // is part of open3DTrajectoryView's own toolbar.
   const html = `
     <div class="trajectory-widget">
       <div class="trajectory-toolbar">
@@ -22800,14 +24029,20 @@ function open3DFeatureView(sfId) {
         <span class="trajectory-toolbar-sep"></span>
         <button id="traj-projection-toggle" onclick="toggleTrajectoryProjection()">Isometric</button>
         <span class="trajectory-toolbar-sep"></span>
-        <button id="feat-opacity-toggle" onclick="toggleFeatureOpacity()">Solid</button>
+        <button id="feat-opacity-toggle" class="active" onclick="toggleFeatureOpacity()">Translucent</button>
+        <button id="feat-lighting-toggle" onclick="toggleFeatureLighting()">Shadow Light</button>
+        <span class="trajectory-toolbar-sep"></span>
+        <label class="vexag-control">V.E.
+          <input id="feat-vexag-input" type="number" min="0.01" step="0.5" value="1"
+            oninput="setFeatureVerticalExaggeration(this)" onchange="normalizeFeatureVerticalExaggerationInput(this)">
+        </label>
       </div>
       <div id="${hostId}" class="trajectory-canvas-host"></div>
       <div class="trajectory-info-strip">${infoHtml}</div>
     </div>
   `;
 
-  showAssoc('3D View — ' + (sf.name || sf.id), html);
+  showAssoc('3D View — ' + title, html);
   const hdrEl = document.getElementById('assoc-header');
   if (hdrEl) hdrEl.style.color = 'var(--accent)';
 
@@ -22833,6 +24068,8 @@ function open3DFeatureView(sfId) {
 // tell you which way is north/up the way a labeled path does. Also gets an
 // opacity toggle (toggleFeatureOpacity) the trajectory viewer has no
 // equivalent for, since a tube/line has no fill to make opaque.
+const FEATURE_MEMBER_COLORS = [0x3B82F6, 0xF59E0B, 0x10B981, 0xEF4444, 0x8B5CF6, 0xEC4899];   // blue, amber, green, red, violet, pink
+
 function init3DFeatureViewer(host, geometry) {
   disposeTrajectoryViewer();
 
@@ -22844,7 +24081,11 @@ function init3DFeatureViewer(host, geometry) {
   // world absolute meters are far too large for a 32-bit vertex buffer to
   // resolve to sub-meter precision).
   const axes = { upAxis: geometry.upAxis, flipUp: geometry.flipUp };
-  const originPt = _gridVecFromLocal(geometry.ptPatches[0].pts[0], axes).clone();
+  // A solid that pinches out entirely has no patches at all (see _sbsGeometry) —
+  // still shows an empty-but-valid scene with its explanatory info line.
+  const originPt = geometry.ptPatches.length
+    ? _gridVecFromLocal(geometry.ptPatches[0].pts[0], axes).clone()
+    : new THREE.Vector3();
   const toVec3 = p => _gridVecFromLocal(p, axes).sub(originPt);
 
   const scene = new THREE.Scene();
@@ -22857,11 +24098,28 @@ function init3DFeatureViewer(host, geometry) {
   const renderer = new THREE.WebGLRenderer({ antialias: true });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
   renderer.setSize(width, height);
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;   // only matters once shadowMap.enabled is turned on -- see toggleFeatureLighting
   host.insertBefore(renderer.domElement, host.firstChild);
 
-  scene.add(new THREE.AmbientLight(0xffffff, 0.7));
+  // ambientLight/dirLight intensities and dirLight's own position/shadow
+  // config are both mode-dependent -- see applyLightingMode below (defined
+  // once center/diag are known, after the patch loop). Values here are
+  // 'headlight' mode's own defaults, unchanged from before that toggle
+  // existed.
+  const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
+  scene.add(ambientLight);
   const dirLight = new THREE.DirectionalLight(0xffffff, 0.55);
   scene.add(dirLight);
+  scene.add(dirLight.target);
+
+  // Every patch mesh/edge is parented here (not directly under `scene`) so
+  // vertical exaggeration (applyVerticalExaggeration below) can be a single
+  // non-uniform scale on this one group instead of rewriting every buffer —
+  // Three.js's own per-object normal matrix (inverse-transpose of the FULL
+  // world matrix, ancestor transforms included) keeps lighting correct
+  // under a non-uniform ancestor scale with no extra work needed here.
+  const vGroup = new THREE.Group();
+  scene.add(vGroup);
 
   // ── One translucent mesh + one edge outline per patch. Each patch's own
   // ring is triangulated in ITS OWN plane via THREE.Shape/ShapeGeometry
@@ -22875,6 +24133,13 @@ function init3DFeatureViewer(host, geometry) {
   // LineLoop materials), tracked separately so toggleFeatureOpacity can
   // target only the faces.
   const faceMats = [];
+  // Opacity toggle state (toggleFeatureOpacity) — starts SOLID (opaque, per
+  // explicit user request) so a shape reads correctly on first open without
+  // an extra click; "Translucent" switches to opacity:0.55 instead, e.g. to
+  // see a multi-patch solid's far side. Declared here (not after the patch
+  // loop, where it used to live) so the loop's own material construction
+  // below can read it for the initial value.
+  let isSolid = true;
   for (const patch of geometry.ptPatches) {
     let scenePts = patch.pts.map(toVec3);
     // Drop a duplicate closing vertex (GML LinearRing convention: first ===
@@ -22917,18 +24182,32 @@ function init3DFeatureViewer(host, geometry) {
     const basis = new THREE.Matrix4().makeBasis(uAxis, vAxis, normal).setPosition(origin);
     shapeGeom.applyMatrix4(basis);
 
+    // A MultiSolid's members are separate bodies (never unioned) — each gets
+    // its own hue so two disjoint or overlapping members read as two objects
+    // rather than one blue blob. Every other geometry keeps the one blue.
+    const memberHex = patch.memberIndex != null
+      ? FEATURE_MEMBER_COLORS[patch.memberIndex % FEATURE_MEMBER_COLORS.length] : 0x3B82F6;
     const mat = new THREE.MeshStandardMaterial({
-      color: 0x3B82F6, roughness: 0.85, metalness: 0,
-      side: THREE.DoubleSide, transparent: true, opacity: 0.55,
+      color: memberHex, roughness: 0.85, metalness: 0,
+      side: THREE.DoubleSide, transparent: !isSolid, opacity: isSolid ? 1 : 0.55,
     });
     const mesh = new THREE.Mesh(shapeGeom, mat);
-    scene.add(mesh);
+    // Both flags on every patch -- in "shadow" lighting mode (see
+    // toggleFeatureLighting) a solid's own top cap needs to shadow its own
+    // lower-lying parts (and the reverse) to show relief at all; harmless
+    // no-op cost while dirLight.castShadow/renderer.shadowMap.enabled are
+    // both false, i.e. the default "headlight" mode.
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    vGroup.add(mesh);
     faceMats.push(mat);
 
     const edgeGeom = new THREE.BufferGeometry().setFromPoints([...scenePts, scenePts[0]]);
-    const edgeMat = new THREE.LineBasicMaterial({ color: 0x58a6ff });
+    const edgeMat = new THREE.LineBasicMaterial({
+      color: patch.memberIndex != null ? new THREE.Color(memberHex).lerp(new THREE.Color(0xffffff), 0.45) : 0x58a6ff,
+    });
     const edgeLine = new THREE.LineLoop(edgeGeom, edgeMat);
-    scene.add(edgeLine);
+    vGroup.add(edgeLine);
 
     meshResources.push({ geom: shapeGeom, mat }, { geom: edgeGeom, mat: edgeMat });
     allVerts.push(...scenePts);
@@ -22950,6 +24229,77 @@ function init3DFeatureViewer(host, geometry) {
   grid.material.transparent = true;
   scene.add(grid);
 
+  // ── Vertical exaggeration (V.E. toolbar field, default 1 = true scale) ──
+  // A single non-uniform scale on vGroup (see its own comment above) rather
+  // than rewriting any geometry buffer. Applied around center.y (not the
+  // arbitrary re-centering origin _toRealMeterPts/originPt use for float
+  // precision) so the model grows/shrinks symmetrically about its own
+  // middle instead of shooting off from one corner as V.E. changes.
+  let vExag = 1;
+  function _effectiveDiag() {
+    // Real bounding diagonal AFTER exaggeration -- only Y (real-world up)
+    // stretches; used to keep the shadow frustum (below) sized to the
+    // CURRENT height rather than clipping a tall exaggerated model.
+    return Math.max(diag, Math.hypot(size.x, size.y * vExag, size.z));
+  }
+  function applyVerticalExaggeration(factor) {
+    vExag = (isFinite(factor) && factor > 0) ? Math.min(1000, Math.max(0.01, factor)) : 1;
+    vGroup.scale.y = vExag;
+    vGroup.position.y = center.y * (1 - vExag);
+    // Grid marks the model's own lowest point -- keep it glued to the
+    // bottom of the NOW-exaggerated model, not the unexaggerated one, so it
+    // never floats above or sinks below the solid as V.E. changes.
+    grid.position.y = center.y + (box.min.y - center.y) * vExag;
+    if (lightingMode === 'shadow') applyLightingMode('shadow');   // re-size the shadow frustum for the new height
+    render();
+  }
+
+  // ── Lighting mode: 'headlight' (default, unchanged) vs. 'shadow' ───────
+  // 'headlight' keeps dirLight glued to the camera every frame (see
+  // render() below) -- deliberately shadow-free so orbiting never darkens
+  // whatever face you're looking at, but for exactly that reason a bump or
+  // pit reads as flat: the light is always nearly head-on to every visible
+  // face. 'shadow' instead fixes dirLight at a raking angle in WORLD space
+  // (independent of camera orbit -- a classic NW-at-~40°-elevation
+  // "hillshade" convention) and turns on real shadow mapping, so relief
+  // shows up two ways: the Lambertian N·L shading gradient across a sloped
+  // face (the dominant cue, present even before any shadow is cast), plus
+  // actual self-shadowing where one part of the solid occludes another
+  // (e.g. a TIN cap's own bump shadowing the ground next to it).
+  let lightingMode = 'headlight';
+  function applyLightingMode(mode) {
+    lightingMode = mode;
+    if (mode === 'shadow') {
+      ambientLight.intensity = 0.35;
+      dirLight.intensity = 0.9;
+      dirLight.castShadow = true;
+      renderer.shadowMap.enabled = true;
+      // eDiag (not the static `diag`) so the frustum still fully covers the
+      // model at whatever V.E. is currently applied -- called again from
+      // applyVerticalExaggeration whenever that changes while shadows are on.
+      const eDiag = _effectiveDiag();
+      const dir = new THREE.Vector3(-1, 1.6, -0.6).normalize();
+      dirLight.position.copy(center).addScaledVector(dir, eDiag * 1.5);
+      dirLight.target.position.copy(center);
+      dirLight.target.updateMatrixWorld();
+      dirLight.shadow.camera.left = -eDiag; dirLight.shadow.camera.right = eDiag;
+      dirLight.shadow.camera.top = eDiag; dirLight.shadow.camera.bottom = -eDiag;
+      dirLight.shadow.camera.near = eDiag * 0.01; dirLight.shadow.camera.far = eDiag * 4;
+      dirLight.shadow.mapSize.set(1024, 1024);
+      dirLight.shadow.bias = -0.0015;
+      dirLight.shadow.normalBias = eDiag * 0.002;
+      dirLight.shadow.camera.updateProjectionMatrix();
+    } else {
+      ambientLight.intensity = 0.7;
+      dirLight.intensity = 0.55;
+      dirLight.castShadow = false;
+      renderer.shadowMap.enabled = false;
+      // dirLight.position is re-driven every frame by render()'s own
+      // camera-follow line below while in this mode -- nothing to set here.
+    }
+    render();
+  }
+
   const controls = new THREE.OrbitControls(camera, renderer.domElement);
   controls.target.copy(center);
   controls.enableDamping = false;
@@ -22961,7 +24311,11 @@ function init3DFeatureViewer(host, geometry) {
 
   function render() {
     camera.updateMatrixWorld();
-    dirLight.position.copy(camera.position);
+    // Only in 'headlight' mode -- 'shadow' mode fixes dirLight's position
+    // itself (applyLightingMode above), and re-driving it from the camera
+    // here every frame would defeat the whole point of a world-fixed raking
+    // light (and thrash the shadow map for no reason).
+    if (lightingMode === 'headlight') dirLight.position.copy(camera.position);
     let activeCamera = camera;
     if (projectionMode === 'ortho') {
       const dist = camera.position.distanceTo(controls.target);
@@ -23004,17 +24358,17 @@ function init3DFeatureViewer(host, geometry) {
   });
   resizeObserver.observe(host);
 
-  // Opacity toggle state (toggleFeatureOpacity) — starts translucent
-  // (matches every face material's own construction above, opacity:0.55)
-  // so a multi-patch solid/surface doesn't hide its own far side by
-  // default; "Solid" makes every face fully opaque instead, e.g. to check
-  // a shape reads correctly without seeing through it.
-  let isSolid = false;
+  // isSolid itself is declared above (before the patch loop, which reads its
+  // initial value) — this closure just exposes/mutates that same binding.
 
   _activeTrajectoryViewer = {
     camera, controls, center, diag, render,
     get projectionMode() { return projectionMode; },
     setProjectionMode(mode) { projectionMode = mode; render(); },
+    get lightingMode() { return lightingMode; },
+    setLightingMode: applyLightingMode,
+    get verticalExaggeration() { return vExag; },
+    setVerticalExaggeration: applyVerticalExaggeration,
     get isSolid() { return isSolid; },
     setSolid(solid) {
       isSolid = solid;
@@ -23077,6 +24431,45 @@ function toggleFeatureOpacity() {
     btn.textContent = newSolid ? 'Translucent' : 'Solid';
     btn.classList.toggle('active', newSolid);
   }
+}
+
+// ── toggleFeatureLighting: 'headlight' <-> 'shadow', init3DFeatureViewer
+// only (2026-09-18, per explicit user request) — same setSolid-style
+// existence check as toggleFeatureOpacity above, since only a feature
+// viewer's own _activeTrajectoryViewer carries setLightingMode. Button
+// text stays static ("Shadow Light" describes what the button DOES, not
+// which mode is current) — the .active class is the state indicator, same
+// convention toggleTrajectoryProjection uses for its own Isometric button.
+function toggleFeatureLighting() {
+  const v = _activeTrajectoryViewer;
+  if (!v || typeof v.setLightingMode !== 'function') return;
+  const newMode = v.lightingMode === 'shadow' ? 'headlight' : 'shadow';
+  v.setLightingMode(newMode);
+  const btn = document.getElementById('feat-lighting-toggle');
+  if (btn) btn.classList.toggle('active', newMode === 'shadow');
+}
+
+// ── setFeatureVerticalExaggeration / normalizeFeatureVerticalExaggerationInput
+// V.E. toolbar field, init3DFeatureViewer only (2026-09-18, per explicit
+// user request) — same setVerticalExaggeration-existence guard as the two
+// toggles above. Fires on every keystroke (oninput) for live feedback;
+// invalid/incomplete input (empty, "-", "1.") is silently ignored rather
+// than fighting the user's typing -- only a parseable positive number is
+// ever applied. `onchange` (blur/Enter) then snaps the field's displayed
+// text to whatever value actually got applied (clamped to [0.01, 1000] by
+// applyVerticalExaggeration itself), so a clamped or invalid entry doesn't
+// leave the field showing a number that isn't the true current state.
+function setFeatureVerticalExaggeration(inputEl) {
+  const v = _activeTrajectoryViewer;
+  if (!v || typeof v.setVerticalExaggeration !== 'function') return;
+  const raw = parseFloat(inputEl.value);
+  if (!isFinite(raw) || raw <= 0) return;
+  v.setVerticalExaggeration(raw);
+}
+function normalizeFeatureVerticalExaggerationInput(inputEl) {
+  const v = _activeTrajectoryViewer;
+  if (!v || typeof v.setVerticalExaggeration !== 'function') return;
+  inputEl.value = String(v.verticalExaggeration);
 }
 
 // ── setTrajectoryView: toolbar preset buttons ───────────────
