@@ -22488,20 +22488,29 @@ function selectSF(type, id) {
   if (!entry || !mapInstance) return;
   const geom = SF_TYPE_CONFIG[type] ? SF_TYPE_CONFIG[type].mapGeom : 'point';
 
+  // A feature outside the currently active project filter has had its marker
+  // removed from the map by filterByProject() (mapInstance.removeLayer) — its
+  // vector layer's renderer never got (or lost) its DOM path, so setStyle/
+  // bringToFront/getBounds all throw on it. Skip the map highlight entirely
+  // in that case; the detail pane above still shows fine.
+  const _onMap = mapInstance.hasLayer(entry.mapObj);
+
   if (geom === 'line') {
-    const cfg = (SF_TYPE_CONFIG[type] && SF_TYPE_CONFIG[type].marker) || {};
-    entry.mapObj.setStyle({ color: MAP_SELECTED_COLOR, weight: (cfg.weight || 2) + 1, opacity: 1.0, dashArray: null });
-    entry.mapObj.bringToFront();
-    const b = entry.mapObj.getBounds();
-    if (b.isValid()) mapInstance.fitBounds(b, { padding: [40, 40], animate: true });
+    if (_onMap) {
+      const cfg = (SF_TYPE_CONFIG[type] && SF_TYPE_CONFIG[type].marker) || {};
+      entry.mapObj.setStyle({ color: MAP_SELECTED_COLOR, weight: (cfg.weight || 2) + 1, opacity: 1.0, dashArray: null });
+      entry.mapObj.bringToFront();
+      const b = entry.mapObj.getBounds();
+      if (b.isValid()) mapInstance.fitBounds(b, { padding: [40, 40], animate: true });
+    }
   } else if (geom === 'polygon') {
-    if (typeof entry.mapObj.setStyle === 'function') {
+    if (_onMap && typeof entry.mapObj.setStyle === 'function') {
       entry.mapObj.setStyle({ color: MAP_SELECTED_COLOR, weight: (entry.mapObj.options.weight || 2) + 1,
         opacity: 1.0, fillColor: MAP_SELECTED_COLOR, fillOpacity: 0.30 });
       entry.mapObj.bringToFront();
       const b = entry.mapObj.getBounds();
       if (b.isValid()) mapInstance.fitBounds(b, { padding: [40, 40], animate: true });
-    } else {
+    } else if (_onMap) {
       entry.mapObj.setIcon(makeSFIcon(type, true));
       mapInstance.panTo(entry.mapObj.getLatLng());
     }
