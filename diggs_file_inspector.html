@@ -5831,7 +5831,9 @@ let DIGGS_SAMPLE_OBSERVATIONS = {};
 //     │    ├─ GP_ArealSurvey          → polygon (featureExtent, projected to horizontal plane)
 //     │    └─ TrenchWall              → polygon (featureExtent, projected to horizontal plane)
 //     ├─ AbstractVolumeSamplingFeatureType (abstract) — has featureExtent (volume)
-//     │    └─ VolumetricSamplingFeature → point (Solid ring extraction not yet implemented)
+//     │    └─ VolumetricSamplingFeature → polygon (plan-view extent — exact
+//     │         footprint for SurfaceBoundedSolid, lat/lon bounding box for
+//     │         Solid/CompositeSolid; see _volumePolygonLatLngs)
 //     ├─ AbstractLinearInstallationType (abstract) — has samplingFeatureRef → parent
 //     │    ├─ Well
 //     │    └─ AbstractPileType (abstract)
@@ -5957,16 +5959,23 @@ const SF_TYPE_CONFIG = {
   },
 
   // ── Volumetric SF types (featureExtent volume geometry) ──────────────────
-  // mapGeom is 'point' — ring extraction for volume geometry (Solid) is not
-  // yet implemented (see "known flagged" notes); polygon rendering is only
-  // wired up for planar (surface) featureExtent types above.
+  // mapGeom is 'polygon' (2026-09-22 — was 'point'; see _volumePolygonLatLngs
+  // for how the plan-view extent is computed for each of the three
+  // featureExtent kinds a volume can hold). Same generic
+  // polygon-with-point-fallback gating every other polygon type gets from
+  // initMap() — an unresolvable CRS still falls back to a point marker via
+  // sf.lat/sf.lon, no per-type code needed here.
   VolumetricSamplingFeature: {
     tabLabel:  'Volumetric Features',
-    mapGeom:   'point',
+    mapGeom:   'polygon',
     depthPath: null,
     parentPath: null,
     date: null,
-    marker: { shape: 'circle',  color: '#95A5A6', border: '#ffffff', size: 11, opacity: 1.0 },
+    // polygon marker style: color = stroke, fillColor = fill. Kept the prior
+    // point marker's own neutral gray rather than picking a new hue — still
+    // clearly apart from MAP_SELECTED_COLOR ('#FF2D95') and from every
+    // sibling polygon type's own color (blue/purple/navy/orange/cyan).
+    marker: { color: '#95A5A6', weight: 2, opacity: 1.0, fillColor: '#95A5A6', fillOpacity: 0.3 },
   },
 
   // ── Installation types (child of another SF, no independent marker) ───────
@@ -15517,10 +15526,43 @@ OBJECT_CONFIGS.RITreatedArea = [
 
   { sectionHeader: 'Geometry' },
   {
+    // Calculated — see PlanarSamplingFeature's own "Orientation"/"Shape"
+    // rows for the full explanation; identical pattern, just looking up
+    // DIGGS_SF.get('RITreatedArea') instead.
+    label: 'Orientation',
+    compute: el => {
+      const info = _planarSFGeometryInfo(el);
+      return (info && info.orientation) || '';
+    },
+  },
+  {
+    label: 'Shape',
+    compute: el => {
+      const info = _planarSFGeometryInfo(el);
+      const shapeLabel = (info && info.shapeLabel) || '';
+      if (!shapeLabel) return '';
+      const id = el.getAttributeNS(NS.gml, 'id') || el.getAttribute('gml:id') || el.getAttribute('id') || '';
+      const sf = (DIGGS_SF.get('RITreatedArea') || []).find(s => s.id === id);
+      const geom3d = (sf && _featureExtentIs3D(el)) ? extractFeatureGeometry3D(sf) : null;
+      if (!geom3d) return shapeLabel;
+      return {
+        val: shapeLabel,
+        keyExtra: `<button class="pill-3d-view" onclick="open3DFeatureView('${esc(id)}')">View 3D</button>`,
+      };
+    },
+  },
+  {
     path: 'diggs:referencePoint/diggs:PointLocation/gml:description',
     label: 'Reference Point Description',
   },
   { path: 'diggs:localCoordinates', label: 'Local Coordinates' },
+  {
+    label: 'Local CRS',
+    compute: el => {
+      const info = _planarSFGeometryInfo(el);
+      return info ? _localCrsRowHtml(info.srsName) : null;
+    },
+  },
   ..._PLANAR_SF_GEOM_TRAILING,
 
   { sectionHeader: '' },
@@ -15625,10 +15667,43 @@ OBJECT_CONFIGS.LoadTransferPlatform = [
 
   { sectionHeader: 'Geometry' },
   {
+    // Calculated — see PlanarSamplingFeature's own "Orientation"/"Shape"
+    // rows for the full explanation; identical pattern, just looking up
+    // DIGGS_SF.get('LoadTransferPlatform') instead.
+    label: 'Orientation',
+    compute: el => {
+      const info = _planarSFGeometryInfo(el);
+      return (info && info.orientation) || '';
+    },
+  },
+  {
+    label: 'Shape',
+    compute: el => {
+      const info = _planarSFGeometryInfo(el);
+      const shapeLabel = (info && info.shapeLabel) || '';
+      if (!shapeLabel) return '';
+      const id = el.getAttributeNS(NS.gml, 'id') || el.getAttribute('gml:id') || el.getAttribute('id') || '';
+      const sf = (DIGGS_SF.get('LoadTransferPlatform') || []).find(s => s.id === id);
+      const geom3d = (sf && _featureExtentIs3D(el)) ? extractFeatureGeometry3D(sf) : null;
+      if (!geom3d) return shapeLabel;
+      return {
+        val: shapeLabel,
+        keyExtra: `<button class="pill-3d-view" onclick="open3DFeatureView('${esc(id)}')">View 3D</button>`,
+      };
+    },
+  },
+  {
     path: 'diggs:referencePoint/diggs:PointLocation/gml:description',
     label: 'Reference Point Description',
   },
   { path: 'diggs:localCoordinates', label: 'Local Coordinates' },
+  {
+    label: 'Local CRS',
+    compute: el => {
+      const info = _planarSFGeometryInfo(el);
+      return info ? _localCrsRowHtml(info.srsName) : null;
+    },
+  },
   ..._PLANAR_SF_GEOM_TRAILING,
 
   { sectionHeader: 'Construction Info' },
@@ -16061,9 +16136,11 @@ OBJECT_CONFIGS.PlanarSamplingFeature = [
   {
     // Calculated — Planar/Multi-Planar/Composite/Triangulated/Multi
     // Surface, from featureExtent's own resolved child element type (see
-    // _planarSFGeometryInfo). "View 3D" (open3DFeatureView) shows
-    // UNCONDITIONALLY whenever the geometry itself is resolvable — per
-    // explicit user request, independent of the Shape value.
+    // _planarSFGeometryInfo). "View 3D" (open3DFeatureView) shows only when
+    // the geometry is resolvable AND genuinely 3D (_featureExtentIs3D,
+    // srsDimension 3 on every patch) — per explicit user request/correction
+    // (2026-09-22, supersedes the prior "shows unconditionally" behavior) —
+    // independent of the Shape value itself.
     label: 'Shape',
     compute: el => {
       const info = _planarSFGeometryInfo(el);
@@ -16071,7 +16148,7 @@ OBJECT_CONFIGS.PlanarSamplingFeature = [
       if (!shapeLabel) return '';
       const id = el.getAttributeNS(NS.gml, 'id') || el.getAttribute('gml:id') || el.getAttribute('id') || '';
       const sf = (DIGGS_SF.get('PlanarSamplingFeature') || []).find(s => s.id === id);
-      const geom3d = sf ? extractFeatureGeometry3D(sf) : null;
+      const geom3d = (sf && _featureExtentIs3D(el)) ? extractFeatureGeometry3D(sf) : null;
       if (!geom3d) return shapeLabel;
       return {
         val: shapeLabel,
@@ -16164,6 +16241,223 @@ OBJECT_CONFIGS.VolumetricSamplingFeature = [
     },
   },
   ..._VOLUME_SF_GEOM_TRAILING,
+
+  { sectionHeader: 'Environment' },
+  {
+    path: 'diggs:environment', multi: true, labelPlural: 'Environment Readings',
+    interval: {
+      index: [{ path: 'diggs:dateTime' }],
+      column: [{ path: 'diggs:ambientTemperature' }],
+    },
+  },
+
+  { sectionHeader: '' },
+  {
+    path: 'diggs:otherSamplingFeatureProperty', multi: true,
+    label: 'Other Property', labelPlural: 'Other Properties', alwaysGroup: true,
+    itemLabel: el => {
+      const nameEl = evalXPath(el, 'diggs:parameterName')[0];
+      const txt = nodeText(nameEl);
+      return txt ? escHtml(txt) + _codeSpaceKeyExtra(nameEl) : null;
+    },
+  },
+];
+
+// ── TrenchWall ──────────────────────────────────────────────────────────
+// TrenchWallType (extended/ExtSamplingFeatures.xsd) → AbstractPlanarSamplingFeatureType
+// → AbstractSamplingFeatureType → AbstractNamedFeatureType — same base chain
+// as PlanarSamplingFeature/RITreatedArea/LoadTransferPlatform/GP_ArealSurvey,
+// so General Info/Geometry mirror those. Own additions: whenConstructed?/
+// trenchDepth?/trenchLength?/trenchWidth?/shoring?/trenchPurpose?/backfill?
+// (BackfillPropertyType, single-occurrence — reuses OBJECT_CONFIGS.Backfill)/
+// constructionMethod* (TrenchConstructionMethodPropertyType — shared with
+// TrialPit's own field of the same type, same interval-table shape copied
+// verbatim from OBJECT_CONFIGS.TrialPit below)/constructionEvent*
+// (TrenchWallEventPropertyType, wrapping a TrenchWallEvent element that is
+// literally `type="diggs:TrialPitEventType"` in the schema — same interval
+// columns as TrialPit's own constructionEvent row, and
+// OBJECT_CONFIGS.TrenchWallEvent aliases OBJECT_CONFIGS.TrialPitEvent below
+// for its own expand panel).
+OBJECT_CONFIGS.TrenchWall = [
+  { sectionHeader: 'General Info' },
+  { path: '@gml:id', label: 'ID' },
+  ..._OBJ_BASE_FIELDS,
+  ..._FEATURE_LEADING,
+  { path: 'diggs:investigationTarget', multi: true, label: 'Investigation Target' },
+  { path: 'diggs:trenchPurpose', label: 'Trench Purpose' },
+  { path: 'diggs:locality', label: 'Locality' },
+  ..._FEATURE_TRAILING,
+
+  { sectionHeader: 'Geometry' },
+  {
+    // Calculated — see PlanarSamplingFeature's own "Orientation" row for the
+    // full explanation. A trench wall is normally near-vertical, but the
+    // schema doesn't require it.
+    label: 'Orientation',
+    compute: el => {
+      const info = _planarSFGeometryInfo(el);
+      return (info && info.orientation) || '';
+    },
+  },
+  {
+    label: 'Shape',
+    compute: el => {
+      const info = _planarSFGeometryInfo(el);
+      const shapeLabel = (info && info.shapeLabel) || '';
+      if (!shapeLabel) return '';
+      const id = el.getAttributeNS(NS.gml, 'id') || el.getAttribute('gml:id') || el.getAttribute('id') || '';
+      const sf = (DIGGS_SF.get('TrenchWall') || []).find(s => s.id === id);
+      const geom3d = (sf && _featureExtentIs3D(el)) ? extractFeatureGeometry3D(sf) : null;
+      if (!geom3d) return shapeLabel;
+      return {
+        val: shapeLabel,
+        keyExtra: `<button class="pill-3d-view" onclick="open3DFeatureView('${esc(id)}')">View 3D</button>`,
+      };
+    },
+  },
+  {
+    path: 'diggs:referencePoint/diggs:PointLocation/gml:description',
+    label: 'Reference Point Description',
+  },
+  { path: 'diggs:localCoordinates', label: 'Local Coordinates' },
+  {
+    label: 'Local CRS',
+    compute: el => {
+      const info = _planarSFGeometryInfo(el);
+      return info ? _localCrsRowHtml(info.srsName) : null;
+    },
+  },
+  ..._PLANAR_SF_GEOM_TRAILING,
+
+  { sectionHeader: 'Trench Dimensions' },
+  { path: 'diggs:trenchDepth', label: 'Trench Depth' },
+  { path: 'diggs:trenchLength', label: 'Trench Length' },
+  { path: 'diggs:trenchWidth', label: 'Trench Width' },
+  { path: 'diggs:shoring', label: 'Shoring' },
+
+  { sectionHeader: 'Construction Info' },
+  { path: 'diggs:whenConstructed', label: 'When Constructed' },
+  { path: 'diggs:backfill', label: 'Backfill' },
+
+  { sectionHeader: '' },
+  {
+    // Interval-table engine — identical shape to OBJECT_CONFIGS.TrialPit's
+    // own constructionMethod row: TrenchWallType's constructionMethod is the
+    // same TrenchConstructionMethodPropertyType TrialPit's own field uses.
+    path: 'diggs:constructionMethod', multi: true, labelPlural: 'Construction Methods',
+    interval: {
+      index: [{ path: 'diggs:location' }, { path: 'diggs:methodTime' }],
+      column: [{
+        path: ['diggs:constructionMethod/diggs:Specification/gml:name[1]', 'gml:name[1]', 'diggs:constructionMethod/diggs:Specification/diggs:shortMethodName'],
+        label: 'Method',
+      }],
+    },
+  },
+
+  { sectionHeader: '' },
+  {
+    // Interval-table engine — identical shape to OBJECT_CONFIGS.TrialPit's
+    // own constructionEvent row: TrenchWallEvent is a TrialPitEventType
+    // under a different element name, so the same depth/length/width leaf
+    // columns apply unchanged.
+    path: 'diggs:constructionEvent', multi: true, labelPlural: 'Construction Events',
+    interval: {
+      index: [{ path: 'diggs:location' }, { path: 'diggs:time' }],
+      column: [
+        { path: 'diggs:depth', label: 'Depth' },
+        { path: 'diggs:length', label: 'Length' },
+        { path: 'diggs:width', label: 'Width' },
+        { path: ['gml:name[1]', 'gml:description', 'diggs:remark/diggs:Remark/diggs:content'], label: 'Event' },
+      ],
+    },
+  },
+
+  { sectionHeader: 'Environment' },
+  {
+    path: 'diggs:environment', multi: true, labelPlural: 'Environment Readings',
+    interval: {
+      index: [{ path: 'diggs:dateTime' }],
+      column: [{ path: 'diggs:ambientTemperature' }],
+    },
+  },
+
+  { sectionHeader: '' },
+  {
+    path: 'diggs:otherSamplingFeatureProperty', multi: true,
+    label: 'Other Property', labelPlural: 'Other Properties', alwaysGroup: true,
+    itemLabel: el => {
+      const nameEl = evalXPath(el, 'diggs:parameterName')[0];
+      const txt = nodeText(nameEl);
+      return txt ? escHtml(txt) + _codeSpaceKeyExtra(nameEl) : null;
+    },
+  },
+];
+// TrenchWallEvent is `type="diggs:TrialPitEventType"` verbatim (see the
+// schema note on OBJECT_CONFIGS.TrenchWall's own constructionEvent row) —
+// same alias convention as OBJECT_CONFIGS.InSituTestEvent/.ProjectEvent.
+OBJECT_CONFIGS.TrenchWallEvent = OBJECT_CONFIGS.TrialPitEvent;
+
+// ── GP_ArealSurvey ──────────────────────────────────────────────────────
+// GP_ArealSurveyType (specialty/Geophysics.xsd) → AbstractPlanarSamplingFeatureType
+// → AbstractSamplingFeatureType → AbstractNamedFeatureType — same base chain
+// as PlanarSamplingFeature/TrenchWall/RITreatedArea/LoadTransferPlatform. Own
+// additions: sensorMix (required, SensorMixEnumType — same enum
+// GP_Trackline's own field uses), whenSurveyed? (TimeIntervalPropertyType),
+// totalSurveyArea? (AreaMeasureType) — mirrors GP_Trackline's own "Survey
+// Info" section (sensorMix/whenTracklineOccupied/totalTracklineLength).
+OBJECT_CONFIGS.GP_ArealSurvey = [
+  { sectionHeader: 'General Info' },
+  { path: '@gml:id', label: 'ID' },
+  ..._OBJ_BASE_FIELDS,
+  ..._FEATURE_LEADING,
+  { path: 'diggs:investigationTarget', multi: true, label: 'Investigation Target' },
+  { path: 'diggs:locality', label: 'Locality' },
+  ..._FEATURE_TRAILING,
+
+  { sectionHeader: 'Geometry' },
+  {
+    // Calculated — see PlanarSamplingFeature's own "Orientation" row for the
+    // full explanation.
+    label: 'Orientation',
+    compute: el => {
+      const info = _planarSFGeometryInfo(el);
+      return (info && info.orientation) || '';
+    },
+  },
+  {
+    label: 'Shape',
+    compute: el => {
+      const info = _planarSFGeometryInfo(el);
+      const shapeLabel = (info && info.shapeLabel) || '';
+      if (!shapeLabel) return '';
+      const id = el.getAttributeNS(NS.gml, 'id') || el.getAttribute('gml:id') || el.getAttribute('id') || '';
+      const sf = (DIGGS_SF.get('GP_ArealSurvey') || []).find(s => s.id === id);
+      const geom3d = (sf && _featureExtentIs3D(el)) ? extractFeatureGeometry3D(sf) : null;
+      if (!geom3d) return shapeLabel;
+      return {
+        val: shapeLabel,
+        keyExtra: `<button class="pill-3d-view" onclick="open3DFeatureView('${esc(id)}')">View 3D</button>`,
+      };
+    },
+  },
+  {
+    path: 'diggs:referencePoint/diggs:PointLocation/gml:description',
+    label: 'Reference Point Description',
+  },
+  { path: 'diggs:localCoordinates', label: 'Local Coordinates' },
+  {
+    label: 'Local CRS',
+    compute: el => {
+      const info = _planarSFGeometryInfo(el);
+      return info ? _localCrsRowHtml(info.srsName) : null;
+    },
+  },
+  ..._PLANAR_SF_GEOM_TRAILING,
+
+  { sectionHeader: 'Survey Info' },
+  { path: 'diggs:sensorMix', label: 'Sensor Mix' },
+  { path: 'diggs:whenSurveyed', label: 'When Surveyed' },
+  { path: 'diggs:totalSurveyArea', label: 'Total Survey Area' },
 
   { sectionHeader: 'Environment' },
   {
@@ -17988,14 +18282,27 @@ function _extractSurfaceRings(feExtEl, rawSrsName, rawSrsDimension) {
 
 /**
  * _resolvePolygonRings(el, rawSrsName, rawSrsDimension)
- * Thin wrapper over _extractSurfaceRings — locates el's own diggs:featureExtent
- * first. Called both from parseSamplingFeature and from prefetchUnknownCRS()
- * when a CRS was unavailable at parse time. Returns a flat ring or multi-ring
- * array, or null if extraction fails.
+ * Locates el's own diggs:featureExtent first, then dispatches on its
+ * resolved target: a volumetric target (Solid/CompositeSolid/
+ * SurfaceBoundedSolid, VOLUME_FEATURE_EXTENT_KINDS — see that const's own
+ * comment near _volumePolygonLatLngs, further down this file) goes through
+ * _volumePolygonLatLngs; everything else (a planar SF's PlanarSurface/
+ * MultiPlanarSurface/CompositeSurface/MultiSurface/TriangulatedSurface)
+ * goes through the existing _extractSurfaceRings. Called both from
+ * parseSamplingFeature and from prefetchUnknownCRS() when a CRS was
+ * unavailable at parse time — kept as ONE shared dispatch point for both
+ * callers (not two independently-maintained copies), same reasoning
+ * _extractSurfaceRings's own banner gives for why IT was unified. Returns a
+ * flat ring or multi-ring array, or null if extraction fails.
  */
 function _resolvePolygonRings(el, rawSrsName, rawSrsDimension) {
   const doc2 = el.ownerDocument;
   const feExtEl = xFirst(doc2, 'diggs:featureExtent', el);
+  if (!feExtEl) return null;
+  const target = resolveXlinkEl(feExtEl);
+  if (target && VOLUME_FEATURE_EXTENT_KINDS.has(target.localName)) {
+    return _volumePolygonLatLngs(target);
+  }
   return _extractSurfaceRings(feExtEl, rawSrsName, rawSrsDimension);
 }
 
@@ -18056,6 +18363,59 @@ function _planarSFGeometryInfo(el) {
   const orientation = angleFromUp <= 15 ? 'Horizontal' : angleFromUp >= 75 ? 'Vertical' : 'Sloping';
 
   return { shapeLabel, orientation, srsName: p.srsName };
+}
+
+/**
+ * _localCrsSpansVertical(localCRS) — true if any of a parsed
+ * LocalCartesianCRS's own axis direction vectors has a non-negligible
+ * real-world-vertical component (vec[2], the same "index 2 is always
+ * real-world up" convention _toRealMeterPts/_localCrsPointDeltaMeters
+ * already guarantee for their own output — the axis vectors themselves are
+ * in that same real-world-oriented space, see parseLocalCartesianCRS).
+ * Used by _featureExtentIs3D below to tell a genuinely tilted local CRS
+ * (e.g. PlanarSamplingFeatureTest.xml's psf-2d-crs-001, a strike/dip pair
+ * whose D axis dips 60° from horizontal) apart from one confined entirely
+ * to a horizontal plane, independent of how many raw coordinate components
+ * a posList authored against it happens to carry.
+ */
+function _localCrsSpansVertical(localCRS) {
+  if (!localCRS || !localCRS.axes || !localCRS.axes.length) return false;
+  return localCRS.axes.some(ax => ax.vec && Math.abs(ax.vec[2] || 0) > 1e-6);
+}
+
+/**
+ * _featureExtentIs3D(el) — gates the "View 3D" pill on every
+ * AbstractPlanarSamplingFeatureType config's own "Shape" row (2026-09-22,
+ * per explicit user request/clarification). True only when EVERY patch of
+ * `el`'s own featureExtent resolves to genuinely 3D geometry:
+ * - a real (resolvable) geographic/projected srsName: declared
+ *   srsDimension must be 3 — a 2D-declared real CRS truly has no elevation
+ *   axis at all, so its posList's z is not just missing, it doesn't exist.
+ * - a LocalCartesianCRS (`srsName` a local #fragment resolving via
+ *   LOCAL_CRS_INDEX — same resolution branch _toRealMeterPts uses): checked
+ *   via _localCrsSpansVertical instead of the posList's own declared
+ *   dimension, since a 2-component strike/dip posList can still resolve to
+ *   a real tilted 3D shape through the CRS's own axis vectors (the
+ *   documented "Geometry-math gotcha" — coordsToLocalMeters alone would
+ *   miss this, _toRealMeterPts doesn't). A CRS confined to a horizontal
+ *   plane (every axis vec[2] ≈ 0) has nothing 3D to show even if the
+ *   posList happens to carry 3 components.
+ * - unresolvable srsName (neither a real CRS nor a known local one): falls
+ *   back to the declared srsDimension, same as the real-CRS case.
+ */
+function _featureExtentIs3D(el) {
+  const doc = el.ownerDocument;
+  const feExtEl = xFirst(doc, 'diggs:featureExtent', el);
+  if (!feExtEl) return false;
+  const patches = collectFeatureExtentRawPatches(feExtEl, '', '2');
+  if (!patches.length) return false;
+  return patches.every(p => {
+    const { horiz } = parseEPSG(p.srsName);
+    const frag = (p.srsName || '').replace(/^.*#/, '').trim();
+    const localCRS = (!horiz && frag) ? LOCAL_CRS_INDEX[frag] : null;
+    if (localCRS) return _localCrsSpansVertical(localCRS);
+    return p.dim === 3;
+  });
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -19260,6 +19620,128 @@ function extractFeatureGeometry3D(sf) {
   return { ptPatches, upAxis: 2, flipUp: true };
 }
 
+// featureExtent's own resolved child localName, for any AbstractVolume
+// (Solid/CompositeSolid/SurfaceBoundedSolid) reachable through it — same
+// three-way choice extractFeatureGeometry3D/_volumeSFShape already branch
+// on. Used by the "Polygon extent" block in parseSamplingFeature below to
+// route a volumetric SF's featureExtent through _volumePolygonLatLngs
+// instead of the planar-only _extractSurfaceRings, without hardcoding any
+// particular SF type name — any future AbstractVolumeSamplingFeatureType
+// descendant picks this up automatically, the same way any future
+// AbstractPlanarSamplingFeatureType descendant already does for the planar
+// path (no type-name branch either).
+const VOLUME_FEATURE_EXTENT_KINDS = new Set(['Solid', 'CompositeSolid', 'SurfaceBoundedSolid']);
+
+/**
+ * _volumeRawPatchesForFootprint(volEl, seen, depth) -> [{tokens,dim,srsName,holes}, ...]
+ * Raw (untransformed) patch collection across a resolved diggs:AbstractVolume
+ * element, for _volumePolygonLatLngs's bounding-box fallback below. Mirrors
+ * _volumeLeafGeometries's own Solid/CompositeSolid traversal (same
+ * exterior→Shell resolution for Solid, same solidMember/solidMembers
+ * recursion for CompositeSolid) but stops short of that function's
+ * _toRealMeterPts conversion — the caller wants each raw point run through
+ * toWGS84 directly instead, since a plan-view lat/lon bounding box has no
+ * need for a real-meters intermediate. SurfaceBoundedSolid is handled here
+ * only as a defensive fallback (top+bottom surfaces, ignoring the walls —
+ * _volumePolygonLatLngs prefers its own exact `footprint` property and
+ * never reaches this branch in practice).
+ */
+function _volumeRawPatchesForFootprint(volEl, seen, depth) {
+  if (!volEl || depth > 6 || seen.has(volEl)) return [];
+  seen.add(volEl);
+  const doc = volEl.ownerDocument;
+  const kind = volEl.localName;
+  if (kind === 'Solid') {
+    const extWrapEl = xFirst(doc, 'diggs:exterior', volEl);
+    const shellEl = extWrapEl ? resolveXlinkEl(extWrapEl) : null;
+    return shellEl ? collectFeatureExtentRawPatches(shellEl, '', '2') : [];
+  }
+  if (kind === 'CompositeSolid') {
+    const out = [];
+    for (const child of [...volEl.childNodes]) {
+      if (child.nodeType !== 1) continue;
+      if (child.localName !== 'solidMember' && child.localName !== 'solidMembers') continue;
+      for (const memberEl of resolveXlinkChildren(child)) out.push(..._volumeRawPatchesForFootprint(memberEl, seen, depth + 1));
+    }
+    return out;
+  }
+  if (kind === 'SurfaceBoundedSolid') {
+    const parts = _sbsResolveParts(volEl);
+    if (!parts) return [];
+    return [
+      ...collectFeatureExtentRawPatches(parts.topEl, '', '2'),
+      ...collectFeatureExtentRawPatches(parts.bottomEl, '', '2'),
+    ];
+  }
+  return [];
+}
+
+/**
+ * _volumePolygonLatLngs(target) -> ring|rings|null
+ * Plan-view (flattened) polygon extent for a Volumetric SF's own resolved
+ * featureExtent target (`target.localName` one of VOLUME_FEATURE_EXTENT_KINDS
+ * — see the "Polygon extent" block in parseSamplingFeature below), for map
+ * rendering (2026-09-22 — Volumetric SFs previously always rendered as a
+ * point marker regardless of their real footprint).
+ *
+ * - SurfaceBoundedSolid: EXACT — its own `footprint` property IS the
+ *   plan-view extent by construction (one PlanarSurface, or a MultiSurface
+ *   of independent parts — see the SurfaceBoundedSolid architecture note in
+ *   CLAUDE.md). Reuses _extractSurfaceRings, the same ring extractor every
+ *   planar SF's own featureExtent already uses — it is geometry-type-
+ *   agnostic (PlanarSurface/CompositeSurface/MultiSurface/Shell all
+ *   resolve, per parseGroup's own use of it against a Shell), so no new
+ *   ring-walking logic is needed for this case.
+ * - Solid / CompositeSolid: APPROXIMATE — neither carries a footprint
+ *   property, and there is no cheap way to get the EXACT plan-view outline:
+ *   naively running every exterior face (top, bottom, AND each near-
+ *   vertical wall) through the same per-patch ring extractor would flatten
+ *   each wall face into a degenerate zero-width sliver ring (two of its
+ *   four corners collapse onto the other two once Z is dropped), and
+ *   unioning the real per-face footprints properly would need general 2D
+ *   polygon clipping this codebase has no library for. Per explicit user
+ *   direction, falls back to an axis-aligned lat/lon BOUNDING RECTANGLE
+ *   instead: every vertex of every face (top+bottom+walls together, via
+ *   _volumeRawPatchesForFootprint) converted individually to lat/lon via
+ *   toWGS84 (handles both real and LocalCartesianCRS srsNames — see that
+ *   function's own LocalCartesianCRS branch), then min/max'd. Looser than
+ *   the true footprint for a rotated local CRS or a non-rectangular plan
+ *   shape, but a deliberate, documented simplification, not a bug. Hole
+ *   rings are skipped — an interior hole lies entirely within its own
+ *   patch's exterior ring, so it can never move the bounding box's min/max.
+ */
+function _volumePolygonLatLngs(target) {
+  if (!target) return null;
+  const doc = target.ownerDocument;
+
+  if (target.localName === 'SurfaceBoundedSolid') {
+    const footprintWrap = xFirst(doc, 'diggs:footprint', target);
+    const rings = footprintWrap ? _extractSurfaceRings(footprintWrap, '', '2') : null;
+    if (rings) return rings;
+    // Footprint itself failed to resolve — fall through to the bounding-box
+    // path below (over top+bottom) rather than showing nothing at all.
+  }
+
+  const patches = _volumeRawPatchesForFootprint(target, new Set(), 0);
+  if (!patches.length) return null;
+
+  let minLat = Infinity, maxLat = -Infinity, minLon = Infinity, maxLon = -Infinity;
+  let any = false;
+  for (const p of patches) {
+    for (const pt of _tokensToCoords(p.tokens, p.dim)) {
+      const geo = toWGS84(pt.slice(0, 2), p.srsName);
+      if (geo.lat === null || geo.lon === null || isNaN(geo.lat) || isNaN(geo.lon)) continue;
+      any = true;
+      if (geo.lat < minLat) minLat = geo.lat;
+      if (geo.lat > maxLat) maxLat = geo.lat;
+      if (geo.lon < minLon) minLon = geo.lon;
+      if (geo.lon > maxLon) maxLon = geo.lon;
+    }
+  }
+  if (!any || (minLat === maxLat && minLon === maxLon)) return null;
+  return [[minLat, minLon], [minLat, maxLon], [maxLat, maxLon], [maxLat, minLon]];
+}
+
 function parseSamplingFeature(doc, el, type) {
   const id   = el.getAttribute('id') || el.getAttributeNS(NS.gml, 'id') || '';
   const name = xText(doc, 'gml:name', el);
@@ -19459,9 +19941,12 @@ function parseSamplingFeature(doc, el, type) {
     }
   }
 
-  // ── Polygon extent (for planar SF types — GP_ArealSurvey etc.) ──────────────
-  // diggs:featureExtent holds either diggs:PlanarSurface or diggs:MultiPlanarSurface,
-  // both of which inherit from gml:AbstractSurfaceType and carry srsName/srsDimension.
+  // ── Polygon extent (for planar SF types — GP_ArealSurvey etc. — and,
+  //    2026-09-22, for volumetric SF types' own plan-view extent) ──────────
+  // diggs:featureExtent holds either diggs:PlanarSurface/MultiPlanarSurface/
+  // CompositeSurface/MultiSurface (a planar SF, gml:AbstractSurfaceType,
+  // carrying srsName/srsDimension) or diggs:Solid/CompositeSolid/
+  // SurfaceBoundedSolid (a volumetric SF).
   //
   // Per GML, each surface patch may have:
   //   gml:exterior / gml:LinearRing / gml:posList   — one exterior boundary ring
@@ -19483,12 +19968,14 @@ function parseSamplingFeature(doc, el, type) {
       featureExtentRawPatches = collectFeatureExtentRawPatches(feExtEl, rawSrsName, String(rawSrsDimension || 2));
       if (!featureExtentRawPatches.length) featureExtentRawPatches = null;
 
-      // Ring extraction itself is shared with _resolvePolygonRings (called
-      // later by prefetchUnknownCRS when a CRS was unavailable at parse
-      // time) via _extractSurfaceRings — see that function's own banner for
-      // the DIGGS PlanarSurface/MultiPlanarSurface structure this walks and
-      // why the two extractors were unified into one.
-      polygonLatLngs = _extractSurfaceRings(feExtEl, rawSrsName, rawSrsDimension);
+      // Ring extraction itself is shared with prefetchUnknownCRS (called
+      // later when a CRS was unavailable at parse time) via
+      // _resolvePolygonRings, which dispatches on featureExtent's own
+      // resolved target kind — the planar _extractSurfaceRings path, or
+      // _volumePolygonLatLngs for a volumetric target. See either
+      // function's own banner. Kept as ONE shared dispatch point rather
+      // than two independently-maintained copies.
+      polygonLatLngs = _resolvePolygonRings(el, rawSrsName, rawSrsDimension);
     }
   }
 
