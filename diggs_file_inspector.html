@@ -1083,7 +1083,7 @@ html,body{height:100%;font-family:var(--font-ui);background:var(--bg);color:var(
 .lith-log-zone .lith-zone-fill { transition:opacity .1s; }
 .lith-log-zone:hover .lith-zone-fill { opacity:.82; }
 /* Selection highlight — thick white border, toggled by clicking the zone
-   or its matching table row (see _lithRowClick/_lithZoneClick). */
+   or its matching table row (see _obsRowClick/_obsZoneClick). */
 .lith-log-zone .lith-zone-highlight { display:none; }
 .lith-log-zone.lith-zone-selected .lith-zone-highlight { display:block; }
 /* margin-top reduced 12px->4px (2026-07-29) — initBadgeGraphic fits the
@@ -5683,6 +5683,18 @@ let DIGGS_LITH = {};    // keyed by sf gml:id
 // has no body to show and is not collected. See the "Geotechnical Units" badge in
 // buildAssocBadges and open3DGeoUnitView.
 let DIGGS_GEOUNITS = {};
+// DIGGS_GEOUNIT_LOG — the 1D flavor's own registry, parallel to DIGGS_LITH
+// (grouped by GeoUnitSystem, not flattened per-observation like DIGGS_GEOUNITS
+// above): keyed by owning sf gml:id (a borehole/linear SF's own samplingFeatureRef)
+// -> [{ el, gml_id, geoUnitType, observations: [...] }], one entry per
+// GeoUnitSystem whose observations resolve to a LinearExtent location (a unit
+// along a single borehole log) rather than a 3D body. A GeoUnitSystem with NO
+// LinearExtent-located observation at all (the 3D/site-wide flavor) is not
+// collected here — it lives exclusively in DIGGS_GEOUNITS/renderGeoUnitBadgeContent
+// instead. See the "Geotechnical Units" badge in buildAssocBadges
+// (renderGeoUnitLogBadgeContent) and OBJECT_CONFIGS.GeoUnitSystem's own comment
+// for the full flavor split.
+let DIGGS_GEOUNIT_LOG = {};
 // DIGGS_SAMPLES — keyed by sf gml:id -> SamplingActivity elements. An
 // activity lands here either DIRECTLY (its own samplingFeatureRef — the
 // `collect` shape) or TRANSITIVELY (a `subsample`/`aggregate` activity, which
@@ -6481,7 +6493,7 @@ function resetToLoad() {
   sfMarkers.clear();
   DIGGS_SF = new Map();
   DIGGS_BH = []; DIGGS_CPT = []; DIGGS_WELL = [];
-  DIGGS_LITH = {}; DIGGS_GEOUNITS = {}; DIGGS_SAMPLES = {}; DIGGS_SAMPLE_BY_SP = new Map(); DIGGS_SP_TO_SF = new Map();
+  DIGGS_LITH = {}; DIGGS_GEOUNITS = {}; DIGGS_GEOUNIT_LOG = {}; DIGGS_SAMPLES = {}; DIGGS_SAMPLE_BY_SP = new Map(); DIGGS_SP_TO_SF = new Map();
   DIGGS_SAMPLE_DERIVED = {}; DIGGS_UNHOMED_ACTIVITIES = [];
   DIGGS_GROUPS = new Map(); GROUP_BY_ID = new Map(); SF_GROUP_REF = new Map();
   DIGGS_PROJECTS = []; DIGGS_ACTIVE_PROJECT = null; DIGGS_BA_MAP = {};
@@ -7342,21 +7354,49 @@ const SPECIAL_OBJECT_FORMATTERS = {
   PointLocation:     (propEl, dimDefault) => FORMAT_FN.locationInline(propEl, dimDefault),
   BusinessAssociate: (propEl) => renderBALink(propEl),
   Parameter:         (propEl) => renderParameterInline(propEl),
+  // AuthorizedParameter/ProvenancedParameter (found live 2026-09-22, via
+  // GeoUnitObservation.characteristicProperty — SaudiTestCase.xml's own
+  // characteristicProperty entries are AuthorizedParameter, not Parameter):
+  // diggs:ParameterPropertyType's own documentation admits all three
+  // (core/AbstractTypes.xsd:102 — "admits diggs:Parameter,
+  // diggs:AuthorizedParameter and [diggs:ProvenancedParameter]"), and
+  // AuthorizedParameterType/ProvenancedParameterType are "Parallel to
+  // diggs:ParameterType" (same parameterName/typeData/parameterValue/
+  // parameterMinValue/parameterMaxValue/parameterUnits field names,
+  // deliberately not derived from it — see AuthorizedParameter's own
+  // schema comment) — renderParameterInline's field lookups already work
+  // against either unmodified; only the dispatch key and resolvePropertyEl's
+  // exact-localName match needed covering. Missing before this: typeName
+  // (childEl.localName, in renderResolvedObject) resolved to nothing in
+  // SPECIAL_OBJECT_FORMATTERS OR OBJECT_CONFIGS (no OBJECT_CONFIGS.AuthorizedParameter
+  // either), so the whole per-occurrence block silently vanished — not just
+  // its value, per OBJECT_CONFIGS's own "degrades gracefully" comment
+  // (wrapCategoryHeader suppresses a header with an empty body). Any OTHER
+  // existing config using the same characteristicProperty/otherSamplingFeatureProperty-
+  // style itemLabel pattern had this identical latent gap whenever an
+  // instance used AuthorizedParameter/ProvenancedParameter instead of plain
+  // Parameter — fixed everywhere at once by fixing the shared dispatch,
+  // not per-config.
+  AuthorizedParameter:  (propEl) => renderParameterInline(propEl),
+  ProvenancedParameter: (propEl) => renderParameterInline(propEl),
   DelayEvent:        (propEl) => FORMAT_FN.delayEventInline(propEl),
 };
 
-/** Render a diggs:Parameter object's value as "value (min-max) uom" — the
- *  name is deliberately NOT included (2026-07-14 change): a Parameter row's
- *  key/label is expected to come from the parameter's own name instead, via
- *  rowCfg.itemLabel on the row config (see Borehole's
- *  otherSamplingFeatureProperty), not baked into the value text.
+/** Render a diggs:Parameter (or AuthorizedParameter/ProvenancedParameter —
+ *  see SPECIAL_OBJECT_FORMATTERS' own comment) object's value as
+ *  "value (min-max) uom" — the name is deliberately NOT included (2026-07-14
+ *  change): a Parameter row's key/label is expected to come from the
+ *  parameter's own name instead, via rowCfg.itemLabel on the row config (see
+ *  Borehole's otherSamplingFeatureProperty), not baked into the value text.
  *  Range parenthetical rules: value+min+max -> "value (min-max)";
  *  value+min only -> "value (min-value)"; value+max only ->
  *  "value (value-max)"; min+max, no value -> "min-max" (the range IS the
  *  value, no parens); only one of min/max -> that bound alone; value only
  *  -> "value" unchanged. */
 function renderParameterInline(propEl) {
-  const el = resolvePropertyEl(propEl, 'Parameter');
+  const el = resolvePropertyEl(propEl, 'Parameter')
+    || resolvePropertyEl(propEl, 'AuthorizedParameter')
+    || resolvePropertyEl(propEl, 'ProvenancedParameter');
   if (!el) return '';
   const val   = nodeText(evalXPath(el, 'diggs:parameterValue')[0]);
   const minV  = nodeText(evalXPath(el, 'diggs:parameterMinValue')[0]);
@@ -8167,9 +8207,9 @@ function renderIntervalTable(resolved, rowCfg, label) {
     // rowOnClick/rowKey (2026-07-20) are optional escape hatches for a caller
     // that needs to hang extra UI behavior off each generated row beyond the
     // default expand toggle — e.g. Lithology's row<->graphic-log-zone sync
-    // (_lithRowClick), which needs both a lookup key (data-obs-key) and its
+    // (_obsRowClick), which needs both a lookup key (data-obs-key) and its
     // own onclick (applied to EVERY row, even a non-expandable one, since
-    // zone-sync should still fire — _lithRowClick itself no-ops the
+    // zone-sync should still fire — _obsRowClick itself no-ops the
     // toggleKVSection call when there's no detail sibling to toggle).
     // rowOnClick, when set, always wins over the default
     // toggle-only-if-expandable onclick.
@@ -12778,6 +12818,34 @@ function _measurementRefRows(el) {
   return rows;
 }
 
+// An observation's own `observationRef` rows — diggs:observationRef on
+// AbstractObservationType (unbounded, added schema 9/26): other observations
+// this one was interpreted FROM (the per-borehole LithologyObservation a
+// site-wide GeoUnitObservation synthesizes, or the Lithology a
+// StratigraphyObservation rests on — see AbstractObservationType's own
+// documentation). Same sole-carrier exception as sampleRef/measurementRef
+// above: omitting it would hide the provenance link entirely. Unlike
+// measurementRef, there is no cross-file id->badge index for an arbitrary
+// observation (DIGGS_MEAS_BY_ID is measurement-only), so this resolves
+// same-document only and shows the target's own humanized element name as
+// plain text rather than a click-through — still real coverage, just not a
+// navigable link.
+function _observationRefRows(el) {
+  const refEls = evalXPath(el, 'diggs:observationRef');
+  if (!refEls.length) return [];
+  const seen = new Set();
+  const rows = [];
+  for (const refEl of refEls) {
+    const refId = (refEl.getAttributeNS(NS.xlink, 'href') || refEl.getAttribute('xlink:href') || '').replace(/^#/, '');
+    if (!refId || seen.has(refId)) continue;
+    seen.add(refId);
+    const target = resolveHref(refEl);
+    const val = target ? `${escHtml(humanizeSFType(target.localName))} (${escHtml(refId)})` : escHtml(refId);
+    rows.push({ label: 'Interpreted From', val });
+  }
+  return rows;
+}
+
 // Sample "Associated Observations" — the observation-side twin of
 // "Associated Measurements" above, and equally not a schema element on
 // Sample: a reverse lookup of which observation objects cite THIS Sample via
@@ -12815,7 +12883,7 @@ function _sampleAssociatedObservationRows(sampleEl) {
  *  the observation's sanitized gml:id) — so this reuses the existing
  *  row↔graphic-log-zone sync machinery rather than introducing a second
  *  keying scheme. Clicking the row routes through its own `rowOnClick`
- *  (_lithRowClick), which also highlights the matching log zone.
+ *  (_obsRowClick), which also highlights the matching log zone.
  *
  *  Only the Lithology badge renders observation rows today; an observation
  *  type with no badge of its own still selects its SF and stops there, which
@@ -13271,22 +13339,25 @@ const _OBJ_NO_DESC_TRAILING = [
   { path: 'diggs:remark', multi: true, splitRows: true },
 ];
 
-// AbstractObservationType's own two reference properties (core/AbstractTypes.xsd),
+// AbstractObservationType's own three reference properties (core/AbstractTypes.xsd),
 // shared by every concrete observation type — Lithology, Stratigraphy,
 // Discontinuity, GeoUnit, Color, Constituent, Orientation, Other. Spread this
-// into any observation config rather than restating the pair, the same way
+// into any observation config rather than restating the trio, the same way
 // _FEATURE_TRAILING is shared across feature configs.
 //
-// Both are deliberate exceptions to the Reference-Property rule that omits
-// every *Ref element, on the same grounds as sampleRef on a measurement and
-// wpRef on an LTP: each is the ONLY carrier of its association, so omitting it
-// hides the relationship rather than tidying it away. sampleRef reuses the
-// exact `_sampleRefRows` helper the measurement/specimen configs already use,
-// so an observation's "Sample Name" link behaves identically to a Particle
-// Size or Atterberg test's.
+// All three are deliberate exceptions to the Reference-Property rule that
+// omits every *Ref element, on the same grounds as sampleRef on a measurement
+// and wpRef on an LTP: each is the ONLY carrier of its association, so
+// omitting it hides the relationship rather than tidying it away. sampleRef
+// reuses the exact `_sampleRefRows` helper the measurement/specimen configs
+// already use, so an observation's "Sample Name" link behaves identically to
+// a Particle Size or Atterberg test's. observationRef (added schema 9/26) is
+// the newest of the three — added here rather than left off, since a stale
+// two-ref copy of this comment predated it; see _observationRefRows.
 //
-// Neither is a plain path row: both resolve cross-document and render as
-// click-through links, which only `computeRows` can express. `location`,
+// None is a plain path row: all three resolve cross-document (or, for
+// observationRef, same-document) and render as click-through links or
+// resolved text, which only `computeRows` can express. `location`,
 // `trueTopObserved` and `trueBaseObserved` — the base type's other three
 // fields — stay listed per-config, since a config may consume `location` in
 // an interval table (LithologyObservation does).
@@ -13296,17 +13367,46 @@ const _OBSERVATION_REFS = [
     label: 'Measurement', labelPlural: 'Measurements',
     computeRows: el => _measurementRefRows(el),
   },
+  {
+    label: 'Interpreted From', labelPlural: 'Interpreted From',
+    computeRows: el => _observationRefRows(el),
+  },
+];
+
+// AbstractObservationSystemType's own observationProcedure element (core/
+// AbstractTypes.xsd) — shared by every concrete observation system
+// (LithologySystem, GeoUnitSystem, and any future system on this base type),
+// the system-level analog of _OBSERVATION_REFS above. observationGroupRef
+// (same base type, added schema 9/26 — membership in an observation group,
+// distinct from the samplingFeatureRef/sampleRef "subject" choice, which the
+// engine's *Ref rule already suppresses per LithologySystem's own comment) is
+// deliberately NOT covered here yet — no instance in this repo exercises it
+// and it would need its own resolution convention; flagged rather than
+// silently invented.
+const _OBS_SYSTEM_TRAILING = [
+  { path: 'diggs:observationProcedure', multi: true, label: 'Observation Procedure' },
 ];
 
 // GeoUnitObservation — GeoUnitObservationType (core/Core.xsd:2833) extends
 // AbstractObservationType (-> AbstractObjectNoDescriptionType: identifier?/
-// status?/remark*, no name/description). `location` is NOT listed as its own
-// row: for a unit with a 3D body it holds the geometry itself (MultiSolid/
-// CompositeSolid/Solid/SurfaceBoundedSolid), which the Shape row below
-// summarises and opens in the 3D viewer instead of dumping as raw nested KV.
-// The vertical-distance/thickness elements apply only to a 1D unit along one
-// borehole log (per the schema's own documentation) and simply don't appear
-// on a site-wide body.
+// status?/remark*, no name/description). One config, shared by BOTH flavors
+// of GeoUnitSystem (rebuilt 2026-09-22 around that split — see
+// GeoUnitSystem below and surface-bounded-solid.md):
+//  - 1D, tied to a borehole/linear SF (`location` a LinearExtent):
+//    renderGeoUnitLogBadgeContent renders it exactly like a LithologyObservation
+//    — a graphic-log zone + one row of the geoUnitObservation interval table
+//    (see GeoUnitSystem's own row config), from/to depth as the row's index,
+//    this config supplying the expand panel's "everything else."
+//  - 3D, tied to a VolumetricSamplingFeature (`location` a MultiSolid/
+//    CompositeSolid/Solid/SurfaceBoundedSolid): renderGeoUnitBadgeContent
+//    renders one collapsible block per observation via this same config, no
+//    interval table.
+// `location` is deliberately NOT its own row: for the 3D flavor the Shape row
+// below summarises the body and opens the 3D viewer instead of dumping raw
+// nested KV; for the 1D flavor the depth is already the interval row's own
+// index, so a raw dump would just duplicate it. The vertical-distance/
+// thickness elements apply only to the 1D flavor (per the schema's own
+// documentation) and simply don't appear on a site-wide body.
 OBJECT_CONFIGS.GeoUnitObservation = [
   { path: '@gml:id', label: 'ID' },
   { path: 'diggs:unitName', multi: true, label: 'Unit Name', labelPlural: 'Unit Names' },
@@ -13345,6 +13445,64 @@ OBJECT_CONFIGS.GeoUnitObservation = [
   },
   { path: 'diggs:baseBoundary', multi: true, label: 'Base Boundary', labelPlural: 'Base Boundaries' },
   ..._OBJ_NO_DESC_TRAILING,
+];
+
+// GeoUnitSystem — GeoUnitSystemType (core/Core.xsd:2979) extends
+// AbstractObservationSystemType -> AbstractFeatureType, the SAME base type as
+// LithologySystem — projectRef/programRef/samplingFeatureRef/sampleRef are
+// Reference Properties (xlink-only), never shown, per the engine's *Ref rule
+// (see LithologySystem's own comment).
+//
+// geoUnitObservation is where the interval-table engine plugs in, exactly
+// like LithologySystem's own lithologyObservation row: renderGeoUnitLogBadgeContent
+// calls renderPropertyRow(sys.el, this row's own config) for the table, and a
+// separate renderKVObject call (filtered to exclude this row plus
+// geoUnitType, both already shown via the table/system-header respectively)
+// for the "system extra metadata" panel — see LithologySystem's own comment
+// for why that split exists. Unlike Lithology's Material column (a
+// classification pulled from a nested Lithology object, with a real
+// code-vs-description fallback), a GeoUnit's Unit Name is the observation's
+// own direct, unbounded field — no fallback needed, just every value joined
+// (`compute`, not a bare `path`, since _resolveDataColumnCell only takes the
+// FIRST matching node for a plain path; `path` is kept alongside `compute` so
+// _buildTableConsumedPaths still excludes diggs:unitName from the expand
+// panel — see that function's own comment on the compute forward-seam).
+// This same interval row config, and renderGeoUnitLogBadgeContent/
+// drawGeoUnitLog it drives, is ONLY used for the 1D flavor (samplingFeatureRef
+// pointing at a linear/point SF); the 3D flavor (pointing at a
+// VolumetricSamplingFeature) never reaches this row — see DIGGS_GEOUNIT_LOG's
+// own ingest-time flavor split and renderGeoUnitBadgeContent for the
+// unrelated 3D display.
+OBJECT_CONFIGS.GeoUnitSystem = [
+  ..._OBJ_BASE_FIELDS,
+  ..._FEATURE_LEADING,
+  { path: 'diggs:geoUnitType', label: 'Geotechnical Unit Type' },
+  ..._FEATURE_TRAILING,
+  ..._OBS_SYSTEM_TRAILING,
+  {
+    path: 'diggs:geoUnitObservation', multi: true, labelPlural: 'Geotechnical Unit Observations',
+    interval: {
+      // Always open, matching LithologySystem's own lithologyObservation row
+      // — see renderIntervalTable's startOpen comment for why this differs
+      // from every other interval-tabled property.
+      startOpen: true,
+      index: [{ path: 'diggs:location' }],
+      column: [{
+        path: 'diggs:unitName', label: 'Unit Name',
+        compute: el => {
+          const names = evalXPath(el, 'diggs:unitName').map(n => nodeText(n).trim()).filter(Boolean);
+          return names.join(', ') || null;
+        },
+      }],
+      // Row<->graphic-log-zone sync (see _obsRowClick/_obsZoneClick, shared
+      // with LithologySystem) — rowKey must match exactly how
+      // parseGeoUnitObservation derives obs.gml_id, same reasoning as
+      // LithologySystem's own rowKey comment.
+      rowKey: el => (el.getAttribute('gml:id') || el.getAttributeNS(NS.gml, 'id') || '')
+        .replace(/[^a-zA-Z0-9_-]/g, '_'),
+      rowOnClick: '_obsRowClick(this)',
+    },
+  },
 ];
 
 // ParticleSize — ParticleSizeType (core/Core.xsd:5543) extends ObjectNoDescriptionType
@@ -13688,7 +13846,7 @@ OBJECT_CONFIGS.LithologySystem = [
   ..._OBJ_BASE_FIELDS,
   ..._FEATURE_LEADING,
   ..._FEATURE_TRAILING,
-  { path: 'diggs:observationProcedure', multi: true,label: 'Observation Procedure' },
+  ..._OBS_SYSTEM_TRAILING,
   { path: 'diggs:lithologyClassificationType', multi: true, label: 'Classification Type' },
   {
     path: 'diggs:lithologyObservation', multi: true, labelPlural: 'Lithology Observations',
@@ -13704,7 +13862,7 @@ OBJECT_CONFIGS.LithologySystem = [
                'diggs:primaryLithology/diggs:Lithology/diggs:lithDescription'],
         label: 'Material',
       }],
-      // Row<->graphic-log-zone sync (see _lithRowClick/_lithZoneClick, near
+      // Row<->graphic-log-zone sync (see _obsRowClick/_obsZoneClick, near
       // drawLithLog) — rowKey must match exactly how the separate custom
       // geometry parser (parseLithologyObservation) derives obs.gml_id, so
       // a table row and its SVG zone resolve to the same key for the same
@@ -13712,7 +13870,7 @@ OBJECT_CONFIGS.LithologySystem = [
       // produced it.
       rowKey: el => (el.getAttribute('gml:id') || el.getAttributeNS(NS.gml, 'id') || '')
         .replace(/[^a-zA-Z0-9_-]/g, '_'),
-      rowOnClick: '_lithRowClick(this)',
+      rowOnClick: '_obsRowClick(this)',
     },
   },
 ];
@@ -16854,6 +17012,79 @@ function _stackDateTime(str) {
   return i === -1 ? full : full.slice(0, i) + _DT_STACK + full.slice(i + 2);
 }
 
+/**
+ * _parseObservationLocation(doc, obsEl) — the AbstractObservationType
+ * `diggs:location` parse shared by every observation-system ingest pass
+ * (extracted 2026-09-22 out of what was Lithology-only logic inside
+ * parseLithologyObservation, so parseGeoUnitObservation doesn't have to
+ * re-derive it — see that function). Determines geometry kind from
+ * location's first child (inline or xlink:href-resolved, via
+ * resolveXlinkEl) and, for the two kinds a graphic log can plot,
+ * extracts the numeric along-feature value(s):
+ *  - LinearExtent: `from`/`to` from its own posList (a depth/along-hole
+ *    range — what a borehole log's Lithology/GeoUnit zone needs).
+ *  - PointLocation: `from` (single along-feature value, if posList-shaped),
+ *    offsetDistance/offsetBearing (transect LRS), and coordTuple (a direct
+ *    gml:pos tuple, for a physical-CRS case like Station — axisLabels are
+ *    left for the render session to resolve once the CRS is known).
+ *  - Any other geometry (a 3D body — MultiSolid/CompositeSolid/Solid/
+ *    SurfaceBoundedSolid for GeoUnit, PlanarSurface/etc. elsewhere) is left
+ *    as locationType = that child's own localName, so the caller's own
+ *    geometry gate can detect and handle it (see GEOUNIT_VOLUME_KINDS/
+ *    _geoUnitShapeLabel for GeoUnit's own 3D path, which does NOT go through
+ *    this function — it works from locEl directly).
+ * Returns `{locEl, locationType, from, to, srsName, offsetDistance,
+ * offsetBearing, coordTuple, axisLabels}` — locationType 'none' with all
+ * else empty when there is no location at all.
+ */
+function _parseObservationLocation(doc, obsEl) {
+  const locEl = xFirst(doc, 'diggs:location', obsEl);
+  let locationType = 'none', from = '', to = '', srsName = '';
+  let offsetDistance = '', offsetBearing = '';
+  let coordTuple = [], axisLabels = [];
+
+  if (locEl) {
+    // resolveXlinkEl handles both inline child and xlink:href reference patterns
+    const firstChild = resolveXlinkEl(locEl);
+    if (firstChild) {
+      const lname = firstChild.localName;
+      if (lname === 'LinearExtent') {
+        locationType = 'LinearExtent';
+        srsName = firstChild.getAttribute('srsName') || '';
+        const posListText = xText(doc, 'gml:posList', firstChild);
+        const tokens = posListText.trim().split(/\s+/).filter(Boolean);
+        from = tokens[0] || '';
+        to   = tokens[1] || '';
+      } else if (lname === 'PointLocation') {
+        locationType = 'PointLocation';
+        srsName = firstChild.getAttribute('srsName') || '';
+        // Try 1D along-feature coordinate (LinearExtent-style single value)
+        const plEl = xFirst(doc, 'gml:posList', firstChild);
+        if (plEl) {
+          const tokens = plEl.textContent.trim().split(/\s+/).filter(Boolean);
+          from = tokens[0] || '';
+        }
+        // Offset distance/bearing for transect LRS
+        offsetDistance = xText(doc, 'diggs:offsetDistance', firstChild);
+        offsetBearing  = xText(doc, 'diggs:offsetBearing',  firstChild);
+        // Direct coordinate tuple for physical CRS (e.g. Station)
+        const directPosEl = xFirst(doc, 'gml:pos', firstChild);
+        if (directPosEl) {
+          coordTuple  = directPosEl.textContent.trim().split(/\s+/).filter(Boolean);
+          // axisLabels resolved in render session when CRS is known
+        }
+      }
+      // Any other geometry type is left as locationType = first child's localName
+      // so the render session geometry gate can detect it
+      else {
+        locationType = lname;
+      }
+    }
+  }
+
+  return { locEl, locationType, from, to, srsName, offsetDistance, offsetBearing, coordTuple, axisLabels };
+}
+
 // ══════════════════════════════════════════════════════════════
 //  DIGGS PARSING
 // ══════════════════════════════════════════════════════════════
@@ -17127,50 +17358,10 @@ function loadDIGGS(doc, filename) {
   function parseLithologyObservation(obsEl) {
     if (!obsEl) return null;
 
-    // Location — determine type from first child of diggs:location
-    const locEl = xFirst(doc, 'diggs:location', obsEl);
-    let locationType = 'none', from = '', to = '', srsName = '';
-    let offsetDistance = '', offsetBearing = '';
-    let coordTuple = [], axisLabels = [];
-
-    if (locEl) {
-      // resolveXlinkEl handles both inline child and xlink:href reference patterns
-      const firstChild = resolveXlinkEl(locEl);
-      if (firstChild) {
-        const lname = firstChild.localName;
-        if (lname === 'LinearExtent') {
-          locationType = 'LinearExtent';
-          srsName = firstChild.getAttribute('srsName') || '';
-          const posListText = xText(doc, 'gml:posList', firstChild);
-          const tokens = posListText.trim().split(/\s+/).filter(Boolean);
-          from = tokens[0] || '';
-          to   = tokens[1] || '';
-        } else if (lname === 'PointLocation') {
-          locationType = 'PointLocation';
-          srsName = firstChild.getAttribute('srsName') || '';
-          // Try 1D along-feature coordinate (LinearExtent-style single value)
-          const plEl = xFirst(doc, 'gml:posList', firstChild);
-          if (plEl) {
-            const tokens = plEl.textContent.trim().split(/\s+/).filter(Boolean);
-            from = tokens[0] || '';
-          }
-          // Offset distance/bearing for transect LRS
-          offsetDistance = xText(doc, 'diggs:offsetDistance', firstChild);
-          offsetBearing  = xText(doc, 'diggs:offsetBearing',  firstChild);
-          // Direct coordinate tuple for physical CRS (e.g. Station)
-          const directPosEl = xFirst(doc, 'gml:pos', firstChild);
-          if (directPosEl) {
-            coordTuple  = directPosEl.textContent.trim().split(/\s+/).filter(Boolean);
-            // axisLabels resolved in render session when CRS is known
-          }
-        }
-        // Any other geometry type is left as locationType = first child's localName
-        // so the render session geometry gate can detect it
-        else {
-          locationType = lname;
-        }
-      }
-    }
+    // Location — shared across every observation-system ingest pass; see
+    // _parseObservationLocation's own comment.
+    const { locationType, from, to, srsName, offsetDistance, offsetBearing, coordTuple, axisLabels } =
+      _parseObservationLocation(doc, obsEl);
 
     // trueTopObserved / trueBaseObserved
     const ttEl = xFirst(doc, 'diggs:trueTopObserved', obsEl);
@@ -17301,22 +17492,81 @@ function loadDIGGS(doc, filename) {
 
   // ── GEO UNITS (a unit's 3D body, carried by GeoUnitObservation/location) ──
   // Only observations whose location resolves to a volume are collected — a
-  // 1D unit along a borehole log has no body to draw. MultiSolid is legal here
-  // and ONLY here (not in featureExtent), which is what makes this the sole
-  // entry point for it.
+  // 1D unit along a borehole log has no body to draw (that's the sibling
+  // DIGGS_GEOUNIT_LOG pass below). MultiSolid is legal here and ONLY here
+  // (not in featureExtent), which is what makes this the sole entry point
+  // for it. Grouped by SYSTEM (rebuilt 2026-09-22, was flattened per-
+  // observation) — the 3D badge groups every GeoUnitSystem sharing one
+  // geoUnitType into a single 3D view with one Results table PER system
+  // (see renderGeoUnitBadgeContent), which needs each system's own gml:id/
+  // name/geoUnitType, not just its observations.
   DIGGS_GEOUNITS = {};
   for (const gsEl of xNodes(doc, '//diggs:observation/diggs:GeoUnitSystem')) {
     const sfHref = xText(doc, 'diggs:samplingFeatureRef/@xlink:href', gsEl).replace('#', '');
     if (!sfHref) continue;
+    const observations = [];
     for (const obsEl of xNodes(doc, 'diggs:geoUnitObservation/diggs:GeoUnitObservation', gsEl)) {
       const locEl = xFirst(doc, 'diggs:location', obsEl);
       const target = locEl ? resolveXlinkEl(locEl) : null;
       if (!target || !GEOUNIT_VOLUME_KINDS.has(target.localName)) continue;
       const id = obsEl.getAttributeNS(NS.gml, 'id') || obsEl.getAttribute('gml:id') || '';
       if (!id) continue;
-      if (!DIGGS_GEOUNITS[sfHref]) DIGGS_GEOUNITS[sfHref] = [];
-      DIGGS_GEOUNITS[sfHref].push({ id, name: xText(doc, 'diggs:unitName', obsEl), el: obsEl, locEl, kind: target.localName });
+      observations.push({ id, name: xText(doc, 'diggs:unitName', obsEl), el: obsEl, locEl, kind: target.localName });
     }
+    if (!observations.length) continue;
+    const sysObj = {
+      el:          gsEl,
+      gml_id:      gsEl.getAttribute('gml:id') || gsEl.getAttributeNS(NS.gml, 'id') || '',
+      name:        xText(doc, 'gml:name', gsEl),
+      geoUnitType: xText(doc, 'diggs:geoUnitType', gsEl),
+      observations,
+    };
+    if (!DIGGS_GEOUNITS[sfHref]) DIGGS_GEOUNITS[sfHref] = [];
+    DIGGS_GEOUNITS[sfHref].push(sysObj);
+  }
+
+  // ── GEO UNIT LOG (1D flavor — a unit along a single borehole/linear SF) ──
+  // Same GeoUnitSystem/GeoUnitObservation elements as the 3D loop just above,
+  // grouped by SYSTEM this time (like DIGGS_LITH), not flattened per-
+  // observation (like DIGGS_GEOUNITS) — the 1D badge needs the system's own
+  // geoUnitType/metadata the way the Lithology badge needs classificationTypes,
+  // which a flat per-observation list can't carry. A system with no
+  // LinearExtent-located observation at all is skipped here (it's the 3D/
+  // site-wide flavor, already collected above); one WITH at least one is
+  // collected in full — including any non-LinearExtent observation it might
+  // also carry, so a badge showing "N observations" isn't silently short —
+  // drawGeoUnitLog's own zone filter already drops anything without a
+  // plottable numeric from/to.
+  function parseGeoUnitObservation(obsEl) {
+    if (!obsEl) return null;
+    const { locationType, from, to, srsName } = _parseObservationLocation(doc, obsEl);
+    const unitNames = xNodes(doc, 'diggs:unitName', obsEl).map(n => n.textContent.trim()).filter(Boolean);
+    return {
+      el:      obsEl,
+      gml_id:  obsEl.getAttribute('gml:id') || obsEl.getAttributeNS(NS.gml, 'id') || '',
+      locationType, from, to, srsName,
+      unitName: unitNames.join(', '),
+    };
+  }
+
+  DIGGS_GEOUNIT_LOG = {};
+  for (const gsEl of xNodes(doc, '//diggs:observation/diggs:GeoUnitSystem')) {
+    const href = xText(doc, 'diggs:samplingFeatureRef/@xlink:href', gsEl).replace('#', '');
+    if (!href) continue;
+
+    const observations = xNodes(doc, 'diggs:geoUnitObservation/diggs:GeoUnitObservation', gsEl)
+      .map(obsEl => parseGeoUnitObservation(obsEl));
+    if (!observations.some(o => o.locationType === 'LinearExtent')) continue;
+
+    const sysObj = {
+      el:          gsEl,
+      gml_id:      gsEl.getAttribute('gml:id') || gsEl.getAttributeNS(NS.gml, 'id') || '',
+      geoUnitType: xText(doc, 'diggs:geoUnitType', gsEl),
+      observations,
+    };
+
+    if (!DIGGS_GEOUNIT_LOG[href]) DIGGS_GEOUNIT_LOG[href] = [];
+    DIGGS_GEOUNIT_LOG[href].push(sysObj);
   }
 
   // ── OBSERVATION → SAMPLE reverse index (DIGGS_SAMPLE_OBSERVATIONS) ─────
@@ -19434,27 +19684,638 @@ function _geoUnitShapeLabel(locEl) {
   }
 }
 
-/** renderGeoUnitBadgeContent(units) — one collapsible block per GeoUnitObservation, via OBJECT_CONFIGS.GeoUnitObservation. */
-function renderGeoUnitBadgeContent(units) {
-  let html = '';
-  for (const u of units) {
-    const body = renderKVObject(u.el, OBJECT_CONFIGS.GeoUnitObservation);
-    html += wrapCategoryHeader(esc(u.name || u.id), body, true);
-  }
-  return html || '<div style="color:var(--text-muted);font-size:12px;padding:8px">No geotechnical unit data.</div>';
-}
-
-/** open3DGeoUnitView(obsId) — "View 3D" pill target for a GeoUnitObservation's location body. */
+/** open3DGeoUnitView(obsId) — "View 3D" pill target for one GeoUnitObservation's
+ *  own location body (OBJECT_CONFIGS.GeoUnitObservation's Shape row — still
+ *  shown per-observation even though the embedded combined Plot pane below
+ *  shows every unit of the same type together; "the exact same data as the
+ *  1D version" per explicit user spec means this config, pill included, is
+ *  unchanged). Searches every system (DIGGS_GEOUNITS is grouped by system,
+ *  not flattened, since the 2026-09-22 rebuild — see that global's own
+ *  comment). */
 function open3DGeoUnitView(obsId) {
   let unit = null;
-  for (const arr of Object.values(DIGGS_GEOUNITS)) {
-    unit = arr.find(u => u.id === obsId);
-    if (unit) break;
+  outer: for (const systems of Object.values(DIGGS_GEOUNITS)) {
+    for (const sys of systems) {
+      unit = sys.observations.find(u => u.id === obsId);
+      if (unit) break outer;
+    }
   }
   if (!unit) return;
   const geometry = _locationVolumeGeometry(unit.locEl);
   if (!geometry) return;
   _showFeatureGeometry3D(geometry, unit.name || unit.id, obsId);
+}
+
+// ══════════════════════════════════════════════════════════════
+//  OBSERVATION-SYSTEM 3D VOLUME VIEWER (2026-09-22) — a light-grey
+//  wireframe "frame" (the owning sampling feature's own featureExtent body)
+//  plus N colored, transparent observation volumes inside it, each
+//  click-isolatable, paired with a Results table per system. Generic over
+//  any 3D-flavored AbstractObservationSystemType descendant whose
+//  observations carry a 3D body in `location` — GeoUnitSystem is the only
+//  one wired up today (renderGeoUnitBadgeContent, the thin wrapper at the
+//  end of this section), but nothing below this banner is GeoUnit-specific;
+//  a future 3D-flavored Lithology/Stratigraphy/etc. system reuses every
+//  piece here unchanged, the same way the 1D graphic-log engine
+//  (_drawObservationLogCore, see sf-detail-and-lithology.md) is shared
+//  rather than copied per system. Layout/interaction spec came from the
+//  user directly (2026-09-22 session): Plot (3D view, 45% of the assoc pane
+//  height) + Results (a table per system, sorted shallowest-first) split,
+//  reusing the measurement engine's own resizable meas-vsplit; only the
+//  first distinct system-type gets both panes open on load, any others
+//  collapsed; row<->3D click sync isolates the selected unit (white,
+//  every other unit hidden) the same way _obsRowClick/_obsZoneClick sync a
+//  1D graphic-log zone to its table row.
+// ══════════════════════════════════════════════════════════════
+
+/**
+ * _obsVolumeElevationRank(geometry) -> number (higher = shallower) | null
+ * Sort key for a 3D-flavor Results table — there is no depth/distance
+ * column to index by (every observation is a real 3D body, not a range
+ * along one line), so the Results table instead sorts by the body's own
+ * mean elevation, shallowest first, per explicit user spec. Prefers
+ * meta.zRangeTop/zRangeBottom (SurfaceBoundedSolid-based geometry, already
+ * real-elevation — _sbsGeometry only re-centers X/Y, never Z, so these ARE
+ * directly comparable across different observations sharing one vertical
+ * CRS, not just within one body); falls back to the raw ptPatches' own Z
+ * bounding box for a Solid-only body (the older shell-patch path carries no
+ * meta). null when neither is available.
+ */
+function _obsVolumeElevationRank(geometry) {
+  if (!geometry) return null;
+  const m = geometry.meta;
+  if (m && m.zRangeTop && m.zRangeBottom
+      && isFinite(m.zRangeTop[0]) && isFinite(m.zRangeTop[1])
+      && isFinite(m.zRangeBottom[0]) && isFinite(m.zRangeBottom[1])) {
+    return (m.zRangeTop[0] + m.zRangeTop[1] + m.zRangeBottom[0] + m.zRangeBottom[1]) / 4;
+  }
+  let zMin = Infinity, zMax = -Infinity;
+  for (const patch of geometry.ptPatches || []) {
+    for (const p of patch.pts) {
+      if (p[2] < zMin) zMin = p[2];
+      if (p[2] > zMax) zMax = p[2];
+    }
+  }
+  return (isFinite(zMin) && isFinite(zMax)) ? (zMin + zMax) / 2 : null;
+}
+
+/**
+ * init3DObservationVolumeViewer(host, scopeId, frameGeometry, unitEntries, colorOf)
+ * Builds the Three.js scene for one type-group's Plot pane.
+ *  - `frameGeometry` ({ptPatches,upAxis,flipUp} | null, from
+ *    extractFeatureGeometry3D(sf)) draws as a light-grey WIREFRAME ONLY (no
+ *    fill) — the owning sampling feature's own body, shown for context, the
+ *    same role a borehole's own frame plays around its Lithology zones.
+ *  - `unitEntries`: [{obsKey, name, geometry}], one per observation across
+ *    every system in this type group — each gets a filled translucent mesh
+ *    (opacity 0.55, "transparent mode by default" per spec — there is no
+ *    opaque toggle in this v1) colored via `colorOf.get(entry.name)`, plus
+ *    an edge outline, grouped under one THREE.Group per unit so
+ *    select/deselect can act on a whole unit (however many patches its own
+ *    body has) in one call.
+ * Registers itself in _activeObsVolumeViewers (keyed by `scopeId`, see that
+ * array's own comment) rather than the single-slot _activeTrajectoryViewer —
+ * more than one of these can be live at once (one per expanded type group),
+ * so the toolbar buttons below are wired directly to THIS instance's own
+ * closures (data-attribute + local addEventListener — the same convention
+ * _drawGridVolume3D's own multi-instance toolbar already uses), never a
+ * global setTrajectoryView-style function keyed off a single active
+ * instance. Click-to-isolate (raycasting on the canvas) and the exposed
+ * selectUnit/clearSelection API — driven by table row clicks — are
+ * implemented here; see _obsVolumeRowClick/_obsVolumeZoneClick for the
+ * table-row<->3D sync contract those two drive.
+ */
+function init3DObservationVolumeViewer(host, scopeId, frameGeometry, unitEntries, colorOf) {
+  let width  = host.clientWidth  || 500;
+  let height = host.clientHeight || 420;
+
+  // Re-center on the first real vertex found (frame, else first unit) —
+  // same float32-precision reasoning as every other Three.js viewer here.
+  const axes = frameGeometry ? { upAxis: frameGeometry.upAxis, flipUp: frameGeometry.flipUp }
+    : (unitEntries[0] ? { upAxis: unitEntries[0].geometry.upAxis, flipUp: unitEntries[0].geometry.flipUp } : { upAxis: 2, flipUp: true });
+  const firstPt = (frameGeometry && frameGeometry.ptPatches[0]) ? frameGeometry.ptPatches[0].pts[0]
+    : (unitEntries[0] && unitEntries[0].geometry.ptPatches[0] ? unitEntries[0].geometry.ptPatches[0].pts[0] : null);
+  const originPt = firstPt ? _gridVecFromLocal(firstPt, axes).clone() : new THREE.Vector3();
+  const toVec3 = p => _gridVecFromLocal(p, axes).sub(originPt);
+
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x161b22);
+
+  let projectionMode = 'perspective';
+  const camera = new THREE.PerspectiveCamera(45, width / height, 0.01, 1e6);
+  const orthoCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.01, 1e6);
+
+  const renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  renderer.setSize(width, height);
+  host.insertBefore(renderer.domElement, host.firstChild);
+
+  scene.add(new THREE.AmbientLight(0xffffff, 0.75));
+  const dirLight = new THREE.DirectionalLight(0xffffff, 0.55);
+  scene.add(dirLight);
+
+  const allVerts = [];
+  const meshResources = [];
+
+  // ── Wireframe frame (the owning SF's own body) — light grey lines only,
+  // no fill, so it reads as a container rather than another colored body.
+  const frameGroup = new THREE.Group();
+  scene.add(frameGroup);
+  if (frameGeometry) {
+    for (const patch of frameGeometry.ptPatches) {
+      let scenePts = patch.pts.map(toVec3);
+      if (scenePts.length > 1 && scenePts[0].distanceTo(scenePts[scenePts.length - 1]) < 1e-6) {
+        scenePts = scenePts.slice(0, -1);
+      }
+      if (scenePts.length < 2) continue;
+      const edgeGeom = new THREE.BufferGeometry().setFromPoints([...scenePts, scenePts[0]]);
+      const edgeMat = new THREE.LineBasicMaterial({ color: 0xaaaaaa, transparent: true, opacity: 0.6 });
+      const edgeLine = new THREE.LineLoop(edgeGeom, edgeMat);
+      frameGroup.add(edgeLine);
+      meshResources.push({ geom: edgeGeom, mat: edgeMat });
+      allVerts.push(...scenePts);
+    }
+  }
+
+  // ── One THREE.Group per unit, holding its own patch mesh(es) + edge
+  // outline(s) — the whole group toggles visibility/color together on
+  // select/deselect, whatever its own body's patch count. Patch-to-mesh
+  // triangulation mirrors init3DFeatureViewer's own (per-patch local 2D
+  // basis via THREE.Shape/ShapeGeometry — handles a concave ring and its
+  // holes correctly).
+  const unitByKey = new Map();
+  const pickable = []; // flat list of every filled mesh, for raycasting
+  for (const entry of unitEntries) {
+    const colorHex = (colorOf && colorOf.get(entry.name)) || SAMPLE_METHOD_OTHER_COLOR;
+    const group = new THREE.Group();
+    group.userData.obsKey = entry.obsKey;
+    scene.add(group);
+    const meshes = [], edges = [];
+    for (const patch of entry.geometry.ptPatches) {
+      let scenePts = patch.pts.map(toVec3);
+      if (scenePts.length > 1 && scenePts[0].distanceTo(scenePts[scenePts.length - 1]) < 1e-6) {
+        scenePts = scenePts.slice(0, -1);
+      }
+      if (scenePts.length < 3) continue;
+      const normalArr = _newellNormal(scenePts.map(v => v.toArray()));
+      if (!normalArr) continue;
+      const normal = new THREE.Vector3(normalArr[0], normalArr[1], normalArr[2]);
+      let uAxis = null;
+      for (let i = 1; i < scenePts.length; i++) {
+        const cand = scenePts[i].clone().sub(scenePts[0]);
+        if (cand.length() > 1e-6) { uAxis = cand.normalize(); break; }
+      }
+      if (!uAxis) continue;
+      let vAxis = normal.clone().cross(uAxis).normalize();
+      if (!(vAxis.length() > 0.5)) continue;
+      uAxis = vAxis.clone().cross(normal).normalize();
+      const origin = scenePts[0];
+      const project = p => { const d = p.clone().sub(origin); return new THREE.Vector2(d.dot(uAxis), d.dot(vAxis)); };
+      const shape = new THREE.Shape(scenePts.map(project));
+      for (const holePts of (patch.holes || [])) {
+        let hScene = holePts.map(toVec3);
+        if (hScene.length > 1 && hScene[0].distanceTo(hScene[hScene.length - 1]) < 1e-6) hScene = hScene.slice(0, -1);
+        if (hScene.length < 3) continue;
+        shape.holes.push(new THREE.Path(hScene.map(project)));
+      }
+      const shapeGeom = new THREE.ShapeGeometry(shape);
+      const basis = new THREE.Matrix4().makeBasis(uAxis, vAxis, normal).setPosition(origin);
+      shapeGeom.applyMatrix4(basis);
+
+      const mat = new THREE.MeshStandardMaterial({
+        color: colorHex, roughness: 0.85, metalness: 0,
+        side: THREE.DoubleSide, transparent: true, opacity: 0.55,
+      });
+      const mesh = new THREE.Mesh(shapeGeom, mat);
+      mesh.userData.obsKey = entry.obsKey;
+      group.add(mesh);
+      meshes.push(mesh);
+      pickable.push(mesh);
+
+      const edgeGeom = new THREE.BufferGeometry().setFromPoints([...scenePts, scenePts[0]]);
+      const edgeMat = new THREE.LineBasicMaterial({ color: new THREE.Color(colorHex).lerp(new THREE.Color(0xffffff), 0.35) });
+      const edgeLine = new THREE.LineLoop(edgeGeom, edgeMat);
+      group.add(edgeLine);
+      edges.push(edgeLine);
+
+      meshResources.push({ geom: shapeGeom, mat }, { geom: edgeGeom, mat: edgeMat });
+      allVerts.push(...scenePts);
+    }
+    unitByKey.set(entry.obsKey, { group, meshes, edges, colorHex });
+  }
+
+  if (!allVerts.length) allVerts.push(new THREE.Vector3(0, 0, 0));
+
+  const box    = new THREE.Box3().setFromPoints(allVerts);
+  const center = box.getCenter(new THREE.Vector3());
+  const size   = box.getSize(new THREE.Vector3());
+  const diag   = Math.max(size.length(), 1);
+
+  const gridSize = Math.max(diag * 1.5, 5);
+  const grid = new THREE.GridHelper(gridSize, 10, 0x3e4752, 0x3e4752);
+  grid.position.set(center.x, box.min.y, center.z);
+  grid.material.opacity = 0.35;
+  grid.material.transparent = true;
+  scene.add(grid);
+
+  const controls = new THREE.OrbitControls(camera, renderer.domElement);
+  controls.target.copy(center);
+  controls.enableDamping = false;
+
+  const gizmo = _buildOrientationGizmo(renderer, camera, controls, width, height);
+
+  function render() {
+    camera.updateMatrixWorld();
+    dirLight.position.copy(camera.position);
+    let activeCamera = camera;
+    if (projectionMode === 'ortho') {
+      const dist = camera.position.distanceTo(controls.target);
+      const halfH = dist * Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2);
+      const halfW = halfH * camera.aspect;
+      orthoCamera.left = -halfW; orthoCamera.right = halfW;
+      orthoCamera.top = halfH; orthoCamera.bottom = -halfH;
+      orthoCamera.near = camera.near; orthoCamera.far = camera.far;
+      orthoCamera.position.copy(camera.position);
+      orthoCamera.quaternion.copy(camera.quaternion);
+      orthoCamera.updateProjectionMatrix();
+      orthoCamera.updateMatrixWorld();
+      activeCamera = orthoCamera;
+    }
+    renderer.setScissorTest(false);
+    renderer.setViewport(0, 0, width, height);
+    renderer.render(scene, activeCamera);
+    gizmo.renderGizmo();
+  }
+  controls.addEventListener('change', render);
+
+  function setView(preset) {
+    switch (preset) {
+      case 'plan':
+        camera.position.set(center.x, center.y + diag * 1.2, center.z + diag * 0.0005);
+        break;
+      case 'north':
+        camera.position.set(center.x, center.y, center.z + diag * 1.2);
+        break;
+      case 'east':
+        camera.position.set(center.x - diag * 1.2, center.y, center.z);
+        break;
+      case 'iso':
+      default:
+        camera.position.set(center.x + diag * 0.9, center.y + diag * 0.7, center.z + diag * 0.9);
+        break;
+    }
+    controls.target.copy(center);
+    camera.updateProjectionMatrix();
+    controls.update();
+    render();
+  }
+  function fitIso() {
+    camera.near = diag * 0.001; camera.far = diag * 100;
+    camera.updateProjectionMatrix();
+    setView('iso');
+  }
+  fitIso();
+  render();
+
+  const resizeObserver = new ResizeObserver(() => {
+    width  = host.clientWidth  || width;
+    height = host.clientHeight || height;
+    gizmo.resize(width, height);
+    renderer.setSize(width, height);
+    camera.aspect = width / height;
+    camera.updateProjectionMatrix();
+    render();
+  });
+  resizeObserver.observe(host);
+
+  // ── Select/deselect: white-out the selected unit, hide every other unit
+  // (the SF's own wireframe frame always stays visible). See
+  // _obsVolumeRowClick/_obsVolumeZoneClick for the table-row/3D-click sync
+  // that drives this.
+  let selectedKey = null;
+  function applySelection() {
+    for (const [key, u] of unitByKey) {
+      const isSelected = key === selectedKey;
+      u.group.visible = selectedKey == null || isSelected;
+      const col = isSelected ? 0xffffff : u.colorHex;
+      for (const m of u.meshes) m.material.color.set(col);
+      for (const e of u.edges) {
+        e.material.color.set(isSelected ? 0xffffff : new THREE.Color(u.colorHex).lerp(new THREE.Color(0xffffff), 0.35));
+      }
+    }
+    render();
+  }
+  function selectUnit(obsKey) {
+    if (!unitByKey.has(obsKey)) return;
+    selectedKey = obsKey;
+    applySelection();
+  }
+  function clearSelection() {
+    if (selectedKey == null) return;
+    selectedKey = null;
+    applySelection();
+  }
+
+  // ── Click-to-isolate on the canvas itself (raycasting against every
+  // unit's own filled mesh — the wireframe frame and grid are never
+  // pickable; an already-hidden unit's mesh is skipped by Three.js's own
+  // visible-object check). A click that hits nothing is a no-op (does NOT
+  // clear an existing selection — matches _obsVolumeRowClick's own "closing
+  // the row clears it" contract; an empty click on the canvas is not a
+  // close gesture). Delegates to _obsVolumeZoneClick so the matching table
+  // row opens/closes in sync, the same way _obsZoneClick delegates to
+  // _obsRowClick for the 1D graphic log.
+  const raycaster = new THREE.Raycaster();
+  const pointer = new THREE.Vector2();
+  let downPos = null;
+  renderer.domElement.addEventListener('pointerdown', e => { downPos = { x: e.clientX, y: e.clientY }; });
+  renderer.domElement.addEventListener('pointerup', e => {
+    // A drag-to-orbit ending over the canvas must not register as a click —
+    // only a near-stationary press+release does.
+    if (!downPos || Math.hypot(e.clientX - downPos.x, e.clientY - downPos.y) > 4) return;
+    const rect = renderer.domElement.getBoundingClientRect();
+    pointer.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+    pointer.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+    raycaster.setFromCamera(pointer, projectionMode === 'ortho' ? orthoCamera : camera);
+    const hits = raycaster.intersectObjects(pickable, false);
+    if (!hits.length) return;
+    const obsKey = hits[0].object.userData.obsKey;
+    if (obsKey) _obsVolumeZoneClick(obsKey, scopeId);
+  });
+
+  // ── Toolbar — self-contained (data-attribute + local listener, not a
+  // global setTrajectoryView-style function), since more than one of these
+  // viewers can be live at once — see this function's own banner comment.
+  const toolbar = host.parentElement ? host.parentElement.querySelector('.obs3d-toolbar') : null;
+  if (toolbar) {
+    toolbar.querySelectorAll('[data-obs3d-view]').forEach(btn => {
+      btn.addEventListener('click', () => setView(btn.getAttribute('data-obs3d-view')));
+    });
+    const projBtn = toolbar.querySelector('[data-obs3d-proj]');
+    if (projBtn) {
+      projBtn.addEventListener('click', () => {
+        projectionMode = projectionMode === 'ortho' ? 'perspective' : 'ortho';
+        projBtn.textContent = projectionMode === 'ortho' ? 'Orthographic' : 'Isometric';
+        projBtn.classList.toggle('active', projectionMode === 'ortho');
+        render();
+      });
+    }
+  }
+
+  const viewerEntry = {
+    scopeId,
+    selectUnit, clearSelection,
+    dispose() {
+      resizeObserver.disconnect();
+      controls.dispose();
+      renderer.dispose();
+      meshResources.forEach(r => { r.geom.dispose(); r.mat.dispose(); });
+      gizmo.dispose();
+      if (renderer.domElement.parentNode) renderer.domElement.parentNode.removeChild(renderer.domElement);
+    },
+  };
+  _activeObsVolumeViewers.push(viewerEntry);
+  return viewerEntry;
+}
+
+/**
+ * _obsVolumeRowClick(rowEl, scopeId) — a 3D-flavor Results table row click
+ * (wired via each row's own onclick, see render3DObservationSystemBadge).
+ * Generic sibling of _obsRowClick (the 1D graphic-log row click): toggles
+ * this row's own expand (via toggleKVSection, same '.kv-row-expanded'
+ * class every interval table uses) and drives the matching
+ * init3DObservationVolumeViewer instance's select/deselect API, found by
+ * `scopeId` in _activeObsVolumeViewers (a JS closure reference has no DOM
+ * representation to scope off of the way a 1D graphic-log zone's CSS class
+ * does — see _activeObsVolumeViewers' own comment).
+ *
+ * Opening a row: closes whatever OTHER row is currently open within this
+ * SAME scope first (every system's own table sharing one 3D view can only
+ * have one isolated selection at a time — a second open row would leave the
+ * 3D view and the table visually out of sync about which unit is
+ * "selected"), then opens this row and isolates its unit.
+ * Closing the (already open) row: restores every unit's visibility/color.
+ */
+function _obsVolumeRowClick(rowEl, scopeId) {
+  const scopeEl = document.querySelector(`[data-obs3d-scope="${scopeId}"]`);
+  const viewer = _activeObsVolumeViewers.find(v => v.scopeId === scopeId);
+  const key = rowEl.getAttribute('data-obs-key');
+  const wasOpen = rowEl.classList.contains('kv-row-expanded');
+
+  if (wasOpen) {
+    toggleKVSection(rowEl);
+    if (viewer) viewer.clearSelection();
+    return;
+  }
+  if (scopeEl) {
+    scopeEl.querySelectorAll('tr.kv-interval-row.kv-row-expanded').forEach(r => {
+      if (r !== rowEl) toggleKVSection(r);
+    });
+  }
+  toggleKVSection(rowEl);
+  if (viewer && key) viewer.selectUnit(key);
+}
+
+/** 3D-view unit click → find and toggle/select the matching table row (see
+ *  init3DObservationVolumeViewer's own raycasting handler, which tags each
+ *  pickable mesh with the same obsKey a row's data-obs-key carries).
+ *  Generic sibling of _obsZoneClick. */
+function _obsVolumeZoneClick(obsKey, scopeId) {
+  const scopeEl = document.querySelector(`[data-obs3d-scope="${scopeId}"]`);
+  if (!scopeEl) return;
+  const rowEl = scopeEl.querySelector(`tr.kv-interval-row[data-obs-key="${obsKey}"]`);
+  if (rowEl) {
+    _obsVolumeRowClick(rowEl, scopeId);
+    rowEl.scrollIntoView({ block: 'nearest' });
+  }
+}
+
+/**
+ * render3DObservationSystemBadge(sfId, sf, systems, opts) — generic
+ * orchestrator for a 3D-body ObservationSystem badge. `systems` is already
+ * grouped by owning system (the shape DIGGS_GEOUNITS carries per SF —
+ * `[{el, gml_id, name, typeLabel, observations:[{id,name,el,locEl}]}]`), and
+ * this function further groups THAT by `typeLabel` (geoUnitType, or
+ * whatever a future system's own equivalent grouping field is) — every
+ * system sharing one type gets ONE Plot pane (a single combined 3D view)
+ * and one Results table PER system, each under its own "Category label"
+ * (the system's own name) inside that shared Results pane. Only the FIRST
+ * distinct type starts expanded; any others start collapsed, per explicit
+ * user spec ("If there are other GeoUnitSystem types for this sampling
+ * feature, a graphic window and results window combo displays below the
+ * first GeoUnitSystem type, but are collapsed at start").
+ *
+ * opts: { scopePrefix, obsConfigName, typeFallbackLabel, emptyMsg }
+ *  - scopePrefix     - CSS/id namespace for this system kind, e.g. 'geounit3d'
+ *  - obsConfigName   - OBJECT_CONFIGS key for one observation's expand panel
+ *                      (GeoUnitObservation today)
+ *  - typeFallbackLabel - shown when a system's own typeLabel is '' (still
+ *                      needs SOME label for the outer collapsible wrapper)
+ *  - emptyMsg        - shown when nothing in `systems` has a resolvable body
+ *
+ * `drawJobs` (optional out-param, same convention as renderLithBadgeContent's
+ * own) is populated with one entry per type group, consumed by
+ * initObsVolumeBadge from the badge's afterRender (see buildAssocBadges) —
+ * the actual Three.js viewers can only be built AFTER this returned HTML is
+ * live in the DOM (real layout to measure/attach to). Returns the HTML
+ * string directly (not wrapped), matching every other badge contentFn.
+ */
+function render3DObservationSystemBadge(sfId, sf, systems, opts, drawJobs) {
+  if (drawJobs) drawJobs.length = 0;
+  const idSafe = sfId.replace(/[^a-zA-Z0-9]/g, '_');
+
+  // Group systems by type, first-seen order.
+  const typeOrder = [];
+  const byType = new Map();
+  for (const sys of systems) {
+    const type = sys.typeLabel || opts.typeFallbackLabel;
+    if (!byType.has(type)) { byType.set(type, []); typeOrder.push(type); }
+    byType.get(type).push(sys);
+  }
+  if (!typeOrder.length) return opts.emptyMsg;
+
+  // The owning SF's own body, for the wireframe frame — shared by every
+  // type group's own viewer (it's the same SF each time), computed once.
+  const frameGeometry = extractFeatureGeometry3D(sf);
+
+  let html = '';
+  typeOrder.forEach((type, typeIdx) => {
+    const typeSystems = byType.get(type);
+    const typeSafe = type.replace(/[^a-zA-Z0-9]/g, '_') || `t${typeIdx}`;
+    const scopeId = `${opts.scopePrefix}-${idSafe}-${typeSafe}`;
+
+    // Resolve every qualifying observation's own 3D geometry ONCE per type
+    // (expensive triangulation/clipping — deferred until the badge is
+    // actually rendered, matching the app's existing lazy-compute
+    // convention for this geometry kind, e.g. open3DGeoUnitView's own
+    // on-demand call). An observation whose location fails to resolve to a
+    // real body is silently dropped (nothing to plot or select for it).
+    const unitEntries = [];
+    for (const sys of typeSystems) {
+      for (const obs of sys.observations) {
+        const geometry = _locationVolumeGeometry(obs.locEl);
+        if (!geometry || !geometry.ptPatches.length) continue;
+        unitEntries.push({
+          obsKey: (obs.id || '').replace(/[^a-zA-Z0-9_-]/g, '_'),
+          name: obs.name || '',
+          geometry,
+          elevRank: _obsVolumeElevationRank(geometry),
+          sysGmlId: sys.gml_id,
+          el: obs.el,
+        });
+      }
+    }
+    if (!unitEntries.length) return; // nothing plottable for this type
+
+    // Categorical color, once across every unit in this type group, so
+    // every system's own table and the one shared 3D view agree on the
+    // same unit name's color (same split buildConstructionGraphic uses for
+    // its own casing-material colorOf/legend — see buildCategoricalLegend's
+    // own comment; no legend is shown here, per spec, just the color
+    // itself).
+    const { colorOf } = _assignCategoricalColors(unitEntries.map(u => u.name), 'Unnamed Unit');
+
+    // ── Results pane: one category-labeled table per system, sorted
+    // shallowest-first (descending elevation rank; an unresolvable rank —
+    // shouldn't happen given the ptPatches.length guard above, but stay
+    // defensive — sorts last).
+    let resultsHtml = '';
+    for (const sys of typeSystems) {
+      const sysEntries = unitEntries.filter(u => u.sysGmlId === sys.gml_id)
+        .slice()
+        .sort((a, b) => (b.elevRank ?? -Infinity) - (a.elevRank ?? -Infinity));
+      if (!sysEntries.length) continue;
+      let rows = '';
+      for (const u of sysEntries) {
+        const body = renderKVObject(u.el, OBJECT_CONFIGS[opts.obsConfigName] || []);
+        const expandable = !!body;
+        const tri = expandable ? '<span class="kv-tri">▶</span>' : '<span class="kv-tri-spacer"></span>';
+        const onclick = expandable ? ` onclick="_obsVolumeRowClick(this,'${esc(scopeId)}')"` : '';
+        rows += `<tr class="kv-interval-row" data-obs-key="${esc(u.obsKey)}"${onclick}>` +
+          `<td class="kv-interval-val">${tri}${escHtml(u.name || '(unnamed)')}</td></tr>`;
+        if (expandable) {
+          rows += `<tr class="kv-interval-detail-row" style="display:none"><td>${body}</td></tr>`;
+        }
+      }
+      const tableHtml = `<table class="sub-table kv-interval-table"><thead><tr><th>Unit Name</th></tr></thead><tbody>${rows}</tbody></table>`;
+      resultsHtml += wrapCategoryHeader(esc(sys.name || sys.gml_id || 'System'), tableHtml, true);
+    }
+    if (!resultsHtml) return;
+
+    // ── Plot pane: toolbar + canvas host, drawn once the split is live
+    // (see initObsVolumeBadge).
+    const plotHostId = `${scopeId}-host`;
+    const plotHtml = `<div class="trajectory-widget">
+        <div class="trajectory-toolbar obs3d-toolbar">
+          <button type="button" data-obs3d-view="iso">Reset</button>
+          <button type="button" data-obs3d-view="plan">Plan</button>
+          <button type="button" data-obs3d-view="north">N Elevation</button>
+          <button type="button" data-obs3d-view="east">E Elevation</button>
+          <span class="trajectory-toolbar-sep"></span>
+          <button type="button" data-obs3d-proj>Isometric</button>
+        </div>
+        <div id="${plotHostId}" class="trajectory-canvas-host"></div>
+      </div>`;
+
+    const splitId = `${scopeId}-split`;
+    const splitHtml = _buildMeasSplitHtml(splitId, [
+      { label: 'Plot', html: plotHtml, startOpen: true },
+      { label: 'Results', html: resultsHtml, startOpen: true },
+    ]);
+
+    if (drawJobs) drawJobs.push({ splitId, plotHostId, scopeId, frameGeometry, unitEntries, colorOf });
+
+    html += wrapCategoryHeader(
+      escHtml(type),
+      `<div data-obs3d-scope="${esc(scopeId)}">${splitHtml}</div>`,
+      typeIdx === 0,
+    );
+  });
+
+  return html || opts.emptyMsg;
+}
+
+/** initObsVolumeBadge(drawJobs) — afterRender companion to
+ *  render3DObservationSystemBadge (see buildAssocBadges): sizes each type
+ *  group's own resizable split FIRST (initMeasSplit, [45,55] grow — 45% of
+ *  the pane height for Plot per explicit user spec, Results filling the
+ *  rest; see initMeasSplit's own presetGrow comment for why "40%" wasn't
+ *  taken literally), THEN builds its Three.js viewer against the now-real
+ *  host dimensions (order matters — a canvas sized before the split
+ *  resolves its own flex layout would read a stale/zero size). Runs for
+ *  EVERY type group regardless of collapse state (not just the first,
+ *  expanded one) — same "eager, not lazy" convention initBadgeGraphic's own
+ *  SVG drawJobs already use; a collapsed pane's own ResizeObserver corrects
+ *  its viewer's sizing the moment the user expands it. */
+function initObsVolumeBadge(drawJobs) {
+  for (const job of drawJobs) {
+    initMeasSplit(job.splitId, { presetGrow: [45, 55] });
+    const host = document.getElementById(job.plotHostId);
+    if (!host) continue;
+    init3DObservationVolumeViewer(host, job.scopeId, job.frameGeometry, job.unitEntries, job.colorOf);
+  }
+}
+
+/**
+ * renderGeoUnitBadgeContent(sfId, sf, geoUnitSystems, drawJobs) — GeoUnit-
+ * specific thin wrapper over render3DObservationSystemBadge (3D flavor only
+ * — see OBJECT_CONFIGS.GeoUnitSystem's own comment for the 1D flavor, an
+ * unrelated display via renderGeoUnitLogBadgeContent). Just normalizes
+ * DIGGS_GEOUNITS[sfId]'s own field names (geoUnitType -> typeLabel) into the
+ * generic shape and supplies GeoUnit's own labels/config name — everything
+ * about HOW the badge is built lives in the generic function above.
+ */
+function renderGeoUnitBadgeContent(sfId, sf, geoUnitSystems, drawJobs) {
+  const systems = geoUnitSystems.map(sys => ({
+    el: sys.el, gml_id: sys.gml_id, name: sys.name,
+    typeLabel: sys.geoUnitType, observations: sys.observations,
+  }));
+  return render3DObservationSystemBadge(sfId, sf, systems, {
+    scopePrefix: 'geounit3d',
+    obsConfigName: 'GeoUnitObservation',
+    typeFallbackLabel: 'Geotechnical Units',
+    emptyMsg: '<div style="color:var(--text-muted);font-size:12px;padding:8px">No geotechnical unit data.</div>',
+  }, drawJobs);
 }
 
 /**
@@ -22839,14 +23700,43 @@ function buildAssocBadges(sf) {
     });
   }
 
-  // ── Geotechnical Units (GeoUnitObservation/location 3D bodies) ─
-  const geoUnits = DIGGS_GEOUNITS[sfId] || [];
-  if (geoUnits.length) {
+  // ── Geotechnical Units, 1D flavor (GeoUnitSystem tied to a borehole/
+  // linear SF — a unit along that one log) ──────────────────────
+  const geoUnitLogSystems = DIGGS_GEOUNIT_LOG[sfId] || [];
+  if (geoUnitLogSystems.length) {
+    const totalGeoUnitObs = geoUnitLogSystems.reduce((n, sys) => n + sys.observations.length, 0);
+    const allGeoUnitObs = geoUnitLogSystems.flatMap(sys => sys.observations);
+    const geoUnitLogDrawJobs = [];
+    const geoUnitLogScopeId = `geounitlog-badge-${sfId.replace(/[^a-zA-Z0-9]/g,'_')}`;
+    badges.push({
+      id: `assoc-geounitlog-${sfId.replace(/[^a-zA-Z0-9]/g,'_')}`,
+      label: 'Geotechnical Units',
+      count: `${totalGeoUnitObs} interval${totalGeoUnitObs !== 1 ? 's' : ''}`,
+      contentFn: () => renderGeoUnitLogBadgeContent(sfId, sf, geoUnitLogSystems, allGeoUnitObs, geoUnitLogDrawJobs),
+      afterRender: () => {
+        requestAnimationFrame(() => initBadgeGraphic(geoUnitLogScopeId, geoUnitLogDrawJobs));
+      },
+      category: 'observations',
+    });
+  }
+
+  // ── Geotechnical Units, 3D flavor (GeoUnitSystem tied to a
+  // VolumetricSamplingFeature — a unit's own 3D body). Mutually exclusive
+  // with the 1D badge above (a given SF is never both a borehole and a
+  // VolumetricSamplingFeature), so the shared "Geotechnical Units" label
+  // never appears twice on the same detail pane. ─────────────────
+  const geoUnitSystems3D = DIGGS_GEOUNITS[sfId] || [];
+  if (geoUnitSystems3D.length) {
+    const totalGeoUnits3D = geoUnitSystems3D.reduce((n, sys) => n + sys.observations.length, 0);
+    const geoUnit3DDrawJobs = [];
     badges.push({
       id: `assoc-geounit-${sfId.replace(/[^a-zA-Z0-9]/g,'_')}`,
       label: 'Geotechnical Units',
-      count: `${geoUnits.length} unit${geoUnits.length !== 1 ? 's' : ''}`,
-      contentFn: () => renderGeoUnitBadgeContent(geoUnits),
+      count: `${totalGeoUnits3D} unit${totalGeoUnits3D !== 1 ? 's' : ''}`,
+      contentFn: () => renderGeoUnitBadgeContent(sfId, sf, geoUnitSystems3D, geoUnit3DDrawJobs),
+      afterRender: () => {
+        requestAnimationFrame(() => requestAnimationFrame(() => initObsVolumeBadge(geoUnit3DDrawJobs)));
+      },
       category: 'observations',
     });
   }
@@ -23056,7 +23946,7 @@ function _measShouldPlot(model, domainKind, cfg) {
  * (e.g. this content rendered offscreen for a test) falls back to a fixed
  * default rather than collapsing to 0.
  */
-function initMeasSplit(containerId) {
+function initMeasSplit(containerId, opts = {}) {
   const container = document.getElementById(containerId);
   if (!container) return;
   const panes = Array.from(container.children).filter(c => c.classList.contains('meas-vsplit-pane'));
@@ -23081,6 +23971,18 @@ function initMeasSplit(containerId) {
   // ratios with a shared flex-basis of 0 is what makes an uneven initial
   // split simple.
   //
+  // `opts.presetGrow` (2026-09-22, e.g. render3DObservationSystemBadge's own
+  // Plot+Results split) is an explicit override for exactly this same
+  // flex-grow mechanism, for a caller whose own initial split isn't an even
+  // share OR the 50/25/25 three-way default — e.g. [45, 55] gives the first
+  // (Plot) pane EXACTLY 45% of the available height, matching an explicit
+  // user spec, with the rest filling the remainder rather than a separately
+  // specified fixed percentage (this mechanism has no concept of leftover
+  // dead space — grow ratios always sum to 100% of the flexible space).
+  // Only applied when every pane is open AND the preset's own length matches
+  // the pane count, so a caller's collapsed-pane fallback below still wins
+  // when something starts closed.
+  //
   // A pane _buildMeasSplitHtml rendered pre-collapsed (its own `startOpen:
   // false` — e.g. Results/Metadata start closed whenever a Plot pane exists,
   // so the plot gets maximum initial height) gets `flex:0 0 auto` here
@@ -23094,10 +23996,11 @@ function initMeasSplit(containerId) {
     return !b || b.style.display !== 'none';
   };
   const openCount = panes.filter(isPaneOpen).length;
-  const useThreeWayPreset = panes.length === 3 && openCount === 3;
+  const useThreeWayPreset = panes.length === 3 && openCount === 3 && !opts.presetGrow;
+  const useCustomPreset = opts.presetGrow && opts.presetGrow.length === panes.length && openCount === panes.length;
   panes.forEach((p, i) => {
     if (!isPaneOpen(p)) { p.style.flex = '0 0 auto'; return; }
-    const grow = useThreeWayPreset ? [50, 25, 25][i] : 1;
+    const grow = useCustomPreset ? opts.presetGrow[i] : (useThreeWayPreset ? [50, 25, 25][i] : 1);
     p.style.flex = `${grow} 1 0`;
   });
 
@@ -23667,17 +24570,40 @@ function disposeGridVolumeViewers() {
   _activeGridVolumeViewers = [];
 }
 
+// 3D observation-system volume viewers (see init3DObservationVolumeViewer,
+// "OBSERVATION-SYSTEM 3D VOLUME VIEWER" section below) — an ARRAY, same
+// reasoning as _activeGridVolumeViewers just above: a badge can show more
+// than one distinct system-type's own Plot pane at once (GeoUnitSystem
+// today; any future 3D-flavored ObservationSystem reuses this unchanged —
+// see render3DObservationSystemBadge), each needing independent teardown.
+// Each entry also carries `scopeId` so a Results-pane row click
+// (_obsVolumeRowClick) can find the matching live viewer instance to drive
+// its select/deselect API — the row markup is a plain HTML string, not a
+// DOM-API-built element with a closure reference, so a registry lookup by
+// id is the only way back to the viewer (same reason _assocBadgeRegistry
+// exists for badge contentFn lookup).
+let _activeObsVolumeViewers = [];
+
+function disposeObsVolumeViewers() {
+  for (const v of _activeObsVolumeViewers) {
+    try { v.dispose(); } catch (e) { /* host already gone */ }
+  }
+  _activeObsVolumeViewers = [];
+}
+
 // Per ERT_2D-3D_handoff_2026-08-05.md §6 item 7 ("disposeTrajectoryViewer
 // must be extended — browsers cap ~16 WebGL contexts and this is the
 // documented leak path"): this function is every existing choke point that
 // tears down a live Three.js context before the pane's content changes
 // (showAssoc, clearAssocPane, showSFDetail's direct clear, resetToLoad,
 // open3DTrajectoryView's own reset-before-create, ...) — extending IT to
-// also dispose any live grid-volume viewer(s) covers every one of those
-// call sites automatically, with zero additional wiring needed anywhere.
+// also dispose any live grid-volume/observation-volume viewer(s) covers
+// every one of those call sites automatically, with zero additional wiring
+// needed anywhere.
 function disposeTrajectoryViewer() {
   _trajViewerGen++;
   disposeGridVolumeViewers();
+  disposeObsVolumeViewers();
   if (!_activeTrajectoryViewer) return;
   try { _activeTrajectoryViewer.dispose(); } catch (e) { /* host already gone */ }
   _activeTrajectoryViewer = null;
@@ -25206,26 +26132,33 @@ function munsellToCSS(code) {
 }
 
 // ══════════════════════════════════════════════════════════════
-//  Row <-> graphic-log zone sync (2026-07-20 rebuild) — the observation
-//  table itself is now built by the generic interval-table engine
-//  (OBJECT_CONFIGS.LithologySystem's `lithologyObservation` row, rendered
-//  via renderPropertyRow in renderLithBadgeContent) rather than a bespoke
-//  renderLithSysTable builder — deleted along with the _lithObsKey helper
-//  it alone used, both fully superseded. Row markup (`.kv-interval-row`/
+//  Row <-> graphic-log zone sync (2026-07-20 rebuild; generalized 2026-09-22
+//  for GeoUnitSystem) — the observation table itself is built by the generic
+//  interval-table engine (OBJECT_CONFIGS.LithologySystem's `lithologyObservation`
+//  row / OBJECT_CONFIGS.GeoUnitSystem's `geoUnitObservation` row, both rendered
+//  via renderPropertyRow in their own renderXBadgeContent) rather than a
+//  bespoke per-system table builder. Row markup (`.kv-interval-row`/
 //  `.kv-interval-detail-row`, `data-obs-key`, the expand-toggle onclick) all
-//  come from that generic engine now, driven by the `rowKey`/`rowOnClick`
-//  config on that same row (see OBJECT_CONFIGS.LithologySystem).
+//  come from that generic engine, driven by the `rowKey`/`rowOnClick` config
+//  on that same row. `_obsRowClick`/`_obsZoneClick` themselves have nothing
+//  system-specific in them — they operate purely on the shared
+//  `.lith-badge-layout`/`.lith-log-zone`/`.lith-zone-selected` classes (kept
+//  under their original "lith" names even though they're shared now: the
+//  markup/CSS is genuinely generic, per-system renaming would buy nothing and
+//  touch a lot of already-verified CSS for no behavior change) — any future
+//  ObservationSystem badge that reuses that same markup can call these two
+//  functions directly, with no copy or per-system variant needed.
 // ══════════════════════════════════════════════════════════════
 
-/** Toggle a lithology observation row's expand state (if it has one, via the
+/** Toggle an observation row's expand state (if it has one, via the
  *  unchanged toggleKVSection — which also toggles .kv-row-expanded, the same
  *  orange highlight class every other interval table's expanded row gets;
- *  no separate lithology-specific "selected" row color anymore) and sync the
- *  matching graphic-log zone's highlight (scoped to the enclosing
- *  .lith-badge-layout, since a feature can have several system tables/log
- *  columns sharing the same assoc panel). Shared by direct row clicks
- *  (wired via rowOnClick in OBJECT_CONFIGS.LithologySystem's interval
- *  config) and _lithZoneClick() (graphic-log zone → row).
+ *  no separate per-system "selected" row color) and sync the matching
+ *  graphic-log zone's highlight (scoped to the enclosing .lith-badge-layout,
+ *  since a feature can have several system tables/log columns sharing the
+ *  same assoc panel). Shared by direct row clicks (wired via rowOnClick in
+ *  OBJECT_CONFIGS.LithologySystem's/.GeoUnitSystem's interval config) and
+ *  _obsZoneClick() (graphic-log zone → row).
  *
  *  Re-highlighting only happens when the row was just OPENED, not
  *  unconditionally (2026-07-29 fix) — collapsing an already-expanded row
@@ -25233,7 +26166,7 @@ function munsellToCSS(code) {
  *  highlighted zone, which delegates here) must leave the zone
  *  de-highlighted; a caller-blind "clear then always re-add" here made both
  *  of those cases wrongly leave the zone highlighted after closing. */
-function _lithRowClick(rowEl) {
+function _obsRowClick(rowEl) {
   const scope = rowEl.closest('.lith-badge-layout') || document;
   const detail = rowEl.nextElementSibling;
   const hasDetail = detail && detail.classList.contains('kv-interval-detail-row');
@@ -25250,14 +26183,15 @@ function _lithRowClick(rowEl) {
 }
 
 /** Graphic-log zone click → find and toggle/select the matching table row
- *  (see drawLithLog, which tags each zone's <g> with the same data-obs-key). */
-function _lithZoneClick(zoneEl) {
+ *  (see drawLithLog/drawGeoUnitLog, which tag each zone's <g> with the same
+ *  data-obs-key). */
+function _obsZoneClick(zoneEl) {
   const scope = zoneEl.closest('.lith-badge-layout') || document;
   const key = zoneEl.getAttribute('data-obs-key');
   if (!key) return;
   const rowEl = scope.querySelector(`tr.kv-interval-row[data-obs-key="${key}"]`);
   if (rowEl) {
-    _lithRowClick(rowEl);
+    _obsRowClick(rowEl);
     rowEl.scrollIntoView({ block: 'nearest' });
   }
 }
@@ -25804,8 +26738,27 @@ function _lithLabelColors(hex) {
  * isn't scoped inside a `.lith-badge-layout` for the row-sync machinery to
  * find anyway.
  */
-function drawLithLog(container, obsArray, sf, opts = {}) {
-  ensureLithPatternDefs();
+/**
+ * _drawObservationLogCore(container, obsArray, opts) — shared depth-scaled
+ * zone-rectangle SVG engine behind drawLithLog and drawGeoUnitLog (and any
+ * future ObservationSystem graphic log — regeneralized 2026-09-22 out of what
+ * was a single Lithology-only drawLithLog). Handles everything system-
+ * agnostic: sizing, the zone rectangles + border + selection-highlight
+ * overlay + click wiring (_obsZoneClick, itself already system-agnostic) +
+ * tooltip, the boundary-tick depth axis, and the water-table-symbol hook.
+ * What's left to each caller is purely per-system STYLE, via
+ * `opts.resolveZoneStyle(o) => {color, layers, inStripLabel, tooltipLabel}`
+ * — everything about how a zone LOOKS (soil/rock pattern tiles for
+ * Lithology, a plain categorical color for GeoUnit) — and
+ * `opts.patternDefs` (Lithology only: ensureLithPatternDefs() must run
+ * before any `url(#lithpat-*)` fill resolves; a caller with no pattern
+ * layers, like GeoUnit, omits it). `layers` may be falsy/empty for a plain
+ * solid-color zone with no pattern overlay. `obsArray` items need only
+ * `{from, to, gml_id, srsName}` at this level — whatever resolveZoneStyle
+ * itself needs off each item is entirely the caller's concern.
+ */
+function _drawObservationLogCore(container, obsArray, opts) {
+  if (opts.patternDefs) ensureLithPatternDefs();
   container.innerHTML = '';
   const NS_SVG = 'http://www.w3.org/2000/svg';
 
@@ -25856,31 +26809,33 @@ function drawLithLog(container, obsArray, sf, opts = {}) {
   for (const z of zones) {
     const y0 = y(z.from), y1 = y(z.to);
     const h = Math.max(y1 - y0, 1);
-    const mat = resolveLithMaterial(z.o.primary);
-    const meta = LITH_MATERIALS[mat] || LITH_MATERIALS.unknown;
+    const style = opts.resolveZoneStyle(z.o) || {};
 
     const g = mk('g', { class: 'lith-log-zone' });
     if (z.o.gml_id) g.setAttribute('data-obs-key', z.o.gml_id.replace(/[^a-zA-Z0-9_-]/g, '_'));
-    g.appendChild(mk('rect', { x: barX, y: y0, width: barW, height: h, fill: meta.color, class: 'lith-zone-fill' }));
-    // One rect per pattern layer (composited overlays); soil materials carry a
-    // `layers` recipe, rock/unknown fall back to their single `lithpat-<key>`.
-    for (const lp of (meta.layers || [`lithpat-${mat}`])) {
+    g.appendChild(mk('rect', { x: barX, y: y0, width: barW, height: h, fill: style.color || '#888', class: 'lith-zone-fill' }));
+    // One rect per pattern layer (composited overlays); a style with no
+    // `layers` (GeoUnit's plain categorical color) draws none — just the
+    // solid fill above.
+    for (const lp of (style.layers || [])) {
       g.appendChild(mk('rect', { x: barX, y: y0, width: barW, height: h, fill: `url(#${lp})` }));
     }
     g.appendChild(mk('rect', { x: barX, y: y0, width: barW, height: h, fill: 'none', stroke: C_BORDER, 'stroke-width': '0.75' }));
     // Selection highlight — a thick white border drawn over the zone, shown
-    // via the .lith-zone-selected class (see _lithRowClick/_lithZoneClick).
+    // via the .lith-zone-selected class (see _obsRowClick/_obsZoneClick).
     g.appendChild(mk('rect', {
       x: barX, y: y0, width: barW, height: h, fill: 'none',
       class: 'lith-zone-highlight', stroke: '#ffffff', 'stroke-width': '3',
     }));
 
-    // In-strip classification symbol — only when it fits the narrow bar.
-    // Skipped entirely in bare mode (no annotations — see the opts doc above).
-    const pri = z.o.primary || {};
-    const lbl = (pri.classificationSymbol || '').trim();
+    // In-strip label — only when it fits the narrow bar. Skipped entirely in
+    // bare mode (no annotations — see the opts doc above), and whenever the
+    // caller's style has no inStripLabel at all (GeoUnit: unitName is free
+    // text, usually too long to fit — same reasoning drawBackfillLog's own
+    // comment gives for skipping its in-strip symbol).
+    const lbl = (style.inStripLabel || '').trim();
     if (!opts.bare && lbl && h >= 15 && lbl.length * 9 * 0.62 <= barW - 2) {
-      const lc = _lithLabelColors(meta.color);
+      const lc = _lithLabelColors(style.color || '#888');
       const t = mk('text', {
         x: barX + barW / 2, y: y0 + h / 2 + 3, 'text-anchor': 'middle',
         fill: lc.fill, 'font-size': '9', 'paint-order': 'stroke',
@@ -25892,10 +26847,10 @@ function drawLithLog(container, obsArray, sf, opts = {}) {
 
     if (!opts.bare && z.o.gml_id) {
       g.style.cursor = 'pointer';
-      g.addEventListener('click', () => _lithZoneClick(g));
+      g.addEventListener('click', () => _obsZoneClick(g));
     }
     const tt = mk('title', {});
-    tt.textContent = `${z.from}–${z.to}${uom ? ' ' + uom : ''}  ${meta.label}`;
+    tt.textContent = `${z.from}–${z.to}${uom ? ' ' + uom : ''}  ${style.tooltipLabel || ''}`;
     g.appendChild(tt);
 
     svg.appendChild(g);
@@ -25929,18 +26884,67 @@ function drawLithLog(container, obsArray, sf, opts = {}) {
 
   // Water table symbol(s) — only when buildConstructionGraphic chose THIS
   // column as the water-table anchor (see GW_SYMBOL_W/_drawWaterTableSymbols
-  // and that function's own comment); a no-op for every other caller of
-  // drawLithLog (the standalone Lithology badge, the Sample badge's own
-  // reference log column, ...), which never set opts.waterDepths. Skipped
-  // in bare mode too, same "no annotations" convention every other
-  // in-strip decoration here already follows. Centered within whatever
-  // margin PAD.right currently reserves — initBadgeGraphic only widens it
-  // beyond the ordinary LITH_LOG_PAD.right when this column IS the anchor.
+  // and that function's own comment); a no-op for every other caller (the
+  // standalone Lithology/GeoUnit badges, the Sample badge's own reference log
+  // column, ...), which never set opts.waterDepths. Skipped in bare mode too,
+  // same "no annotations" convention every other in-strip decoration here
+  // already follows. Centered within whatever margin PAD.right currently
+  // reserves — initBadgeGraphic only widens it beyond the ordinary
+  // LITH_LOG_PAD.right when this column IS the anchor.
   if (!opts.bare && opts.waterDepths && opts.waterDepths.length) {
     _drawWaterTableSymbols(svg, mk, barX + barW + PAD.right / 2, opts.waterDepths, y, opts.waterUom || uom);
   }
 
   container.appendChild(svg);
+}
+
+/** Lithology's own graphic log — a thin, behavior-preserving wrapper over
+ *  _drawObservationLogCore supplying the USCS/rock pattern-tile style
+ *  (resolveLithMaterial + LITH_MATERIALS) and requesting pattern-defs setup.
+ *  See _drawObservationLogCore's own comment for what's now shared. */
+function drawLithLog(container, obsArray, sf, opts = {}) {
+  _drawObservationLogCore(container, obsArray, {
+    ...opts,
+    patternDefs: true,
+    resolveZoneStyle: o => {
+      const mat = resolveLithMaterial(o.primary);
+      const meta = LITH_MATERIALS[mat] || LITH_MATERIALS.unknown;
+      return {
+        color: meta.color,
+        layers: meta.layers || [`lithpat-${mat}`],
+        inStripLabel: ((o.primary && o.primary.classificationSymbol) || '').trim(),
+        tooltipLabel: meta.label,
+      };
+    },
+  });
+}
+
+/**
+ * drawGeoUnitLog(container, obsArray, sf, opts) — GeoUnitSystem's own graphic
+ * log, 1D flavor only (see GeoUnitSystem's own OBJECT_CONFIGS comment for the
+ * 3D flavor, which never reaches this function). Structurally identical to
+ * drawLithLog (shares _drawObservationLogCore) but colored by plain
+ * categorical assignment (_assignCategoricalColors, by unitName) rather than
+ * a USCS/pattern lookup — a GeoUnit's unitName is free text with no natural
+ * classification->pattern mapping the way a Lithology classificationCode
+ * has. `opts.colorOf` (Map unitName->hex) is REQUIRED, not resolved
+ * internally — categorical color assignment depends on the full set of unit
+ * names across every system in the badge, not any one zone in isolation
+ * (computed once by renderGeoUnitLogBadgeContent so every column and the
+ * legend agree; same split buildConstructionGraphic uses for its own casing-
+ * material colorOf/legend — see buildCategoricalLegend's own comment).
+ */
+function drawGeoUnitLog(container, obsArray, sf, opts = {}) {
+  const colorOf = opts.colorOf;
+  _drawObservationLogCore(container, obsArray, {
+    ...opts,
+    patternDefs: false,
+    resolveZoneStyle: o => {
+      const name = o.unitName || '';
+      const color = (colorOf && colorOf.get(name)) || SAMPLE_METHOD_OTHER_COLOR;
+      return { color, layers: null, inStripLabel: '', tooltipLabel: name || 'Unnamed Unit' };
+    },
+  });
 }
 
 /**
@@ -27217,6 +28221,12 @@ function initBadgeGraphic(scopeId, jobs) {
       // badge), which never set job.width — `undefined` here just falls
       // through to drawLithLog's own default, identical to before.
       drawLithLog(el, job.obs, job.sf, { dMin: job.dMin, dMax: job.dMax, height: svgH, width: job.width, pad, ...waterOpts });
+    } else if (job.kind === 'geoUnit') {
+      // GeoUnitSystem's own graphic log (1D flavor) — same pad/width
+      // reasoning as the 'lith' branch above; no water-table hook (a
+      // standalone badge, never part of buildConstructionGraphic's batch).
+      const pad = job.pad || { ...LITH_LOG_PAD, bottom: sharedBottomPad, right: LITH_LOG_PAD.right + extraRight };
+      drawGeoUnitLog(el, job.obs, job.sf, { dMin: job.dMin, dMax: job.dMax, height: svgH, width: job.width, pad, colorOf: job.colorOf });
     } else if (job.kind === 'fallback') {
       drawSampleLogFallback(el, job.sf, { dMin: job.dMin, dMax: job.dMax, sfFrom: job.sfFrom, sfTo: job.sfTo, height: svgH, uom: job.uom, pad: job.pad });
     } else if (job.kind === 'samples') {
@@ -27240,7 +28250,7 @@ function initBadgeGraphic(scopeId, jobs) {
 /** Table row click -> toggle its expand (if any) + highlight the matching
  *  graphic marker, scoped to the enclosing .sample-badge-layout (a feature
  *  could in principle host more than one badge instance). Mirrors
- *  _lithRowClick exactly, including its 2026-07-29 fix: re-highlighting only
+ *  _obsRowClick exactly, including its 2026-07-29 fix: re-highlighting only
  *  happens when the row was just OPENED, not unconditionally — collapsing
  *  an already-expanded row (whether by clicking the row again, or by
  *  clicking its already-highlighted marker, which delegates here) must
@@ -27265,7 +28275,7 @@ function _sampleRowClick(rowEl) {
  *  scrolling it into view (the table row lives inside .sample-table-col's
  *  own scroll region now, not #assoc-content directly, but scrollIntoView
  *  handles a nested scrolling ancestor transparently). Mirrors
- *  _lithZoneClick. */
+ *  _obsZoneClick. */
 function _sampleMarkerClick(markerEl) {
   const scope = markerEl.closest('.sample-badge-layout') || document;
   const key = markerEl.getAttribute('data-sample-key');
@@ -27502,7 +28512,7 @@ function renderSamplingBadgeContent(sfId, sf, drawJobs) {
       + `<td class="kv-interval-val">${row.typeCell.html}</td>`
       + `<td class="kv-interval-val">${row.recoveryCell.html}</td>`;
     // Always wired to _sampleRowClick (not just when expandable) — matching
-    // _lithRowClick's convention, since a row click also needs to sync the
+    // _obsRowClick's convention, since a row click also needs to sync the
     // graphic marker's selection highlight even on a row with nothing left
     // to expand.
     const rowCls = 'kv-interval-row' + (row.derived ? ' sample-row-derived' : '');
@@ -28505,7 +29515,7 @@ function buildConstructionGraphic(sfId, sf, drawJobs) {
     legendsHtml = `<div class="constr-legend-row">${axisSpacer}` +
       (lithObs.length ? legendItem(buildLithLegend(lithObs), lithW, LITH_LOG_PAD.left, !!_lastCol && _lastCol.type === 'lith') : '') +
       (backfillLayers.length ? legendItem(buildBackfillLegend(backfillLayers), backfillW, LITH_LOG_PAD.left, !!_lastCol && _lastCol.type === 'backfill') : '') +
-      (casings.length ? legendItem(buildCasingLegend(casingLegend), casingW, LITH_LOG_PAD.left, !!_lastCol && _lastCol.type === 'casing') : '') +
+      (casings.length ? legendItem(buildCategoricalLegend(casingLegend), casingW, LITH_LOG_PAD.left, !!_lastCol && _lastCol.type === 'casing') : '') +
       `</div>`;
   }
 
@@ -28588,19 +29598,24 @@ function buildBackfillLegend(layers) {
   </div>`;
 }
 
-/** Collapsible legend of the casing materials actually present — same
- *  collapsible-header markup/classes as buildLithLegend/buildBackfillLegend
- *  (collapses via the same toggleKVSection wiring), but a solid color swatch
- *  rather than a LITH_MATERIALS pattern tile: casingMaterial (steel, PVC,
- *  HDPE, ...) has no soil/rock analog for _resolveFromCodeOrDescription to
- *  key off, so drawCasingColumn colors it via _assignCategoricalColors
- *  instead (see that function's own comment) — this takes its precomputed
- *  `legend` array directly (buildConstructionGraphic computes colorOf/legend
- *  once, together, and passes colorOf to the draw job) rather than
- *  re-deriving a color per material the way buildLithLegend/
- *  buildBackfillLegend do, since categorical color assignment depends on
- *  the full set of materials together, not any one entry in isolation. */
-function buildCasingLegend(legend) {
+/** Collapsible legend for any set of free-text labels colored via
+ *  _assignCategoricalColors rather than a LITH_MATERIALS pattern tile —
+ *  same collapsible-header markup/classes as buildLithLegend/
+ *  buildBackfillLegend (collapses via the same toggleKVSection wiring), just
+ *  a solid color swatch instead. Originally casing-only (casingMaterial —
+ *  steel, PVC, HDPE, ... — has no soil/rock analog for
+ *  _resolveFromCodeOrDescription to key off, so drawCasingColumn colors it
+ *  via _assignCategoricalColors instead; see that function's own comment),
+ *  generalized 2026-09-22 for GeoUnitSystem's own unitName legend (same
+ *  situation: free text, no natural pattern to key off) — the function body
+ *  had nothing casing-specific in it to begin with. Takes the precomputed
+ *  `legend` array directly (the caller computes colorOf/legend once,
+ *  together, via _assignCategoricalColors, and passes colorOf to whatever
+ *  draws the zones/segments) rather than re-deriving a color per label the
+ *  way buildLithLegend/buildBackfillLegend do, since categorical color
+ *  assignment depends on the full set of labels together, not any one entry
+ *  in isolation. */
+function buildCategoricalLegend(legend) {
   if (!legend || !legend.length) return '';
   const items = legend.map(item => `<div class="lith-legend-item">
       <svg class="lith-legend-sw" viewBox="0 0 20 14" width="20" height="14">
@@ -28614,6 +29629,26 @@ function buildCasingLegend(legend) {
       <span class="kv-tri">${open ? '▼' : '▶'}</span>Legend</div>
     <div class="lith-legend-body"${open ? '' : ' style="display:none"'}>${items}</div>
   </div>`;
+}
+
+/** Depth range (min from, max to) across an ObservationSystem's own
+ *  observations — used to decide whether N systems sharing one SF (e.g. two
+ *  overlapping LithologySystems, or the rare overlapping GeoUnitSystem) get
+ *  ONE combined graphic-log column or one each side by side on a shared
+ *  depth scale (see _depthRangesOverlap and each renderXBadgeContent's own
+ *  "combined" decision). Shared so the decision procedure is identical
+ *  across every system type, not re-derived per caller. */
+function _obsSystemDepthRange(observations) {
+  const froms = observations.map(o => parseFloat(o.from)).filter(v => !isNaN(v));
+  const tos   = observations.map(o => parseFloat(o.to)).filter(v => !isNaN(v));
+  return {
+    min: froms.length ? Math.min(...froms) : Infinity,
+    max: tos.length   ? Math.max(...tos)   : -Infinity,
+  };
+}
+/** Do two systems' own depth ranges (see _obsSystemDepthRange) overlap? */
+function _depthRangesOverlap(a, b) {
+  return a.min < b.max && b.min < a.max;
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -28636,27 +29671,13 @@ function renderLithBadgeContent(sfId, sf, lithSystems, allObs, drawJobs) {
   }
 
   // Step 2 — decide render mode
-  // Compute depth range per system
-  function sysRange(sys) {
-    const froms = sys.observations.map(o => parseFloat(o.from)).filter(v => !isNaN(v));
-    const tos   = sys.observations.map(o => parseFloat(o.to)).filter(v => !isNaN(v));
-    return {
-      min: froms.length ? Math.min(...froms) : Infinity,
-      max: tos.length   ? Math.max(...tos)   : -Infinity,
-    };
-  }
-
-  function rangesOverlap(a, b) {
-    return a.min < b.max && b.min < a.max;
-  }
-
-  const ranges   = lithSystems.map(sysRange);
+  const ranges   = lithSystems.map(sys => _obsSystemDepthRange(sys.observations));
   let   combined = sf.type === 'Station'; // Stations always combined
   if (!combined) {
     let hasOverlap = false;
     outer: for (let i = 0; i < ranges.length; i++) {
       for (let j = i + 1; j < ranges.length; j++) {
-        if (rangesOverlap(ranges[i], ranges[j])) { hasOverlap = true; break outer; }
+        if (_depthRangesOverlap(ranges[i], ranges[j])) { hasOverlap = true; break outer; }
       }
     }
     combined = !hasOverlap;
@@ -28785,6 +29806,142 @@ function renderLithBadgeContent(sfId, sf, lithSystems, allObs, drawJobs) {
       <div class="lith-log-caption-row">${axisSpacer}${captionsHtml}</div>
       ${buildLithLegend(allObs)}</div>`;
   const scopeId = `lith-badge-${sfId.replace(/[^a-zA-Z0-9]/g, '_')}`;
+  return `<div class="lith-badge-layout" id="${scopeId}">${logCol}<div class="lith-table-col">${html}</div></div>`;
+}
+
+// ══════════════════════════════════════════════════════════════
+//  renderGeoUnitLogBadgeContent — orchestrator for the Geotechnical Units
+//  badge, 1D flavor (a GeoUnitSystem tied to a borehole/linear SF — see
+//  OBJECT_CONFIGS.GeoUnitSystem's own comment for the 3D flavor, an
+//  unrelated display via renderGeoUnitBadgeContent, which this function
+//  never touches). Structurally identical to renderLithBadgeContent above
+//  (same two-column layout, same combined-vs-separate-column decision, same
+//  graphic-log + legend + table wrap) — kept as its own function rather than
+//  folded into one shared orchestrator because the per-system "header"
+//  content genuinely differs (Lithology's classificationTypes array, always
+//  shown, vs. GeoUnit's single optional geoUnitType, shown only when
+//  present) and this orchestration is dense, historically fragile layout
+//  logic (every dated comment throughout renderLithBadgeContent and its own
+//  CSS records a real bug this exact shape was built to avoid) — not worth
+//  the regression risk of forcing both through one more layer of indirection
+//  for two callers. Same judgment call this codebase already makes for
+//  _sampleLogColumnsForSF vs _lithColumnGroupsForSF (see that function's own
+//  comment). What IS genuinely shared, not duplicated: the graphic-log core
+//  (_drawObservationLogCore, via drawGeoUnitLog), the row<->zone sync
+//  (_obsRowClick/_obsZoneClick), the depth-range/overlap decision
+//  (_obsSystemDepthRange/_depthRangesOverlap), the categorical color/legend
+//  engine (_assignCategoricalColors/buildCategoricalLegend), and every CSS
+//  class this markup uses.
+// ══════════════════════════════════════════════════════════════
+function renderGeoUnitLogBadgeContent(sfId, sf, geoUnitSystems, allObs, drawJobs) {
+  if (drawJobs) drawJobs.length = 0;
+
+  // Categorical color assignment — once, across every system's observations
+  // together, so two overlapping systems' columns and the one shared legend
+  // all agree (see drawGeoUnitLog's own comment on why this can't be
+  // resolved column-by-column).
+  const { colorOf, legend } = _assignCategoricalColors(allObs.map(o => o.unitName || ''), 'Unnamed Unit');
+
+  // Decide render mode — identical procedure to renderLithBadgeContent's own
+  // Step 2.
+  const ranges = geoUnitSystems.map(sys => _obsSystemDepthRange(sys.observations));
+  let combined = sf.type === 'Station'; // Stations always combined
+  if (!combined) {
+    let hasOverlap = false;
+    outer: for (let i = 0; i < ranges.length; i++) {
+      for (let j = i + 1; j < ranges.length; j++) {
+        if (_depthRangesOverlap(ranges[i], ranges[j])) { hasOverlap = true; break outer; }
+      }
+    }
+    combined = !hasOverlap;
+  }
+
+  // One table per GeoUnitSystem, always (never merged) — same reasoning as
+  // Lithology's own Step 3: a system's own metadata would otherwise be
+  // silently dropped when systems are combined. The graphic log below makes
+  // its own, independent combined-vs-separate decision.
+  let html = '';
+  geoUnitSystems.forEach((sys) => {
+    const gutLabel = sys.geoUnitType || '';
+    const extraHtml = renderKVObject(sys.el, OBJECT_CONFIGS.GeoUnitSystem.filter(
+      f => f.path !== 'diggs:geoUnitType' && f.path !== 'diggs:geoUnitObservation'
+    ));
+    const expandable = !!extraHtml;
+    const headerCls = expandable ? 'lith-sys-header expandable' : 'lith-sys-header';
+    const headerAttrs = expandable ? ' onclick="toggleKVSection(this)"' : '';
+    const tri = expandable ? '<span class="kv-tri">▶</span>' : '';
+    html += '<div class="lith-sys-block">';
+    // Unlike Lithology's classificationTypes (always shown, falling back to
+    // "Unknown"), geoUnitType is genuinely optional per schema AND per the
+    // user's own spec for this badge: shown only when present. A system with
+    // neither a geoUnitType nor any other extra metadata gets no header line
+    // at all — straight into its own observation table.
+    if (gutLabel) {
+      html += `<div class="${headerCls}"${headerAttrs}>${tri}Unit Type: <span class="lith-sys-classval">${esc(gutLabel)}</span></div>`;
+    } else if (expandable) {
+      html += `<div class="${headerCls}"${headerAttrs}>${tri}System Details</div>`;
+    }
+    if (expandable) {
+      html += `<div class="kv-section-body lith-sys-extra" style="display:none">${extraHtml}</div>`;
+    }
+    const obsRowCfg = OBJECT_CONFIGS.GeoUnitSystem.find(f => f.path === 'diggs:geoUnitObservation');
+    html += renderPropertyRow(sys.el, obsRowCfg);
+    html += '</div>';
+  });
+
+  if (!html) return '<div style="color:var(--text-muted);font-size:12px;padding:8px">No geotechnical unit data.</div>';
+
+  const hasDepth = allObs.some(o =>
+    isFinite(parseFloat(o.from)) && isFinite(parseFloat(o.to)) && parseFloat(o.to) > parseFloat(o.from));
+  if (!hasDepth) return html;
+
+  const logColItem = logId => `
+      <div class="lith-log-col-item" style="width:${LITH_LOG_W}px">
+        <div id="${logId}" class="lith-log-host"></div>
+      </div>`;
+  const logCaptionItem = label => `
+      <div class="lith-log-caption" style="width:${LITH_LOG_W}px;margin-left:${LITH_LOG_TITLE_SHIFT}px" title="${esc(label)}">${esc(label)}</div>`;
+
+  let logsHtml, captionsHtml;
+  if (combined) {
+    const logId = `geounitlog-${sfId.replace(/[^a-zA-Z0-9]/g, '_')}`;
+    if (drawJobs) drawJobs.push({ kind: 'geoUnit', containerId: logId, obs: allObs, sf, colorOf });
+    const gutVals = [...new Set(geoUnitSystems.map(sys => sys.geoUnitType).filter(Boolean))];
+    const label = gutVals.length ? gutVals.join(', ') : 'Geotechnical Units';
+    logsHtml = logColItem(logId);
+    captionsHtml = logCaptionItem(label);
+  } else {
+    // Spatially-overlapping GeoUnitSystems (rare, per the user's own note)
+    // each get their own log column, side by side, but all mapped to one
+    // shared/universal depth scale — same reasoning as Lithology's own
+    // multi-system case.
+    const finiteMins = ranges.map(r => r.min).filter(isFinite);
+    const finiteMaxs = ranges.map(r => r.max).filter(isFinite);
+    const dMin = finiteMins.length ? Math.min(...finiteMins) : undefined;
+    const dMax = finiteMaxs.length ? Math.max(...finiteMaxs) : undefined;
+    logsHtml = ''; captionsHtml = '';
+    geoUnitSystems.forEach((sys, idx) => {
+      const hasSysDepth = sys.observations.some(o =>
+        isFinite(parseFloat(o.from)) && isFinite(parseFloat(o.to)) && parseFloat(o.to) > parseFloat(o.from));
+      if (!hasSysDepth) return; // nothing to plot for this system
+      const logId = `geounitlog-${sfId.replace(/[^a-zA-Z0-9]/g, '_')}-${idx}`;
+      const label = sys.geoUnitType || `Log ${idx + 1}`;
+      if (drawJobs) drawJobs.push({ kind: 'geoUnit', containerId: logId, obs: sys.observations, sf, dMin, dMax, colorOf });
+      logsHtml += logColItem(logId);
+      captionsHtml += logCaptionItem(label);
+    });
+  }
+
+  const uom = depthUomForRows(allObs) || '';
+  const axisLabel = `Depth${uom ? ` (${uom})` : ''}`;
+  const axisSpacer = `<div class="lith-log-axis-label" style="visibility:hidden;max-height:0;overflow:hidden">${esc(axisLabel)}</div>`;
+  const logCol = `<div class="lith-log-col">
+      <div class="lith-log-row">
+        <div class="lith-log-axis-label">${esc(axisLabel)}</div>${logsHtml}
+      </div>
+      <div class="lith-log-caption-row">${axisSpacer}${captionsHtml}</div>
+      ${buildCategoricalLegend(legend)}</div>`;
+  const scopeId = `geounitlog-badge-${sfId.replace(/[^a-zA-Z0-9]/g, '_')}`;
   return `<div class="lith-badge-layout" id="${scopeId}">${logCol}<div class="lith-table-col">${html}</div></div>`;
 }
 
