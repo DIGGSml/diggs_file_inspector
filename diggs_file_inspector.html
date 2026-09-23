@@ -1710,6 +1710,29 @@ table.data-table tbody tr.selected {
    word-break:break-word was added for long free-text columns like
    Material). */
 .kv-interval-lead { white-space:nowrap; }
+/* 3D ObservationSystem badge (GeoUnitSystem today) unit table — Show
+   checkbox / Legend swatch / expand-triangle / Unit Name columns (2026-09-24,
+   replacing the single-column-with-inline-triangle layout + a would-be
+   separate per-type-group legend that had no room for 3 systems' worth of
+   swatches at once — see render3DObservationSystemBadge's own comment). The
+   three leading columns are narrow/centered so "Unit Name" gets the rest of
+   the table's width. */
+.obs3d-unit-table th:nth-child(1),
+.obs3d-unit-table th:nth-child(2),
+.obs3d-unit-table th:nth-child(3),
+.obs3d-show-cell, .obs3d-legend-cell, .obs3d-tri-cell {
+  width:1%;white-space:nowrap;text-align:center;
+}
+.obs3d-show-cell input[type=checkbox],
+.obs3d-sys-header input[type=checkbox] { cursor:pointer;vertical-align:middle; }
+/* Per-system header row (the outer collapsible wrapper for one system's own
+   System Info panel + unit table) — a visibility checkbox sits AHEAD of the
+   expand triangle, toggling every one of this system's own units regardless
+   of whether this row itself is expanded; wrapCategoryHeader's own fixed
+   tri-then-label template has no slot for that, hence the bespoke
+   _wrapObsSystemHeader markup instead. No CSS override needed —
+   .kv-section-header's own flex/gap layout and border-top already fit (the
+   checkbox is just an extra flex child ahead of .kv-tri). */
 /* ── LithologySystem header (classification type + optional accordion) ── */
 .lith-sys-block { margin-bottom:14px; }
 .lith-sys-block:last-child { margin-bottom:0; }
@@ -5680,8 +5703,8 @@ let DIGGS_LITH = {};    // keyed by sf gml:id
 // -> [{ id, name, el, locEl, kind }], one per GeoUnitObservation whose
 // diggs:location carries a 3D body (MultiSolid/CompositeSolid/Solid/
 // SurfaceBoundedSolid). A GeoUnitObservation with any other location (or none)
-// has no body to show and is not collected. See the "Geotechnical Units" badge in
-// buildAssocBadges and open3DGeoUnitView.
+// has no body to show and is not collected. See the "Geotechnical Units" badge
+// in buildAssocBadges (render3DObservationSystemBadge/renderGeoUnitBadgeContent).
 let DIGGS_GEOUNITS = {};
 // DIGGS_GEOUNIT_LOG — the 1D flavor's own registry, parallel to DIGGS_LITH
 // (grouped by GeoUnitSystem, not flattened per-observation like DIGGS_GEOUNITS
@@ -13402,11 +13425,14 @@ const _OBS_SYSTEM_TRAILING = [
 //    renders one collapsible block per observation via this same config, no
 //    interval table.
 // `location` is deliberately NOT its own row: for the 3D flavor the Shape row
-// below summarises the body and opens the 3D viewer instead of dumping raw
-// nested KV; for the 1D flavor the depth is already the interval row's own
-// index, so a raw dump would just duplicate it. The vertical-distance/
-// thickness elements apply only to the 1D flavor (per the schema's own
-// documentation) and simply don't appear on a site-wide body.
+// below summarises the body (no "View 3D" pill of its own, 2026-09-24 —
+// removed as redundant: the embedded Plot pane above already shows this
+// exact unit, and the pill's own full-pane 3D view had no way back except
+// reopening the GeoUnit badge) instead of dumping raw nested KV; for the 1D
+// flavor the depth is already the interval row's own index, so a raw dump
+// would just duplicate it. The vertical-distance/thickness elements apply
+// only to the 1D flavor (per the schema's own documentation) and simply
+// don't appear on a site-wide body.
 OBJECT_CONFIGS.GeoUnitObservation = [
   { path: '@gml:id', label: 'ID' },
   { path: 'diggs:unitName', multi: true, label: 'Unit Name', labelPlural: 'Unit Names' },
@@ -13416,17 +13442,7 @@ OBJECT_CONFIGS.GeoUnitObservation = [
   { path: '@stratumCode', label: 'Stratum Code' },
   {
     label: 'Shape',
-    compute: el => {
-      const locEl = xFirst(el.ownerDocument, 'diggs:location', el);
-      const shapeLabel = _geoUnitShapeLabel(locEl);
-      if (!shapeLabel) return '';
-      const id = el.getAttributeNS(NS.gml, 'id') || el.getAttribute('gml:id') || '';
-      if (!id || !_locationVolumeGeometry(locEl)) return shapeLabel;
-      return {
-        val: shapeLabel,
-        keyExtra: `<button class="pill-3d-view" onclick="open3DGeoUnitView('${esc(id)}')">View 3D</button>`,
-      };
-    },
+    compute: el => _geoUnitShapeLabel(xFirst(el.ownerDocument, 'diggs:location', el)) || '',
   },
   { path: 'diggs:verticalDistanceToTopOfUnit', label: 'Vertical Distance to Top of Unit' },
   { path: 'diggs:verticalDistanceToBaseOfUnit', label: 'Vertical Distance to Base of Unit' },
@@ -18877,8 +18893,17 @@ function _sbsExtractRingXY(linearRingEl, boundEl) {
   let plEl = null;
   for (const c of linearRingEl.childNodes) { if (c.nodeType === 1 && c.localName === 'posList') { plEl = c; break; } }
   if (!plEl) return null;
-  const dim = parseInt(plEl.getAttribute('srsDimension') || '3') || 3;
+  // dim MUST fall back through the ancestor chain (anc.dim), not straight to
+  // '3' — a footprint's own posList legally omits srsDimension, inheriting
+  // it from the enclosing PlanarSurface (srsDimension="2" here, always —
+  // footprint Z is discarded anyway). Defaulting straight to 3 silently
+  // misgroups a 2D token stream (found 2026-09-23: a many-hole footprint's
+  // own exterior ring fell below the 4-coordinate minimum once misgrouped by
+  // 3s, returning null and taking the whole solid down with it; a simpler
+  // footprint with more vertices merely produced a garbled ring instead,
+  // masquerading as a valid-but-almost-entirely-uncovered solid).
   const anc = _ancestorSrsInfo(linearRingEl, boundEl);
+  const dim = parseInt(plEl.getAttribute('srsDimension') || anc.dim || '3') || 3;
   const srsName = plEl.getAttribute('srsName') || anc.srsName || '';
   const coords = _tokensToCoords(numTokens(plEl.textContent), dim);
   if (coords.length < 4) return null;   // need >=3 distinct verts, ring repeats the first
@@ -18916,8 +18941,11 @@ function _sbsSurfaceToTriangles(surfEl, seen, depth) {
     let plEl = null;
     for (const c of lrEl.childNodes) { if (c.nodeType === 1 && c.localName === 'posList') { plEl = c; break; } }
     if (!plEl) return null;
-    const dim = parseInt(plEl.getAttribute('srsDimension') || '3') || 3;
+    // See _sbsExtractRingXY's own comment — same anc.dim fallback fix, kept
+    // here too for consistency even though a bounding surface's own dim is
+    // always 3 in every instance seen so far (default-3 masks the bug here).
     const anc = _ancestorSrsInfo(lrEl, boundEl);
+    const dim = parseInt(plEl.getAttribute('srsDimension') || anc.dim || '3') || 3;
     const srsName = plEl.getAttribute('srsName') || anc.srsName || '';
     const coords = _tokensToCoords(numTokens(plEl.textContent), dim);
     if (coords.length < 4) return null;
@@ -19015,6 +19043,11 @@ const SBS_AREA_EPS = 1e-8;      // m² — a clip polygon smaller than this is a
 const SBS_D_EPS    = 1e-9;      // m  — thickness at or below this is "zero" (coincident surfaces)
 const SBS_T_EPS    = 1e-7;      // m  — along-edge stations closer than this are one station
 const SBS_COVER_MIN = 0.9999;   // a bounding surface covering less of the footprint than this is invalid (rule 3)
+// m — real-world positional slack for "is this point on the triangle edge"
+// in _sbsProfileAlong, ~75x the ~1.4 micrometer reprojection noise found
+// 2026-09-23 (see that function's own banner comment) while staying utterly
+// negligible next to any real geotechnical solid feature (decimeters+).
+const SBS_POS_EPS  = 1e-4;
 
 /** Absolute polygon area of a ring/polygon in any 2-D (x,y) or (t,z) frame. */
 function _sbsPolyArea(poly) { return Math.abs(_sbsRingSignedArea(poly)); }
@@ -19179,7 +19212,25 @@ function _sbsPrepSurface(tris, ox, oy) {
 function _sbsProfileAlong(surf, A, B) {
   const dx = B[0] - A[0], dy = B[1] - A[1], len = Math.hypot(dx, dy);
   if (len < 1e-9) return { elems: [], len };
-  const TOL = 1e-9;   // barycentric slack — a segment lying exactly on a triangle edge must still be "inside"
+  // Positional slack, in REAL METERS, for "is this point on the triangle
+  // edge" — see SBS_POS_EPS's own comment. A fixed DIMENSIONLESS barycentric
+  // epsilon (this function's own original 1e-9, and a first pass at this fix
+  // that widened it to a flat 1e-6) can't work uniformly: barycentric
+  // coordinate k is a real positional error divided by the triangle's own
+  // height from vertex k (height = area2/edgeLen_opposite), so the SAME
+  // ~1e-6 m of reprojection noise (see _sbsTriangulatePlanarRing's own
+  // project/triangulate/unproject roundtrip, found 2026-09-23) produces a
+  // tiny lambda error on a normally-proportioned triangle but a HUGE one on
+  // a thin sliver ear from a concave polygon's triangulation (found the same
+  // day, one step further in: a 13-vertex notched LTP outline's own
+  // ~7mm-tall sliver triangle turned ~1.4 micrometers of the same class of
+  // noise into a barycentric error of 2e-4 — 200x past the flat-1e-6 fix,
+  // silently reducing a real ~2.5 m boundary edge's wall coverage to a few
+  // millimeters). Converting the real-meter tolerance to a per-vertex
+  // barycentric one below (`tolK = SBS_POS_EPS * edgeLen_k / area2`) scales
+  // it by that same height automatically, so it stays right-sized on both
+  // a broad flat cap and a needle-thin ear without needing case-by-case
+  // constants.
   const raw = [];
   const q = [Math.min(A[0], B[0]) - 1e-6, Math.min(A[1], B[1]) - 1e-6, Math.max(A[0], B[0]) + 1e-6, Math.max(A[1], B[1]) + 1e-6];
   for (const ti of surf.grid.query(q)) {
@@ -19191,11 +19242,27 @@ function _sbsProfileAlong(surf, A, B) {
       ((p1[0] - p0[0]) * (p[1] - p0[1]) - (p1[1] - p0[1]) * (p[0] - p0[0])) / a2,
     ];
     const LA = lam(A), LB = lam(B);
+    // Opposite-edge lengths, one per vertex (k's own opposite edge is the
+    // OTHER two vertices' own edge — same pairing `lam` itself uses).
+    const edgeLen = [
+      Math.hypot(p2[0] - p1[0], p2[1] - p1[1]),
+      Math.hypot(p0[0] - p2[0], p0[1] - p2[1]),
+      Math.hypot(p1[0] - p0[0], p1[1] - p0[1]),
+    ];
     let lo = 0, hi = 1;
     for (let k = 0; k < 3; k++) {
-      const la = LA[k], dl = LB[k] - la;
-      if (Math.abs(dl) < 1e-15) { if (la < -TOL) { lo = 1; hi = 0; break; } continue; }
-      const sb = (-TOL - la) / dl;
+      const la = LA[k], lb = LB[k], dl = lb - la;
+      const tolK = SBS_POS_EPS * edgeLen[k] / a2;
+      // Both endpoints already read as "on this edge" within tolK — the
+      // segment runs along (or immaculately near) it. A crossing point
+      // computed from `dl` here would be dividing noise by noise: the tiny,
+      // effectively-arbitrary-signed `dl` a reprojected ring's noise
+      // produces can otherwise chop the segment down to a sliver near t=0
+      // (see this function's own banner comment). Treat this coordinate as
+      // satisfied for the WHOLE segment instead of clipping by it.
+      if (Math.abs(la) < tolK && Math.abs(lb) < tolK) continue;
+      if (Math.abs(dl) < 1e-15) { if (la < -tolK) { lo = 1; hi = 0; break; } continue; }
+      const sb = (-tolK - la) / dl;
       if (dl > 0) lo = Math.max(lo, sb); else hi = Math.min(hi, sb);
     }
     if (hi - lo <= 1e-12) continue;
@@ -19552,10 +19619,10 @@ function _sbsGeometry(sbsEl) {
 //                    (SBS-9): one body tiled by member volumes.
 //    MultiSolid      is NOT a volume (AbstractGeometricAggregate); it is
 //                    reached only through GeoUnitObservation/location — see
-//                    DIGGS_GEOUNITS and open3DGeoUnitView. Members may be
-//                    disjoint or overlap, and are NEVER unioned: each renders
-//                    independently under its own colour (an overlapped region
-//                    rendered as one opaque colour would z-fight).
+//                    DIGGS_GEOUNITS. Members may be disjoint or overlap, and
+//                    are NEVER unioned: each renders independently under its
+//                    own colour (an overlapped region rendered as one opaque
+//                    colour would z-fight).
 // ══════════════════════════════════════════════════════════════
 
 /**
@@ -19684,48 +19751,34 @@ function _geoUnitShapeLabel(locEl) {
   }
 }
 
-/** open3DGeoUnitView(obsId) — "View 3D" pill target for one GeoUnitObservation's
- *  own location body (OBJECT_CONFIGS.GeoUnitObservation's Shape row — still
- *  shown per-observation even though the embedded combined Plot pane below
- *  shows every unit of the same type together; "the exact same data as the
- *  1D version" per explicit user spec means this config, pill included, is
- *  unchanged). Searches every system (DIGGS_GEOUNITS is grouped by system,
- *  not flattened, since the 2026-09-22 rebuild — see that global's own
- *  comment). */
-function open3DGeoUnitView(obsId) {
-  let unit = null;
-  outer: for (const systems of Object.values(DIGGS_GEOUNITS)) {
-    for (const sys of systems) {
-      unit = sys.observations.find(u => u.id === obsId);
-      if (unit) break outer;
-    }
-  }
-  if (!unit) return;
-  const geometry = _locationVolumeGeometry(unit.locEl);
-  if (!geometry) return;
-  _showFeatureGeometry3D(geometry, unit.name || unit.id, obsId);
-}
 
 // ══════════════════════════════════════════════════════════════
-//  OBSERVATION-SYSTEM 3D VOLUME VIEWER (2026-09-22) — a light-grey
-//  wireframe "frame" (the owning sampling feature's own featureExtent body)
-//  plus N colored, transparent observation volumes inside it, each
-//  click-isolatable, paired with a Results table per system. Generic over
-//  any 3D-flavored AbstractObservationSystemType descendant whose
-//  observations carry a 3D body in `location` — GeoUnitSystem is the only
-//  one wired up today (renderGeoUnitBadgeContent, the thin wrapper at the
-//  end of this section), but nothing below this banner is GeoUnit-specific;
-//  a future 3D-flavored Lithology/Stratigraphy/etc. system reuses every
-//  piece here unchanged, the same way the 1D graphic-log engine
-//  (_drawObservationLogCore, see sf-detail-and-lithology.md) is shared
-//  rather than copied per system. Layout/interaction spec came from the
-//  user directly (2026-09-22 session): Plot (3D view, 45% of the assoc pane
-//  height) + Results (a table per system, sorted shallowest-first) split,
-//  reusing the measurement engine's own resizable meas-vsplit; only the
-//  first distinct system-type gets both panes open on load, any others
-//  collapsed; row<->3D click sync isolates the selected unit (white,
-//  every other unit hidden) the same way _obsRowClick/_obsZoneClick sync a
-//  1D graphic-log zone to its table row.
+//  OBSERVATION-SYSTEM 3D VOLUME VIEWER (2026-09-22, selection/visibility
+//  model reworked 2026-09-24 — see that date's own comments below) — a
+//  light-grey wireframe "frame" (the owning sampling feature's own
+//  featureExtent body) plus N colored, transparent observation volumes
+//  inside it, each independently show/hide-able and click-selectable,
+//  paired with a Results table per system. Generic over any 3D-flavored
+//  AbstractObservationSystemType descendant whose observations carry a 3D
+//  body in `location` — GeoUnitSystem is the only one wired up today
+//  (renderGeoUnitBadgeContent, the thin wrapper at the end of this section),
+//  but nothing below this banner is GeoUnit-specific; a future 3D-flavored
+//  Lithology/Stratigraphy/etc. system reuses every piece here unchanged, the
+//  same way the 1D graphic-log engine (_drawObservationLogCore, see
+//  sf-detail-and-lithology.md) is shared rather than copied per system.
+//  Layout/interaction spec came from the user directly (2026-09-22 session,
+//  visibility/legend model revised 2026-09-24): Plot (3D view, 45% of the
+//  assoc pane height) + Results (a table per system, sorted shallowest-
+//  first) split, reusing the measurement engine's own resizable meas-vsplit;
+//  only the first distinct system-type gets both panes open on load, any
+//  others collapsed; row<->3D click sync SELECTS the clicked unit (white)
+//  without affecting any other unit's own visibility — visibility is a
+//  fully separate per-unit (and per-system, toggling all its units at once)
+//  Show checkbox, independent of selection — the same way _obsRowClick/
+//  _obsZoneClick sync a 1D graphic-log zone to its table row. Per-unit
+//  color swatches live directly in each system's own unit table (see
+//  render3DObservationSystemBadge) rather than a separate Legend widget —
+//  three systems' worth of legends had no room to coexist on one Plot pane.
 // ══════════════════════════════════════════════════════════════
 
 /**
@@ -19767,12 +19820,11 @@ function _obsVolumeElevationRank(geometry) {
  *    fill) — the owning sampling feature's own body, shown for context, the
  *    same role a borehole's own frame plays around its Lithology zones.
  *  - `unitEntries`: [{obsKey, name, geometry}], one per observation across
- *    every system in this type group — each gets a filled translucent mesh
- *    (opacity 0.55, "transparent mode by default" per spec — there is no
- *    opaque toggle in this v1) colored via `colorOf.get(entry.name)`, plus
- *    an edge outline, grouped under one THREE.Group per unit so
- *    select/deselect can act on a whole unit (however many patches its own
- *    body has) in one call.
+ *    every system in this type group — each gets a filled mesh colored via
+ *    `colorOf.get(entry.name)` (opacity adjustable via the toolbar's own
+ *    Opacity slider, default solid/100%), plus an edge outline, grouped
+ *    under one THREE.Group per unit so select/deselect can act on a whole
+ *    unit (however many patches its own body has) in one call.
  * Registers itself in _activeObsVolumeViewers (keyed by `scopeId`, see that
  * array's own comment) rather than the single-slot _activeTrajectoryViewer —
  * more than one of these can be live at once (one per expanded type group),
@@ -19780,10 +19832,13 @@ function _obsVolumeElevationRank(geometry) {
  * closures (data-attribute + local addEventListener — the same convention
  * _drawGridVolume3D's own multi-instance toolbar already uses), never a
  * global setTrajectoryView-style function keyed off a single active
- * instance. Click-to-isolate (raycasting on the canvas) and the exposed
- * selectUnit/clearSelection API — driven by table row clicks — are
- * implemented here; see _obsVolumeRowClick/_obsVolumeZoneClick for the
- * table-row<->3D sync contract those two drive.
+ * instance. Click-to-select (raycasting on the canvas, restricted to
+ * currently-visible units) and the exposed selectUnit/clearSelection API —
+ * driven by table row clicks — are implemented here, along with the
+ * independent per-unit setUnitVisible API (2026-09-24) the Show checkboxes
+ * drive; see _obsVolumeRowClick/_obsVolumeZoneClick for the table-row<->3D
+ * sync contract the first two drive, and _obsVolumeSetUnitVisible/
+ * _obsVolumeSetSystemVisible for the visibility ones.
  */
 function init3DObservationVolumeViewer(host, scopeId, frameGeometry, unitEntries, colorOf) {
   let width  = host.clientWidth  || 500;
@@ -19808,19 +19863,36 @@ function init3DObservationVolumeViewer(host, scopeId, frameGeometry, unitEntries
   const renderer = new THREE.WebGLRenderer({ antialias: true });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
   renderer.setSize(width, height);
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;   // only matters once shadowMap.enabled is turned on -- see applyLightingMode
   host.insertBefore(renderer.domElement, host.firstChild);
 
-  scene.add(new THREE.AmbientLight(0xffffff, 0.75));
+  // ambientLight/dirLight intensities and dirLight's own position/shadow
+  // config are both mode-dependent -- see applyLightingMode below (defined
+  // once center/diag are known). Values here are 'headlight' mode's own
+  // defaults, unchanged from before that toggle existed (2026-09-24, ported
+  // from init3DFeatureViewer's own Shadow Light control, per explicit user
+  // request — same feature, same defaults).
+  const ambientLight = new THREE.AmbientLight(0xffffff, 0.75);
+  scene.add(ambientLight);
   const dirLight = new THREE.DirectionalLight(0xffffff, 0.55);
   scene.add(dirLight);
+  scene.add(dirLight.target);
 
   const allVerts = [];
   const meshResources = [];
 
+  // Every group (the wireframe frame AND every unit) is parented here, not
+  // directly under `scene`, so vertical exaggeration (applyVerticalExaggeration
+  // below) can be a single non-uniform scale on this one group instead of
+  // rewriting every buffer — same convention/reasoning as init3DFeatureViewer's
+  // own vGroup.
+  const vGroup = new THREE.Group();
+  scene.add(vGroup);
+
   // ── Wireframe frame (the owning SF's own body) — light grey lines only,
   // no fill, so it reads as a container rather than another colored body.
   const frameGroup = new THREE.Group();
-  scene.add(frameGroup);
+  vGroup.add(frameGroup);
   if (frameGeometry) {
     for (const patch of frameGeometry.ptPatches) {
       let scenePts = patch.pts.map(toVec3);
@@ -19845,11 +19917,19 @@ function init3DObservationVolumeViewer(host, scopeId, frameGeometry, unitEntries
   // holes correctly).
   const unitByKey = new Map();
   const pickable = []; // flat list of every filled mesh, for raycasting
+  // Opacity slider state (setOpacity, wired from the toolbar's own
+  // data-obs3d-opacity range input) — starts SOLID (1.0), matching
+  // init3DFeatureViewer's own default, overriding the fixed 0.55 this
+  // viewer originally shipped with. faceMats collects just the unit body
+  // fill materials (not the wireframe frame's edge lines, nor a unit's own
+  // colored edge outline) so the slider only affects the fill.
+  let opacityFrac = 1;
+  const faceMats = [];
   for (const entry of unitEntries) {
     const colorHex = (colorOf && colorOf.get(entry.name)) || SAMPLE_METHOD_OTHER_COLOR;
     const group = new THREE.Group();
     group.userData.obsKey = entry.obsKey;
-    scene.add(group);
+    vGroup.add(group);
     const meshes = [], edges = [];
     for (const patch of entry.geometry.ptPatches) {
       let scenePts = patch.pts.map(toVec3);
@@ -19884,13 +19964,21 @@ function init3DObservationVolumeViewer(host, scopeId, frameGeometry, unitEntries
 
       const mat = new THREE.MeshStandardMaterial({
         color: colorHex, roughness: 0.85, metalness: 0,
-        side: THREE.DoubleSide, transparent: true, opacity: 0.55,
+        side: THREE.DoubleSide, transparent: opacityFrac < 1, opacity: opacityFrac,
       });
       const mesh = new THREE.Mesh(shapeGeom, mat);
       mesh.userData.obsKey = entry.obsKey;
+      // Both flags on every unit -- in "shadow" lighting mode (see
+      // applyLightingMode) one unit's own body needs to shadow another to
+      // show relief at all; harmless no-op cost while dirLight.castShadow/
+      // renderer.shadowMap.enabled are both false, i.e. the default
+      // "headlight" mode.
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
       group.add(mesh);
       meshes.push(mesh);
       pickable.push(mesh);
+      faceMats.push(mat);
 
       const edgeGeom = new THREE.BufferGeometry().setFromPoints([...scenePts, scenePts[0]]);
       const edgeMat = new THREE.LineBasicMaterial({ color: new THREE.Color(colorHex).lerp(new THREE.Color(0xffffff), 0.35) });
@@ -19918,6 +20006,79 @@ function init3DObservationVolumeViewer(host, scopeId, frameGeometry, unitEntries
   grid.material.transparent = true;
   scene.add(grid);
 
+  // ── Vertical exaggeration (V.E. toolbar field, default 1 = true scale,
+  // 2026-09-24 — ported from init3DFeatureViewer's own V.E. control, per
+  // explicit user request) — a single non-uniform scale on vGroup (see its
+  // own comment above) rather than rewriting any geometry buffer. Applied
+  // around center.y (not the arbitrary re-centering origin toVec3/originPt
+  // use for float precision) so the model grows/shrinks symmetrically about
+  // its own middle instead of shooting off from one corner as V.E. changes.
+  let vExag = 1;
+  function _effectiveDiag() {
+    // Real bounding diagonal AFTER exaggeration -- only Y (real-world up)
+    // stretches; used to keep the shadow frustum (below) sized to the
+    // CURRENT height rather than clipping a tall exaggerated model.
+    return Math.max(diag, Math.hypot(size.x, size.y * vExag, size.z));
+  }
+  function applyVerticalExaggeration(factor) {
+    vExag = (isFinite(factor) && factor > 0) ? Math.min(1000, Math.max(0.01, factor)) : 1;
+    vGroup.scale.y = vExag;
+    vGroup.position.y = center.y * (1 - vExag);
+    // Grid marks the model's own lowest point -- keep it glued to the
+    // bottom of the NOW-exaggerated model, not the unexaggerated one, so it
+    // never floats above or sinks below the model as V.E. changes.
+    grid.position.y = center.y + (box.min.y - center.y) * vExag;
+    if (lightingMode === 'shadow') applyLightingMode('shadow');   // re-size the shadow frustum for the new height
+    render();
+  }
+
+  // ── Lighting mode: 'headlight' (default, unchanged) vs. 'shadow'
+  // (2026-09-24 — ported from init3DFeatureViewer's own Shadow Light
+  // toggle, per explicit user request). 'headlight' keeps dirLight glued to
+  // the camera every frame (see render() below) -- deliberately shadow-free
+  // so orbiting never darkens whatever face you're looking at, but for
+  // exactly that reason relief reads as flat: the light is always nearly
+  // head-on to every visible face. 'shadow' instead fixes dirLight at a
+  // raking angle in WORLD space (independent of camera orbit -- a classic
+  // NW-at-~40°-elevation "hillshade" convention) and turns on real shadow
+  // mapping, so relief shows up two ways: the Lambertian N·L shading
+  // gradient across a sloped face (the dominant cue, present even before any
+  // shadow is cast), plus actual self-shadowing where one unit occludes
+  // another.
+  let lightingMode = 'headlight';
+  function applyLightingMode(mode) {
+    lightingMode = mode;
+    if (mode === 'shadow') {
+      ambientLight.intensity = 0.35;
+      dirLight.intensity = 0.9;
+      dirLight.castShadow = true;
+      renderer.shadowMap.enabled = true;
+      // eDiag (not the static `diag`) so the frustum still fully covers the
+      // model at whatever V.E. is currently applied -- called again from
+      // applyVerticalExaggeration whenever that changes while shadows are on.
+      const eDiag = _effectiveDiag();
+      const dir = new THREE.Vector3(-1, 1.6, -0.6).normalize();
+      dirLight.position.copy(center).addScaledVector(dir, eDiag * 1.5);
+      dirLight.target.position.copy(center);
+      dirLight.target.updateMatrixWorld();
+      dirLight.shadow.camera.left = -eDiag; dirLight.shadow.camera.right = eDiag;
+      dirLight.shadow.camera.top = eDiag; dirLight.shadow.camera.bottom = -eDiag;
+      dirLight.shadow.camera.near = eDiag * 0.01; dirLight.shadow.camera.far = eDiag * 4;
+      dirLight.shadow.mapSize.set(1024, 1024);
+      dirLight.shadow.bias = -0.0015;
+      dirLight.shadow.normalBias = eDiag * 0.002;
+      dirLight.shadow.camera.updateProjectionMatrix();
+    } else {
+      ambientLight.intensity = 0.75;
+      dirLight.intensity = 0.55;
+      dirLight.castShadow = false;
+      renderer.shadowMap.enabled = false;
+      // dirLight.position is re-driven every frame by render()'s own
+      // camera-follow line below while in this mode -- nothing to set here.
+    }
+    render();
+  }
+
   const controls = new THREE.OrbitControls(camera, renderer.domElement);
   controls.target.copy(center);
   controls.enableDamping = false;
@@ -19926,7 +20087,11 @@ function init3DObservationVolumeViewer(host, scopeId, frameGeometry, unitEntries
 
   function render() {
     camera.updateMatrixWorld();
-    dirLight.position.copy(camera.position);
+    // Only in 'headlight' mode -- 'shadow' mode fixes dirLight's position
+    // itself (applyLightingMode above), and re-driving it from the camera
+    // here every frame would defeat the whole point of a world-fixed raking
+    // light (and thrash the shadow map for no reason).
+    if (lightingMode === 'headlight') dirLight.position.copy(camera.position);
     let activeCamera = camera;
     if (projectionMode === 'ortho') {
       const dist = camera.position.distanceTo(controls.target);
@@ -19988,15 +20153,17 @@ function init3DObservationVolumeViewer(host, scopeId, frameGeometry, unitEntries
   });
   resizeObserver.observe(host);
 
-  // ── Select/deselect: white-out the selected unit, hide every other unit
-  // (the SF's own wireframe frame always stays visible). See
-  // _obsVolumeRowClick/_obsVolumeZoneClick for the table-row/3D-click sync
-  // that drives this.
+  // ── Select/deselect: white-out the selected unit. Visibility is a FULLY
+  // INDEPENDENT concern (2026-09-24, replacing the original "isolate" model
+  // that force-hid every other unit on select) — driven instead by the
+  // Show checkboxes (_obsVolumeSetUnitVisible/_obsVolumeSetSystemVisible),
+  // never by selection. The SF's own wireframe frame is never affected by
+  // either. See _obsVolumeRowClick/_obsVolumeZoneClick for the table-row/
+  // 3D-click sync that drives selectUnit/clearSelection.
   let selectedKey = null;
-  function applySelection() {
+  function applyColors() {
     for (const [key, u] of unitByKey) {
       const isSelected = key === selectedKey;
-      u.group.visible = selectedKey == null || isSelected;
       const col = isSelected ? 0xffffff : u.colorHex;
       for (const m of u.meshes) m.material.color.set(col);
       for (const e of u.edges) {
@@ -20008,23 +20175,36 @@ function init3DObservationVolumeViewer(host, scopeId, frameGeometry, unitEntries
   function selectUnit(obsKey) {
     if (!unitByKey.has(obsKey)) return;
     selectedKey = obsKey;
-    applySelection();
+    applyColors();
   }
   function clearSelection() {
     if (selectedKey == null) return;
     selectedKey = null;
-    applySelection();
+    applyColors();
   }
 
-  // ── Click-to-isolate on the canvas itself (raycasting against every
-  // unit's own filled mesh — the wireframe frame and grid are never
-  // pickable; an already-hidden unit's mesh is skipped by Three.js's own
-  // visible-object check). A click that hits nothing is a no-op (does NOT
-  // clear an existing selection — matches _obsVolumeRowClick's own "closing
-  // the row clears it" contract; an empty click on the canvas is not a
-  // close gesture). Delegates to _obsVolumeZoneClick so the matching table
-  // row opens/closes in sync, the same way _obsZoneClick delegates to
-  // _obsRowClick for the 1D graphic log.
+  // ── Per-unit visibility (2026-09-24) — independent of selection/color
+  // above. Every unit starts visible (matching each Show checkbox's own
+  // default-checked state, group.visible's own THREE.Group default); a
+  // system-level checkbox drives every one of its own units through
+  // repeated setUnitVisible calls (see _obsVolumeSetSystemVisible), not a
+  // separate group concept here.
+  function setUnitVisible(obsKey, visible) {
+    const u = unitByKey.get(obsKey);
+    if (!u) return;
+    u.group.visible = visible;
+    render();
+  }
+
+  // ── Click-to-select on the canvas itself (raycasting against every
+  // CURRENTLY VISIBLE unit's own filled mesh — the wireframe frame and grid
+  // are never pickable, and a unit hidden via its own Show checkbox is
+  // excluded so a click can't "select through" it). A click that hits
+  // nothing is a no-op (does NOT clear an existing selection — matches
+  // _obsVolumeRowClick's own "closing the row clears it" contract; an empty
+  // click on the canvas is not a close gesture). Delegates to
+  // _obsVolumeZoneClick so the matching table row opens/closes in sync, the
+  // same way _obsZoneClick delegates to _obsRowClick for the 1D graphic log.
   const raycaster = new THREE.Raycaster();
   const pointer = new THREE.Vector2();
   let downPos = null;
@@ -20037,7 +20217,8 @@ function init3DObservationVolumeViewer(host, scopeId, frameGeometry, unitEntries
     pointer.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
     pointer.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
     raycaster.setFromCamera(pointer, projectionMode === 'ortho' ? orthoCamera : camera);
-    const hits = raycaster.intersectObjects(pickable, false);
+    const livePickable = pickable.filter(m => m.parent.visible);
+    const hits = raycaster.intersectObjects(livePickable, false);
     if (!hits.length) return;
     const obsKey = hits[0].object.userData.obsKey;
     if (obsKey) _obsVolumeZoneClick(obsKey, scopeId);
@@ -20060,16 +20241,63 @@ function init3DObservationVolumeViewer(host, scopeId, frameGeometry, unitEntries
         render();
       });
     }
+    const opacitySlider = toolbar.querySelector('[data-obs3d-opacity]');
+    const opacityVal = toolbar.querySelector('[data-obs3d-opacity-val]');
+    if (opacitySlider) {
+      opacitySlider.addEventListener('input', () => {
+        setOpacity(Number(opacitySlider.value) / 100);
+        if (opacityVal) opacityVal.textContent = `${opacitySlider.value}%`;
+      });
+    }
+    const lightingBtn = toolbar.querySelector('[data-obs3d-lighting]');
+    if (lightingBtn) {
+      lightingBtn.addEventListener('click', () => {
+        const newMode = lightingMode === 'shadow' ? 'headlight' : 'shadow';
+        applyLightingMode(newMode);
+        lightingBtn.classList.toggle('active', newMode === 'shadow');
+      });
+    }
+    const vexagInput = toolbar.querySelector('[data-obs3d-vexag]');
+    if (vexagInput) {
+      // Fires on every keystroke for live feedback; invalid/incomplete input
+      // (empty, "-", "1.") is silently ignored rather than fighting the
+      // user's typing — only a parseable positive number is ever applied.
+      vexagInput.addEventListener('input', () => {
+        const raw = parseFloat(vexagInput.value);
+        if (!isFinite(raw) || raw <= 0) return;
+        applyVerticalExaggeration(raw);
+      });
+      // onchange (blur/Enter) snaps the field's displayed text to whatever
+      // value actually got applied (clamped to [0.01, 1000] by
+      // applyVerticalExaggeration itself), so a clamped or invalid entry
+      // doesn't leave the field showing a number that isn't the true state.
+      vexagInput.addEventListener('change', () => { vexagInput.value = String(vExag); });
+    }
+  }
+
+  function setOpacity(frac) {
+    opacityFrac = frac;
+    for (const mat of faceMats) {
+      mat.opacity = frac;
+      mat.transparent = frac < 1;
+    }
+    render();
   }
 
   const viewerEntry = {
     scopeId,
-    selectUnit, clearSelection,
+    selectUnit, clearSelection, setOpacity, setUnitVisible,
+    get opacity() { return opacityFrac; },
+    get lightingMode() { return lightingMode; },
+    setLightingMode: applyLightingMode,
+    get verticalExaggeration() { return vExag; },
+    setVerticalExaggeration: applyVerticalExaggeration,
     dispose() {
       resizeObserver.disconnect();
       controls.dispose();
       renderer.dispose();
       meshResources.forEach(r => { r.geom.dispose(); r.mat.dispose(); });
+      grid.geometry.dispose(); grid.material.dispose();
       gizmo.dispose();
       if (renderer.domElement.parentNode) renderer.domElement.parentNode.removeChild(renderer.domElement);
     },
@@ -20091,10 +20319,12 @@ function init3DObservationVolumeViewer(host, scopeId, frameGeometry, unitEntries
  *
  * Opening a row: closes whatever OTHER row is currently open within this
  * SAME scope first (every system's own table sharing one 3D view can only
- * have one isolated selection at a time — a second open row would leave the
- * 3D view and the table visually out of sync about which unit is
- * "selected"), then opens this row and isolates its unit.
- * Closing the (already open) row: restores every unit's visibility/color.
+ * have one selected unit at a time — a second open row would leave the 3D
+ * view and the table visually out of sync about which unit is "selected"),
+ * then opens this row and selects (white-highlights) its unit — this never
+ * touches any unit's own visibility (2026-09-24; see setUnitVisible/
+ * _obsVolumeSetUnitVisible for that, a fully separate concern now).
+ * Closing the (already open) row: restores the unit's own color.
  */
 function _obsVolumeRowClick(rowEl, scopeId) {
   const scopeEl = document.querySelector(`[data-obs3d-scope="${scopeId}"]`);
@@ -20130,6 +20360,58 @@ function _obsVolumeZoneClick(obsKey, scopeId) {
   }
 }
 
+/** _obsVolumeSetUnitVisible(scopeId, obsKey, visible) — a unit row's own
+ *  "Show" checkbox (see render3DObservationSystemBadge's unit table).
+ *  Drives ONLY the matching viewer's setUnitVisible (never selection/color —
+ *  a fully independent concern, 2026-09-24). */
+function _obsVolumeSetUnitVisible(scopeId, obsKey, visible) {
+  const viewer = _activeObsVolumeViewers.find(v => v.scopeId === scopeId);
+  if (viewer) viewer.setUnitVisible(obsKey, visible);
+}
+
+/** _obsVolumeSetSystemVisible(scopeId, sysKeySafe, visible) — a
+ *  GeoUnitSystem row's own leading visibility checkbox (see
+ *  _wrapGeoUnitSystemHeader): toggles every one of THIS system's own units
+ *  (found via the `[data-obs3d-sys="sysKeySafe"]` wrapper
+ *  render3DObservationSystemBadge gives that system's own block), syncing
+ *  each unit row's own Show checkbox to match so the two controls never
+ *  disagree. */
+function _obsVolumeSetSystemVisible(scopeId, sysKeySafe, visible) {
+  const viewer = _activeObsVolumeViewers.find(v => v.scopeId === scopeId);
+  const sysEl = document.querySelector(`[data-obs3d-scope="${scopeId}"] [data-obs3d-sys="${sysKeySafe}"]`);
+  if (!sysEl) return;
+  sysEl.querySelectorAll('tr.kv-interval-row[data-obs-key]').forEach(row => {
+    const key = row.getAttribute('data-obs-key');
+    const cb = row.querySelector('.obs3d-show-checkbox');
+    if (cb) cb.checked = visible;
+    if (viewer && key) viewer.setUnitVisible(key, visible);
+  });
+}
+
+/** _wrapObsSystemHeader(label, scopeId, sysKeySafe, body) — per-system
+ *  header row for the 3D ObservationSystem badge's Results pane (2026-09-24,
+ *  replacing a plain wrapCategoryHeader call, GeoUnit or otherwise — this
+ *  function is as generic as render3DObservationSystemBadge itself, its only
+ *  caller): a visibility checkbox sits AHEAD of the expand triangle
+ *  (wrapCategoryHeader's own fixed tri-then-label template has no slot for a
+ *  leading control — see wrapGeometryCategoryHeader's own comment for the
+ *  same reasoning behind a bespoke variant), toggling every one of this
+ *  system's own units via _obsVolumeSetSystemVisible regardless of whether
+ *  this row itself is expanded. Starts CLOSED (per explicit user spec —
+ *  every prior caller of wrapCategoryHeader in this badge, including this
+ *  row's own predecessor, started open). `sysKeySafe` becomes this block's
+ *  own `data-obs3d-sys` attribute, the scope _obsVolumeSetSystemVisible's
+ *  own query is anchored to. */
+function _wrapObsSystemHeader(label, scopeId, sysKeySafe, body) {
+  return `<div class="kv-cat" data-obs3d-sys="${esc(sysKeySafe)}">` +
+    `<div class="kv-section-header obs3d-sys-header" onclick="toggleKVSection(this)">` +
+    `<input type="checkbox" checked onclick="event.stopPropagation()" ` +
+    `onchange="_obsVolumeSetSystemVisible('${esc(scopeId)}','${esc(sysKeySafe)}',this.checked)">` +
+    `<span class="kv-tri">▶</span>${label}</div>` +
+    `<div class="kv-section-body kv-cat-body" style="display:none">${body}</div>` +
+    `</div>`;
+}
+
 /**
  * render3DObservationSystemBadge(sfId, sf, systems, opts) — generic
  * orchestrator for a 3D-body ObservationSystem badge. `systems` is already
@@ -20145,10 +20427,27 @@ function _obsVolumeZoneClick(obsKey, scopeId) {
  * feature, a graphic window and results window combo displays below the
  * first GeoUnitSystem type, but are collapsed at start").
  *
- * opts: { scopePrefix, obsConfigName, typeFallbackLabel, emptyMsg }
+ * opts: { scopePrefix, obsConfigName, sysConfigName, sysObsPath, typeFallbackLabel, emptyMsg }
  *  - scopePrefix     - CSS/id namespace for this system kind, e.g. 'geounit3d'
  *  - obsConfigName   - OBJECT_CONFIGS key for one observation's expand panel
  *                      (GeoUnitObservation today)
+ *  - sysConfigName   - OBJECT_CONFIGS key for the owning SYSTEM's own "System
+ *                      Info" panel (GeoUnitSystem today) — rendered via
+ *                      renderKVObject, filtered to exclude gml:name (already
+ *                      shown as this system's own header label) and
+ *                      `sysObsPath` (the repeating observation row, shown
+ *                      separately as the unit table below it); everything
+ *                      else in that config, INCLUDING a type-grouping field
+ *                      like geoUnitType, is shown (2026-09-24 — closes the
+ *                      3D flavor's own "system-level properties don't
+ *                      display" gap, e.g. a gml:description on the system
+ *                      itself)
+ *  - sysObsPath      - the system config's own repeating-observation row
+ *                      path, excluded from the System Info panel above
+ *                      (`diggs:geoUnitObservation` today)
+ *  - sysInfoLabel    - header text for the System Info panel above
+ *                      (defaults to "System Info"; GeoUnit's own wrapper
+ *                      passes "GeoUnit System Info")
  *  - typeFallbackLabel - shown when a system's own typeLabel is '' (still
  *                      needs SOME label for the outer collapsible wrapper)
  *  - emptyMsg        - shown when nothing in `systems` has a resolvable body
@@ -20187,9 +20486,9 @@ function render3DObservationSystemBadge(sfId, sf, systems, opts, drawJobs) {
     // Resolve every qualifying observation's own 3D geometry ONCE per type
     // (expensive triangulation/clipping — deferred until the badge is
     // actually rendered, matching the app's existing lazy-compute
-    // convention for this geometry kind, e.g. open3DGeoUnitView's own
-    // on-demand call). An observation whose location fails to resolve to a
-    // real body is silently dropped (nothing to plot or select for it).
+    // convention for this geometry kind). An observation whose location
+    // fails to resolve to a real body is silently dropped (nothing to plot
+    // or select for it).
     const unitEntries = [];
     for (const sys of typeSystems) {
       for (const obs of sys.observations) {
@@ -20211,34 +20510,70 @@ function render3DObservationSystemBadge(sfId, sf, systems, opts, drawJobs) {
     // every system's own table and the one shared 3D view agree on the
     // same unit name's color (same split buildConstructionGraphic uses for
     // its own casing-material colorOf/legend — see buildCategoricalLegend's
-    // own comment; no legend is shown here, per spec, just the color
-    // itself).
+    // own comment). No SEPARATE legend widget is shown (2026-09-24,
+    // superseding the original "no legend at all" spec) — up to 3 systems
+    // sharing one Plot pane had no room for 3 legends side by side, so the
+    // swatch is melded directly into each unit row's own "Legend" column
+    // instead (see the unit table below).
     const { colorOf } = _assignCategoricalColors(unitEntries.map(u => u.name), 'Unnamed Unit');
 
-    // ── Results pane: one category-labeled table per system, sorted
-    // shallowest-first (descending elevation rank; an unresolvable rank —
-    // shouldn't happen given the ptPatches.length guard above, but stay
-    // defensive — sorts last).
+    // ── Results pane: one header block per system (2026-09-24 rework — was
+    // a plain wrapCategoryHeader call), sorted shallowest-first (descending
+    // elevation rank; an unresolvable rank — shouldn't happen given the
+    // ptPatches.length guard above, but stay defensive — sorts last).
+    // Each system's own block is now three parts:
+    //  1. _wrapObsSystemHeader's own header line (system name + a leading
+    //     visibility checkbox for every unit in this system + the expand
+    //     triangle, closed by default).
+    //  2. The system's own "System Info" panel (opts.sysInfoLabel) — its
+    //     non-name, non-observation-list properties (gml:description,
+    //     geoUnitType, role, remark, etc. for GeoUnit's own config), shown
+    //     only when at least one is actually present; a type-grouping field
+    //     like geoUnitType is deliberately KEPT here (unlike the 1D flavor's
+    //     own equivalent filter, which excludes it since IT shows geoUnitType
+    //     as the header line instead) even though it's also this whole type
+    //     group's own outer grouping key, per explicit user spec.
+    //  3. The unit table itself — Show checkbox / Legend swatch / expand
+    //     triangle / Unit Name columns.
     let resultsHtml = '';
+    let sysIdx = 0;
     for (const sys of typeSystems) {
       const sysEntries = unitEntries.filter(u => u.sysGmlId === sys.gml_id)
         .slice()
         .sort((a, b) => (b.elevRank ?? -Infinity) - (a.elevRank ?? -Infinity));
       if (!sysEntries.length) continue;
+      const sysKeySafe = (sys.gml_id || sys.name || `sys${sysIdx++}`).replace(/[^a-zA-Z0-9_-]/g, '_');
+
       let rows = '';
       for (const u of sysEntries) {
         const body = renderKVObject(u.el, OBJECT_CONFIGS[opts.obsConfigName] || []);
         const expandable = !!body;
         const tri = expandable ? '<span class="kv-tri">▶</span>' : '<span class="kv-tri-spacer"></span>';
         const onclick = expandable ? ` onclick="_obsVolumeRowClick(this,'${esc(scopeId)}')"` : '';
+        const swatchColor = (colorOf && colorOf.get(u.name)) || SAMPLE_METHOD_OTHER_COLOR;
         rows += `<tr class="kv-interval-row" data-obs-key="${esc(u.obsKey)}"${onclick}>` +
-          `<td class="kv-interval-val">${tri}${escHtml(u.name || '(unnamed)')}</td></tr>`;
+          `<td class="obs3d-show-cell"><input type="checkbox" class="obs3d-show-checkbox" checked ` +
+          `onclick="event.stopPropagation()" ` +
+          `onchange="_obsVolumeSetUnitVisible('${esc(scopeId)}','${esc(u.obsKey)}',this.checked)"></td>` +
+          `<td class="obs3d-legend-cell"><svg class="lith-legend-sw" viewBox="0 0 20 14" width="20" height="14">` +
+          `<rect x="0" y="0" width="20" height="14" fill="${swatchColor}"/></svg></td>` +
+          `<td class="obs3d-tri-cell">${tri}</td>` +
+          `<td class="kv-interval-val">${escHtml(u.name || '(unnamed)')}</td></tr>`;
         if (expandable) {
-          rows += `<tr class="kv-interval-detail-row" style="display:none"><td>${body}</td></tr>`;
+          rows += `<tr class="kv-interval-detail-row" style="display:none"><td colspan="4">${body}</td></tr>`;
         }
       }
-      const tableHtml = `<table class="sub-table kv-interval-table"><thead><tr><th>Unit Name</th></tr></thead><tbody>${rows}</tbody></table>`;
-      resultsHtml += wrapCategoryHeader(esc(sys.name || sys.gml_id || 'System'), tableHtml, true);
+      const unitsTableHtml = `<table class="sub-table kv-interval-table obs3d-unit-table"><thead><tr>` +
+        `<th>Show</th><th>Legend</th><th></th><th>Unit Name</th></tr></thead><tbody>${rows}</tbody></table>`;
+
+      const sysInfoBody = renderKVObject(sys.el, (OBJECT_CONFIGS[opts.sysConfigName] || []).filter(
+        f => f.path !== 'gml:name' && f.path !== opts.sysObsPath
+      ));
+      const sysInfoHtml = wrapCategoryHeader(opts.sysInfoLabel || 'System Info', sysInfoBody, true);
+
+      resultsHtml += _wrapObsSystemHeader(
+        esc(sys.name || sys.gml_id || 'System'), scopeId, sysKeySafe, sysInfoHtml + unitsTableHtml,
+      );
     }
     if (!resultsHtml) return;
 
@@ -20253,6 +20588,16 @@ function render3DObservationSystemBadge(sfId, sf, systems, opts, drawJobs) {
           <button type="button" data-obs3d-view="east">E Elevation</button>
           <span class="trajectory-toolbar-sep"></span>
           <button type="button" data-obs3d-proj>Isometric</button>
+          <span class="trajectory-toolbar-sep"></span>
+          <span class="grid-volume-slider-label">Opacity
+            <input type="range" data-obs3d-opacity min="0" max="100" step="5" value="100">
+            <span data-obs3d-opacity-val>100%</span>
+          </span>
+          <button type="button" data-obs3d-lighting>Shadow Light</button>
+          <span class="trajectory-toolbar-sep"></span>
+          <label class="vexag-control">V.E.
+            <input type="number" data-obs3d-vexag min="0.01" step="0.5" value="1">
+          </label>
         </div>
         <div id="${plotHostId}" class="trajectory-canvas-host"></div>
       </div>`;
@@ -20313,7 +20658,10 @@ function renderGeoUnitBadgeContent(sfId, sf, geoUnitSystems, drawJobs) {
   return render3DObservationSystemBadge(sfId, sf, systems, {
     scopePrefix: 'geounit3d',
     obsConfigName: 'GeoUnitObservation',
-    typeFallbackLabel: 'Geotechnical Units',
+    sysConfigName: 'GeoUnitSystem',
+    sysObsPath: 'diggs:geoUnitObservation',
+    sysInfoLabel: 'GeoUnit System Info',
+    typeFallbackLabel: 'GeoUnit System',
     emptyMsg: '<div style="color:var(--text-muted);font-size:12px;padding:8px">No geotechnical unit data.</div>',
   }, drawJobs);
 }
@@ -25419,9 +25767,11 @@ function _featureGeometryInfoHtml(geometry) {
   return html;
 }
 
-// ── _showFeatureGeometry3D: shared by open3DFeatureView (a sampling feature's
-// featureExtent) and open3DGeoUnitView (a GeoUnitObservation's location) —
-// everything after "which geometry, and what to call it" is identical.
+// ── _showFeatureGeometry3D: full-pane "View 3D" target for a sampling
+// feature's own featureExtent (open3DFeatureView) — generic over "which
+// geometry, and what to call it" so any other single-body 3D view could
+// reuse it the same way GeoUnitObservation's own Shape row once did (removed
+// 2026-09-24 as redundant with the GeoUnit badge's own embedded Plot pane).
 function _showFeatureGeometry3D(geometry, title, idKey) {
   const hostId = `feat3d-${String(idKey).replace(/[^a-zA-Z0-9]/g, '_')}`;
   const infoHtml = _featureGeometryInfoHtml(geometry);
@@ -25432,15 +25782,18 @@ function _showFeatureGeometry3D(geometry, title, idKey) {
   // _activeTrajectoryViewer's own generic {camera,controls,center,diag,
   // render,projectionMode} shape, which init3DFeatureViewer populates the
   // same way init3DTrajectoryViewer does, so nothing toolbar-related needs
-  // its own copy for this viewer kind. The trailing "Solid" opacity toggle
-  // (2026-08-07), "Shadow Light" toggle (2026-09-18 — the default
-  // "headlight" that always shines from the camera's own position reads as
-  // flat, with no raking-light gradient to reveal surface relief), and the
-  // V.E. (vertical exaggeration) number field (2026-09-18) are all unique
-  // to this viewer — a trajectory tube/line has no fill for the first two
-  // to act on, and its own vertical axis is already meaningful depth/
-  // elevation a user would not want silently rescaled, so none of the three
-  // is part of open3DTrajectoryView's own toolbar.
+  // its own copy for this viewer kind. The trailing Opacity slider
+  // (2026-08-07; converted from a binary Solid/Translucent toggle to a
+  // continuous 0-100% slider 2026-09-22, default 100/solid, to match every
+  // other 3D viewer's own opacity control), "Shadow Light" toggle
+  // (2026-09-18 — the default "headlight" that always shines from the
+  // camera's own position reads as flat, with no raking-light gradient to
+  // reveal surface relief), and the V.E. (vertical exaggeration) number
+  // field (2026-09-18) are all unique to this viewer — a trajectory tube/
+  // line has no fill for the first two to act on, and its own vertical axis
+  // is already meaningful depth/elevation a user would not want silently
+  // rescaled, so none of the three is part of open3DTrajectoryView's own
+  // toolbar.
   const html = `
     <div class="trajectory-widget">
       <div class="trajectory-toolbar">
@@ -25451,7 +25804,10 @@ function _showFeatureGeometry3D(geometry, title, idKey) {
         <span class="trajectory-toolbar-sep"></span>
         <button id="traj-projection-toggle" onclick="toggleTrajectoryProjection()">Isometric</button>
         <span class="trajectory-toolbar-sep"></span>
-        <button id="feat-opacity-toggle" class="active" onclick="toggleFeatureOpacity()">Translucent</button>
+        <span class="grid-volume-slider-label">Opacity
+          <input id="feat-opacity-slider" type="range" min="0" max="100" step="5" value="100" oninput="setFeatureOpacity(this)">
+          <span id="feat-opacity-val">100%</span>
+        </span>
         <button id="feat-lighting-toggle" onclick="toggleFeatureLighting()">Shadow Light</button>
         <span class="trajectory-toolbar-sep"></span>
         <label class="vexag-control">V.E.
@@ -25488,7 +25844,7 @@ function _showFeatureGeometry3D(geometry, title, idKey) {
 // (_buildOrientationGizmo) as the trajectory viewer, sized identically, per
 // explicit user request — a flat/solid shape's own outline alone doesn't
 // tell you which way is north/up the way a labeled path does. Also gets an
-// opacity toggle (toggleFeatureOpacity) the trajectory viewer has no
+// opacity slider (setFeatureOpacity) the trajectory viewer has no
 // equivalent for, since a tube/line has no fill to make opaque.
 const FEATURE_MEMBER_COLORS = [0x3B82F6, 0xF59E0B, 0x10B981, 0xEF4444, 0x8B5CF6, 0xEC4899];   // blue, amber, green, red, violet, pink
 
@@ -25552,16 +25908,16 @@ function init3DFeatureViewer(host, geometry) {
   const allVerts = [];
   const meshResources = [];
   // Subset of meshResources — just the filled-face materials (not the edge
-  // LineLoop materials), tracked separately so toggleFeatureOpacity can
-  // target only the faces.
+  // LineLoop materials), tracked separately so setFeatureOpacity can target
+  // only the faces.
   const faceMats = [];
-  // Opacity toggle state (toggleFeatureOpacity) — starts SOLID (opaque, per
+  // Opacity slider state (setFeatureOpacity) — starts at 1 (SOLID/100%, per
   // explicit user request) so a shape reads correctly on first open without
-  // an extra click; "Translucent" switches to opacity:0.55 instead, e.g. to
-  // see a multi-patch solid's far side. Declared here (not after the patch
-  // loop, where it used to live) so the loop's own material construction
-  // below can read it for the initial value.
-  let isSolid = true;
+  // adjusting the slider; dragging it down fades the faces to see a
+  // multi-patch solid's far side. Declared here (not after the patch loop,
+  // where it used to live) so the loop's own material construction below
+  // can read it for the initial value.
+  let opacityFrac = 1;
   for (const patch of geometry.ptPatches) {
     let scenePts = patch.pts.map(toVec3);
     // Drop a duplicate closing vertex (GML LinearRing convention: first ===
@@ -25611,7 +25967,7 @@ function init3DFeatureViewer(host, geometry) {
       ? FEATURE_MEMBER_COLORS[patch.memberIndex % FEATURE_MEMBER_COLORS.length] : 0x3B82F6;
     const mat = new THREE.MeshStandardMaterial({
       color: memberHex, roughness: 0.85, metalness: 0,
-      side: THREE.DoubleSide, transparent: !isSolid, opacity: isSolid ? 1 : 0.55,
+      side: THREE.DoubleSide, transparent: opacityFrac < 1, opacity: opacityFrac,
     });
     const mesh = new THREE.Mesh(shapeGeom, mat);
     // Both flags on every patch -- in "shadow" lighting mode (see
@@ -25780,8 +26136,9 @@ function init3DFeatureViewer(host, geometry) {
   });
   resizeObserver.observe(host);
 
-  // isSolid itself is declared above (before the patch loop, which reads its
-  // initial value) — this closure just exposes/mutates that same binding.
+  // opacityFrac itself is declared above (before the patch loop, which
+  // reads its initial value) — this closure just exposes/mutates that same
+  // binding.
 
   _activeTrajectoryViewer = {
     camera, controls, center, diag, render,
@@ -25791,12 +26148,12 @@ function init3DFeatureViewer(host, geometry) {
     setLightingMode: applyLightingMode,
     get verticalExaggeration() { return vExag; },
     setVerticalExaggeration: applyVerticalExaggeration,
-    get isSolid() { return isSolid; },
-    setSolid(solid) {
-      isSolid = solid;
+    get opacity() { return opacityFrac; },
+    setOpacity(frac) {
+      opacityFrac = frac;
       for (const mat of faceMats) {
-        mat.opacity = solid ? 1 : 0.55;
-        mat.transparent = !solid;
+        mat.opacity = frac;
+        mat.transparent = frac < 1;
       }
       render();
     },
@@ -25836,29 +26193,26 @@ function toggleTrajectoryProjection() {
   }
 }
 
-// ── toggleFeatureOpacity: translucent <-> solid, init3DFeatureViewer only ──
+// ── setFeatureOpacity: 0-100% face-opacity slider, init3DFeatureViewer only ──
 // A trajectory tube/line has no fill to make opaque, so there's no
-// equivalent button on that toolbar — `v.setSolid` only exists on a feature
-// viewer's own _activeTrajectoryViewer object (see init3DFeatureViewer), so
-// this is a silent no-op if somehow called while a trajectory viewer is
-// live instead (can't happen from the UI — only init3DFeatureViewer's own
-// toolbar HTML includes the "Solid" button).
-function toggleFeatureOpacity() {
+// equivalent control on that toolbar — `v.setOpacity` only exists on a
+// feature viewer's own _activeTrajectoryViewer object (see
+// init3DFeatureViewer), so this is a silent no-op if somehow called while a
+// trajectory viewer is live instead (can't happen from the UI — only
+// init3DFeatureViewer's own toolbar HTML includes the opacity slider).
+function setFeatureOpacity(input) {
   const v = _activeTrajectoryViewer;
-  if (!v || typeof v.setSolid !== 'function') return;
-  const newSolid = !v.isSolid;
-  v.setSolid(newSolid);
-  const btn = document.getElementById('feat-opacity-toggle');
-  if (btn) {
-    btn.textContent = newSolid ? 'Translucent' : 'Solid';
-    btn.classList.toggle('active', newSolid);
-  }
+  if (!v || typeof v.setOpacity !== 'function') return;
+  const pct = Number(input.value);
+  v.setOpacity(pct / 100);
+  const label = document.getElementById('feat-opacity-val');
+  if (label) label.textContent = `${pct}%`;
 }
 
 // ── toggleFeatureLighting: 'headlight' <-> 'shadow', init3DFeatureViewer
-// only (2026-09-18, per explicit user request) — same setSolid-style
-// existence check as toggleFeatureOpacity above, since only a feature
-// viewer's own _activeTrajectoryViewer carries setLightingMode. Button
+// only (2026-09-18, per explicit user request) — same existence check as
+// setFeatureOpacity above, since only a feature viewer's own
+// _activeTrajectoryViewer carries setLightingMode. Button
 // text stays static ("Shadow Light" describes what the button DOES, not
 // which mode is current) — the .active class is the state indicator, same
 // convention toggleTrajectoryProjection uses for its own Isometric button.
