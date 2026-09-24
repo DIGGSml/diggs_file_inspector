@@ -1711,7 +1711,7 @@ table.data-table tbody tr.selected {
    Material). */
 .kv-interval-lead { white-space:nowrap; }
 /* 3D ObservationSystem badge (GeoUnitSystem today) unit table — Show
-   checkbox / Legend swatch / expand-triangle / Unit Name columns (2026-09-24,
+   checkbox / Legend swatch / expand-triangle / Unit Name columns (2026-09-22,
    replacing the single-column-with-inline-triangle layout + a would-be
    separate per-type-group legend that had no room for 3 systems' worth of
    swatches at once — see render3DObservationSystemBadge's own comment). The
@@ -13425,7 +13425,7 @@ const _OBS_SYSTEM_TRAILING = [
 //    renders one collapsible block per observation via this same config, no
 //    interval table.
 // `location` is deliberately NOT its own row: for the 3D flavor the Shape row
-// below summarises the body (no "View 3D" pill of its own, 2026-09-24 —
+// below summarises the body (no "View 3D" pill of its own, 2026-09-22 —
 // removed as redundant: the embedded Plot pane above already shows this
 // exact unit, and the pill's own full-pane 3D view had no way back except
 // reopening the GeoUnit badge) instead of dumping raw nested KV; for the 1D
@@ -19754,7 +19754,7 @@ function _geoUnitShapeLabel(locEl) {
 
 // ══════════════════════════════════════════════════════════════
 //  OBSERVATION-SYSTEM 3D VOLUME VIEWER (2026-09-22, selection/visibility
-//  model reworked 2026-09-24 — see that date's own comments below) — a
+//  model reworked 2026-09-22 — see that date's own comments below) — a
 //  light-grey wireframe "frame" (the owning sampling feature's own
 //  featureExtent body) plus N colored, transparent observation volumes
 //  inside it, each independently show/hide-able and click-selectable,
@@ -19767,7 +19767,7 @@ function _geoUnitShapeLabel(locEl) {
 //  same way the 1D graphic-log engine (_drawObservationLogCore, see
 //  sf-detail-and-lithology.md) is shared rather than copied per system.
 //  Layout/interaction spec came from the user directly (2026-09-22 session,
-//  visibility/legend model revised 2026-09-24): Plot (3D view, 45% of the
+//  visibility/legend model revised 2026-09-22): Plot (3D view, 45% of the
 //  assoc pane height) + Results (a table per system, sorted shallowest-
 //  first) split, reusing the measurement engine's own resizable meas-vsplit;
 //  only the first distinct system-type gets both panes open on load, any
@@ -19835,7 +19835,7 @@ function _obsVolumeElevationRank(geometry) {
  * instance. Click-to-select (raycasting on the canvas, restricted to
  * currently-visible units) and the exposed selectUnit/clearSelection API —
  * driven by table row clicks — are implemented here, along with the
- * independent per-unit setUnitVisible API (2026-09-24) the Show checkboxes
+ * independent per-unit setUnitVisible API (2026-09-22) the Show checkboxes
  * drive; see _obsVolumeRowClick/_obsVolumeZoneClick for the table-row<->3D
  * sync contract the first two drive, and _obsVolumeSetUnitVisible/
  * _obsVolumeSetSystemVisible for the visibility ones.
@@ -19869,7 +19869,7 @@ function init3DObservationVolumeViewer(host, scopeId, frameGeometry, unitEntries
   // ambientLight/dirLight intensities and dirLight's own position/shadow
   // config are both mode-dependent -- see applyLightingMode below (defined
   // once center/diag are known). Values here are 'headlight' mode's own
-  // defaults, unchanged from before that toggle existed (2026-09-24, ported
+  // defaults, unchanged from before that toggle existed (2026-09-22, ported
   // from init3DFeatureViewer's own Shadow Light control, per explicit user
   // request — same feature, same defaults).
   const ambientLight = new THREE.AmbientLight(0xffffff, 0.75);
@@ -20007,7 +20007,7 @@ function init3DObservationVolumeViewer(host, scopeId, frameGeometry, unitEntries
   scene.add(grid);
 
   // ── Vertical exaggeration (V.E. toolbar field, default 1 = true scale,
-  // 2026-09-24 — ported from init3DFeatureViewer's own V.E. control, per
+  // 2026-09-22 — ported from init3DFeatureViewer's own V.E. control, per
   // explicit user request) — a single non-uniform scale on vGroup (see its
   // own comment above) rather than rewriting any geometry buffer. Applied
   // around center.y (not the arbitrary re-centering origin toVec3/originPt
@@ -20033,7 +20033,7 @@ function init3DObservationVolumeViewer(host, scopeId, frameGeometry, unitEntries
   }
 
   // ── Lighting mode: 'headlight' (default, unchanged) vs. 'shadow'
-  // (2026-09-24 — ported from init3DFeatureViewer's own Shadow Light
+  // (2026-09-22 — ported from init3DFeatureViewer's own Shadow Light
   // toggle, per explicit user request). 'headlight' keeps dirLight glued to
   // the camera every frame (see render() below) -- deliberately shadow-free
   // so orbiting never darkens whatever face you're looking at, but for
@@ -20154,7 +20154,7 @@ function init3DObservationVolumeViewer(host, scopeId, frameGeometry, unitEntries
   resizeObserver.observe(host);
 
   // ── Select/deselect: white-out the selected unit. Visibility is a FULLY
-  // INDEPENDENT concern (2026-09-24, replacing the original "isolate" model
+  // INDEPENDENT concern (2026-09-22, replacing the original "isolate" model
   // that force-hid every other unit on select) — driven instead by the
   // Show checkboxes (_obsVolumeSetUnitVisible/_obsVolumeSetSystemVisible),
   // never by selection. The SF's own wireframe frame is never affected by
@@ -20183,7 +20183,7 @@ function init3DObservationVolumeViewer(host, scopeId, frameGeometry, unitEntries
     applyColors();
   }
 
-  // ── Per-unit visibility (2026-09-24) — independent of selection/color
+  // ── Per-unit visibility (2026-09-22) — independent of selection/color
   // above. Every unit starts visible (matching each Show checkbox's own
   // default-checked state, group.visible's own THREE.Group default); a
   // system-level checkbox drives every one of its own units through
@@ -20322,7 +20322,7 @@ function init3DObservationVolumeViewer(host, scopeId, frameGeometry, unitEntries
  * have one selected unit at a time — a second open row would leave the 3D
  * view and the table visually out of sync about which unit is "selected"),
  * then opens this row and selects (white-highlights) its unit — this never
- * touches any unit's own visibility (2026-09-24; see setUnitVisible/
+ * touches any unit's own visibility (2026-09-22; see setUnitVisible/
  * _obsVolumeSetUnitVisible for that, a fully separate concern now).
  * Closing the (already open) row: restores the unit's own color.
  */
@@ -20363,7 +20363,7 @@ function _obsVolumeZoneClick(obsKey, scopeId) {
 /** _obsVolumeSetUnitVisible(scopeId, obsKey, visible) — a unit row's own
  *  "Show" checkbox (see render3DObservationSystemBadge's unit table).
  *  Drives ONLY the matching viewer's setUnitVisible (never selection/color —
- *  a fully independent concern, 2026-09-24). */
+ *  a fully independent concern, 2026-09-22). */
 function _obsVolumeSetUnitVisible(scopeId, obsKey, visible) {
   const viewer = _activeObsVolumeViewers.find(v => v.scopeId === scopeId);
   if (viewer) viewer.setUnitVisible(obsKey, visible);
@@ -20389,7 +20389,7 @@ function _obsVolumeSetSystemVisible(scopeId, sysKeySafe, visible) {
 }
 
 /** _wrapObsSystemHeader(label, scopeId, sysKeySafe, body) — per-system
- *  header row for the 3D ObservationSystem badge's Results pane (2026-09-24,
+ *  header row for the 3D ObservationSystem badge's Results pane (2026-09-22,
  *  replacing a plain wrapCategoryHeader call, GeoUnit or otherwise — this
  *  function is as generic as render3DObservationSystemBadge itself, its only
  *  caller): a visibility checkbox sits AHEAD of the expand triangle
@@ -20438,7 +20438,7 @@ function _wrapObsSystemHeader(label, scopeId, sysKeySafe, body) {
  *                      `sysObsPath` (the repeating observation row, shown
  *                      separately as the unit table below it); everything
  *                      else in that config, INCLUDING a type-grouping field
- *                      like geoUnitType, is shown (2026-09-24 — closes the
+ *                      like geoUnitType, is shown (2026-09-22 — closes the
  *                      3D flavor's own "system-level properties don't
  *                      display" gap, e.g. a gml:description on the system
  *                      itself)
@@ -20510,14 +20510,14 @@ function render3DObservationSystemBadge(sfId, sf, systems, opts, drawJobs) {
     // every system's own table and the one shared 3D view agree on the
     // same unit name's color (same split buildConstructionGraphic uses for
     // its own casing-material colorOf/legend — see buildCategoricalLegend's
-    // own comment). No SEPARATE legend widget is shown (2026-09-24,
+    // own comment). No SEPARATE legend widget is shown (2026-09-22,
     // superseding the original "no legend at all" spec) — up to 3 systems
     // sharing one Plot pane had no room for 3 legends side by side, so the
     // swatch is melded directly into each unit row's own "Legend" column
     // instead (see the unit table below).
     const { colorOf } = _assignCategoricalColors(unitEntries.map(u => u.name), 'Unnamed Unit');
 
-    // ── Results pane: one header block per system (2026-09-24 rework — was
+    // ── Results pane: one header block per system (2026-09-22 rework — was
     // a plain wrapCategoryHeader call), sorted shallowest-first (descending
     // elevation rank; an unresolvable rank — shouldn't happen given the
     // ptPatches.length guard above, but stay defensive — sorts last).
@@ -25771,7 +25771,7 @@ function _featureGeometryInfoHtml(geometry) {
 // feature's own featureExtent (open3DFeatureView) — generic over "which
 // geometry, and what to call it" so any other single-body 3D view could
 // reuse it the same way GeoUnitObservation's own Shape row once did (removed
-// 2026-09-24 as redundant with the GeoUnit badge's own embedded Plot pane).
+// 2026-09-22 as redundant with the GeoUnit badge's own embedded Plot pane).
 function _showFeatureGeometry3D(geometry, title, idKey) {
   const hostId = `feat3d-${String(idKey).replace(/[^a-zA-Z0-9]/g, '_')}`;
   const infoHtml = _featureGeometryInfoHtml(geometry);
