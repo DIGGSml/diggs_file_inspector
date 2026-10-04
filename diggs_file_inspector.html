@@ -1232,6 +1232,9 @@ html,body{height:100%;font-family:var(--font-ui);background:var(--bg);color:var(
 }
 
 /* tile-pane filter removed — it was desaturating all basemaps and turning satellite greyscale */
+/* Per-basemap tweaks apply to ONE tile layer's container (className option), never the whole pane.
+   Esri World_Street_Map is pale; tune these three numbers to taste. */
+.bm-street { filter: contrast(1.0) saturate(5) brightness(1); }
 .leaflet-container { font-family:var(--font-ui); }
 .leaflet-popup-content-wrapper {
   background:var(--surface2);border:1px solid var(--border);
@@ -22858,13 +22861,17 @@ function initMap() {
 
   // Street tile layer (default basemap) with offline fallback: if tiles fail to load,
   // the map still works with markers on a plain background — no error, no blank crash
-  let currentTileLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  // Esri World_Street_Map, not tile.openstreetmap.org: OSM's volunteer-run servers
+  // now 403 ("Access blocked") any distributed client app that isn't a registered
+  // site following their tile usage policy. Esri's service needs no API key.
+  let currentTileLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
     maxZoom: 22,
     maxNativeZoom: 19,
-    attribution: '© OpenStreetMap contributors',
+    className: 'bm-street',
+    attribution: '© Esri, HERE, Garmin, © OpenStreetMap contributors',
     errorTileUrl: 'data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs='  // 1px transparent
   }).addTo(mapInstance);
-  _attrCtrl.addAttribution('© OpenStreetMap contributors');
+  _attrCtrl.addAttribution('© Esri, HERE, Garmin, © OpenStreetMap contributors');
 
   // Show offline notice if tiles fail (only show once)
   let offlineNoticeShown = false;
@@ -23037,19 +23044,20 @@ function initMap() {
     {
       id: 'street',
       label: 'Street',
-      url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-      attribution: '© OpenStreetMap contributors',
+      url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}',
+      attribution: '© Esri, HERE, Garmin, © OpenStreetMap contributors',
       maxZoom: 22,
-      maxNativeZoom: 19    // OSM serves native tiles to 19; Leaflet upscales beyond that
+      maxNativeZoom: 19    // Leaflet upscales beyond native zoom
     },
     {
+      // Esri Dark Gray Canvas — CARTO's dark_all raster tiles now return an
+      // "API KEY REQUIRED" placeholder image for every request.
       id: 'dark',
       label: 'Dark',
-      url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
-      attribution: '© OpenStreetMap contributors © CARTO',
+      url: 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}',
+      attribution: '© Esri, HERE, Garmin, © OpenStreetMap contributors',
       maxZoom: 22,
-      maxNativeZoom: 19,   // CartoDB native max is 19; Leaflet upscales beyond that
-      subdomains: 'abcd'
+      maxNativeZoom: 19
     },
     {
       id: 'satellite',
@@ -23150,7 +23158,7 @@ function initMap() {
 
           // Swap tile layer
           mapInstance.removeLayer(currentTileLayer);
-          const opts = { maxZoom: bm.maxZoom, attribution: bm.attribution };
+          const opts = { maxZoom: bm.maxZoom, attribution: bm.attribution, className: 'bm-' + bm.id };
           if (bm.subdomains) opts.subdomains = bm.subdomains;
           if (bm.maxNativeZoom) opts.maxNativeZoom = bm.maxNativeZoom;
           currentTileLayer = L.tileLayer(bm.url, opts).addTo(mapInstance);
