@@ -1796,6 +1796,17 @@ table.data-table tbody tr.selected {
    siblings, matching .cpt-plot-wrapper's own non-stretching convention. */
 .meas-lith-col-wrapper { flex:0 0 auto; }
 
+/* RIColumnConstruction badge (_drawRIInstallationPlots / _riColumnConstructionBadge):
+   the drilling/withdrawal phase key above the plots, and the note above the
+   Installation Record table when several records are merged. */
+.ri-phase-legend { display:flex;flex-wrap:wrap;gap:16px;padding:8px 4px 6px;font-size:12px;color:var(--text-muted); }
+.ri-phase-key { display:inline-flex;align-items:center;gap:6px; }
+.ri-phase-swatch { display:inline-block;width:18px;height:3px;border-radius:2px; }
+.ri-record-note { padding:8px 4px 6px;font-size:12px;color:var(--text-muted); }
+/* Monitor Location plan view (_monitorLocationMapHtml): full pane width, but
+   capped in height; the viewBox keeps its aspect (preserveAspectRatio meet). */
+.monloc-map { display:block;width:100%;height:auto;max-height:280px; }
+
 /* .meas-result-table — the measurement Results table (renderResultTable).
    Sticky header: once the table sits inside a scrollable pane (.meas-pane-body
    below, or any other scrolling ancestor), the column headers stay visible
@@ -6114,6 +6125,16 @@ let DIGGS_UNHOMED_ACTIVITIES = [];
 // Populated generically for all four measurement flavors (Test/Monitor/
 // MaterialTest/MeasurementWhileDrilling) alongside the legacy per-type globals.
 let DIGGS_MEASUREMENTS = {};
+// DIGGS_CONSTRUCTION — construction-activity registry (every concrete member of
+// the diggs:AbstractConstructionActivity substitution group held in a
+// top-level <constructionActivity>). Keyed by owning SF gml:id (the activity's
+// required samplingFeatureRef) → array of { type, el, sfId, records }, in
+// document order. `records` is filled only for RIColumnConstruction: one
+// { el, index, domain, resultSet } per installationRecord/RIInstallationRecord
+// (a time-domain coverage; see _parseRIInstallationRecords). An activity whose
+// samplingFeatureRef names no feature in the file is not displayed (the
+// tabled reachability work in CLAUDE.md covers that case for all record kinds).
+let DIGGS_CONSTRUCTION = {};
 // DIGGS_SAMPLE_MEASUREMENTS — reverse index powering Sample's "Associated
 // Measurements" KV rows (see OBJECT_CONFIGS.Sample's computeRows row,
 // _sampleAssociatedMeasurementRows). Keyed by Sample gml:id -> array of
@@ -6865,6 +6886,7 @@ function resetToLoad() {
   DIGGS_BH = []; DIGGS_CPT = []; DIGGS_WELL = [];
   DIGGS_LITH = {}; DIGGS_GEOUNITS = {}; DIGGS_GEOUNIT_LOG = {}; DIGGS_SAMPLES = {}; DIGGS_SAMPLE_BY_SP = new Map(); DIGGS_SP_TO_SF = new Map();
   DIGGS_SAMPLE_DERIVED = {}; DIGGS_UNHOMED_ACTIVITIES = [];
+  DIGGS_CONSTRUCTION = {};
   DIGGS_GROUPS = new Map(); GROUP_BY_ID = new Map(); SF_GROUP_REF = new Map();
   DIGGS_PROJECTS = []; DIGGS_ACTIVE_PROJECT = null; DIGGS_BA_MAP = {};
   _expandedMultiTrackId = null;
@@ -8121,6 +8143,39 @@ function _codeSpaceKeyExtra(node) {
  *  into wrapRemoteRefPlaceholder instead of the normal registry lookup,
  *  since there's nothing to render yet (see _toggleRemoteRef for the actual
  *  fetch-on-expand). */
+/** Every concrete DIGGS element whose type derives from AbstractEquipmentType
+ *  (3.1-dev, traced 2026-11-10). This is wider than the AbstractEquipment
+ *  substitution group: PileDriveHammer/PileCap substitute for
+ *  AbstractPilingEquipment, which is its own head, and the GP_* and
+ *  RotationalViscometer elements are equipment by type too. */
+const EQUIPMENT_TYPES = new Set([
+  'CoringDevice', 'CutterSoilMixingTool', 'DeepSoilMixingTool', 'DrillRig', 'Equipment',
+  'GP_DataAcquisitionSystem', 'GP_Receiver', 'GP_Source', 'GroutInjectionEquipment',
+  'GroutMixer', 'GroutPlant', 'GroutPump', 'JetGroutingMonitor', 'PileCap',
+  'PileDriveHammer', 'RotationalViscometer', 'Sensor', 'TriaxialTestEquipment',
+]);
+
+/** Header label (HTML) for an equipment object, wherever one is shown as its
+ *  own category: a generic diggs:Equipment is headed by its `class` value as
+ *  a humanized title, falling back to "Equipment"; any other equipment type
+ *  by its humanized
+ *  element name (DrillRig → "Drill Rig"). null for a non-equipment element,
+ *  so callers keep their own label. Applied in renderResolvedObject (ahead of
+ *  any row's itemLabel) and renderGenericObject, so it holds for every
+ *  config. */
+function _equipmentHeaderLabel(el) {
+  if (!el || el.nodeType !== 1 || !EQUIPMENT_TYPES.has(el.localName)) return null;
+  if (el.localName === 'Equipment') {
+    const cls = nodeText(Array.from(el.children).find(c => c.localName === 'class'));
+    // Humanized title: underscores become spaces, camelCase is split, and
+    // every word gets a leading capital (submersible_pump / submersiblePump →
+    // "Submersible Pump").
+    const title = cls ? _titleCase(splitCamelCase(cls.replace(/_+/g, ' ')).replace(/\s+/g, ' ').trim()) : '';
+    return title ? escHtml(title) : 'Equipment';
+  }
+  return escHtml(diggsLabel(el.localName));
+}
+
 function renderResolvedObject(propEl, childEl, rowCfg, label, startOpen) {
   // Deprecation tag for an object that is itself the subject of a registry
   // entry — either the property wrapper (a deprecated branch such as
@@ -8138,7 +8193,7 @@ function renderResolvedObject(propEl, childEl, rowCfg, label, startOpen) {
     if (Array.isArray(rowCfg.configOverride)) cfgArr = rowCfg.configOverride;
     else typeName = rowCfg.configOverride;
   }
-  const itemLabel = _itemLabel(rowCfg, childEl, label) + depTag;
+  const itemLabel = (_equipmentHeaderLabel(childEl) || _itemLabel(rowCfg, childEl, label)) + depTag;
   // rowCfg.geoLocation (2026-07-21) opts a PointLocation/LinearExtent row OUT
   // of the SPECIAL_OBJECT_FORMATTERS one-line shortcut (FORMAT_FN.locationInline)
   // and into the normal OBJECT_CONFIGS registry/nested-KV path instead.
@@ -9353,7 +9408,7 @@ function renderGenericObject(el, ctx, depth) {
       if (nestedCfg) {
         for (const { child } of resolved) {
           const body = renderKVObject(child, nestedCfg);
-          if (body.trim()) blockHtml += wrapCategoryHeader(_humanizeName(ln), body, false);
+          if (body.trim()) blockHtml += wrapCategoryHeader(_equipmentHeaderLabel(child) || _humanizeName(ln), body, false);
         }
       } else {
         blockHtml += _renderGenericDataTable(resolved, _humanizeName(ln));
@@ -9362,7 +9417,7 @@ function renderGenericObject(el, ctx, depth) {
       const inner = nestedCfg
         ? renderKVObject(first, nestedCfg)
         : renderGenericObject(first, { drawJobs: ctx.drawJobs, skip }, depth + 1);
-      if (inner.trim()) blockHtml += wrapCategoryHeader(_humanizeName(ln), inner, false);
+      if (inner.trim()) blockHtml += wrapCategoryHeader(_equipmentHeaderLabel(first) || _humanizeName(ln), inner, false);
     }
   }
   return leafHtml + blockHtml;
@@ -10663,7 +10718,17 @@ OBJECT_CONFIGS.Calibration = [
   ..._OBJ_BASE_FIELDS,
   ..._FEATURE_LEADING,
   { path: 'diggs:calibrationData', label: 'Calibration Data' },
-  { path: 'diggs:calibrationValues | diggs:cqlibrationValues', label: 'Calibration Values' },
+  {
+    // One wrapper commonly holds several parameters (an array property), so
+    // each gets its parameter name as its label.
+    path: 'diggs:calibrationValues | diggs:cqlibrationValues', multi: true,
+    label: 'Calibration Value', labelPlural: 'Calibration Values', alwaysGroup: true,
+    itemLabel: el => {
+      const nameEl = evalXPath(el, 'diggs:parameterName')[0];
+      const txt = nodeText(nameEl);
+      return txt ? escHtml(txt) + _codeSpaceKeyExtra(nameEl) : null;
+    },
+  },
   { path: 'diggs:date' },
   { path: 'diggs:useSinceLastCalibration', label: 'Use Since Last Calibration' },
   ..._FEATURE_TRAILING,
@@ -12348,6 +12413,177 @@ OBJECT_CONFIGS.DrivenPenetrationTest = [
   { path: 'diggs:testingEnvironment', multi: true, label: 'Testing Environment' },
   { path: 'diggs:testEvent', multi: true, label: 'Test Event', labelPlural: 'Test Events' },
   ..._FEATURE_TRAILING,
+];
+
+// ══════════════════════════════════════════════════════════════
+//  PlateLoadTest / ZoneLoadTest (extended/ExtProcedures.xsd) — both extend
+//  AbstractPlateBearingTestProcedureType → AbstractLoadTestProcedureType →
+//  AbstractInsituTestProcedureType → AbstractTestProcedureType →
+//  AbstractProcedureType (empty) → AbstractFeatureType. Full field list:
+//   AbstractFeatureType: description, identifier, name*, internalIdentifier,
+//     status, implementationStatus, associatedFile*, role*, remark*
+//   AbstractTestProcedureType: testProcedureMethod*, testProcedureEquipment*,
+//     testingEnvironment*, otherTestProperty*
+//   AbstractInsituTestProcedureType: testEvent*
+//   AbstractLoadTestProcedureType: referenceSystem, maxTestLoad,
+//     increment* (LoadTestIncrement), maxTestStress, deadLoad
+//   AbstractPlateBearingTestProcedureType: plateDiameter, plateWidth,
+//     plateLength, plateArea, plateStiffness, seatingLoad, bearingLevel,
+//     loadingProcedure, seatingStress, beddingMaterial
+//   PlateLoadTest: nothing of its own
+//   ZoneLoadTest: loadedFootprint (PlanarSurface), testedColumnRef*
+//  The measurement's outcome (the stage-by-stage stress/settlement curve) is
+//  the badge's Results/Plot; these configs are its Metadata. The
+//  load-settlement plot is MEASUREMENT_CONFIGS.PlateLoadTest/.ZoneLoadTest.
+// ══════════════════════════════════════════════════════════════
+
+/** A LoadTestIncrement's incrementTimeSeries (a TemporalResult: the readings
+ *  taken during that increment's hold) as a result table. Same xlink-aware
+ *  hops as the measurement ingest — a batch of increments commonly shares
+ *  one PropertyParameters by reference. Used as a configOverride function, so
+ *  `wrap` is the incrementTimeSeries property element. */
+function _loadIncrementReadingsHtml(wrap) {
+  const tr = _objOrDescendant(resolveXlinkEl(wrap), ['TemporalResult']);
+  if (!tr) return '';
+  const domain = parseDomain(tr);
+  const rsWrap = _childProp(tr, 'results');
+  const rsEl = _objOrDescendant(rsWrap && resolveXlinkEl(rsWrap), ['ResultSet']);
+  const expectedRows = domain && Array.isArray(domain.positions) ? domain.positions.length : undefined;
+  const resultSet = rsEl ? parseResultSet(rsEl, { expectedRows }) : null;
+  const model = buildResultTableModel([{ domain, resultSet }], {});
+  return model && model.rows.length ? renderResultTable(model, {}) : '';
+}
+
+/** ZoneLoadTest's loadedFootprint (inline or by xlink:href, commonly to the
+ *  Monitor's own monitorLocation surface): its plan area, from the exterior
+ *  ring (computeFeatureExtentArea, in the CRS's own linear unit), with the
+ *  surface id and vertex count muted alongside. */
+function _loadedFootprintHtml(el) {
+  const w = evalXPath(el, 'diggs:loadedFootprint')[0];
+  if (!w) return null;
+  const d = _danglingRef(w);
+  if (d) return _danglingNoteHtml(d);
+  const surf = resolveXlinkEl(w);
+  if (!surf) return null;
+  const ext = findByLocalName(surf, 'exterior');
+  const pl = ext && findByLocalName(ext, 'posList');
+  const id = surf.getAttributeNS(NS.gml, 'id') || '';
+  const srsName = surf.getAttribute('srsName') || (pl && pl.getAttribute('srsName')) || '';
+  const dim = parseInt(surf.getAttribute('srsDimension') || (pl && pl.getAttribute('srsDimension')) || '', 10) || 2;
+  const tokens = pl ? numTokens((pl.textContent || '').trim()) : [];
+  const n = Math.floor(tokens.length / dim);
+  const closed = n > 1 && tokens.slice(0, dim).every((v, k) => v === tokens[(n - 1) * dim + k]);
+  const area = n >= 3 ? computeFeatureExtentArea([{ tokens, dim, srsName, holes: [] }]) : null;
+  const meta = [id, n ? `${closed ? n - 1 : n} vertices` : ''].filter(Boolean).join(', ');
+  const main = area ? `${area.valueNative.toFixed(2)} ${escHtml(area.nativeUnit)}²` : escHtml(diggsLabel(surf.localName));
+  return main + (meta ? ` <span class="cs-tag">(${escHtml(meta)})</span>` : '');
+}
+
+/** ZoneLoadTest's testedColumnRef*: the columns the loaded footprint bears
+ *  on. Reference-only and the sole carrier of that list, so shown rather
+ *  than suppressed: each column's gml:name, with its gml:id muted when it
+ *  differs; an unresolvable reference shows the dangling-link note. */
+function _testedColumnsHtml(el) {
+  const refs = evalXPath(el, 'diggs:testedColumnRef');
+  if (!refs.length) return null;
+  return refs.map(r => {
+    const d = _danglingRef(r);
+    if (d) return _danglingNoteHtml(d);
+    const t = resolveXlinkEl(r);
+    if (!t) return '';
+    const id = t.getAttributeNS(NS.gml, 'id') || '';
+    const nm = nodeText(evalXPath(t, 'gml:name')[0]);
+    return nm && nm !== id ? `${escHtml(nm)} <span class="cs-tag">(${escHtml(id)})</span>` : escHtml(nm || id);
+  }).filter(Boolean).join(', ');
+}
+
+// LoadTestIncrement (ExtProcedures.xsd) extends AbstractProcedureTrialType
+// (AbstractObjectType + otherProperty*). The plate-bearing configs show the
+// increments as a data table; this config supplies each row's expand panel
+// (everything the table's columns don't show, including the hold readings).
+OBJECT_CONFIGS.LoadTestIncrement = [
+  { path: 'diggs:incrementNumber', label: 'Increment' },
+  { path: 'diggs:loadingPhase', label: 'Loading Phase' },
+  { path: 'diggs:appliedLoad', label: 'Applied Load' },
+  { path: 'diggs:appliedStress', label: 'Applied Stress' },
+  { path: 'diggs:holdDuration', label: 'Hold Duration' },
+  { path: 'diggs:stabilizationCriterion', label: 'Stabilization Criterion' },
+  ..._OBJ_BASE_FIELDS,
+  ..._OBJ_TYPE_TRAILING,
+  {
+    path: 'diggs:otherProperty', multi: true,
+    label: 'Other Property', labelPlural: 'Other Properties', alwaysGroup: true,
+    itemLabel: el => {
+      const nameEl = evalXPath(el, 'diggs:parameterName')[0];
+      const txt = nodeText(nameEl);
+      return txt ? escHtml(txt) + _codeSpaceKeyExtra(nameEl) : null;
+    },
+  },
+  { path: 'diggs:incrementTimeSeries', label: 'Readings', configOverride: w => _loadIncrementReadingsHtml(w) },
+];
+
+const _PLATE_BEARING_LEADING = [
+  ..._OBJ_BASE_FIELDS,
+  ..._FEATURE_LEADING,
+  { path: 'diggs:testProcedureMethod', multi: true, label: 'Test Method' },
+  { path: 'diggs:referenceSystem', label: 'Reference System' },
+  { path: 'diggs:loadingProcedure', label: 'Loading Procedure' },
+  { path: 'diggs:plateStiffness', label: 'Plate Stiffness' },
+  { path: 'diggs:plateDiameter', label: 'Plate Diameter' },
+  { path: 'diggs:plateWidth', label: 'Plate Width' },
+  { path: 'diggs:plateLength', label: 'Plate Length' },
+  { path: 'diggs:plateArea', label: 'Plate Area' },
+  { path: 'diggs:bearingLevel', label: 'Bearing Level' },
+  { path: 'diggs:beddingMaterial', label: 'Bedding Material' },
+  { path: 'diggs:seatingLoad', label: 'Seating Load' },
+  { path: 'diggs:seatingStress', label: 'Seating Stress' },
+  { path: 'diggs:maxTestLoad', label: 'Maximum Test Load' },
+  { path: 'diggs:maxTestStress', label: 'Maximum Test Stress' },
+  { path: 'diggs:deadLoad', label: 'Dead Load' },
+];
+const _PLATE_BEARING_TRAILING = [
+  { sectionHeader: '' },
+  {
+    // One row per load stage; the hold readings and anything else an
+    // increment carries are in the row's expand panel
+    // (OBJECT_CONFIGS.LoadTestIncrement).
+    path: 'diggs:increment', multi: true,
+    label: 'Load Increment', labelPlural: 'Load Increments', alwaysGroup: true,
+    dataTable: {
+      column: [
+        { path: 'diggs:incrementNumber', label: '#' },
+        { path: 'diggs:loadingPhase', label: 'Phase' },
+        { path: 'diggs:appliedLoad', label: 'Applied Load' },
+        { path: 'diggs:appliedStress', label: 'Applied Stress' },
+        { path: 'diggs:holdDuration', label: 'Hold' },
+        { path: 'diggs:stabilizationCriterion', label: 'Stabilization Criterion' },
+      ],
+    },
+  },
+  { sectionHeader: '' },
+  { path: 'diggs:testProcedureEquipment', multi: true, label: 'Equipment', labelPlural: 'Equipment' },
+  { path: 'diggs:testingEnvironment', multi: true, label: 'Testing Environment' },
+  { path: 'diggs:testEvent', multi: true, label: 'Test Event', labelPlural: 'Test Events' },
+  {
+    path: 'diggs:otherTestProperty', multi: true,
+    label: 'Other Property', labelPlural: 'Other Properties', alwaysGroup: true,
+    itemLabel: el => {
+      const nameEl = evalXPath(el, 'diggs:parameterName')[0];
+      const txt = nodeText(nameEl);
+      return txt ? escHtml(txt) + _codeSpaceKeyExtra(nameEl) : null;
+    },
+  },
+  ..._FEATURE_TRAILING,
+];
+OBJECT_CONFIGS.PlateLoadTest = [
+  ..._PLATE_BEARING_LEADING,
+  ..._PLATE_BEARING_TRAILING,
+];
+OBJECT_CONFIGS.ZoneLoadTest = [
+  ..._PLATE_BEARING_LEADING,
+  { label: 'Loaded Footprint', compute: el => _loadedFootprintHtml(el) },
+  { label: 'Tested Columns', compute: el => _testedColumnsHtml(el) },
+  ..._PLATE_BEARING_TRAILING,
 ];
 
 OBJECT_CONFIGS.StaticConePenetrationTest = [
@@ -15901,6 +16137,14 @@ const _MEAS_MONITOR_LOCATION = {
   compute: el => {
     const ml = evalXPath(el, 'diggs:monitorLocation')[0];
     if (!ml) return '';
+    // Inline geometry (e.g. a zone load test's PlanarSurface footprint):
+    // its gml:name, else its type and gml:id.
+    const inl = Array.from(ml.children).find(c => c.nodeType === 1);
+    if (inl) {
+      const nm = nodeText(evalXPath(inl, 'gml:name')[0]);
+      const id = inl.getAttributeNS(NS.gml, 'id') || '';
+      return nm ? escHtml(nm) : escHtml(diggsLabel(inl.localName)) + (id ? ` <span class="cs-tag">(${escHtml(id)})</span>` : '');
+    }
     const href = ml.getAttributeNS(NS.xlink, 'href');
     if (!href) return '';
     const tid = href.replace(/^#/, '');
@@ -15930,6 +16174,92 @@ OBJECT_CONFIGS.Monitor = [
   { path: 'diggs:samplingTime', label: 'Sampling Time' },
   _MEAS_MONITOR_LOCATION,
   ..._MEAS_META_TRAILING,
+];
+
+// ══════════════════════════════════════════════════════════════
+//  OBJECT_CONFIGS — CONSTRUCTION ACTIVITIES
+//  AbstractConstructionActivityType (core/AbstractTypes.xsd:281) extends
+//  AbstractFeatureType: investigationTarget*, projectRef+, samplingFeatureRef,
+//  programRef?, programDesignRef*, programSpecificationRef*,
+//  constructionMethod*, constructionEvent*, constructionEnvironment*,
+//  equipment*, otherConstructionActivityProperty*, activityDateTime?, delay*.
+//  The five *Ref elements are navigation properties, omitted per the
+//  Reference-Property convention (the activity is shown on its own SF).
+//  _CONSTRUCTION_ACTIVITY_LEADING/_TRAILING hold the inherited rows so that a
+//  concrete type's config only adds its own fields in between.
+// ══════════════════════════════════════════════════════════════
+const _CONSTRUCTION_ACTIVITY_LEADING = [
+  ..._MEAS_META_LEADING,
+  { path: 'diggs:activityDateTime', label: 'Activity Date/Time' },
+];
+const _CONSTRUCTION_ACTIVITY_TRAILING = [
+  { path: 'diggs:role', multi: true, splitRows: true },
+  { path: 'diggs:remark', multi: true, splitRows: true },
+  { path: 'diggs:associatedFile', multi: true },
+  // A ConstructionActivityMethod, or (deprecated form) a Specification given
+  // directly — either resolves through its own OBJECT_CONFIGS entry.
+  { path: 'diggs:constructionMethod', multi: true, label: 'Construction Method', labelPlural: 'Construction Methods' },
+  { path: 'diggs:constructionEvent', multi: true, label: 'Construction Event', labelPlural: 'Construction Events' },
+  { path: 'diggs:constructionEnvironment', multi: true, label: 'Environment', labelPlural: 'Environment Readings' },
+  { path: 'diggs:equipment', multi: true, label: 'Equipment', labelPlural: 'Equipment' },
+  { path: 'diggs:delay', multi: true, label: 'Delay', labelPlural: 'Delays' },
+  {
+    path: 'diggs:otherConstructionActivityProperty', multi: true,
+    label: 'Other Property', labelPlural: 'Other Properties', alwaysGroup: true,
+    itemLabel: el => {
+      const nameEl = evalXPath(el, 'diggs:parameterName')[0];
+      const txt = nodeText(nameEl);
+      return txt ? escHtml(txt) + _codeSpaceKeyExtra(nameEl) : null;
+    },
+  },
+];
+
+/** RIColumnConstruction's embedment layer, from whichever branch of its
+ *  embedmentLayer | embedmentLayerRef choice the instance uses. The Ref
+ *  branch is the sole carrier of this fact when used, so it is resolved
+ *  here rather than suppressed like other *Ref rows: the target
+ *  GeoUnitObservation's unitName, with its GeoUnitSystem's name as a muted
+ *  suffix. An unresolvable reference shows the shared dangling-link note. */
+function _riEmbedmentLayerHtml(el) {
+  const txt = nodeText(evalXPath(el, 'diggs:embedmentLayer')[0]);
+  if (txt) return escHtml(txt);
+  const ref = evalXPath(el, 'diggs:embedmentLayerRef')[0];
+  if (!ref) return null;
+  const d = _danglingRef(ref);
+  if (d) return _danglingNoteHtml(d);
+  const tgt = resolveXlinkEl(ref);
+  if (!tgt) return null;
+  const names = evalXPath(tgt, 'diggs:unitName').map(nodeText).filter(Boolean);
+  const sys = tgt.parentElement && tgt.parentElement.parentElement;
+  const sysName = sys && sys.localName === 'GeoUnitSystem' ? nodeText(evalXPath(sys, 'gml:name')[0]) : '';
+  const main = names.length ? names.join(', ') : (tgt.getAttributeNS(NS.gml, 'id') || '');
+  return escHtml(main) + (sysName ? ` <span class="cs-tag">(${escHtml(sysName)})</span>` : '');
+}
+
+// RIColumnConstruction (specialty/RigidInclusions.xsd:2449). installationRecord
+// is deliberately absent: the badge shows it as its own Plot and time-indexed
+// table (buildConstructionDisplay), so this config is the badge's Metadata pane.
+OBJECT_CONFIGS.RIColumnConstruction = [
+  ..._CONSTRUCTION_ACTIVITY_LEADING,
+  { path: 'diggs:terminationOutcome', label: 'Termination Outcome' },
+  { path: 'diggs:toeEmbedment', label: 'Toe Embedment' },
+  { label: 'Embedment Layer', compute: el => _riEmbedmentLayerHtml(el) },
+  { path: 'diggs:riInstallationMethod', label: 'Installation Method' },
+  { path: 'diggs:groutLevelCorrectiveAction', label: 'Grout Level Corrective Action' },
+  ..._CONSTRUCTION_ACTIVITY_TRAILING,
+];
+
+// ConstructionActivityMethod (core/Core.xsd:1565) extends
+// AbstractComponentObjectBaseType (description?, identifier?): location? (the
+// part of the feature the method applies to; absent = whole feature),
+// constructionMethod+ (a Specification, inline or by xlink:href) and
+// cuttingToolInfo? (an array wrapper of one or more CuttingTool).
+OBJECT_CONFIGS.ConstructionActivityMethod = [
+  { path: 'diggs:location', label: 'Applies To' },
+  { path: 'gml:description' },
+  { path: 'gml:identifier', multi: true },
+  { path: 'diggs:constructionMethod', multi: true, label: 'Method Specification', labelPlural: 'Method Specifications' },
+  { path: 'diggs:cuttingToolInfo', multi: true, label: 'Cutting Tool', labelPlural: 'Cutting Tools' },
 ];
 
 // ══════════════════════════════════════════════════════════════
@@ -18323,6 +18653,22 @@ function loadDIGGS(doc, filename) {
         DIGGS_SAMPLE_MEASUREMENTS[sampleId].push({ sfId, procType, measId });
       }
     }
+  }
+
+  // ── CONSTRUCTION ACTIVITY INGEST → DIGGS_CONSTRUCTION ──────────
+  // Every object in a top-level <constructionActivity> (any member of the
+  // AbstractConstructionActivity substitution group), homed by its required
+  // samplingFeatureRef. Only RIColumnConstruction's installation records are
+  // parsed here; every other type is displayed from its element directly.
+  DIGGS_CONSTRUCTION = {};
+  for (const wrap of xNodes(doc, '//diggs:constructionActivity')) {
+    const el = Array.from(wrap.children).find(c => c.nodeType === 1);
+    if (!el) continue;
+    const sfId = xText(doc, 'diggs:samplingFeatureRef/@xlink:href', el).replace(/^#/, '');
+    if (!sfId) continue;
+    const records = el.localName === 'RIColumnConstruction' ? _parseRIInstallationRecords(el) : [];
+    if (!DIGGS_CONSTRUCTION[sfId]) DIGGS_CONSTRUCTION[sfId] = [];
+    DIGGS_CONSTRUCTION[sfId].push({ type: el.localName, el, sfId, records });
   }
 
   // ── GENERIC SF LOOP ───────────────────────────────
@@ -24569,6 +24915,10 @@ function buildAssocBadges(sf) {
   // the unified DIGGS_MEASUREMENTS registry.
   for (const b of buildMeasurementDisplay(sf)) badges.push(b);
 
+  // ── Construction activities (RIColumnConstruction / PileDrivingActivity /
+  // LinearGroutingActivity) — one badge per activity object.
+  for (const b of buildConstructionDisplay(sf)) badges.push(b);
+
   return badges;
 }
 
@@ -24640,12 +24990,19 @@ function _driveSetBlowCounts(procObjs) {
 
 const MEASUREMENT_CONFIGS = {
   // procType → { plots?: bool (force on/off; default = auto), depthUomPath?,
+  //   plotExtra?: (container, group) => void — draws additional plots into
+  //   the Plot pane's container, after drawResultPlots (only when the badge
+  //   has a Plot pane at all),
   //   extraCols?: [{key?, label, compute(row)=>string|null}] — appended after
   //   the Property-derived value columns via _applyMeasExtraCols; a column is
   //   included only if at least one row across the whole aggregate produces
   //   a non-empty value, so e.g. a procedure instance with no DriveSet at all
   //   shows no "Drive Sets" column rather than one full of dashes. }
   PorePressureDissipationTest: { plots: false },  // its trace lives in the procedure TemporalResult
+  // Plate and zone load tests: below the outcome's time plots (stress and
+  // settlement against time), the stress-settlement curve by loading phase.
+  PlateLoadTest: { plotExtra: (c, group) => _drawLoadSettlementPlots(c, group) },
+  ZoneLoadTest:  { plotExtra: (c, group) => _drawLoadSettlementPlots(c, group) },
   DrivenPenetrationTest: {
     extraCols: [
       { key: 'driveSets', label: 'Drive Sets',
@@ -24806,6 +25163,9 @@ function initMeasSplit(containerId, opts = {}) {
   const useCustomPreset = opts.presetGrow && opts.presetGrow.length === panes.length && openCount === panes.length;
   panes.forEach((p, i) => {
     if (!isPaneOpen(p)) { p.style.flex = '0 0 auto'; return; }
+    // data-grow="auto" (a pane descriptor's `grow: 'auto'`, e.g. the Monitor
+    // Location plan view): open at its content height, not a grow share.
+    if (p.dataset.grow === 'auto') { p.style.flex = '0 0 auto'; return; }
     const grow = useCustomPreset ? opts.presetGrow[i] : (useThreeWayPreset ? [50, 25, 25][i] : 1);
     p.style.flex = `${grow} 1 0`;
   });
@@ -24861,17 +25221,19 @@ function toggleMeasPane(headerEl) {
   } else {
     body.style.display = '';
     if (tri) tri.textContent = '▾';
-    pane.style.flex = '1 1 0';
+    pane.style.flex = pane.dataset.grow === 'auto' ? '0 0 auto' : '1 1 0';
   }
   for (const p of allPanes) {
     if (p === pane) continue;
     const b = p.querySelector('.meas-pane-body');
-    if (b && b.style.display !== 'none') p.style.flex = '1 1 0';
+    if (b && b.style.display !== 'none') p.style.flex = p.dataset.grow === 'auto' ? '0 0 auto' : '1 1 0';
   }
 }
 
 /**
- * _buildMeasSplitHtml(splitId, panes) — panes: [{label, html, startOpen?}],
+ * _buildMeasSplitHtml(splitId, panes) — panes: [{label, html, startOpen?,
+ * grow?}] (grow:'auto' opens the pane at its content height instead of a
+ * share of the split — see initMeasSplit/toggleMeasPane),
  * in top-to-bottom order. Renders every pane with non-empty `html` inside
  * one resizable `.meas-vsplit` (see initMeasSplit/toggleMeasPane) so
  * whichever combination of Plot/Results/Metadata a badge has content for
@@ -24897,7 +25259,7 @@ function _buildMeasSplitHtml(splitId, panes) {
   panes.forEach((p, i) => {
     if (i > 0) html += `<div class="meas-vsplit-handle"></div>`;
     const open = p.startOpen !== false;
-    html += `<div class="meas-vsplit-pane">
+    html += `<div class="meas-vsplit-pane"${p.grow ? ` data-grow="${p.grow}"` : ''}>
       <div class="kv-section-header meas-pane-header" onclick="toggleMeasPane(this)"><span class="kv-tri">${open ? '▾' : '▸'}</span>${p.label}</div>
       <div class="meas-pane-body"${open ? '' : ' style="display:none"'}>${p.html}</div>
     </div>`;
@@ -24932,6 +25294,120 @@ function _measRowExpandHtml(row, depthUom, drawJobs) {
   const metaProcHtml = plotHtml + metaHtml + procHtml;
   if (!metaProcHtml) return '';
   return wrapCategoryHeader(`${diggsLabel(rec.procType)} Metadata`, metaProcHtml, true);
+}
+
+// ══════════════════════════════════════════════════════════════
+//  MONITOR LOCATION PLAN VIEW
+//  A Monitor whose monitorLocation is a surface or a solid gets a "Monitor
+//  Location" pane above its plots: a small SVG plan view of the parent
+//  sampling feature (outline only, in its own map color) with the monitor
+//  location filled in the map's selection color, as the map pane would draw
+//  them. No basemap — it only shows where the location sits on its parent.
+//  Geometry comes from the map's own ring extraction (_extractSurfaceRings
+//  for any surface, _volumePolygonLatLngs for a solid's exact plan outline),
+//  so the shapes match the map pane.
+// ══════════════════════════════════════════════════════════════
+
+/** [[lat,lon],...] ring, or an array of such rings → always an array of
+ *  rings (null-safe). */
+function _asRingList(r) {
+  if (!r || !r.length) return [];
+  return Array.isArray(r[0]) && Array.isArray(r[0][0]) ? r : [r];
+}
+
+/** Plan-view rings of a Monitor's monitorLocation when it is a surface or a
+ *  solid (inline or by xlink:href); null for a point, curve or anything else.
+ *  Returns { rings, el } with rings as [[[lat,lon],...], ...]. */
+function _monitorLocationPlan(measEl) {
+  const w = _childProp(measEl, 'monitorLocation');
+  const t = w && resolveXlinkEl(w);
+  if (!t || t.nodeType !== 1) return null;
+  let rings = null;
+  if (VOLUME_FEATURE_EXTENT_KINDS.has(t.localName)) rings = _volumePolygonLatLngs(t);
+  else if (/Surface$|^Polygon$|^Shell$|^Tin$/.test(t.localName)) rings = _extractSurfaceRings(w, '', '2');
+  else return null;
+  const list = _asRingList(rings);
+  return list.length ? { rings: list, el: t } : null;
+}
+
+/** SVG plan view (HTML string) of `sf` and the monitor locations `locs`
+ *  ([{ rings, label }]). Equirectangular about the drawing's mean latitude,
+ *  which at a site's scale is indistinguishable from the map's Web Mercator.
+ *  The parent is drawn as an outline (polygon), a line, or a point marker,
+ *  in its SF_TYPE_CONFIG map color; each location is filled in
+ *  MAP_SELECTED_COLOR. With a scale bar and north arrow. */
+function _monitorLocationMapHtml(sf, locs) {
+  const parentRings = _asRingList(sf.polygonLatLngs);
+  const parentLine = !parentRings.length && sf.linearExtentLatLngs && sf.linearExtentLatLngs.length >= 2 ? sf.linearExtentLatLngs : null;
+  const parentPt = !parentRings.length && !parentLine && sf.lat != null && sf.lon != null && isFinite(sf.lat) && isFinite(sf.lon) ? [sf.lat, sf.lon] : null;
+  const all = [].concat(...parentRings, ...(parentLine ? [parentLine] : []), ...(parentPt ? [[parentPt]] : []), ...locs.flatMap(l => l.rings));
+  if (!all.length) return '';
+  const lat0 = all.reduce((s, p) => s + p[0], 0) / all.length;
+  const k = Math.cos(lat0 * Math.PI / 180);
+  const X = p => p[1] * k, Y = p => p[0];
+  const xs = all.map(X), ys = all.map(Y);
+  let x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
+  const span = Math.max(x1 - x0, y1 - y0) || 1e-4;   // a lone point still gets a view
+  if (x1 - x0 < span * 0.02) { x0 -= span / 2; x1 += span / 2; }
+  if (y1 - y0 < span * 0.02) { y0 -= span / 2; y1 += span / 2; }
+  const W = 600, H = 300, PAD = 24;
+  const s = Math.min((W - 2 * PAD) / (x1 - x0), (H - 2 * PAD) / (y1 - y0));
+  const ox = (W - (x1 - x0) * s) / 2, oy = (H - (y1 - y0) * s) / 2;
+  const px = p => (ox + (X(p) - x0) * s).toFixed(1);
+  const py = p => (H - oy - (Y(p) - y0) * s).toFixed(1);
+  const ringD = rings => rings.map(r => 'M' + r.map(p => `${px(p)},${py(p)}`).join('L') + 'Z').join('');
+  const mk = (SF_TYPE_CONFIG[sf.type] && SF_TYPE_CONFIG[sf.type].marker) || {};
+  const pColor = mk.color || '#A78BFA';
+
+  let g = '';
+  if (parentRings.length) g += `<path d="${ringD(parentRings)}" fill="none" stroke="${pColor}" stroke-width="2" fill-rule="evenodd"><title>${escHtml(sf.name || sf.id)}</title></path>`;
+  if (parentLine) g += `<polyline points="${parentLine.map(p => `${px(p)},${py(p)}`).join(' ')}" fill="none" stroke="${pColor}" stroke-width="2.5"><title>${escHtml(sf.name || sf.id)}</title></polyline>`;
+  if (parentPt) g += `<circle cx="${px(parentPt)}" cy="${py(parentPt)}" r="5" fill="none" stroke="${pColor}" stroke-width="2"><title>${escHtml(sf.name || sf.id)}</title></circle>`;
+  for (const l of locs) {
+    g += `<path d="${ringD(l.rings)}" fill="${MAP_SELECTED_COLOR}" fill-opacity="0.55" stroke="${MAP_SELECTED_COLOR}" stroke-width="1.5" fill-rule="evenodd"><title>${escHtml(l.label)}</title></path>`;
+  }
+
+  // Scale bar: ~1 degree of latitude is 111,320 m, and an x unit here is a
+  // degree of longitude times cos(lat0), the same ground length.
+  const mPerPx = 111320 / s;
+  const target = mPerPx * (W / 5);
+  const pow = Math.pow(10, Math.floor(Math.log10(target)));
+  const nice = [1, 2, 5, 10].map(m => m * pow).filter(v => v <= target).pop() || pow;
+  const barPx = nice / mPerPx;
+  const barLabel = nice >= 1000 ? `${nice / 1000} km` : `${Number(nice.toPrecision(3))} m`;
+  const sb = `<g font-family="sans-serif" font-size="11" fill="#8b949e">
+      <line x1="14" y1="${H - 14}" x2="${(14 + barPx).toFixed(1)}" y2="${H - 14}" stroke="#8b949e" stroke-width="2"/>
+      <line x1="14" y1="${H - 18}" x2="14" y2="${H - 10}" stroke="#8b949e" stroke-width="1.5"/>
+      <line x1="${(14 + barPx).toFixed(1)}" y1="${H - 18}" x2="${(14 + barPx).toFixed(1)}" y2="${H - 10}" stroke="#8b949e" stroke-width="1.5"/>
+      <text x="${(14 + barPx / 2).toFixed(1)}" y="${H - 21}" text-anchor="middle">${barLabel}</text>
+      <path d="M${W - 18},14 L${W - 12},30 L${W - 18},26 L${W - 24},30 Z" fill="#8b949e"/>
+      <text x="${W - 18}" y="44" text-anchor="middle">N</text></g>`;
+
+  const typeLabel = diggsLabel(sf.type || '');
+  const key = (stroke, fill) => `<svg width="18" height="12" aria-hidden="true"><rect x="1" y="1" width="16" height="10" fill="${fill || 'none'}"${fill ? ' fill-opacity="0.55"' : ''} stroke="${stroke}" stroke-width="1.5"/></svg>`;
+  const legend = `<div class="ri-phase-legend">`
+    + `<span class="ri-phase-key">${key(pColor)}${escHtml(sf.name || sf.id)}${typeLabel ? ` <span class="cs-tag">(${escHtml(typeLabel)})</span>` : ''}</span>`
+    + locs.map(l => `<span class="ri-phase-key">${key(MAP_SELECTED_COLOR, MAP_SELECTED_COLOR)}${escHtml(l.label)}</span>`).join('')
+    + `</div>`;
+  return legend + `<svg class="monloc-map" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Plan view of the monitor location on its parent feature">`
+    + `<rect width="${W}" height="${H}" fill="#0d1117" rx="6"/>${g}${sb}</svg>`;
+}
+
+/** The Monitor Location pane HTML for a measurement badge's group: one plan
+ *  view holding every Monitor in the group whose monitorLocation is a surface
+ *  or solid (each labeled by the measurement's name, else the location's
+ *  own name or id). '' when there is none. */
+function _monitorLocationPaneHtml(sf, group) {
+  const locs = [];
+  for (const r of group) {
+    if (r.measType !== 'Monitor') continue;
+    const plan = _monitorLocationPlan(r.el);
+    if (!plan) continue;
+    const label = nodeText(evalXPath(r.el, 'gml:name')[0]) || nodeText(evalXPath(plan.el, 'gml:name')[0])
+      || plan.el.getAttributeNS(NS.gml, 'id') || 'Monitor location';
+    locs.push({ rings: plan.rings, label });
+  }
+  return locs.length ? _monitorLocationMapHtml(sf, locs) : '';
 }
 
 function buildMeasurementDisplay(sf) {
@@ -24971,6 +25447,12 @@ function buildMeasurementDisplay(sf) {
       // view below an unbounded, possibly very tall Results table (e.g. a
       // multi-depth CPT profile).
       const panes = [];
+
+      // Monitor Location plan view (a Monitor whose monitorLocation is a
+      // surface or solid), above the plots. Sized to its own content
+      // (grow:'auto') rather than taking an even share of the split.
+      const monLocHtml = _monitorLocationPaneHtml(sf, group);
+      if (monLocHtml) panes.push({ label: 'Monitor Location', html: monLocHtml, grow: 'auto' });
 
       // Procedure metadata/plot content (single-measurement badges only —
       // procObjs/resultSet below come from group[0] specifically, same
@@ -25044,7 +25526,11 @@ function buildMeasurementDisplay(sf) {
           // own PlanarSamplingFeature/badge, so group.length is normally 1
           // for a grid domain already.
           const domain = domainKind === 'grid' ? domRec.domain : null;
-          drawJobs.push({ plotId, model, domainKind, depthUom, totalDepth, lithColumns, domain });
+          // cfg.plotExtra(container, group) draws more plots into the same
+          // Plot pane, below the ones drawResultPlots makes (e.g. the
+          // load-settlement curve of a plate/zone load test).
+          const plotExtra = cfg.plotExtra ? (c => cfg.plotExtra(c, group)) : null;
+          drawJobs.push({ plotId, model, domainKind, depthUom, totalDepth, lithColumns, domain, plotExtra });
           panes.push({ label: 'Plot', html: `<div id="${plotId}"${rowClass}></div>` });
         }
 
@@ -25133,10 +25619,12 @@ function buildMeasurementDisplay(sf) {
       //   is), Metadata closed."
       // No effect when neither applies (e.g. a non-plottable badge) — those
       // keep the previous all-open default.
+      // The Monitor Location pane stays open in either case: it is small and
+      // is meant to be read together with the plots.
       if (panes.some(p => p.label === 'Plot')) {
-        for (const p of panes) if (p.label !== 'Plot') p.startOpen = false;
+        for (const p of panes) if (p.label !== 'Plot' && p.label !== 'Monitor Location') p.startOpen = false;
       } else if (!isMulti && plotHtml) {
-        for (const p of panes) if (p.label !== 'Results') p.startOpen = false;
+        for (const p of panes) if (p.label !== 'Results' && p.label !== 'Monitor Location') p.startOpen = false;
       }
 
       let html = '';
@@ -25212,6 +25700,7 @@ function buildMeasurementDisplay(sf) {
             }
             const c = document.getElementById(j.plotId);
             if (c) drawResultPlots(c, j.model, { domainKind: j.domainKind, depthUom: j.depthUom, timeUnit: j.timeUnit, totalDepth: j.totalDepth, lithColumns: j.lithColumns, domain: j.domain });
+            if (c && j.plotExtra) j.plotExtra(c);
           }
         });
       },
@@ -25219,6 +25708,240 @@ function buildMeasurementDisplay(sf) {
     });
   }
   return badges;
+}
+
+// ══════════════════════════════════════════════════════════════
+//  CONSTRUCTION ACTIVITY DISPLAY
+//  buildConstructionDisplay(sf) turns the DIGGS_CONSTRUCTION records for one
+//  sampling feature into "Construction Activities" badges, one per activity
+//  object. Each concrete type has its own structure, so a type gets its own
+//  badge builder once it needs one (RIColumnConstruction today); every other
+//  type renders its own OBJECT_CONFIGS entry when it has one, else the
+//  config-free renderGenericObject.
+//
+//  RIColumnConstruction is laid out like a single-measurement Monitor badge:
+//  § Plot (depth vs. time, then one depth plot per recorded property, each
+//  colored by drilling/withdrawal phase — _drawRIInstallationPlots), §
+//  Installation Record (every installationRecord merged into one table,
+//  sorted by time), § Metadata (OBJECT_CONFIGS.RIColumnConstruction), all as
+//  panes of one resizable split.
+// ══════════════════════════════════════════════════════════════
+
+/** Badge label per construction activity type; absent → diggsLabel(type). */
+const CONSTRUCTION_BADGE_LABELS = {
+  RIColumnConstruction: 'Column Construction Record',
+};
+
+/** Parse every installationRecord of an RIColumnConstruction: each wraps one
+ *  RIInstallationRecord, a TemporalResultType coverage (timeDomain +
+ *  results). Same domain/ResultSet parsers, and the same xlink-aware hops,
+ *  as the measurement ingest; `index` is the wrapper's optional sequence
+ *  attribute. Returns [{ el, index, domain, resultSet }] in document order. */
+function _parseRIInstallationRecords(activityEl) {
+  const out = [];
+  for (const wrap of Array.from(activityEl.children).filter(c => c.localName === 'installationRecord')) {
+    const recEl = _objOrDescendant(resolveXlinkEl(wrap), ['RIInstallationRecord']);
+    if (!recEl) continue;
+    const domain = parseDomain(recEl);
+    const rsWrap = _childProp(recEl, 'results');
+    const rsEl = _objOrDescendant(rsWrap && resolveXlinkEl(rsWrap), ['ResultSet']);
+    const expectedRows = domain && Array.isArray(domain.positions) ? domain.positions.length : undefined;
+    const resultSet = rsEl ? parseResultSet(rsEl, { expectedRows }) : null;
+    const idx = parseInt(wrap.getAttribute('index') || '', 10);
+    out.push({ el: recEl, index: isNaN(idx) ? null : idx, domain, resultSet });
+  }
+  return out;
+}
+
+/** Index into model.valueCols of the installation record's depth column.
+ *  The schema puts depth in the results as an ordinary property column
+ *  (the record is time-indexed), so it is found by propertyClass `depth`
+ *  (mwd_properties.xml#depth), falling back to a column named "Depth".
+ *  -1 when there is none. */
+function _riDepthColIndex(model) {
+  const pcText = c => {
+    const pc = c.el && Array.from(c.el.children).find(k => k.localName === 'propertyClass');
+    return pc ? (pc.textContent || '').trim().toLowerCase() : '';
+  };
+  const i = model.valueCols.findIndex(c => c.kind === 'numeric' && pcText(c) === 'depth');
+  return i >= 0 ? i : model.valueCols.findIndex(c => c.kind === 'numeric' && /^depth$/i.test(c.label.trim()));
+}
+
+/** Milliseconds per gml:TimeUnitType token (a month/year is its average
+ *  length). An `other:` unit has no entry. */
+const _TIME_UNIT_MS = {
+  second: 1000, minute: 60000, hour: 3600000, day: 86400000,
+  month: 30.4375 * 86400000, year: 365.25 * 86400000,
+};
+
+/** Put an installation-record model on one time clock and set its index
+ *  columns. A record's timeDomain is either a TimePositionList (instants) or
+ *  a TimeIntervalList (elapsed values in its own `unit`), and
+ *  buildResultTableModel indexes every row with the FIRST record's domain
+ *  rule, so each row's sortNum is recomputed here from its own record's
+ *  domain, in milliseconds, and the rows re-sorted by it.
+ *  Index columns:
+ *  - all instants: Time, as recorded (own clock time and offset, to the
+ *    second; the shared formatDiggsDateTime is minute-resolution in the
+ *    viewer's time zone), and Elapsed (min) since the first reading;
+ *  - all elapsed: Elapsed in the record's own unit, values as recorded;
+ *  - a mix: Time where a row has an instant, Elapsed as recorded where it
+ *    has one. The two kinds share no common origin, so they cannot be
+ *    ordered against each other; such a mix sorts instants after elapsed
+ *    values and is not expected in practice.
+ *  An elapsed unit with no known length (an `other:` unit) keeps its raw
+ *  values, and the plot's time axis is then labeled in that unit.
+ *  Returns { axis: { perUnit, unit } } — divide (sortNum - first) by perUnit
+ *  for the plot's time axis. */
+function _riApplyTimeIndex(model, records) {
+  const kindOf = d => d && d.geomType === 'TimeIntervalList' ? 'elapsed' : 'instant';
+  const kinds = new Set(records.filter(r => r.domain).map(r => kindOf(r.domain)));
+  const units = new Set(records.filter(r => kindOf(r.domain) === 'elapsed').map(r => r.domain.timeUnit || 'second'));
+  const unknownUnit = [...units].find(u => !_TIME_UNIT_MS[u]);
+  const axis = unknownUnit && units.size === 1
+    ? { perUnit: 1, unit: _shortTimeUnit(unknownUnit) }
+    : { perUnit: 60000, unit: 'min' };
+  for (const r of model.rows) {
+    const d = r.sourceRecord && r.sourceRecord.domain;
+    let ms = null;
+    if (d && kindOf(d) === 'elapsed') {
+      const v = parseFloat(r.pos);
+      const f = axis.perUnit === 1 ? 1 : _TIME_UNIT_MS[d.timeUnit || 'second'];
+      ms = isFinite(v) && f ? v * f : null;
+    } else if (r.pos != null) {
+      const t = Date.parse(r.pos);
+      ms = isNaN(t) ? null : t;
+    }
+    r.sortNum = ms;
+  }
+  model.rows.sort((a, b) => (a.sortNum == null) - (b.sortNum == null) || (a.sortNum - b.sortNum) || 0);
+  const t0 = (model.rows.find(r => r.sortNum != null) || {}).sortNum;
+  const elapsedUom = units.size === 1 ? _shortTimeUnit([...units][0]) : '';
+  if (kinds.size === 1 && kinds.has('elapsed')) {
+    model.indexCols = [{ label: 'Elapsed', uom: elapsedUom }];
+    for (const r of model.rows) r.idxCells = [r.pos != null ? String(r.pos).trim() : ''];
+  } else if (kinds.size === 1) {
+    model.indexCols = [{ label: 'Time', uom: '' }, { label: 'Elapsed', uom: 'min' }];
+    for (const r of model.rows) {
+      r.idxCells = [
+        r.pos != null ? String(r.pos).trim().replace('T', ' ') : '',
+        r.sortNum != null && t0 != null ? ((r.sortNum - t0) / 60000).toFixed(2) : '',
+      ];
+    }
+  } else {
+    model.indexCols = [{ label: 'Time', uom: '' }, { label: 'Elapsed', uom: elapsedUom }];
+    for (const r of model.rows) {
+      const isElapsed = kindOf(r.sourceRecord && r.sourceRecord.domain) === 'elapsed';
+      const p = r.pos != null ? String(r.pos).trim() : '';
+      r.idxCells = isElapsed ? ['', p] : [p.replace('T', ' '), ''];
+    }
+  }
+  return { axis };
+}
+
+function buildConstructionDisplay(sf) {
+  const recs = DIGGS_CONSTRUCTION[sf.id] || [];
+  if (!recs.length) return [];
+  const idSafe = sf.id.replace(/[^a-zA-Z0-9]/g, '_');
+  const perType = {};
+  for (const r of recs) perType[r.type] = (perType[r.type] || 0) + 1;
+  const seen = {};
+  return recs.map((rec, k) => {
+    seen[rec.type] = (seen[rec.type] || 0) + 1;
+    const base = CONSTRUCTION_BADGE_LABELS[rec.type] || diggsLabel(rec.type);
+    const label = perType[rec.type] > 1 ? `${base} ${seen[rec.type]}` : base;
+    const key = `${idSafe}-${k}`;
+    return rec.type === 'RIColumnConstruction'
+      ? _riColumnConstructionBadge(rec, sf, key, label)
+      : _genericConstructionBadge(rec, key, label);
+  });
+}
+
+/** Default badge for a construction activity type with no dedicated builder:
+ *  its OBJECT_CONFIGS entry if authored, else renderGenericObject. A nested
+ *  TemporalResult the generic walker finds is plotted after render. */
+function _genericConstructionBadge(rec, key, label) {
+  const drawJobs = [];
+  return {
+    id: `assoc-ca-${key}`,
+    label,
+    count: '',
+    contentFn: () => {
+      drawJobs.length = 0;
+      const cfg = OBJECT_CONFIGS[rec.type];
+      const html = cfg ? renderKVObject(rec.el, cfg) : renderGenericObject(rec.el, { drawJobs });
+      return html
+        ? wrapCategoryHeader(`${diggsLabel(rec.type)} Details`, html, true)
+        : '<div class="empty-state" style="padding:12px">No displayable construction activity data.</div>';
+    },
+    afterRender: () => {
+      requestAnimationFrame(() => {
+        for (const j of drawJobs) {
+          const c = document.getElementById(j.plotId);
+          if (c) drawResultPlots(c, j.model, { domainKind: j.domainKind, depthUom: j.depthUom, timeUnit: j.timeUnit });
+        }
+      });
+    },
+    category: 'construction',
+  };
+}
+
+function _riColumnConstructionBadge(rec, sf, key, label) {
+  const drawJobs = [];
+  const splitIds = [];
+  const rowCount = rec.records.reduce((n, r) => n + (r.resultSet ? r.resultSet.rows.length : 0), 0);
+  return {
+    id: `assoc-ca-${key}`,
+    label,
+    count: rowCount ? `${rowCount.toLocaleString()} reading${rowCount !== 1 ? 's' : ''}` : '',
+    contentFn: () => {
+      drawJobs.length = 0;
+      splitIds.length = 0;
+      const panes = [];
+      // buildResultTableModel merges every installationRecord into one
+      // table; _riApplyTimeIndex then puts every row on one clock (instants
+      // or elapsed values, per its own record's domain) and sorts by it — so
+      // a drilling record and a grouting record, in any document order, read
+      // as one continuous sequence.
+      const model = buildResultTableModel(rec.records, { depthUom: () => '' });
+      if (model && model.rows.length) {
+        const clock = _riApplyTimeIndex(model, rec.records);
+        const depthCol = _riDepthColIndex(model);
+        if (depthCol >= 0) {
+          const depthUom = model.valueCols[depthCol].uom || '';
+          const plotId = `riplot-${key}`;
+          drawJobs.push({ plotId, model, depthCol, depthUom, timeAxis: clock.axis, totalDepth: _measTotalDepthIn(sf, depthUom) });
+          panes.push({ label: 'Plot', html: `<div id="${plotId}" class="ri-plot-area"></div>` });
+        }
+        const idxs = rec.records.map(r => r.index).filter(i => i != null);
+        const note = rec.records.length > 1
+          ? `<div class="ri-record-note">${rec.records.length} installation records`
+            + (idxs.length ? ` (index ${idxs.sort((a, b) => a - b).join(', ')})` : '')
+            + `, merged and sorted by time.</div>`
+          : '';
+        panes.push({ label: 'Installation Record', html: note + renderResultTable(model, {}) });
+      }
+      const metaHtml = renderKVObject(rec.el, OBJECT_CONFIGS.RIColumnConstruction);
+      if (metaHtml) panes.push({ label: 'Metadata', html: metaHtml });
+      // Same default as a measurement badge: with a Plot, every other pane
+      // starts collapsed so the plot gets the height.
+      if (drawJobs.length) for (const p of panes) if (p.label !== 'Plot') p.startOpen = false;
+      if (!panes.length) return '<div class="empty-state" style="padding:12px">No displayable construction record data.</div>';
+      const splitId = `ca-split-${key}`;
+      if (panes.length > 1) splitIds.push(splitId);
+      return _buildMeasSplitHtml(splitId, panes);
+    },
+    afterRender: () => {
+      requestAnimationFrame(() => {
+        for (const id of splitIds) initMeasSplit(id);
+        for (const j of drawJobs) {
+          const c = document.getElementById(j.plotId);
+          if (c) _drawRIInstallationPlots(c, j);
+        }
+      });
+    },
+    category: 'construction',
+  };
 }
 
 // ── Badge category grouping — splits the former single "Associated Data"
@@ -25229,6 +25952,7 @@ const ASSOC_BADGE_CATEGORIES = [
   { key: 'samples',      title: 'Material Samples' },
   { key: 'observations', title: 'Observations' },
   { key: 'measurements', title: 'Measurements' },
+  { key: 'construction', title: 'Construction Activities' },
 ];
 
 // ── renderBadgeGrid: emits one bordered .assoc-badge-panel card with the
@@ -31016,6 +31740,15 @@ function drawPlot(container, spec) {
   // singular `spec.extraLine` for one session, generalized to an array once
   // the CBR penetration/load chart needed more than one overlay).
   const extraLines = spec.extraLines || [];
+  // Series the hover crosshair/tooltip tracks: spec.points, plus any
+  // extraLines entry flagged `hover: true` (opt-in, e.g. the RI installation
+  // plots' drilling/withdrawal runs, which are one data set split by color).
+  // Each must be sorted ascending by `i` (binary search below). With more
+  // than one, the hover picks the point nearest the cursor on screen, and
+  // the dot/tooltip take that series' color.
+  const hoverSeries = [{ pts, color: dep.color }].concat(
+    extraLines.filter(el => el.hover && el.points && el.points.length)
+      .map(el => ({ pts: el.points, color: el.color || dep.color })));
   const extraPaths = extraLines.map(el => {
     const p = document.createElementNS(NS_SVG, 'path');
     p.setAttribute('fill', 'none');
@@ -31035,6 +31768,9 @@ function drawPlot(container, spec) {
   dataPath.setAttribute('fill', 'none'); dataPath.setAttribute('stroke', dep.color);
   dataPath.setAttribute('stroke-width', '1.5'); dataPath.setAttribute('stroke-linejoin', 'round');
   dataPath.setAttribute('stroke-linecap', 'round'); dataPath.setAttribute('clip-path', `url(#${clipId})`);
+  // Opt-in dash for the main series (default solid), e.g. a load-settlement
+  // curve whose longest branch is the dashed unloading branch.
+  if (spec.dashArray) dataPath.setAttribute('stroke-dasharray', spec.dashArray);
   svg.appendChild(dataPath);
 
   // Permanent point markers (opt-in via spec.pointMarkers) — every actual
@@ -31305,9 +32041,12 @@ function drawPlot(container, spec) {
     }
   }
 
-  // Refit dependent axis to data in the current independent window.
+  // Refit dependent axis to data in the current independent window — over
+  // every hover-enabled series (see hoverSeries below), not just spec.points,
+  // when there is more than one.
   function refitDep() {
-    const vis = pts.filter(p => p.i >= view.iMin && p.i <= view.iMax);
+    const all = hoverSeries.length > 1 ? hoverSeries.flatMap(s => s.pts) : pts;
+    const vis = all.filter(p => p.i >= view.iMin && p.i <= view.iMax);
     if (!vis.length) return;
     const vp = vis.map(p => p.p), lo = Math.min(...vp), hi = Math.max(...vp);
     const pad = (hi - lo) * (dep.padFrac || 0.08) || Math.abs(lo) * (dep.padAbsFrac || 0.05) || (dep.padConst || 0.5);
@@ -31371,11 +32110,27 @@ function drawPlot(container, spec) {
     const r = svg.getBoundingClientRect();
     const pos = xInd ? (e.clientX - r.left) * (VW / r.width) : (e.clientY - r.top) * (VH / r.height);
     const curI = pxToI(pos);
-    let lo = 0, hi = pts.length - 1;
-    while (lo < hi) { const mid = (lo + hi) >> 1; if (pts[mid].i < curI) lo = mid + 1; else hi = mid; }
-    const cands = [pts[Math.max(0, lo - 1)], pts[lo]].filter(Boolean);
-    const best = cands.reduce((a, b) => Math.abs(a.i - curI) < Math.abs(b.i - curI) ? a : b);
+    const nearestByI = arr => {
+      let lo = 0, hi = arr.length - 1;
+      while (lo < hi) { const mid = (lo + hi) >> 1; if (arr[mid].i < curI) lo = mid + 1; else hi = mid; }
+      const cands = [arr[Math.max(0, lo - 1)], arr[lo]].filter(Boolean);
+      return cands.length ? cands.reduce((a, b) => Math.abs(a.i - curI) < Math.abs(b.i - curI) ? a : b) : null;
+    };
+    let best = null, bestColor = dep.color;
+    if (hoverSeries.length > 1) {
+      const cx = (e.clientX - r.left) * (VW / r.width), cy = (e.clientY - r.top) * (VH / r.height);
+      let bestD = Infinity;
+      for (const s of hoverSeries) {
+        const cand = nearestByI(s.pts);
+        if (!cand) continue;
+        const dd = (sx(cand) - cx) ** 2 + (sy(cand) - cy) ** 2;
+        if (dd < bestD) { bestD = dd; best = cand; bestColor = s.color; }
+      }
+    } else {
+      best = nearestByI(pts);
+    }
     if (!best) return;
+    dot.setAttribute('fill', bestColor); ttt2.setAttribute('fill', bestColor);
     const bx = sx(best), by = sy(best);
     hLine.setAttribute('x1', PAD.left); hLine.setAttribute('x2', PAD.left + pW);
     hLine.setAttribute('y1', by); hLine.setAttribute('y2', by); hLine.setAttribute('visibility', 'visible');
@@ -33473,6 +34228,411 @@ function drawResultPlots(container, model, opts) {
   }
 
   return drawn;
+}
+
+// ══════════════════════════════════════════════════════════════
+//  RI INSTALLATION RECORD PLOTS (RIColumnConstruction badge)
+//  A depth-vs-time plot across the top, then one depth plot per recorded
+//  property, side by side (same .meas-plot-row/.cpt-plot-wrapper layout as a
+//  measurement's depth profile). Every trace is colored by phase: drilling
+//  (on the way down) vs. withdrawal/grouting (on the way up).
+// ══════════════════════════════════════════════════════════════
+const RI_PHASE_COLORS = { down: '#58a6ff', up: '#f78166' };
+const RI_PHASE_LABELS = { down: 'Drilling (down the hole)', up: 'Withdrawal / grouting (up the hole)' };
+
+/** Phase of each row of a time-sorted installation record: 'down' when the
+ *  depth increased since the previous reading with a depth, 'up' when it
+ *  decreased. An unchanged depth (a pause) keeps the previous phase; readings
+ *  before the first change take the first phase found. A row with no depth
+ *  (or no time) gets null and is left out of every plot. */
+function _riPhases(rows, depthCol) {
+  const depthOf = r => {
+    const c = r.cells[depthCol];
+    const v = c && c.raw != null ? parseFloat(c.raw) : NaN;
+    return isFinite(v) ? v : null;
+  };
+  const phases = new Array(rows.length).fill(null);
+  let prev = null, cur = null;
+  rows.forEach((r, k) => {
+    const d = depthOf(r);
+    if (d == null || r.sortNum == null) return;
+    if (prev != null && d !== prev) cur = d > prev ? 'down' : 'up';
+    phases[k] = cur;
+    prev = d;
+  });
+  const first = phases.find(Boolean) || 'down';
+  rows.forEach((r, k) => {
+    if (phases[k] == null && depthOf(r) != null && r.sortNum != null) phases[k] = first;
+  });
+  return { phases, depthOf };
+}
+
+/** Split one series into contiguous same-phase runs of {i,p} points, in time
+ *  order. `pointOf(row)` gives the row's point, or null where this series has
+ *  no value (a null there does not end the run). A run after a phase change
+ *  starts with the previous run's last point, so the colored line stays
+ *  continuous through the turn. */
+function _riRuns(rows, phases, pointOf) {
+  const runs = [];
+  let cur = null, last = null;
+  rows.forEach((r, k) => {
+    const ph = phases[k];
+    if (!ph) return;
+    const pt = pointOf(r);
+    if (!pt) return;
+    if (!cur || cur.phase !== ph) {
+      cur = { phase: ph, pts: last ? [last] : [] };
+      runs.push(cur);
+    }
+    cur.pts.push(pt);
+    last = pt;
+  });
+  return runs;
+}
+
+/** drawPlot series fields for a set of runs: the longest run is the main
+ *  series (spec.points), the rest become hover-enabled extraLines, each in
+ *  its phase color. `sortByI` sorts each run by its independent value (a
+ *  depth plot's independent axis is depth; a run is monotonic in depth, so
+ *  this only reverses an up-the-hole run and leaves the drawn line the
+ *  same). Returns null when there is nothing to draw. */
+function _riSeries(runs, sortByI) {
+  const rs = runs.map(r => ({ phase: r.phase, pts: sortByI ? r.pts.slice().sort((a, b) => a.i - b.i) : r.pts }))
+    .filter(r => r.pts.length);
+  if (!rs.length || rs.reduce((n, r) => n + r.pts.length, 0) < 2) return null;
+  let m = 0;
+  rs.forEach((r, k) => { if (r.pts.length > rs[m].pts.length) m = k; });
+  return {
+    points: rs[m].pts,
+    color: RI_PHASE_COLORS[rs[m].phase],
+    extraLines: rs.filter((_, k) => k !== m).map(r => ({
+      points: r.pts, color: RI_PHASE_COLORS[r.phase], dashed: false, strokeWidth: '1.5', hover: true,
+    })),
+  };
+}
+
+/** Draw an RIColumnConstruction's installation-record plots into
+ *  `container`. `job` = { model, depthCol, depthUom, timeAxis, totalDepth }
+ *  from _riColumnConstructionBadge; model.rows are already on one clock and
+ *  sorted by time (_riApplyTimeIndex). The depth axes span [0, deepest of the
+ *  record and the column's own reported length]. Time is shown since the
+ *  first reading, in timeAxis.unit (minutes unless the record's elapsed unit
+ *  has no known length). */
+function _drawRIInstallationPlots(container, job) {
+  const { model, depthCol, depthUom } = job;
+  const rows = model.rows;
+  const { phases, depthOf } = _riPhases(rows, depthCol);
+  const k0 = phases.findIndex(Boolean);
+  if (k0 < 0) {
+    container.innerHTML = '<div class="empty-state" style="padding:12px">No depth readings to plot.</div>';
+    return;
+  }
+  const t0 = rows[k0].sortNum;
+  // sortNum is in ms, or raw units for an elapsed list with no known unit
+  // length (see _riApplyTimeIndex); tAxis converts it for the time axis.
+  const tAxis = job.timeAxis || { perUnit: 60000, unit: 'min' };
+  const depths = rows.map(depthOf).filter(v => v != null);
+  const maxDepth = Math.max(job.totalDepth != null && isFinite(job.totalDepth) ? job.totalDepth : 0, ...depths);
+  const uomSfx = depthUom ? ` (${depthUom})` : '';
+  const fmtVal = v => Math.abs(v) >= 100 ? v.toFixed(1) : Math.abs(v) >= 10 ? v.toFixed(2) : v.toFixed(3);
+  const FONT_UI = "DM Sans,'Helvetica Neue',Arial,sans-serif";
+
+  const present = ['down', 'up'].filter(p => phases.includes(p));
+  const legend = document.createElement('div');
+  legend.className = 'ri-phase-legend';
+  legend.innerHTML = present.map(p =>
+    `<span class="ri-phase-key"><span class="ri-phase-swatch" style="background:${RI_PHASE_COLORS[p]}"></span>${escHtml(RI_PHASE_LABELS[p])}</span>`).join('');
+  container.appendChild(legend);
+
+  // ── Depth vs. time ──────────────────────────────────────────
+  const tdHost = document.createElement('div');
+  container.appendChild(tdHost);
+  const td = _riSeries(_riRuns(rows, phases, r => {
+    const d = depthOf(r);
+    return d == null ? null : { i: (r.sortNum - t0) / tAxis.perUnit, p: d };
+  }), false);
+  // drawPlot sizes its independent axis from spec.points alone, and the main
+  // series is only the longest run, so the full time span is passed
+  // explicitly or the other runs would fall outside the view.
+  const tEnd = Math.max(...rows.filter((r, k) => phases[k]).map(r => (r.sortNum - t0) / tAxis.perUnit));
+  if (td) {
+    drawPlot(tdHost, {
+      points: td.points, extraLines: td.extraLines, orientation: 'x-ind',
+      indFullOverride: { min: 0, max: tEnd },
+      viewport: { VW: 800, VH: 240, PAD: { top: 20, bottom: 46, left: 66, right: 20 } },
+      clipPrefix: 'ri-td', infoText: `n=${depths.length}`,
+      axisFontSize: 12, tooltipFontSize: 12,
+      ind: { ticks: 6, minSpanAbs: 0.25,
+             fmtTick: (v, span) => span < 3 ? v.toFixed(1) : v.toFixed(0),
+             fmtTip: v => `${v.toFixed(2)} ${tAxis.unit}` },
+      dep: { color: td.color, ticks: 4, flip: true,
+             fmtTick: v => Number(v.toPrecision(4)).toString(),
+             fmtTip: v => v.toFixed(2) + (depthUom ? ' ' + depthUom : '') },
+      depFullOverride: { min: 0, max: maxDepth },
+      leftLabel: { text: 'Depth' + uomSfx, color: '#8b949e', size: 12 },
+      bottomLabel: { text: `Time since the start of the record (${tAxis.unit})`, color: '#8b949e', size: 12 },
+      svg: { className: 'well-plot-svg', widthAttr: false, heightAttr: true, style: 'cursor:crosshair; user-select:none;' },
+    });
+  }
+
+  // ── One depth plot per recorded property ────────────────────
+  const DEPTH_VW = 200, DEPTH_VH = 420, DEPTH_PAD = { top: 22, bottom: 42, left: 44, right: 6 };
+  const TITLE_SIZE = 14, TITLE_LINE_H = 15;
+  const DEPTH_IND_SPEC = { ticks: 5, fmtTick: v => v.toFixed(1) };
+  const plotLeft = _plotLeftPadForLabel(DEPTH_PAD.left,
+    _plotVAxisTickMaxWidth(DEPTH_IND_SPEC, 0, maxDepth, true, `12px ${FONT_UI}`), 12, false);
+  const titleFont = `bold ${TITLE_SIZE}px ${FONT_UI}`;
+  const series = [];
+  model.valueCols.forEach((c, ci) => {
+    if (ci === depthCol || c.kind !== 'numeric') return;
+    const s = _riSeries(_riRuns(rows, phases, r => {
+      const d = depthOf(r);
+      const cell = r.cells[ci];
+      const v = cell && cell.raw != null ? parseFloat(cell.raw) : NaN;
+      return d == null || !isFinite(v) ? null : { i: d, p: v };
+    }), true);
+    if (!s) return;
+    const words = c.label.split(/\s+/).filter(Boolean);
+    const uomTok = c.uom ? `(${c.uom})` : null;
+    if (uomTok) words.push(uomTok);
+    series.push({ c, ci, s, lines: _wrapWordTokens(words, DEPTH_VW - plotLeft - DEPTH_PAD.right, titleFont), uomTok });
+  });
+  if (!series.length) return;
+  const maxLines = Math.max(...series.map(x => x.lines.length));
+  const row = document.createElement('div');
+  row.className = 'meas-plot-row';
+  container.appendChild(row);
+  for (const { c, ci, s, lines, uomTok } of series) {
+    const titleParts = lines.map((lw, li) => lw.map((w, wi) => {
+      const text = (wi ? ' ' : '') + w;
+      return w === uomTok ? { text, color: '#8b949e', weight: 'normal', size: 12 } : { text, color: '#c9d1d9' };
+    }));
+    drawPlot(row, {
+      points: s.points, extraLines: s.extraLines, orientation: 'y-ind',
+      viewport: { VW: DEPTH_VW, VH: DEPTH_VH, PAD: Object.assign({}, DEPTH_PAD, { top: DEPTH_PAD.top + (maxLines - 1) * TITLE_LINE_H }) },
+      clipPrefix: 'ri-d-' + ci, infoText: '',
+      indFullOverride: { min: 0, max: maxDepth },
+      fonts: { ui: FONT_UI }, axisFontFamily: FONT_UI, axisFontSize: 12,
+      ind: Object.assign({}, DEPTH_IND_SPEC, { minSpanAbs: 0.5, fmtTip: v => v.toFixed(2) + (depthUom ? ' ' + depthUom : '') }),
+      dep: { color: s.color, ticks: 3, flip: false, padFrac: 0.05, padAbsFrac: 0.02, padConst: 0.1,
+             fmtTick: v => fmtVal(v), fmtTip: v => fmtVal(v) + (c.uom ? ' ' + c.uom : '') },
+      leftLabel: { text: 'Depth' + uomSfx, color: '#8b949e', size: 12 },
+      titleParts, titleSize: TITLE_SIZE, titleLineHeight: TITLE_LINE_H,
+      tooltipFont: FONT_UI, tooltipFontSize: 12, tooltipH: 38, tooltipPad: 5,
+      wrapper: { className: 'cpt-plot-wrapper', style: '' },
+      toolbar: { className: 'cpt-plot-toolbar', style: '', paddingLeftPct: (plotLeft * 100 / DEPTH_VW).toFixed(2) + '%' },
+      svg: { widthAttr: '100%', style: 'display:block;cursor:crosshair;user-select:none;' },
+    });
+  }
+}
+
+// ══════════════════════════════════════════════════════════════
+//  LOAD-SETTLEMENT CURVE (PlateLoadTest / ZoneLoadTest Monitor badges)
+//  Drawn below the outcome's time plots via MEASUREMENT_CONFIGS.plotExtra.
+//  The outcome (a TemporalResult) carries one row per load stage: applied
+//  stress (or load), settlement, and the loading phase. The curve plots
+//  settlement (increasing downward) against stress, one style per phase, so
+//  the unloading branch and the final (residual) settlement read at a glance.
+// ══════════════════════════════════════════════════════════════
+
+/** kPa per pressure uom, and kN per force uom (uom tokens as DIGGS
+ *  instances write them). Used only to bring a procedure's maxTestStress /
+ *  maxTestLoad into the outcome column's own unit for a reference line. */
+const _PRESSURE_KPA = {
+  Pa: 0.001, kPa: 1, MPa: 1000, GPa: 1e6, 'N/m2': 0.001, 'kN/m2': 1, 'MN/m2': 1000,
+  bar: 100, mbar: 0.1, atm: 101.325, 'kgf/cm2': 98.0665, 'tf/m2': 9.80665,
+  psi: 6.894757293, ksi: 6894.757293, psf: 0.04788025898, ksf: 47.88025898, tsf: 95.76051797,
+};
+const _FORCE_KN = {
+  N: 0.001, kN: 1, MN: 1000, kgf: 0.00980665, tf: 9.80665,
+  lbf: 0.004448222, klbf: 4.448222, kip: 4.448222, 'tonf[US]': 8.896443,
+};
+/** `v` from uom `from` to uom `to` via one of the tables above; null when
+ *  either uom is unknown to it (identical uoms always convert). */
+function _convertByTable(v, from, to, table) {
+  if (!isFinite(v)) return null;
+  if (from === to) return v;
+  return table[from] && table[to] ? v * table[from] / table[to] : null;
+}
+
+const LOAD_PHASE_STYLE = {
+  seating:   { color: '#8b949e', dash: '2,3', label: 'Seating' },
+  loading:   { color: '#58a6ff', dash: null,  label: 'Loading' },
+  unloading: { color: '#f78166', dash: '6,3', label: 'Unloading' },
+  reload:    { color: '#3fb950', dash: '6,2,2,2', label: 'Reload' },
+};
+const _LOAD_PHASE_OTHER = { color: '#bc8cff', dash: '4,2', label: null };
+
+/** The fragment of a Property's propertyClass codeSpace (…#applied_stress →
+ *  'applied_stress'), lower-cased, falling back to its propertyClass text. */
+function _propClassKey(p) {
+  const frag = (p.codeSpace || '').split('#')[1];
+  return (frag || p.propertyClass || '').trim().toLowerCase().replace(/\s+/g, '_');
+}
+
+/** The reference stresses (or loads) for one load test, in the outcome x
+ *  column's own uom: the test maximum (the procedure's maxTestStress /
+ *  maxTestLoad, else the same field on the planned procedure of the
+ *  DesignMeasurement the Monitor cites through programDesignRef) and the
+ *  design value (that maximum divided by the design's
+ *  testLoadPercentDesignLoad). Returns [{x, kind, label}]. */
+function _loadTestRefValues(rec, xIsStress, xUom) {
+  const field = xIsStress ? 'maxTestStress' : 'maxTestLoad';
+  const table = xIsStress ? _PRESSURE_KPA : _FORCE_KN;
+  const readMax = proc => {
+    const e = proc && findByLocalName(proc, field);
+    if (!e) return null;
+    const v = _convertByTable(parseFloat(e.textContent), e.getAttribute('uom') || xUom, xUom, table);
+    return v != null ? v : null;
+  };
+  let max = null;
+  for (const p of rec.procObjs || []) { max = readMax(p); if (max != null) break; }
+  let pct = null;
+  for (const ref of Array.from(rec.el.children).filter(c => c.localName === 'programDesignRef')) {
+    const d = resolveXlinkEl(ref);
+    if (!d) continue;
+    if (max == null) max = readMax(findByLocalName(d, 'plannedProcedure'));
+    const pe = findByLocalName(d, 'testLoadPercentDesignLoad');
+    if (pe && isFinite(parseFloat(pe.textContent))) pct = parseFloat(pe.textContent);
+  }
+  const out = [];
+  const fmt = v => `${Number(v.toPrecision(4))}${xUom ? ' ' + xUom : ''}`;
+  if (max != null) {
+    if (pct) out.push({ x: max * 100 / pct, kind: 'design', label: `Design ${xIsStress ? 'pressure' : 'load'} ${fmt(max * 100 / pct)}` });
+    out.push({ x: max, kind: 'max', label: `Test maximum ${fmt(max)}` });
+  }
+  return out;
+}
+
+/** Draw one load-settlement plot per Monitor record in `group` into
+ *  `container` (a group normally holds one test; several on one feature get
+ *  one plot each, titled by name). Skipped for a record whose outcome has no
+ *  stress/load column or no settlement column. */
+function _drawLoadSettlementPlots(container, group) {
+  for (const rec of group) {
+    const rs = rec.resultSet;
+    if (!rs || !rs.rows.length) continue;
+    const keys = rs.props.map(_propClassKey);
+    const nameIs = re => rs.props.findIndex(p => re.test(p.name || ''));
+    let xi = keys.indexOf('applied_stress');
+    let xIsStress = true;
+    if (xi < 0) xi = nameIs(/stress|pressure/i);
+    if (xi < 0) { xi = keys.indexOf('applied_load'); xIsStress = false; }
+    if (xi < 0) { xi = nameIs(/load/i); xIsStress = false; }
+    let yi = keys.indexOf('settlement');
+    if (yi < 0) yi = nameIs(/settlement/i);
+    if (xi < 0 || yi < 0) continue;
+    let pi = keys.indexOf('loading_phase');
+    if (pi < 0) pi = nameIs(/phase/i);
+    const xUom = rs.props[xi].uom || '', yUom = rs.props[yi].uom || '';
+
+    // Readings in time order (instant or elapsed domain; document order on
+    // ties or when there is no usable time).
+    const positions = (rec.domain && rec.domain.positions) || [];
+    const elapsed = rec.domain && rec.domain.geomType === 'TimeIntervalList';
+    const tOf = k => { const p = positions[k]; const v = elapsed ? parseFloat(p) : Date.parse(p); return isFinite(v) ? v : Infinity; };
+    const rows = rs.rows.map((cells, k) => ({ k, t: tOf(k),
+      x: parseFloat(cells[xi]), y: parseFloat(cells[yi]),
+      phase: pi >= 0 && cells[pi] != null ? String(cells[pi]).trim().toLowerCase() : '' }))
+      .filter(r => isFinite(r.x) && isFinite(r.y))
+      .sort((a, b) => (a.t - b.t) || (a.k - b.k));
+    if (rows.length < 2) continue;
+    // A row with no phase value takes the direction of the stress change
+    // (up = loading, down = unloading), or the previous row's phase.
+    let prevPhase = 'loading';
+    rows.forEach((r, n) => {
+      if (!r.phase) r.phase = n && r.x < rows[n - 1].x ? 'unloading' : (n && r.x === rows[n - 1].x ? prevPhase : 'loading');
+      prevPhase = r.phase;
+    });
+    const styleOf = ph => LOAD_PHASE_STYLE[ph] || _LOAD_PHASE_OTHER;
+
+    // Phase runs (each continuing from the previous run's last point), then
+    // split where the stress reverses direction (a seating cycle goes up and
+    // back down) so every piece is monotonic in stress and can be sorted
+    // for drawPlot's hover search without changing the drawn line.
+    const runs = _riRuns(rows, rows.map(r => r.phase), r => ({ i: r.x, p: r.y }));
+    const pieces = [];
+    for (const run of runs) {
+      let cur = [run.pts[0]], dir = 0;
+      for (let n = 1; n < run.pts.length; n++) {
+        const d = Math.sign(run.pts[n].i - run.pts[n - 1].i);
+        if (d && dir && d !== dir) { pieces.push({ phase: run.phase, pts: cur }); cur = [run.pts[n - 1]]; }
+        if (d) dir = d;
+        cur.push(run.pts[n]);
+      }
+      pieces.push({ phase: run.phase, pts: cur });
+    }
+    pieces.forEach(pc => pc.pts.sort((a, b) => a.i - b.i));
+    let m = 0;
+    pieces.forEach((pc, n) => { if (pc.pts.length > pieces[m].pts.length) m = n; });
+    const main = pieces[m];
+
+    const refs = _loadTestRefValues(rec, xIsStress, xUom);
+    const yMax = Math.max(...rows.map(r => r.y));
+    const xMax = Math.max(...rows.map(r => r.x), ...refs.map(r => r.x));
+    const refStyle = { design: { color: '#e3b341', dash: '6,3' }, max: { color: '#e3b341', dash: '2,3' } };
+    const extraLines = pieces.filter((_, n) => n !== m).map(pc => ({
+      points: pc.pts, color: styleOf(pc.phase).color, dashed: !!styleOf(pc.phase).dash,
+      dashArray: styleOf(pc.phase).dash || undefined, strokeWidth: '1.5', pointMarkers: true, pointMarkerRadius: 3, hover: true,
+    })).concat(refs.map(r => ({
+      points: [{ i: r.x, p: 0 }, { i: r.x, p: yMax * 1.08 || 1 }],
+      color: refStyle[r.kind].color, dashed: true, dashArray: refStyle[r.kind].dash, strokeWidth: '2',
+    })));
+    const phasesPresent = [...new Set(rows.map(r => r.phase))];
+    const legend = phasesPresent.map(ph => ({ label: styleOf(ph).label || _titleCase(ph.replace(/^other:\s*/, '')), color: styleOf(ph).color, dash: styleOf(ph).dash }))
+      .concat(refs.map(r => ({ label: r.label, color: refStyle[r.kind].color, dash: refStyle[r.kind].dash })));
+
+    // Summary: settlement at the design value on the loading branch, at the
+    // peak, and the last reading (the final, residual settlement once the
+    // test is unloaded).
+    const fmtY = v => `${Number(v.toFixed(3))}${yUom ? ' ' + yUom : ''}`;
+    const fmtX = v => `${Number(v.toPrecision(4))}${xUom ? ' ' + xUom : ''}`;
+    const loadPts = rows.filter(r => r.phase === 'loading' || r.phase === 'reload').map(r => ({ i: r.x, p: r.y })).sort((a, b) => a.i - b.i);
+    const parts = [];
+    const design = refs.find(r => r.kind === 'design');
+    if (design && loadPts.length >= 2 && design.x >= loadPts[0].i && design.x <= loadPts[loadPts.length - 1].i) {
+      parts.push(`at design ${xIsStress ? 'pressure' : 'load'} (${fmtX(design.x)}, loading): ${fmtY(_interpAtX(loadPts, design.x))}`);
+    }
+    const peak = rows.reduce((a, b) => (b.x > a.x || (b.x === a.x && b.y > a.y)) ? b : a);
+    parts.push(`at maximum (${fmtX(peak.x)}): ${fmtY(peak.y)}`);
+    const last = rows[rows.length - 1];
+    parts.push(`final (last reading, ${fmtX(last.x)}): ${fmtY(last.y)}`);
+
+    const host = document.createElement('div');
+    host.className = 'ls-plot-host';
+    // HTML legend above the plot (drawPlot's own legend stacks entries below
+    // the plot and would take most of its height here); each swatch shows
+    // the line's own dash style.
+    const swatch = (color, dash) => `<svg width="22" height="8" aria-hidden="true"><line x1="1" y1="4" x2="21" y2="4" stroke="${color}" stroke-width="2"${dash ? ` stroke-dasharray="${dash}"` : ''}/></svg>`;
+    const lg = document.createElement('div');
+    lg.className = 'ri-phase-legend';
+    lg.innerHTML = legend.map(e => `<span class="ri-phase-key">${swatch(e.color, e.dash)}${escHtml(e.label)}</span>`).join('');
+    host.appendChild(lg);
+    container.appendChild(host);
+    const nm = group.length > 1 ? nodeText(evalXPath(rec.el, 'gml:name')[0]) || rec.el.getAttributeNS(NS.gml, 'id') : '';
+    const xLabel = (rs.props[xi].name || (xIsStress ? 'Applied stress' : 'Applied load')) + (xUom ? ` (${xUom})` : '');
+    drawPlot(host, {
+      points: main.pts, extraLines, orientation: 'x-ind',
+      viewport: { VW: 800, VH: 340, PAD: { top: 26, bottom: 46, left: 66, right: 20 } },
+      clipPrefix: 'ls', infoText: `n=${rows.length}`,
+      axisFontSize: 12, tooltipFontSize: 12,
+      pointMarkers: true, pointMarkerRadius: 3,
+      // A little headroom past the largest stress, so a reference line at
+      // the test maximum doesn't sit on the plot's right edge.
+      indFullOverride: { min: 0, max: xMax * 1.04 },
+      depFullOverride: { min: 0, max: yMax * 1.08 || 1 },
+      ind: { ticks: 6, minSpanAbs: xMax / 50 || 0.01,
+             fmtTick: v => Number(v.toPrecision(3)).toString(), fmtTip: v => fmtX(v) },
+      dep: { color: styleOf(main.phase).color, ticks: 5, flip: true,
+             fmtTick: v => Number(v.toPrecision(3)).toString(), fmtTip: v => fmtY(v) },
+      leftLabel: { text: (rs.props[yi].name || 'Settlement') + (yUom ? ` (${yUom})` : ''), color: '#8b949e', size: 12 },
+      bottomLabel: { text: xLabel, color: '#8b949e', size: 12 },
+      titleParts: [{ text: (xIsStress ? 'Stress' : 'Load') + ' vs. settlement' + (nm ? ` — ${nm}` : ''), color: '#c9d1d9' }],
+      dashArray: styleOf(main.phase).dash || undefined,
+      extraChipHtml: 'Settlement ' + parts.map(escHtml).join(' · '),
+      svg: { className: 'well-plot-svg', widthAttr: false, heightAttr: true, style: 'cursor:crosshair; user-select:none;' },
+    });
+  }
 }
 
 /** Linear interpolation (or extrapolation, past either end) of `pts`
