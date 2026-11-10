@@ -1,4 +1,4 @@
-<Diggs xmlns="http://diggsml.org/schemas/3" xmlns:diggs="http://diggsml.org/schemas/3" xmlns:glr="http://www.opengis.net/gml/3.3/lr" xmlns:gml="http://www.opengis.net/gml/3.2" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://diggsml.org/schemas/3 https://raw.githubusercontent.com/DIGGSml/schema-dev/refs/heads/3.1-dev/Diggs.xsd" gml:id="NTM1YTEwMzUtYmRmZS00NTIxLTk1OWItZjk4NGEwOWRjZDcx">
+<Diggs xmlns="http://diggsml.org/schemas/3" xmlns:diggs="http://diggsml.org/schemas/3" xmlns:glr="http://www.opengis.net/gml/3.3/lr" xmlns:gml="http://www.opengis.net/gml/3.2" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://diggsml.org/schemas/3 https://diggsml.org/schema-dev/Diggs.xsd" gml:id="NTM1YTEwMzUtYmRmZS00NTIxLTk1OWItZjk4NGEwOWRjZDcx">
     <documentInformation>
         <DocumentInformation gml:id="DGS765F-DA6-2E5C-4987-1FA95">
             <creationDate>2026-06-02</creationDate>
@@ -276,7 +276,14 @@
                 <LinearSpatialReferenceSystem gml:id="lsr-BH-Mockup-1">
                     <gml:identifier codeSpace="http://www.globalgeosolutions.com/projects">lsr-BH-Mockup-1</gml:identifier>
                     <glr:linearElement xlink:href="#cl-BH-Mockup-1"/>
-                    <lrm xlink:href="https://diggsml.org/def/crs/DIGGS/0.1/lrm.xml#md_ft"/>
+                 <!--   <lrm xlink:href="https://diggsml.org/def/crs/DIGGS/0.1/lrm.xml#md_ft"/> -->
+                    <glr:lrm>
+                        <glr:LinearReferencingMethod>
+                            <glr:name>fred</glr:name>
+                            <glr:type>chainage</glr:type>
+                            <glr:units>ftUS</glr:units>
+                        </glr:LinearReferencingMethod>
+                    </glr:lrm>
                 </LinearSpatialReferenceSystem>
             </linearReferencing>
             <plunge uom="dega" howDetermined="measured">90</plunge>
@@ -3183,7 +3190,7 @@
                 <Specification gml:id="Spec_LithLog_BH-Mockup-1">
                     <gml:name>ASTM D2488 Visual-Manual Description</gml:name>
                     <status>final</status>
-                    <accredtingBody>ASTM International</accredtingBody>
+                    <accreditingBody>ASTM International</accreditingBody>
                     <shortMethodName>D2488</shortMethodName>
                     <standardReferenceNumber>ASTM D2488-17e1</standardReferenceNumber>
                     <standardTitle>Standard Practice for Description and Identification of Soils (Visual-Manual Procedure)</standardTitle>
@@ -6201,7 +6208,7 @@
                     <testProcedureMethod>
                         <Specification gml:id="SPEC_ATT_BH-Mockup-1_55">
                             <gml:name>ASTM D4318-17e1, Multipoint Method</gml:name>
-                            <accredtingBody>CCRL</accredtingBody>
+                            <accreditingBody>CCRL</accreditingBody>
                         </Specification>
                     </testProcedureMethod>
                     <specimen>
@@ -6328,13 +6335,13 @@
                     <testProcedureMethod>
                         <Specification gml:id="SPEC_ATT_BH-Mockup-1_65_LL">
                             <gml:name>BS 1377-2:1990, Cone Penetrometer Method (Liquid Limit)</gml:name>
-                            <accredtingBody>CCRL</accredtingBody>
+                            <accreditingBody>CCRL</accreditingBody>
                         </Specification>
                     </testProcedureMethod>
                     <testProcedureMethod>
                         <Specification gml:id="SPEC_ATT_BH-Mockup-1_65_PL">
                             <gml:name>ASTM D4318-17e1, Plastic Limit (Method A)</gml:name>
-                            <accredtingBody>CCRL</accredtingBody>
+                            <accreditingBody>CCRL</accreditingBody>
                         </Specification>
                     </testProcedureMethod>
                     <specimen>
@@ -6494,13 +6501,13 @@
                     <testProcedureMethod>
                         <Specification gml:id="SPEC_ATT_BH-Mockup-1_85_ATT">
                             <gml:name>ASTM D4318-17e1, Multipoint Method</gml:name>
-                            <accredtingBody>CCRL</accredtingBody>
+                            <accreditingBody>CCRL</accreditingBody>
                         </Specification>
                     </testProcedureMethod>
                     <testProcedureMethod>
                         <Specification gml:id="SPEC_ATT_BH-Mockup-1_85_SL">
                             <gml:name>ASTM D4943-18, Shrinkage Limit by Wax Method</gml:name>
-                            <accredtingBody>CCRL</accredtingBody>
+                            <accreditingBody>CCRL</accreditingBody>
                         </Specification>
                     </testProcedureMethod>
                     <specimen>
@@ -6674,7 +6681,7 @@
                     <testProcedureMethod>
                         <Specification gml:id="SPEC_ATT_BH-Mockup-1_106">
                             <gml:name>ASTM D4318-17e1, One-Point Method</gml:name>
-                            <accredtingBody>CCRL</accredtingBody>
+                            <accreditingBody>CCRL</accreditingBody>
                         </Specification>
                     </testProcedureMethod>
                     <specimen>
@@ -6823,7 +6830,7 @@
                     <testProcedureMethod>
                         <Specification gml:id="SPEC_ATT_BH-Mockup-1_135">
                             <gml:name>ASTM D4318-17e1, Multipoint Method</gml:name>
-                            <accredtingBody>CCRL</accredtingBody>
+                            <accreditingBody>CCRL</accreditingBody>
                         </Specification>
                     </testProcedureMethod>
                     <testProcedureEquipment>
@@ -7072,7 +7079,7 @@
                     <testProcedureMethod>
                         <Specification gml:id="SPEC_PST_BH-Mockup-1_20">
                             <gml:name>ASTM D6913-17, Method A (Dry Sieve)</gml:name>
-                            <accredtingBody>CCRL</accredtingBody>
+                            <accreditingBody>CCRL</accreditingBody>
                         </Specification>
                     </testProcedureMethod>
                     <specimen>
@@ -7325,7 +7332,7 @@
                     <testProcedureMethod>
                         <Specification gml:id="SPEC_PST_BH-Mockup-1_40">
                             <gml:name>ASTM D6913-17, Method A (Dry Sieve)</gml:name>
-                            <accredtingBody>CCRL</accredtingBody>
+                            <accreditingBody>CCRL</accreditingBody>
                         </Specification>
                     </testProcedureMethod>
                     <testProcedureEquipment>
@@ -7584,7 +7591,7 @@
                     <testProcedureMethod>
                         <Specification gml:id="SPEC_PST_BH-Mockup-1_60">
                             <gml:name>ASTM D6913-17 / D7928-17, Combined Sieve and Hydrometer Analysis</gml:name>
-                            <accredtingBody>CCRL</accredtingBody>
+                            <accreditingBody>CCRL</accreditingBody>
                         </Specification>
                     </testProcedureMethod>
                     <specimen>
@@ -7842,7 +7849,7 @@
                     <testProcedureMethod>
                         <Specification gml:id="SPEC_PST_BH-Mockup-1_61">
                             <gml:name>ASTM D6913-17 / D7928-17, Combined Sieve and Hydrometer Analysis</gml:name>
-                            <accredtingBody>CCRL</accredtingBody>
+                            <accreditingBody>CCRL</accreditingBody>
                         </Specification>
                     </testProcedureMethod>
                     <otherTestProperty>
@@ -8150,7 +8157,7 @@
                     <testProcedureMethod>
                         <Specification gml:id="SPEC_PST_BH-Mockup-1_100">
                             <gml:name>ASTM D6913-17 / D7928-17, Combined Sieve and Hydrometer Analysis</gml:name>
-                            <accredtingBody>CCRL</accredtingBody>
+                            <accreditingBody>CCRL</accreditingBody>
                         </Specification>
                     </testProcedureMethod>
                     <testingEnvironment>
@@ -8424,7 +8431,7 @@
                     <testProcedureMethod>
                         <Specification gml:id="SPEC_PST_BH-Mockup-1_140">
                             <gml:name>ASTM D6913-17 / D7928-17, Combined Sieve and Hydrometer Analysis</gml:name>
-                            <accredtingBody>CCRL</accredtingBody>
+                            <accreditingBody>CCRL</accreditingBody>
                         </Specification>
                     </testProcedureMethod>
                     <specimen>
@@ -8669,7 +8676,7 @@
                     <testProcedureMethod>
                         <Specification gml:id="SPEC_PST_BH-Mockup-1_120">
                             <gml:name>ASTM D6913-17, Method A (Dry Sieve)</gml:name>
-                            <accredtingBody>CCRL</accredtingBody>
+                            <accreditingBody>CCRL</accreditingBody>
                         </Specification>
                     </testProcedureMethod>
                     <specimen>
@@ -8842,7 +8849,7 @@
                     <testProcedureMethod>
                         <Specification gml:id="SPEC_PST_BH-Mockup-1_80">
                             <gml:name>ASTM D7928-17, Hydrometer Analysis</gml:name>
-                            <accredtingBody>CCRL</accredtingBody>
+                            <accreditingBody>CCRL</accreditingBody>
                         </Specification>
                     </testProcedureMethod>
                     <specimen>
