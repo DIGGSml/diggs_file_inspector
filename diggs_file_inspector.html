@@ -12586,6 +12586,144 @@ OBJECT_CONFIGS.ZoneLoadTest = [
   ..._PLATE_BEARING_TRAILING,
 ];
 
+// ══════════════════════════════════════════════════════════════
+//  LowStrainIntegrityTest (extended/ExtProcedures.xsd) — the pile integrity
+//  (PIT / sonic echo / transient response) procedure. Extends
+//  AbstractInsituTestProcedureType DIRECTLY (no load is applied, so not the
+//  load-test chain): AbstractFeatureType + testProcedureMethod*,
+//  testProcedureEquipment*, testingEnvironment*, otherTestProperty*,
+//  testEvent*. Own sequence: testMethod, waveSpeed, referenceLength,
+//  referenceLengthBasis, lengthToDiameterRatio, averagedImpactCount,
+//  amplificationFunction/Factor/Start/End, recordReference,
+//  impactNormalized, filterType, filterCutoff, sharpeningApplied,
+//  samplingRate, sampleResolution, recordLength, headPreparation,
+//  sensorMounting, sensorPositionCount, sensorOffset*, impactOffset,
+//  frequencyResponse* (ResultsPropertyType: ResultSet | ResultFile),
+//  evaluationSoftware. Rows are grouped by role rather than schema order.
+//  The reflectogram itself is the measurement's outcome (the badge's
+//  Results/Plot); this config is its Metadata.
+// ══════════════════════════════════════════════════════════════
+
+/** A ResultsPropertyType wrapper (a ResultSet or a ResultFile, inline or by
+ *  xlink:href) as HTML: a ResultSet becomes a result table with no index
+ *  column (a domain-less table: every column, e.g. the frequency, is one of
+ *  its own parameters); a ResultFile becomes its KV block
+ *  (OBJECT_CONFIGS.ResultFile). Used as a configOverride function. */
+function _resultsPropertyHtml(wrap) {
+  const d = _danglingRef(wrap);
+  if (d) return _danglingNoteHtml(d);
+  const obj = resolveXlinkEl(wrap);
+  const rsEl = _objOrDescendant(obj, ['ResultSet']);
+  if (rsEl) {
+    const model = buildResultTableModel([{ domain: null, resultSet: parseResultSet(rsEl) }], {});
+    return model && model.rows.length ? renderResultTable(model, {}) : '';
+  }
+  const fileEl = _objOrDescendant(obj, ['ResultFile']);
+  return fileEl ? renderKVObject(fileEl, OBJECT_CONFIGS.ResultFile) : '';
+}
+
+/** The column list of a ResultSet/ResultFile's `parameters` (inline or by
+ *  xlink:href) as HTML strings: each Property's name with its uom, in @index
+ *  order. Used to label a frequencyResponse occurrence and a ResultFile's
+ *  own columns. */
+function _resultParameterNames(obj) {
+  const rsLike = _objOrDescendant(obj, ['ResultSet', 'ResultFile']);
+  if (!rsLike) return [];
+  // parseResultSet only reads parameters + dataValues, so it serves a
+  // ResultFile too (zero rows, columns intact).
+  const rs = parseResultSet(rsLike);
+  return rs ? rs.props.filter(p => p.name || p.propertyClass)
+    .map(p => escHtml(p.name || p.propertyClass) + (p.uom ? ` (${escUom(p.uom)})` : '')) : [];
+}
+
+// ResultFile (core/Common.xsd): ResultFileBaseType (a restriction of
+// gml:FileType: parameters, fileReference, fileStructure) + mimeType?,
+// compression?. The columns the file holds are its parameters.
+OBJECT_CONFIGS.ResultFile = [
+  { path: 'diggs:fileReference', label: 'File Reference' },
+  { path: 'diggs:fileStructure', label: 'File Structure' },
+  { path: 'diggs:mimeType', label: 'MIME Type' },
+  { path: 'diggs:compression' },
+  {
+    label: 'Columns',
+    compute: el => {
+      const names = _resultParameterNames(el);
+      return names.length ? names.join(', ') : null;
+    },
+  },
+];
+
+OBJECT_CONFIGS.LowStrainIntegrityTest = [
+  ..._OBJ_BASE_FIELDS,
+  ..._FEATURE_LEADING,
+  { path: 'diggs:testProcedureMethod', multi: true, label: 'Test Method' },
+  // testMethod is the analysis method (pulse echo vs. transient response),
+  // labelled so it doesn't read as a duplicate of testProcedureMethod.
+  { path: 'diggs:testMethod', label: 'Analysis Method' },
+  { path: 'diggs:waveSpeed', label: 'Wave Speed' },
+  { path: 'diggs:evaluationSoftware', label: 'Evaluation Software' },
+
+  { sectionHeader: 'Element and Setup' },
+  { path: 'diggs:referenceLength', label: 'Reference Length' },
+  { path: 'diggs:referenceLengthBasis', label: 'Reference Length Basis' },
+  { path: 'diggs:lengthToDiameterRatio', label: 'Length / Diameter Ratio' },
+  { path: 'diggs:headPreparation', label: 'Head Preparation' },
+  { path: 'diggs:sensorMounting', label: 'Sensor Mounting' },
+  { path: 'diggs:sensorPositionCount', label: 'Sensor Positions' },
+  { path: 'diggs:sensorOffset', multi: true, label: 'Sensor Offset', labelPlural: 'Sensor Offsets' },
+  { path: 'diggs:impactOffset', label: 'Impact Offset' },
+
+  { sectionHeader: 'Acquisition' },
+  { path: 'diggs:averagedImpactCount', label: 'Impacts Averaged' },
+  { path: 'diggs:samplingRate', label: 'Sampling Rate' },
+  {
+    // positiveInteger in bits; the schema gives it no uom attribute.
+    label: 'Sample Resolution',
+    compute: el => {
+      const t = nodeText(evalXPath(el, 'diggs:sampleResolution')[0]);
+      return t ? `${escHtml(t)} bits` : null;
+    },
+  },
+  { path: 'diggs:recordLength', label: 'Record Length' },
+
+  { sectionHeader: 'Record Processing' },
+  { path: 'diggs:recordReference', label: 'Time Zero Reference' },
+  { path: 'diggs:impactNormalized', label: 'Impact Normalized', boolean: true },
+  { path: 'diggs:amplificationFunction', label: 'Amplification Function' },
+  { path: 'diggs:amplificationFactor', label: 'Amplification Factor' },
+  { path: 'diggs:amplificationStart', label: 'Amplification Start' },
+  { path: 'diggs:amplificationEnd', label: 'Amplification End' },
+  { path: 'diggs:filterType', label: 'Filter Type' },
+  { path: 'diggs:filterCutoff', label: 'Filter Cutoff' },
+  { path: 'diggs:sharpeningApplied', label: 'Sharpening Applied', boolean: true },
+
+  { sectionHeader: '' },
+  {
+    // One table per evaluation (mobility vs. frequency, etc.); each is
+    // headed by its own column names so several read apart.
+    path: 'diggs:frequencyResponse', multi: true,
+    label: 'Frequency Response', labelPlural: 'Frequency Responses',
+    itemLabel: w => {
+      const names = _resultParameterNames(resolveXlinkEl(w));
+      return names.length ? `Frequency Response: ${names.join(', ')}` : null;
+    },
+    configOverride: w => _resultsPropertyHtml(w),
+  },
+  { path: 'diggs:testProcedureEquipment', multi: true, label: 'Equipment', labelPlural: 'Equipment' },
+  { path: 'diggs:testingEnvironment', multi: true, label: 'Testing Environment' },
+  { path: 'diggs:testEvent', multi: true, label: 'Test Event', labelPlural: 'Test Events' },
+  {
+    path: 'diggs:otherTestProperty', multi: true,
+    label: 'Other Property', labelPlural: 'Other Properties', alwaysGroup: true,
+    itemLabel: el => {
+      const nameEl = evalXPath(el, 'diggs:parameterName')[0];
+      const txt = nodeText(nameEl);
+      return txt ? escHtml(txt) + _codeSpaceKeyExtra(nameEl) : null;
+    },
+  },
+  ..._FEATURE_TRAILING,
+];
+
 OBJECT_CONFIGS.StaticConePenetrationTest = [
   ..._OBJ_BASE_FIELDS,
   ..._FEATURE_LEADING,
@@ -24990,6 +25128,9 @@ function _driveSetBlowCounts(procObjs) {
 
 const MEASUREMENT_CONFIGS = {
   // procType → { plots?: bool (force on/off; default = auto), depthUomPath?,
+  //   plotDraw?: (container, group) => void — draws the Plot pane in place
+  //   of drawResultPlots (the pane still appears only when the outcome is
+  //   plottable),
   //   plotExtra?: (container, group) => void — draws additional plots into
   //   the Plot pane's container, after drawResultPlots (only when the badge
   //   has a Plot pane at all),
@@ -25003,6 +25144,10 @@ const MEASUREMENT_CONFIGS = {
   // settlement against time), the stress-settlement curve by loading phase.
   PlateLoadTest: { plotExtra: (c, group) => _drawLoadSettlementPlots(c, group) },
   ZoneLoadTest:  { plotExtra: (c, group) => _drawLoadSettlementPlots(c, group) },
+  // Low strain integrity test: a horizontal reflectogram per test (depth
+  // along x) with toe/reference-length/amplification markers and an
+  // interpretation summary, then its frequency-response plots.
+  LowStrainIntegrityTest: { plotDraw: (c, group) => _drawLowStrainPlots(c, group) },
   DrivenPenetrationTest: {
     extraCols: [
       { key: 'driveSets', label: 'Drive Sets',
@@ -25510,7 +25655,9 @@ function buildMeasurementDisplay(sf) {
           // (.meas-plot-row) so each SVG's width is bounded per-column rather
           // than filling the pane (see its CSS comment) — a time-series plot
           // stacks fine as a plain block (matches the existing Monitor look).
-          const rowClass = domainKind === 'spatial' ? ' class="meas-plot-row"' : '';
+          // A cfg.plotDraw replaces drawResultPlots outright and lays its own
+          // plots out as plain blocks, so it never takes the depth flex row.
+          const rowClass = domainKind === 'spatial' && !cfg.plotDraw ? ' class="meas-plot-row"' : '';
           const totalDepth = domainKind === 'spatial' ? _measTotalDepthIn(sf, depthUom) : null;
           // Lithology reference column(s) beside a depth/distance plot only
           // (per user request) — see _lithColumnGroupsForSF for the gating
@@ -25530,7 +25677,11 @@ function buildMeasurementDisplay(sf) {
           // Plot pane, below the ones drawResultPlots makes (e.g. the
           // load-settlement curve of a plate/zone load test).
           const plotExtra = cfg.plotExtra ? (c => cfg.plotExtra(c, group)) : null;
-          drawJobs.push({ plotId, model, domainKind, depthUom, totalDepth, lithColumns, domain, plotExtra });
+          // cfg.plotDraw(container, group) draws the Plot pane INSTEAD of
+          // drawResultPlots (e.g. a low strain integrity test's horizontal
+          // reflectogram in place of the vertical depth profile).
+          const plotDraw = cfg.plotDraw ? (c => cfg.plotDraw(c, group)) : null;
+          drawJobs.push({ plotId, model, domainKind, depthUom, totalDepth, lithColumns, domain, plotExtra, plotDraw });
           panes.push({ label: 'Plot', html: `<div id="${plotId}"${rowClass}></div>` });
         }
 
@@ -25699,7 +25850,8 @@ function buildMeasurementDisplay(sf) {
               continue;
             }
             const c = document.getElementById(j.plotId);
-            if (c) drawResultPlots(c, j.model, { domainKind: j.domainKind, depthUom: j.depthUom, timeUnit: j.timeUnit, totalDepth: j.totalDepth, lithColumns: j.lithColumns, domain: j.domain });
+            if (c && j.plotDraw) j.plotDraw(c);
+            else if (c) drawResultPlots(c, j.model, { domainKind: j.domainKind, depthUom: j.depthUom, timeUnit: j.timeUnit, totalDepth: j.totalDepth, lithColumns: j.lithColumns, domain: j.domain });
             if (c && j.plotExtra) j.plotExtra(c);
           }
         });
@@ -31722,6 +31874,15 @@ function drawPlot(container, spec) {
   // actual data reads as the visually dominant layer; independent of the
   // transient hover crosshair (hLine/vLine/dot below), which stays
   // interactive-only and unaffected by this.
+  // Shaded bands across the full dependent range (opt-in via spec.bands =
+  // [{from, to, color?, opacity?}], from/to in independent-axis units), e.g.
+  // a reflectogram's amplification window. Drawn first, under everything
+  // else, and rebuilt every redraw so they follow zoom/pan.
+  const bands = spec.bands || [];
+  const bandG = document.createElementNS(NS_SVG, 'g');
+  bandG.setAttribute('clip-path', `url(#${clipId})`);
+  svg.appendChild(bandG);
+
   const refG = document.createElementNS(NS_SVG, 'g');
   refG.setAttribute('clip-path', `url(#${clipId})`);
   svg.appendChild(refG);
@@ -31964,6 +32125,16 @@ function drawPlot(container, spec) {
       tk.setAttribute('stroke', C.tick); tk.setAttribute('stroke-width', '1');
       axisG.appendChild(tk);
     }
+    while (bandG.firstChild) bandG.removeChild(bandG.firstChild);
+    for (const b of bands) {
+      if (!isFinite(b.from) || !isFinite(b.to)) continue;
+      const a = { x: sx({ i: b.from, p: view.pMin }), y: sy({ i: b.from, p: view.pMin }) };
+      const z = { x: sx({ i: b.to, p: view.pMax }), y: sy({ i: b.to, p: view.pMax }) };
+      const r = rect(Math.min(a.x, z.x), Math.min(a.y, z.y), Math.abs(z.x - a.x), Math.abs(z.y - a.y), b.color || C.axisText);
+      r.setAttribute('fill-opacity', b.opacity != null ? b.opacity : 0.12);
+      bandG.appendChild(r);
+    }
+
     const buf = iSpan * 0.01;
     const vis = pts.filter(p => p.i >= view.iMin - buf && p.i <= view.iMax + buf);
     const screenPts = vis.map(p => ({ x: sx(p), y: sy(p) }));
@@ -34633,6 +34804,225 @@ function _drawLoadSettlementPlots(container, group) {
       svg: { className: 'well-plot-svg', widthAttr: false, heightAttr: true, style: 'cursor:crosshair; user-select:none;' },
     });
   }
+}
+
+// ══════════════════════════════════════════════════════════════
+//  LOW STRAIN INTEGRITY TEST PLOTS (MEASUREMENT_CONFIGS.plotDraw)
+//  In place of the generic vertical depth profile, each Test in the badge
+//  gets a conventional horizontal reflectogram: depth below the head along
+//  x, the outcome's velocity (and any other numeric column, e.g. force) up,
+//  with the toe depth, the reference length and the amplification window
+//  marked, and the Test's otherMeasurementProperty values (the
+//  interpretation: toe depth, relative amplitudes) as a summary chip. Each
+//  frequencyResponse ResultSet of the procedure follows as one plot per
+//  value column against frequency (mobility, coherence, ...).
+// ══════════════════════════════════════════════════════════════
+
+const LSIT_STYLE = {
+  velocity:  '#58a6ff',
+  overlays:  ['#f78166', '#3fb950', '#bc8cff', '#e3b341'],
+  zero:      '#484f58',
+  toe:       { color: '#f85149', dash: null },
+  refLength: { color: '#e3b341', dash: '6,3' },
+  amp:       { color: '#a5d6ff', dash: '2,3' },
+};
+
+/** `el`'s numeric text with its own uom brought into `toUom`; null when
+ *  `el` is missing or not a number. */
+function _lengthIn(el, toUom) {
+  return el ? _convertLength(parseFloat(el.textContent), el.getAttribute('uom') || '', toUom) : null;
+}
+/** `v` from length uom `from` to `to` (unitToMeters); `v` unchanged when
+ *  either is unknown or they match, null when `v` is not a number. */
+function _convertLength(v, from, to) {
+  if (!isFinite(v)) return null;
+  if (!from || !to || from === to) return v;
+  const a = unitToMeters(from), b = unitToMeters(to);
+  return a != null && b != null ? v * a / b : v;
+}
+
+/** A Test's otherMeasurementProperty parameters (Parameter or
+ *  AuthorizedParameter): [{key, label, value, units}]. `key` is the
+ *  codeSpace fragment or the name, lower-cased with underscores. */
+function _measOtherProps(measEl) {
+  return Array.from(measEl.children).filter(c => c.localName === 'otherMeasurementProperty').map(w => {
+    const p = resolveXlinkEl(w);
+    if (!p) return null;
+    const nameEl = findByLocalName(p, 'parameterName');
+    const name = nodeText(nameEl);
+    const frag = nameEl ? ((nameEl.getAttribute('codeSpace') || '').split('#')[1] || '') : '';
+    const key = (frag || name).trim().toLowerCase().replace(/\s+/g, '_');
+    const value = nodeText(findByLocalName(p, 'parameterValue'));
+    const units = nodeText(findByLocalName(p, 'parameterUnits'));
+    return name || value ? { key, label: _titleCase(name.replace(/_/g, ' ')), value, units } : null;
+  }).filter(Boolean);
+}
+
+/** A tidy axis range covering [min, max]: the bounds rounded out to the
+ *  smallest step of 1, 2 or 5 × 10^k giving at most target + 2 intervals, so drawPlot's
+ *  evenly-spaced ticks land on round values. Returns {min, max, ticks}. */
+function _niceAxis(min, max, target) {
+  const span = max - min;
+  if (!(span > 0)) return { min, max, ticks: target || 5 };
+  const maxIntervals = (target || 6) + 2;
+  const mag = Math.pow(10, Math.floor(Math.log10(span / maxIntervals)));
+  const step = [1, 2, 5, 10].map(m => m * mag).find(st => span / st <= maxIntervals);
+  const lo = Math.floor(min / step + 1e-9) * step, hi = Math.ceil(max / step - 1e-9) * step;
+  return { min: lo, max: hi, ticks: Math.max(1, Math.round((hi - lo) / step)) };
+}
+
+/** HTML legend row (same look as the load-settlement plot's), each swatch
+ *  in its line's own dash style, or a filled block for a band. */
+function _plotLegendRowHtml(entries) {
+  const sw = e => e.band
+    ? `<svg width="22" height="10" aria-hidden="true"><rect x="1" y="1" width="20" height="8" fill="${e.color}" fill-opacity="0.35"/></svg>`
+    : `<svg width="22" height="8" aria-hidden="true"><line x1="1" y1="4" x2="21" y2="4" stroke="${e.color}" stroke-width="2"${e.dash ? ` stroke-dasharray="${e.dash}"` : ''}/></svg>`;
+  return `<div class="ri-phase-legend">${entries.map(e => `<span class="ri-phase-key">${sw(e)}${escHtml(e.label)}</span>`).join('')}</div>`;
+}
+
+function _drawLowStrainPlots(container, group) {
+  const depthUom = _measDepthUom(group);
+  const fmtNum = v => Number(Number(v).toPrecision(4)).toString();
+  for (const rec of group) {
+    const nm = group.length > 1 ? nodeText(evalXPath(rec.el, 'gml:name')[0]) || rec.el.getAttributeNS(NS.gml, 'id') : '';
+    const proc = (rec.procObjs || []).find(p => p.localName === 'LowStrainIntegrityTest') || null;
+    const others = _measOtherProps(rec.el);
+    _drawReflectogram(container, rec, proc, others, depthUom, nm, fmtNum);
+    if (proc) _drawFrequencyResponses(container, proc, nm, fmtNum);
+  }
+}
+
+/** One horizontal reflectogram for `rec` (skipped when the outcome has no
+ *  numeric column or no numeric depths). */
+function _drawReflectogram(container, rec, proc, others, depthUom, nm, fmtNum) {
+  const rs = rec.resultSet;
+  const depths = (rec.domain && rec.domain.positions) || [];
+  if (!rs || !rs.rows.length || !depths.length || typeof depths[0] !== 'number') return;
+  const numCols = rs.props.map((p, k) => ({ p, k })).filter(c => c.p.kind === 'numeric');
+  if (!numCols.length) return;
+  // Velocity is the main series; any other numeric column (force, ...) is an overlay.
+  const keyOf = c => _propClassKey(c.p) + ' ' + (c.p.name || '').toLowerCase();
+  let mainIdx = numCols.findIndex(c => /velocity/.test(keyOf(c)));
+  if (mainIdx < 0) mainIdx = 0;
+  const seriesOf = c => rs.rows.map((cells, n) => ({ i: depths[n], p: parseFloat(cells[c.k]) }))
+    .filter(q => isFinite(q.i) && isFinite(q.p)).sort((a, b) => a.i - b.i);
+  const main = numCols[mainIdx];
+  const mainPts = seriesOf(main);
+  if (mainPts.length < 2) return;
+  const overlays = numCols.filter((_, n) => n !== mainIdx).map((c, n) => ({ c, pts: seriesOf(c), color: LSIT_STYLE.overlays[n % LSIT_STYLE.overlays.length] }))
+    .filter(o => o.pts.length >= 2);
+
+  // Markers, all in the depth axis's unit.
+  const child = name => proc ? findByLocalName(proc, name) : null;
+  const toeProp = others.find(o => o.key === 'toe_depth');
+  const toe = toeProp ? _convertLength(parseFloat(toeProp.value), toeProp.units, depthUom) : null;
+  const refLen = _lengthIn(child('referenceLength'), depthUom);
+  const ampStart = _lengthIn(child('amplificationStart'), depthUom);
+  const ampEnd = _lengthIn(child('amplificationEnd'), depthUom);
+
+  const allP = mainPts.concat(...overlays.map(o => o.pts)).map(q => q.p);
+  const pAx = _niceAxis(Math.min(0, ...allP), Math.max(0, ...allP), 5);
+  const pMin = pAx.min, pMax = pAx.max;
+  const iAx = _niceAxis(0, Math.max(mainPts[mainPts.length - 1].i, ...[toe, refLen, ampEnd].filter(v => v != null)), 7);
+  const iMax = iAx.max;
+  const fmtD = v => `${fmtNum(v)}${depthUom ? ' ' + depthUom : ''}`;
+  const vline = (x, st) => ({ points: [{ i: x, p: pMin }, { i: x, p: pMax }], color: st.color, dashed: !!st.dash, dashArray: st.dash || undefined, strokeWidth: '2.5' });
+
+  const extraLines = [{ points: [{ i: 0, p: 0 }, { i: iMax, p: 0 }], color: LSIT_STYLE.zero, dashed: false, strokeWidth: '1' }]
+    .concat(overlays.map(o => ({ points: o.pts, color: o.color, dashed: false, strokeWidth: '1.25', hover: true })));
+  const legend = [{ label: main.p.name || 'Velocity', color: LSIT_STYLE.velocity }]
+    .concat(overlays.map(o => ({ label: o.c.p.name || o.c.p.propertyClass || 'Series', color: o.color })));
+  const bands = [];
+  if (toe != null) { extraLines.push(vline(toe, LSIT_STYLE.toe)); legend.push({ label: `Toe ${fmtD(toe)}`, ...LSIT_STYLE.toe }); }
+  if (refLen != null) {
+    extraLines.push(vline(refLen, LSIT_STYLE.refLength));
+    const basis = nodeText(child('referenceLengthBasis'));
+    legend.push({ label: `Reference length ${fmtD(refLen)}${basis ? ` (${basis})` : ''}`, ...LSIT_STYLE.refLength });
+  }
+  if (ampStart != null && ampEnd != null) {
+    bands.push({ from: ampStart, to: ampEnd, color: LSIT_STYLE.amp.color, opacity: 0.1 });
+    legend.push({ label: `Amplification ${fmtNum(ampStart)}–${fmtD(ampEnd)}`, color: LSIT_STYLE.amp.color, band: true });
+  } else if (ampStart != null || ampEnd != null) {
+    // Only one end of the window is known: mark that end alone.
+    const x = ampStart != null ? ampStart : ampEnd;
+    extraLines.push(vline(x, LSIT_STYLE.amp));
+    legend.push({ label: `Amplification ${ampStart != null ? 'start' : 'end'} ${fmtD(x)}`, ...LSIT_STYLE.amp });
+  }
+
+  const host = document.createElement('div');
+  host.className = 'ls-plot-host';
+  host.innerHTML = _plotLegendRowHtml(legend);
+  container.appendChild(host);
+  const vUom = main.p.uom || '';
+  const chip = others.length
+    ? 'Interpretation: ' + others.map(o => `${escHtml(o.label || o.key)} ${escHtml(o.value)}${o.units && o.units !== 'Euc' ? ' ' + escUom(o.units) : ''}`).join(' · ')
+    : '';
+  drawPlot(host, {
+    points: mainPts, extraLines, bands, orientation: 'x-ind',
+    viewport: { VW: 800, VH: 300, PAD: { top: 26, bottom: 46, left: 66, right: 20 } },
+    clipPrefix: 'pit', infoText: `n=${mainPts.length}`,
+    axisFontSize: 12, tooltipFontSize: 12,
+    indFullOverride: { min: 0, max: iMax },
+    depFullOverride: { min: pMin, max: pMax },
+    ind: { ticks: iAx.ticks, minSpanAbs: iMax / 100 || 0.01,
+           fmtTick: v => Number(v.toPrecision(3)).toString(), fmtTip: v => fmtD(v) },
+    dep: { color: LSIT_STYLE.velocity, ticks: pAx.ticks,
+           fmtTick: v => Number(v.toPrecision(2)).toString(), fmtTip: v => `${fmtNum(v)}${vUom && vUom !== 'Euc' ? ' ' + vUom : ''}` },
+    leftLabel: { text: (main.p.name || 'Velocity') + (vUom && vUom !== 'Euc' ? ` (${vUom})` : ''), color: '#8b949e', size: 12 },
+    bottomLabel: { text: `Depth below head${depthUom ? ` (${depthUom})` : ''}`, color: '#8b949e', size: 12 },
+    titleParts: [{ text: 'Reflectogram' + (nm ? ` — ${nm}` : ''), color: '#c9d1d9' }],
+    extraChipHtml: chip || undefined,
+    svg: { className: 'well-plot-svg', widthAttr: false, heightAttr: true, style: 'cursor:crosshair; user-select:none;' },
+  });
+}
+
+/** One plot per value column of each frequencyResponse ResultSet, against
+ *  its frequency column (by propertyClass `frequency`, else a name with
+ *  "freq", else a Hz/kHz uom). A ResultFile carries no values: skipped. */
+function _drawFrequencyResponses(container, proc, nm, fmtNum) {
+  const wraps = Array.from(proc.children).filter(c => c.localName === 'frequencyResponse');
+  wraps.forEach(w => {
+    const rsEl = _objOrDescendant(resolveXlinkEl(w), ['ResultSet']);
+    const rs = rsEl ? parseResultSet(rsEl) : null;
+    if (!rs || !rs.rows.length) return;
+    let fi = rs.props.findIndex(p => _propClassKey(p) === 'frequency');
+    if (fi < 0) fi = rs.props.findIndex(p => /freq/i.test(p.name || ''));
+    if (fi < 0) fi = rs.props.findIndex(p => /^(k|M)?Hz$/.test(p.uom || ''));
+    if (fi < 0) return;
+    const fp = rs.props[fi];
+    const fUom = fp.uom || '';
+    rs.props.forEach((yp, yi) => {
+      if (yi === fi || yp.kind !== 'numeric') return;
+      const pts = rs.rows.map(c => ({ i: parseFloat(c[fi]), p: parseFloat(c[yi]) }))
+        .filter(q => isFinite(q.i) && isFinite(q.p)).sort((a, b) => a.i - b.i);
+      if (pts.length < 2) return;
+      const yUom = (yp.uom || '').replace(/^Other:\s*/i, '');
+      const yShow = yUom && yUom !== 'Euc' ? yUom : '';
+      const ps = pts.map(q => q.p);
+      const yAx = _niceAxis(Math.min(0, ...ps), Math.max(...ps), 4);
+      const fAx = _niceAxis(Math.min(0, pts[0].i), pts[pts.length - 1].i, 8);
+      const host = document.createElement('div');
+      host.className = 'ls-plot-host';
+      container.appendChild(host);
+      const yName = yp.name || yp.propertyClass || 'Value';
+      drawPlot(host, {
+        points: pts, orientation: 'x-ind',
+        viewport: { VW: 800, VH: 240, PAD: { top: 26, bottom: 46, left: 66, right: 20 } },
+        clipPrefix: 'pitf', infoText: `n=${pts.length}`,
+        axisFontSize: 12, tooltipFontSize: 12,
+        indFullOverride: { min: fAx.min, max: fAx.max },
+        depFullOverride: { min: yAx.min, max: yAx.max },
+        ind: { ticks: fAx.ticks, minSpanAbs: (pts[pts.length - 1].i - pts[0].i) / 100 || 0.01,
+               fmtTick: v => Number(v.toPrecision(3)).toString(), fmtTip: v => `${fmtNum(v)}${fUom ? ' ' + fUom : ''}` },
+        dep: { color: '#3fb950', ticks: yAx.ticks,
+               fmtTick: v => Number(v.toPrecision(2)).toString(), fmtTip: v => `${fmtNum(v)}${yShow ? ' ' + yShow : ''}` },
+        leftLabel: { text: yName + (yShow ? ` (${yShow})` : ''), color: '#8b949e', size: 12 },
+        bottomLabel: { text: (fp.name || 'Frequency') + (fUom ? ` (${fUom})` : ''), color: '#8b949e', size: 12 },
+        titleParts: [{ text: `${yName} vs. ${(fp.name || 'frequency').toLowerCase()}` + (nm ? ` — ${nm}` : ''), color: '#c9d1d9' }],
+        svg: { className: 'well-plot-svg', widthAttr: false, heightAttr: true, style: 'cursor:crosshair; user-select:none;' },
+      });
+    });
+  });
 }
 
 /** Linear interpolation (or extrapolation, past either end) of `pts`
