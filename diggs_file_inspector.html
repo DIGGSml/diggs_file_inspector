@@ -759,10 +759,17 @@ html,body{height:100%;font-family:var(--font-ui);background:var(--bg);color:var(
 #app-header {
   background:var(--surface);
   border-bottom:1px solid var(--border);
-  padding:14px 24px;
-  display:flex;align-items:center;gap:16px;
+  padding:8px 24px;
+  display:flex;align-items:center;gap:6px 16px;
+  /* Two rows: logo / file info / action buttons on top; the sampling-feature
+     count pills (#hdr-sf-badges, full-width, right-justified) wrap onto a
+     second row, so a file with many SF types can't squeeze the file info. */
+  flex-wrap:wrap;
   position:sticky;top:0;z-index:1000;
 }
+.hdr-actions { display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end; }
+#hdr-sf-badges { flex:0 0 100%;display:flex;gap:3px;align-items:center;flex-wrap:wrap;justify-content:flex-end; }
+#hdr-sf-badges:empty { display:none; }
 .logo {
   white-space:nowrap;cursor:pointer;
   display:flex;align-items:center;
@@ -1262,16 +1269,20 @@ html,body{height:100%;font-family:var(--font-ui);background:var(--bg);color:var(
   display:flex;background:var(--surface);
   border-bottom:1px solid var(--border);
   padding:0 16px;gap:4px;flex-shrink:0;
+  flex-wrap:wrap;justify-content:center;   /* many SF types: wrap tabs onto extra rows instead of overflowing off-pane */
 }
 .tab-btn {
   background:transparent;border:none;
   border-bottom:2px solid transparent;
+  /* vertical dividers mark each tab as a separate clickable target (esp.
+     when the bar wraps to several rows); they light up like the text on hover */
+  border-left:1px solid var(--border);border-right:1px solid var(--border);
   padding:10px 14px;
   font-family:var(--font-ui);font-size:13px;font-weight:500;
   color:var(--text-muted);cursor:pointer;
   transition:color .15s,border-color .15s;white-space:nowrap;
 }
-.tab-btn:hover { color:var(--text); }
+.tab-btn:hover { color:var(--text);border-left-color:var(--text);border-right-color:var(--text); }
 .tab-btn.active { color:var(--text);border-bottom-color:var(--accent); }
 .tab-btn .badge {
   background:var(--surface3);border-radius:10px;
@@ -1354,6 +1365,9 @@ html,body{height:100%;font-family:var(--font-ui);background:var(--bg);color:var(
    Borehole Orientation's "View 3D" pill) — sits in the key column, below
    the label text, not the value column. See renderPropertyRow. */
 .kv-key-extra { margin-top:4px; }
+.dep-tag { display:inline-block;margin-left:6px;padding:0 5px;border:1px solid #f0a020;color:#f0a020;border-radius:3px;font-size:9px;font-weight:600;letter-spacing:.3px;text-transform:uppercase;vertical-align:middle;cursor:help; }
+.dep-tag-removed { border-color:#d05050;color:#d05050; }
+.dep-tag-newer { border-style:dashed;border-color:var(--text-muted,#888);color:var(--text-muted,#888);text-transform:none; }
 .pill-3d-view {
   display:inline-block;padding:2px 9px;border-radius:999px;
   background:transparent;border:1px solid var(--accent2);color:var(--accent2);
@@ -1417,6 +1431,9 @@ html,body{height:100%;font-family:var(--font-ui);background:var(--bg);color:var(
    remote xlink:href reference (e.g. a whitelisted diggsml.org LRM
    dictionary) as externally-sourced, distinct from a normal category. */
 .kv-remote-badge { font-size:10px;opacity:.55;margin-left:4px; }
+.kv-unresolved { color:var(--text-muted);font-style:italic; }
+.kv-unresolved .kv-unresolved-ico { color:#f0a020;font-style:normal;margin-right:4px; }
+.meas-link-note { margin:6px 0 8px;padding:6px 10px;border:1px dashed #f0a020;border-radius:4px;font-size:12px;color:var(--text-muted); }
 .kv-section-header:hover .kv-remote-badge { opacity:.9; }
 .kv-remote-msg { color:var(--text-muted);font-style:italic; }
 /* KV-rebuild (2026-07-13): codeSpace now annotates the KEY column, not the
@@ -2061,7 +2078,7 @@ table.data-table tbody tr.selected {
       <div class="project-name" id="hdr-project-name">—</div>
       <div class="project-meta" id="hdr-project-meta">—</div>
     </div>
-    <div id="hdr-sf-badges" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;"></div>
+    <div class="hdr-actions">
     <button class="btn-load-new" id="btn-validate" onclick="validateDIGGS()"
             title="Validate this DIGGS file against the official schema (requires internet)">✓ Validate</button>
     <button class="btn-load-new" onclick="exportDIGGSXML()"
@@ -2069,6 +2086,8 @@ table.data-table tbody tr.selected {
     <button class="btn-load-new" onclick="saveInspectorHTML()"
             title="Save as a single HTML file anyone can open — no software needed">🖫 Save Shareable File</button>
     <button class="btn-load-new" onclick="resetToLoad()">↩ Load New File</button>
+    </div>
+    <div id="hdr-sf-badges"></div>
   </header>
 
   <!-- MAIN -->
@@ -3251,6 +3270,259 @@ const NS = {
   glr: 'http://www.opengis.net/gml/3.3/lr'
 };
 
+// ══════════════════════════════════════════════════════════════
+//  DEPRECATION CHECK (live registry)
+// ══════════════════════════════════════════════════════════════
+
+/** The authoritative deprecation report belongs to the validator; the
+ *  inspector only (a) tells the user, once per file, that the file carries
+ *  deprecated content and should be validated, and (b) tags the deprecated
+ *  fields it actually displays. It carries NO copy of the registry: the
+ *  single cumulative master registry (every release; each entry records
+ *  `since`/`removedIn`) is fetched from diggsml.org on each load, so the
+ *  check is always current without re-downloading the inspector. The last
+ *  successfully fetched copy is kept in localStorage purely as an offline
+ *  fallback; with neither, a once-per-session notice says the check needs
+ *  an internet connection. Registry XPaths use the same prefixes as NS and
+ *  run unchanged through evalXPath (NS.diggs is rebound per file by
+ *  detectDiggsNS). */
+const DIGGS_DEPRECATION_REGISTRY_URL = 'https://diggsml.org/schemas/deprecation/DeprecationRegistry.json';
+const _DEP_CACHE_KEY = 'diggs.deprecationRegistry.v1';
+const _DEP_OFFLINE_NOTICE_KEY = 'diggs.deprecationOfflineNoticeShown';
+
+// Per-file results. DIGGS_DEPRECATION_HITS: [{entry, node, owner, newer}]
+// (owner = the element, or an attribute node's ownerElement; newer = the
+// entry dates from a later version than the file declares).
+// _DEP_HITS_BY_EL maps owner element -> those hits, for row tags. Both are
+// empty whenever the file has no deprecated content.
+window.DIGGS_DEPRECATION_HITS = [];
+let _DEP_HITS_BY_EL = new Map();
+let _depFileVersion = null;
+let _depLoadSeq = 0;
+let _depOfflineNoticeShown = false;
+
+/** Numeric compare of dotted versions ("3.0" == "3.0.0"). */
+function _depCmpVersion(a, b) {
+  const pa = String(a).split('.').map(Number), pb = String(b).split('.').map(Number);
+  for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+    const d = (pa[i] || 0) - (pb[i] || 0);
+    if (d) return d;
+  }
+  return 0;
+}
+
+/** The DIGGS version an instance declares, read from the version segment of
+ *  its root xsi:schemaLocation DIGGS .xsd URL (e.g. .../schemas/3.0.0/Diggs.xsd,
+ *  or a schema-dev branch path .../3.1-dev/Diggs.xsd, read as 3.1).
+ *  The namespace can't be used — 3.0 and 3.1 share http://diggsml.org/schemas/3.
+ *  Returns null when nothing usable is declared (the caller then checks
+ *  against the registry's current version). */
+function detectDiggsSchemaVersion(doc) {
+  const root = doc && doc.documentElement;
+  if (!root) return null;
+  const loc = root.getAttributeNS('http://www.w3.org/2001/XMLSchema-instance', 'schemaLocation') || '';
+  for (const tok of loc.trim().split(/\s+/)) {
+    if (!/\.xsd$/i.test(tok) || !/diggs/i.test(tok)) continue;
+    const m = tok.match(/\/(\d+\.\d+(?:\.\d+)?)(?:-[A-Za-z0-9]+)?\//);   // 3.0.0/, also a dev branch like 3.1-dev/
+    if (m) return m[1];
+  }
+  return null;
+}
+
+function _depEntryVersion(e) {
+  return e.status === 'removed' ? e.removedIn : e.since;
+}
+
+function _depKindLabel(e) {
+  return (e.kind === 'element' || e.kind === 'branchRef') ? 'Element'
+    : e.kind === 'type' ? 'Type'
+    : e.kind === 'attribute' ? 'Attribute'
+    : e.kind === 'enumValue' ? 'Value' : 'Content branch';
+}
+
+/** Finding text for one entry — worded to match the schema project's
+ *  validator (modules/deprecation-validation.xsl) so both tools read the
+ *  same — plus, for an entry newer than the file's declared version, a note
+ *  that it is still valid there and is a migration item. */
+function deprecationMessage(e, newer, fileVersion) {
+  const what = _depKindLabel(e) + ' ' + e.name + (e.host ? ' in ' + e.host : '');
+  const instead = e.replacedBy && e.note ? e.replacedBy + ' (' + e.note + ')' : (e.replacedBy || e.note || '');
+  let msg = e.status === 'removed'
+    ? what + ' was removed in ' + e.removedIn + (e.replacedBy ? '; use ' + instead + '.' : '.' + (e.note ? ' ' + e.note : ''))
+    : what + ' is deprecated since ' + e.since + (instead ? '; use ' + instead + '.' : '.');
+  if (newer) {
+    msg += ' This file declares DIGGS ' + fileVersion + ', where it is still valid; migrate it when moving to ' + _depEntryVersion(e) + '.';
+  }
+  return msg;
+}
+
+/** Registry: fetch fresh; on failure fall back to the last cached copy.
+ *  Returns {registry, cachedAt} or null when neither is available. */
+async function _depLoadRegistry() {
+  try {
+    const ctl = new AbortController();
+    const timer = setTimeout(() => ctl.abort(), 8000);
+    const resp = await fetch(DIGGS_DEPRECATION_REGISTRY_URL, { cache: 'no-cache', signal: ctl.signal });
+    clearTimeout(timer);
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const registry = await resp.json();
+    if (!registry || !Array.isArray(registry.entries)) throw new Error('bad registry');
+    try { localStorage.setItem(_DEP_CACHE_KEY, JSON.stringify({ fetchedAt: new Date().toISOString(), registry })); } catch (e) {}
+    return { registry, cachedAt: null };
+  } catch (e) {
+    try {
+      const c = JSON.parse(localStorage.getItem(_DEP_CACHE_KEY) || 'null');
+      if (c && c.registry && Array.isArray(c.registry.entries)) return { registry: c.registry, cachedAt: c.fetchedAt };
+    } catch (e2) {}
+    return null;
+  }
+}
+
+/** Run once per file load (not awaited by loadDIGGS — the file renders
+ *  first). A later load or a reset bumps _depLoadSeq, which discards a
+ *  check still in flight for the previous file. Inexact (name-only) entries
+ *  and type entries are skipped: they would only produce false positives.
+ *  The registry itself is not kept once the hits are computed. */
+async function runDeprecationCheck(doc) {
+  const seq = ++_depLoadSeq;
+  clearDeprecationHits(true);
+  const loaded = await _depLoadRegistry();
+  if (seq !== _depLoadSeq) return;
+  if (!loaded) { _depShowOfflineNotice(); return; }
+  const { registry, cachedAt } = loaded;
+  const declared = detectDiggsSchemaVersion(doc);
+  const fileVersion = declared || registry.schemaVersion;
+
+  const hits = [];
+  const byEl = new Map();
+  for (const entry of registry.entries) {
+    if (!entry.instanceXPath || entry.instanceXPathExact === false || entry.kind === 'type') continue;
+    const v = _depEntryVersion(entry);
+    const newer = !!v && _depCmpVersion(v, fileVersion) > 0;
+    try {
+      for (const node of evalXPath(doc, entry.instanceXPath)) {
+        const owner = node.nodeType === 2 ? node.ownerElement : node;
+        if (!owner || owner.nodeType !== 1) continue;
+        const hit = { entry, node, owner, newer };
+        hits.push(hit);
+        if (!byEl.has(owner)) byEl.set(owner, []);
+        byEl.get(owner).push(hit);
+      }
+    } catch (e) { /* isolate: one bad entry only loses its own hits */ }
+  }
+  if (!hits.length) return;   // nothing to say, nothing kept
+
+  window.DIGGS_DEPRECATION_HITS = hits;
+  _DEP_HITS_BY_EL = byEl;
+  _depFileVersion = fileVersion;
+  _depShowFoundDialog(hits, declared, registry.schemaVersion, cachedAt);
+  // A feature opened before the check finished re-renders so its rows get tagged.
+  const selId = window._selectedFeatureId;
+  if (selId && !window._projectDetailActive) {
+    for (const list of DIGGS_SF.values()) {
+      const sf = Array.isArray(list) && list.find(s => s.id === selId);
+      if (sf) { showSFDetail(sf); break; }
+    }
+  }
+}
+
+/** keepSeq: true when called from runDeprecationCheck itself; a reset
+ *  (resetToLoad) also invalidates any check still in flight. */
+function clearDeprecationHits(keepSeq) {
+  if (!keepSeq) _depLoadSeq++;
+  window.DIGGS_DEPRECATION_HITS = [];
+  _DEP_HITS_BY_EL = new Map();
+  _depFileVersion = null;
+}
+
+/** Row-level tag for the nodes a leaf row displays: the finding text as its
+ *  tooltip. "deprecated"/"removed" for an entry at or before the file's own
+ *  version; a muted "deprecated in X"/"removed in X" for one from a newer
+ *  version (still valid for this file — a migration hint). */
+function deprecationRowTag(nodes) {
+  if (!_DEP_HITS_BY_EL.size) return '';
+  const seen = new Set();
+  const found = [];
+  for (const n of nodes) {
+    for (const h of (_DEP_HITS_BY_EL.get(n) || [])) {
+      if (seen.has(h.entry.key)) continue;
+      seen.add(h.entry.key);
+      found.push(h);
+    }
+  }
+  if (!found.length) return '';
+  const current = found.filter(h => !h.newer);
+  const lead = current.find(h => h.entry.status === 'removed') || current[0]
+    || found.find(h => h.entry.status === 'removed') || found[0];
+  const text = lead.entry.status === 'removed' ? 'removed' : 'deprecated';
+  const cls = lead.newer ? 'dep-tag dep-tag-newer' : lead.entry.status === 'removed' ? 'dep-tag dep-tag-removed' : 'dep-tag';
+  const label = lead.newer ? `${text} in ${_depEntryVersion(lead.entry)}` : text;
+  const tip = found.map(h => deprecationMessage(h.entry, h.newer, _depFileVersion)).join('\n')
+    .replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+  return ` <span class="${cls}" title="${tip}">${label}</span>`;
+}
+
+/** Modal in the #validation-result overlay style (closeValidation closes it). */
+function _depShowDialog(innerHtml) {
+  closeValidation();
+  const box = document.createElement('div');
+  box.id = 'validation-result';
+  box.style.cssText =
+    'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:10001;' +
+    'max-width:560px;width:90%;max-height:80vh;overflow-y:auto;' +
+    'background:var(--surface2,#fff);color:var(--text,#222);' +
+    'border:1px solid var(--border,#ccc);border-radius:8px;padding:18px;' +
+    'box-shadow:0 8px 32px rgba(0,0,0,0.35);font-family:var(--font-ui,sans-serif);font-size:13px;';
+  box.innerHTML = innerHtml;
+  document.body.appendChild(box);
+  const overlay = document.createElement('div');
+  overlay.id = 'validation-overlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:10000;';
+  overlay.onclick = closeValidation;
+  document.body.appendChild(overlay);
+}
+
+/** Once per browser session (sessionStorage, so a reload doesn't repeat it). */
+function _depShowOfflineNotice() {
+  let shown = _depOfflineNoticeShown;
+  try { shown = shown || sessionStorage.getItem(_DEP_OFFLINE_NOTICE_KEY) === '1'; } catch (e) {}
+  if (shown) return;
+  _depOfflineNoticeShown = true;
+  try { sessionStorage.setItem(_DEP_OFFLINE_NOTICE_KEY, '1'); } catch (e) {}
+  _depShowDialog(
+    `<h3 style="margin:0 0 8px;">Deprecation check not available</h3>` +
+    `<p>The DIGGS deprecation registry could not be loaded, so this file was not checked for deprecated content. ` +
+    `An internet connection is required for this check.</p>` +
+    `<p style="font-size:12px;color:var(--text-muted,#888);">This notice is shown once per session.</p>` +
+    `<button class="btn-load-new" onclick="closeValidation()" style="margin-top:8px;">OK</button>`);
+}
+
+function _depShowFoundDialog(hits, declared, currentVersion, cachedAt) {
+  const summarize = list => {
+    const n = list.length, m = new Set(list.map(h => h.entry.key)).size;
+    return `${n} occurrence${n === 1 ? '' : 's'} of ${m} element${m === 1 ? '' : 's'}`;
+  };
+  const fileVersion = declared || currentVersion;
+  const depNow = hits.filter(h => !h.newer && h.entry.status !== 'removed');
+  const remNow = hits.filter(h => !h.newer && h.entry.status === 'removed');
+  const newer  = hits.filter(h => h.newer);
+  let items = '';
+  if (remNow.length) items += `<li><strong style="color:#d05050;">${summarize(remNow)}</strong> removed from the schema and not valid in DIGGS ${esc(fileVersion)}.</li>`;
+  if (depNow.length) items += `<li><strong style="color:#f0a020;">${summarize(depNow)}</strong> deprecated in DIGGS ${esc(fileVersion)} — still valid, but should be migrated.</li>`;
+  if (newer.length)  items += `<li><strong>${summarize(newer)}</strong> deprecated or removed in a newer DIGGS version (${esc(currentVersion)}) — valid in ${esc(fileVersion)}, but should be migrated when moving to the newer version.</li>`;
+  _depShowDialog(
+    `<h3 style="margin:0 0 8px;">This file contains deprecated content</h3>` +
+    `<p style="margin:0 0 6px;">${declared
+      ? `The file declares DIGGS ${esc(declared)}. It contains:`
+      : `The file does not declare a DIGGS schema version, so it was checked against the current version, ${esc(currentVersion)}. It contains:`}</p>` +
+    `<ul style="margin:0 0 8px;padding-left:20px;">${items}</ul>` +
+    `<p style="margin:0 0 6px;">Fields shown in the inspector carry a tag where they are affected. Validate the file to see the full list and locations.</p>` +
+    (cachedAt ? `<p style="font-size:12px;color:var(--text-muted,#888);">The registry could not be fetched; this check used a copy cached on ${esc(new Date(cachedAt).toLocaleString())}.</p>` : '') +
+    `<div style="display:flex;gap:8px;margin-top:12px;">` +
+    `<button class="btn-load-new" onclick="closeValidation();validateDIGGS()">✓ Validate</button>` +
+    `<button class="btn-load-new" onclick="closeValidation()">Close</button></div>`);
+}
+
 /**
  * numTokens(text, keepNaN) — parse a whitespace-separated numeric list
  * (gml:posList, DIGGS parallel arrays, etc.) into an array of Numbers.
@@ -3317,12 +3589,38 @@ function _splitWSQuoted(str) {
   return out;
 }
 
+/** Direct child property element of `parentEl` by local name (namespace-
+ *  agnostic), or null. The entry point for the data-layer parsers below to
+ *  descend through a property wrapper, so they can follow its xlink:href via
+ *  resolveXlinkEl/resolveXlinkChildren (embed-over-href) instead of assuming
+ *  the content is inline — an inline-only descent silently yields nothing
+ *  for an empty reference wrapper. */
+function _childProp(parentEl, localName) {
+  if (!parentEl) return null;
+  for (const c of parentEl.children) if (c.localName === localName) return c;
+  return null;
+}
+
+/** The first `names` object at or below a resolved property object: `obj`
+ *  itself when it already is one (a wrapper's inline/xlinked target), else
+ *  its first descendant of that name in either the DIGGS or GML namespace. */
+function _objOrDescendant(obj, names) {
+  if (!obj || obj.nodeType !== 1) return null;
+  if (names.includes(obj.localName)) return obj;
+  for (const n of names) {
+    const e = obj.getElementsByTagNameNS(NS.diggs, n)[0] || obj.getElementsByTagNameNS(NS.gml, n)[0];
+    if (e) return e;
+  }
+  return null;
+}
+
 /**
  * parseResultSet(rsEl, opts) — a DIGGS `<ResultSet>` → normalized columns+rows.
  *
- * @param {Element} rsEl  a `diggs:ResultSet` element (inline; resolve any
- *   xlink beforehand). Its `parameters/PropertyParameters/properties/Property`
- *   array defines the columns and `dataValues` (cs/ts/decimal) holds the tuples.
+ * @param {Element} rsEl  a `diggs:ResultSet` element (inline). Its
+ *   `parameters/PropertyParameters/properties/Property` array — or, when
+ *   `parameters` is an xlink:href, the referenced PropertyParameters' — defines
+ *   the columns and `dataValues` (cs/ts/decimal) holds the tuples.
  * @param {{expectedRows?:number}} [opts]  `expectedRows` (from the domain, see
  *   parseDomain) disambiguates tuple splitting: a single-position domain
  *   (PointLocation / one LinearExtent interval) means the whole dataValues is
@@ -3345,7 +3643,22 @@ function parseResultSet(rsEl, opts) {
   const D = NS.diggs;
 
   // ── Columns ──────────────────────────────────────────────────
-  const propEls = Array.from(rsEl.getElementsByTagNameNS(D, 'Property'));
+  // `parameters` is a property wrapper: usually an inline PropertyParameters,
+  // but it may instead be an xlink:href to a PropertyParameters defined
+  // elsewhere in the document (typically on another ResultSet, so a batch of
+  // identically-shaped measurements shares one column definition). Inline
+  // wins; otherwise follow the reference (resolveXlinkEl — the same
+  // embed-over-href rule as every other property wrapper). An unresolved
+  // reference left this with zero columns, and a ResultSet with no columns
+  // renders no table and no plot at all (found live: SaudiTestCase's
+  // m-ZLT-201 zone load test, whose `parameters` references #pp-plt-curve-kpa).
+  let propEls = Array.from(rsEl.getElementsByTagNameNS(D, 'Property'));
+  if (!propEls.length) {
+    const wrap = _childProp(rsEl, 'parameters');
+    const pp = wrap && resolveXlinkEl(wrap);
+    const propsWrap = pp && pp.nodeType === 1 ? _childProp(pp, 'properties') : null;
+    if (propsWrap) propEls = resolveXlinkChildren(propsWrap).filter(n => n.nodeType === 1 && n.localName === 'Property');
+  }
   const props = propEls.map((p, i) => {
     const _t = (ns, name) => {
       const e = p.getElementsByTagNameNS(ns, name)[0];
@@ -3433,7 +3746,7 @@ function parseDomain(resultEl) {
   };
 
   // ── Spatial: location → Point/MultiPoint/LinearExtent/MultiCurve/Grid ──
-  const locEl = resultEl.getElementsByTagNameNS(D, 'location')[0];
+  const locEl = _childProp(resultEl, 'location') || resultEl.getElementsByTagNameNS(D, 'location')[0];
   if (locEl) {
     // `location` (LocationPropertyType) may embed its geometry inline OR
     // reference it by xlink:href — GML's AssociationAttributeGroup allows
@@ -3513,10 +3826,13 @@ function parseDomain(resultEl) {
   }
 
   // ── Temporal: timeDomain → TimePositionList / TimeIntervalList ──
-  const tdEl = resultEl.getElementsByTagNameNS(D, 'timeDomain')[0];
+  // timeDomain may embed its list inline or reference it by xlink:href
+  // (inline wins) — resolveXlinkEl, then take the list element at/below the
+  // resolved target.
+  const tdEl = _childProp(resultEl, 'timeDomain') || resultEl.getElementsByTagNameNS(D, 'timeDomain')[0];
   if (tdEl) {
-    const tpl = tdEl.getElementsByTagNameNS(D, 'TimePositionList')[0]
-             || tdEl.getElementsByTagNameNS(G, 'TimePositionList')[0];
+    const tdObj = resolveXlinkEl(tdEl);
+    const tpl = _objOrDescendant(tdObj, ['TimePositionList']);
     if (tpl) {
       const listEl = tpl.getElementsByTagNameNS(D, 'timePositionList')[0]
                   || tpl.getElementsByTagNameNS(G, 'timePositionList')[0];
@@ -3525,8 +3841,7 @@ function parseDomain(resultEl) {
         : [];
       return { kind: 'temporal', geomType: 'TimePositionList', positions };
     }
-    const til = tdEl.getElementsByTagNameNS(D, 'TimeIntervalList')[0]
-             || tdEl.getElementsByTagNameNS(G, 'TimeIntervalList')[0];
+    const til = _objOrDescendant(tdObj, ['TimeIntervalList']);
     if (til) {
       const listEl = til.getElementsByTagNameNS(D, 'timeIntervalList')[0]
                   || til.getElementsByTagNameNS(G, 'timeIntervalList')[0];
@@ -6553,6 +6868,7 @@ function resetToLoad() {
   DIGGS_GROUPS = new Map(); GROUP_BY_ID = new Map(); SF_GROUP_REF = new Map();
   DIGGS_PROJECTS = []; DIGGS_ACTIVE_PROJECT = null; DIGGS_BA_MAP = {};
   _expandedMultiTrackId = null;
+  clearDeprecationHits();
   // LSR_UOM is keyed by srsName, which for a local `#fragment` reference is
   // only unique WITHIN one document — a different DIGGS file can validly
   // reuse the same LinearSpatialReferenceSystem gml:id with a different LRM
@@ -7203,6 +7519,46 @@ function resolveXlinkChildren(wrapperEl) {
   return href ? [href] : [];
 }
 
+/** _danglingRef(wrapperEl, opts) — does this property wrapper point at
+ *  something that CAN'T be reached, so its content is missing from what the
+ *  user sees? Returns `{href, kind:'internal'|'external'}` or null. Inline
+ *  content wins (an element with any child element or text is never
+ *  dangling), as in resolveXlinkChildren. An unreachable link is not
+ *  necessarily an error — e.g. a lab's sample records legitimately carry
+ *  sampleProducedRef/samplingActivityRef to objects the receiving file
+ *  doesn't hold — so callers word it neutrally ("isn't in this file"), the
+ *  point being that the user is told the data is MISSING rather than
+ *  assuming it isn't there. `kind:'internal'` = a `#id` the document has no
+ *  object for. `kind:'external'` = a link into another document that this
+ *  context can't follow: with `dataLayer` (the synchronous result/domain
+ *  parsers) every external link, since none can be fetched at parse time;
+ *  otherwise only one the display layer can't lazily resolve (not on
+ *  REMOTE_XML_WHITELIST, relative path, or no #fragment — see
+ *  _resolveRemoteOrLocalHref). Context validation is where unresolved links
+ *  are formally flagged; this is just the viewer-side notice. */
+function _danglingRef(wrapperEl, opts) {
+  if (!wrapperEl || wrapperEl.nodeType !== 1) return null;
+  if (wrapperEl.children.length || (wrapperEl.textContent || '').trim()) return null;
+  const raw = (wrapperEl.getAttributeNS(NS.xlink, 'href') || wrapperEl.getAttribute('xlink:href') || '').trim();
+  if (!raw) return null;
+  if (raw.startsWith('#')) {
+    return getIdIndex(wrapperEl.ownerDocument).has(raw.slice(1)) ? null : { href: raw, kind: 'internal' };
+  }
+  if (!(opts && opts.dataLayer) && _resolveRemoteOrLocalHref(wrapperEl)) return null;
+  return { href: raw, kind: 'external' };
+}
+
+/** Value-cell HTML for one dangling link (see _danglingRef). */
+function _danglingNoteHtml(d) {
+  const text = d.kind === 'internal'
+    ? `Referenced object isn't in this file (${escHtml(d.href)})`
+    : `External reference isn't loaded (${escHtml(d.href)})`;
+  const tip = d.kind === 'internal'
+    ? 'This link points to an object that is not in the loaded file, so its content cannot be shown. It may be supplied separately, or the link may be broken.'
+    : 'This link points into another document, which the inspector has not loaded, so its content cannot be shown.';
+  return `<span class="kv-unresolved" title="${escHtml(tip)}"><span class="kv-unresolved-ico">⚠</span>${text}</span>`;
+}
+
 /**
  * _resolvePathNodes(el, path) — xlink-aware path resolver for a table
  * column's (interval or data table) drill-down `path` (e.g.
@@ -7766,8 +8122,15 @@ function _codeSpaceKeyExtra(node) {
  *  since there's nothing to render yet (see _toggleRemoteRef for the actual
  *  fetch-on-expand). */
 function renderResolvedObject(propEl, childEl, rowCfg, label, startOpen) {
+  // Deprecation tag for an object that is itself the subject of a registry
+  // entry — either the property wrapper (a deprecated branch such as
+  // glr:lrm) or the object element (e.g. diggs:Uncertainty under
+  // diggs:uncertainty). Appended to whichever label this occurrence
+  // renders with: its category header, its one-line special-formatter row,
+  // or its remote-reference placeholder.
+  const depTag = deprecationRowTag([propEl, childEl].filter(n => n && n.nodeType === 1));
   if (childEl && childEl.__remoteRef) {
-    return wrapRemoteRefPlaceholder(_itemLabel(rowCfg, childEl, label), childEl.url, childEl.fragment, rowCfg.categoryClass);
+    return wrapRemoteRefPlaceholder(_itemLabel(rowCfg, childEl, label) + depTag, childEl.url, childEl.fragment, rowCfg.categoryClass);
   }
   let typeName = childEl.localName || '';
   let cfgArr = null;
@@ -7775,7 +8138,7 @@ function renderResolvedObject(propEl, childEl, rowCfg, label, startOpen) {
     if (Array.isArray(rowCfg.configOverride)) cfgArr = rowCfg.configOverride;
     else typeName = rowCfg.configOverride;
   }
-  const itemLabel = _itemLabel(rowCfg, childEl, label);
+  const itemLabel = _itemLabel(rowCfg, childEl, label) + depTag;
   // rowCfg.geoLocation (2026-07-21) opts a PointLocation/LinearExtent row OUT
   // of the SPECIAL_OBJECT_FORMATTERS one-line shortcut (FORMAT_FN.locationInline)
   // and into the normal OBJECT_CONFIGS registry/nested-KV path instead.
@@ -9915,6 +10278,30 @@ function _buildERTPlots(proc, ctx) {
  *  columnar table (index column(s) + a few summary columns, each row
  *  expandable to a KV table of the object's remaining fields). */
 function renderPropertyRow(el, rowCfg) {
+  // Unresolved-link feedback: a path row whose property element is an empty
+  // reference to something the document can't supply used to vanish without a
+  // word (a row with no resolvable object has nothing to show), leaving the
+  // user to assume the data doesn't exist. Show a note in its place instead.
+  // Skipped for computed rows and expandRef rows (the latter already show
+  // their own "Can't locate" message).
+  if (typeof rowCfg.compute !== 'function' && typeof rowCfg.computeRows !== 'function' && !rowCfg.expandRef) {
+    const path = rowCfg.path || '.';
+    if (path !== '.') {
+      const all = evalXPath(el, path);
+      const bad = [], ok = [];
+      for (const n of all) { const d = n.nodeType === 1 ? _danglingRef(n) : null; (d ? bad : ok).push(d || n); }
+      if (bad.length) {
+        const note = renderSimpleRow(_rowLabel(rowCfg), bad.map(_danglingNoteHtml).join('<br>'),
+          rowCfg.labelClass, rowCfg.valueClass, rowCfg.borderTop, rowCfg.borderBottom);
+        return (ok.length ? _renderPropertyRowCore(el, rowCfg, ok) : '') + note;
+      }
+      return _renderPropertyRowCore(el, rowCfg, all);
+    }
+  }
+  return _renderPropertyRowCore(el, rowCfg);
+}
+
+function _renderPropertyRowCore(el, rowCfg, preNodes) {
   // `compute` is an escape hatch for a value with no schema element of its
   // own — derived from the object's context element by arbitrary JS (e.g.
   // Borehole's Orientation, classified from centerLine's posList tuples).
@@ -9977,7 +10364,7 @@ function renderPropertyRow(el, rowCfg) {
   }
 
   const path = rowCfg.path || '.';
-  const nodes = path === '.' ? [el] : evalXPath(el, path);
+  const nodes = path === '.' ? [el] : (preNodes || evalXPath(el, path));
   const label = _rowLabel(rowCfg);
   if (!nodes.length) {
     return rowCfg.showEmpty ? renderSimpleRow(label, _KV_EMPTY_DASH, rowCfg.labelClass, rowCfg.valueClass, rowCfg.borderTop, rowCfg.borderBottom) : '';
@@ -10038,10 +10425,13 @@ function renderPropertyRow(el, rowCfg) {
   if (!isObject) {
     const cells = targets.map(n => renderSimplePropertyCell(n, rowCfg.boolean, rowCfg.attrClass)).filter(Boolean);
     if (!cells.length) return rowCfg.showEmpty ? renderSimpleRow(label, _KV_EMPTY_DASH, rowCfg.labelClass, rowCfg.valueClass) : '';
+    // Deprecated/removed flag from the schema registry (leaf rows only; an
+    // object row's own header isn't tagged — the Deprecated panel lists it).
+    const depTag = deprecationRowTag(targets);
     if (rowCfg.splitRows) {
-      return cells.map(c => renderSimpleRow(label + c.keyExtra, c.valHtml, rowCfg.labelClass, rowCfg.valueClass, rowCfg.borderTop, rowCfg.borderBottom)).join('');
+      return cells.map(c => renderSimpleRow(label + depTag + c.keyExtra, c.valHtml, rowCfg.labelClass, rowCfg.valueClass, rowCfg.borderTop, rowCfg.borderBottom)).join('');
     }
-    return renderSimpleRow(label + cells[0].keyExtra,
+    return renderSimpleRow(label + depTag + cells[0].keyExtra,
       cells.map(c => c.valHtml).join('<div style="height:4px"></div>'), rowCfg.labelClass, rowCfg.valueClass, rowCfg.borderTop, rowCfg.borderBottom);
   }
 
@@ -10273,7 +10663,7 @@ OBJECT_CONFIGS.Calibration = [
   ..._OBJ_BASE_FIELDS,
   ..._FEATURE_LEADING,
   { path: 'diggs:calibrationData', label: 'Calibration Data' },
-  { path: 'diggs:cqlibrationValues', label: 'Calibration Values' },
+  { path: 'diggs:calibrationValues | diggs:cqlibrationValues', label: 'Calibration Values' },
   { path: 'diggs:date' },
   { path: 'diggs:useSinceLastCalibration', label: 'Use Since Last Calibration' },
   ..._FEATURE_TRAILING,
@@ -10840,7 +11230,7 @@ OBJECT_CONFIGS.DrillPipe = [
   { path: 'diggs:pipeOuterDiameter', label: 'Pipe Outer Diameter' },
   { path: 'diggs:pipeMaterial', label: 'Pipe Material' },
   { path: 'diggs:pipeSectionLength', label: 'Pipe Section Length' },
-  { path: 'diggs:pipeSectcionWeight', label: 'Pipe Section Weight' },
+  { path: 'diggs:pipeSectionWeight | diggs:pipeSectcionWeight', label: 'Pipe Section Weight' },
   ..._COMPONENT_TRAILING,
 ];
 
@@ -10851,7 +11241,7 @@ OBJECT_CONFIGS.DrillPipe = [
 OBJECT_CONFIGS.Specification = [
   ..._OBJ_BASE_FIELDS,
   ..._FEATURE_LEADING,
-  { path: 'diggs:accredtingBody', label: 'Accrediting Body' },
+  { path: 'diggs:accreditingBody | diggs:accredtingBody', label: 'Accrediting Body' },
   { path: 'diggs:shortMethodName', label: 'Short Method Name' },
   { path: 'diggs:standardClause', label: 'Standard Clause' },
   { path: 'diggs:standardPart', label: 'Standard Part' },
@@ -11075,7 +11465,7 @@ OBJECT_CONFIGS.TemperatureMeasurement = [
 // (core/Core.xsd:7370) extends AbstractObjectType.
 OBJECT_CONFIGS.IntactSpecimenPreparationInfo = [
   ..._OBJ_BASE_FIELDS,
-  { path: 'diggs:IntactSpecimenType', label: 'Intact Specimen Type' },
+  { path: 'diggs:intactSpecimenType | diggs:IntactSpecimenType', label: 'Intact Specimen Type' },
   { path: 'diggs:specimenTrimmedInWetRoom', label: 'Trimmed in Wet Room', boolean: true },
   ..._OBJ_TYPE_TRAILING,
 ];
@@ -11590,14 +11980,16 @@ OBJECT_CONFIGS.LabCBRTestTrial = [
 // order/specimen filtering follow the same conventions as LabCBRTest above
 // — see that config's own comment and _labProcReferencedSpecimens.
 //
-// mouldDiameter/mouldVolume/rammerDiameter/rammerMass/rammerWeight/
-// rammerDrop/rammerIsManual/numberOfLayers/blowsPerLayer are all DEPRECATED
-// 9/26 in favor of the equivalent fields on
-// SoilSpecimen/reconstitutedSpecimenPreparationInfo (already populated —
-// see OBJECT_CONFIGS.ReconstitutedSpecimenPreparationInfo) but kept as rows
-// here, labeled "(legacy)", for graceful display of any pre-migration
-// instance that still carries them at this level — same precedent as
-// LabCompactionTestTrial's own convertedWetDensityDensity below.
+// mouldDiameter/mouldVolume/rammerDiameter/rammerMass/rammerDrop/
+// rammerIsManual/numberOfLayers/blowsPerLayer are all DEPRECATED in favor of
+// the equivalent fields on SoilSpecimen/reconstitutedSpecimenPreparationInfo
+// (already populated — see OBJECT_CONFIGS.ReconstitutedSpecimenPreparationInfo)
+// but kept as rows here for graceful display of any pre-migration instance
+// that still carries them at this level — same precedent as
+// LabCompactionTestTrial's own convertedWetDensityDensity below. They carry
+// no hand-written "(legacy)" label: the schema deprecation registry flags
+// them automatically (deprecationRowTag). rammerWeight was deleted from this
+// type outright (no row); its live home is ReconstitutedSpecimenPreparationInfo.
 //
 // `trial`'s dataTable summary columns (Trial No./Water Content/Dry Density)
 // surface the two headline results; the full trial content — including the
@@ -11611,14 +12003,14 @@ OBJECT_CONFIGS.LabCompactionTest = [
   { path: 'diggs:fieldWetDensity', label: 'Field Wet Density' },
   { path: 'diggs:fieldDryDensity', label: 'Field Dry Density' },
   { path: 'diggs:fieldWaterContent', label: 'Field Water Content' },
-  { path: 'diggs:mouldDiameter', label: 'Mould Diameter (legacy)' },
-  { path: 'diggs:mouldVolume', label: 'Mould Volume (legacy)' },
-  { path: 'diggs:rammerDiameter', label: 'Rammer Diameter (legacy)' },
-  { path: 'diggs:rammerMass', label: 'Rammer Mass (legacy)' },
-  { path: 'diggs:rammerDrop', label: 'Rammer Drop (legacy)' },
-  { path: 'diggs:rammerIsManual', label: 'Rammer Is Manual (legacy)', boolean: true },
-  { path: 'diggs:numberOfLayers', label: 'Number of Layers (legacy)' },
-  { path: 'diggs:blowsPerLayer', label: 'Blows per Layer (legacy)' },
+  { path: 'diggs:mouldDiameter', label: 'Mould Diameter' },
+  { path: 'diggs:mouldVolume', label: 'Mould Volume' },
+  { path: 'diggs:rammerDiameter', label: 'Rammer Diameter' },
+  { path: 'diggs:rammerMass', label: 'Rammer Mass' },
+  { path: 'diggs:rammerDrop', label: 'Rammer Drop' },
+  { path: 'diggs:rammerIsManual', label: 'Rammer Is Manual', boolean: true },
+  { path: 'diggs:numberOfLayers', label: 'Number of Layers' },
+  { path: 'diggs:blowsPerLayer', label: 'Blows per Layer' },
   {
     path: 'diggs:trial', multi: true,
     label: 'Trial', labelPlural: 'Trials',
@@ -11671,7 +12063,7 @@ OBJECT_CONFIGS.LabCompactionTestTrial = [
   { path: 'diggs:wetDensity', label: 'Wet Density' },
   { path: 'diggs:dryDensity', label: 'Dry Density' },
   { path: 'diggs:convertedWetDensity', label: 'Converted Wet Density' },
-  { path: 'diggs:convertedWetDensityDensity', label: 'Converted Wet Density (legacy)' },
+  { path: 'diggs:convertedWetDensityDensity', label: 'Converted Wet Density' },
   { path: 'diggs:moistureAdjustment', label: 'Moisture Adjustment' },
   { path: 'diggs:tamperReading', label: 'Tamper Reading' },
   {
@@ -13045,7 +13437,7 @@ OBJECT_CONFIGS.Sample = [
   // apply it to rock). Distinct from SamplingActivity's own samplingCategory
   // (the activity-side technique category, applying to both soil and rock).
   { path: 'diggs:qualityClass', label: 'Quality Class' },
-  { path: 'diggs:coreDistkurbance', label: 'Core Disturbance' },
+  { path: 'diggs:coreDisturbance | diggs:coreDistkurbance', label: 'Core Disturbance' },
   { path: 'diggs:sampleMatrix', label: 'Sample Matrix' },
   { path: 'diggs:initialPreservationMethod', label: 'Initial Preservation Method' },
   { path: 'diggs:extrusionMethod', label: 'Extrusion Method' },
@@ -13176,7 +13568,7 @@ OBJECT_CONFIGS.Locality = [
   { path: 'diggs:district' },
   { path: 'diggs:division' },
   { path: 'diggs:lot' },
-  { path: 'diggs:parceI', label: 'Parcel' },
+  { path: 'diggs:parcel | diggs:parceI', label: 'Parcel' },
   { path: 'diggs:plss' },
   { path: 'diggs:quadrangle' },
   { path: 'diggs:route' },
@@ -13341,7 +13733,7 @@ OBJECT_CONFIGS.LocalCoordinate = [
   { path: 'diggs:northing' },
   { path: 'diggs:elevation' },
   { path: 'diggs:location' },
-  { path: 'diggs:localCoodinateUncertainty', label: 'Uncertainty' },
+  { path: 'diggs:localCoordinateUncertainty | diggs:localCoodinateUncertainty', label: 'Uncertainty' },
 ];
 
 // ══════════════════════════════════════════════════════════════
@@ -14081,7 +14473,7 @@ OBJECT_CONFIGS.Flush = [
   { path: 'diggs:flushZoneLocation', label: 'Location' },
   { path: 'diggs:fluidType', label: 'Fluid Type' },
   { path: 'diggs:minFlushReturn', label: 'Min Flush Return' },
-  { path: 'diggs:maxflushReturn', label: 'Max Flush Return' },
+  { path: 'diggs:maxFlushReturn | diggs:maxflushReturn', label: 'Max Flush Return' },
   { path: 'diggs:flushColor', label: 'Flush Color' },
   ..._OBJ_TYPE_TRAILING,
 ];
@@ -17144,6 +17536,9 @@ function loadDIGGS(doc, filename) {
   // ── DETECT DIGGS NAMESPACE ────────────────────────
   const detectedNS = detectDiggsNS(doc);
 
+  // ── DEPRECATED / REMOVED CONTENT (live registry; async, renders don't wait) ──
+  runDeprecationCheck(doc);
+
   // ── INDEX EMBEDDED LOCAL CARTESIAN CRS DEFINITIONS ─
   // Must happen before any SF parsing, since toWGS84() consults LOCAL_CRS_INDEX.
   indexLocalCartesianCRS(doc);
@@ -17873,19 +18268,38 @@ function loadDIGGS(doc, filename) {
       }
 
       // outcome → the type's single result element → domain + resultSet.
+      // Every hop is a property wrapper that may be inline OR an xlink:href
+      // (inline wins): outcome -> result element, results -> ResultSet.
       const outcomeEl = xFirst(doc, 'diggs:outcome', measEl);
       const resultEl  = outcomeEl
-        ? xFirst(doc, `diggs:${_MEAS_RESULT_ELEM[measType]}`, outcomeEl)
+        ? _objOrDescendant(resolveXlinkEl(outcomeEl), [_MEAS_RESULT_ELEM[measType]])
         : null;
       const domain = resultEl ? parseDomain(resultEl) : null;
-      const rsEl   = resultEl ? xFirst(doc, './/diggs:ResultSet', resultEl) : null;
+      const rsWrap = resultEl ? _childProp(resultEl, 'results') : null;
+      // Links on the way to this measurement's data that the synchronous
+      // parsers couldn't follow (they would otherwise just leave the result
+      // or its domain empty with no explanation) — surfaced in the badge.
+      const linkIssues = [];
+      const _noteLink = (what, wrap) => { const d = _danglingRef(wrap, { dataLayer: true }); if (d) linkIssues.push({ what, ...d }); };
+      _noteLink('outcome', outcomeEl);
+      for (const w of xNodes(doc, 'diggs:procedure', measEl)) _noteLink('procedure', w);
+      if (resultEl) {
+        _noteLink('results', rsWrap);
+        _noteLink('location', _childProp(resultEl, 'location'));
+        _noteLink('time domain', _childProp(resultEl, 'timeDomain'));
+      }
+      const rsEl   = resultEl
+        ? (_objOrDescendant(rsWrap && resolveXlinkEl(rsWrap), ['ResultSet'])
+           || xFirst(doc, './/diggs:ResultSet', resultEl))
+        : null;
       const expectedRows = domain && Array.isArray(domain.positions)
         ? domain.positions.length : undefined;
       const resultSet = rsEl ? parseResultSet(rsEl, { expectedRows }) : null;
+      if (rsEl) _noteLink('column definitions (parameters)', _childProp(rsEl, 'parameters'));
 
       if (!DIGGS_MEASUREMENTS[sfId]) DIGGS_MEASUREMENTS[sfId] = [];
       DIGGS_MEASUREMENTS[sfId].push({
-        measType, el: measEl, sfId, procType, procObjs, domain, resultSet,
+        measType, el: measEl, sfId, procType, procObjs, domain, resultSet, linkIssues,
       });
 
       // Reverse sampleRef index (DIGGS_SAMPLE_MEASUREMENTS) — search the
@@ -24732,7 +25146,14 @@ function buildMeasurementDisplay(sf) {
         html += _buildMeasSplitHtml(splitId, panes);
       }
 
-      return html || '<div class="empty-state" style="padding:12px">No displayable measurement data.</div>';
+      // Unresolved links that left this badge's data (or part of it) empty.
+      const linkNotes = group.flatMap(r => (r.linkIssues || []).map(i => ({ ...i, meas: r.el.getAttributeNS(NS.gml, 'id') || '' })));
+      const linkNoteHtml = linkNotes.length
+        ? `<div class="meas-link-note">Some data could not be shown because of links that don't resolve:<ul style="margin:4px 0 0 18px;padding:0;">`
+          + linkNotes.map(n => `<li>${escHtml(n.what)}${n.meas && isMulti ? ` of ${escHtml(n.meas)}` : ''}: ${_danglingNoteHtml(n)}</li>`).join('')
+          + `</ul></div>`
+        : '';
+      return linkNoteHtml + (html || '<div class="empty-state" style="padding:12px">No displayable measurement data.</div>');
     };
 
     badges.push({
